@@ -546,6 +546,250 @@ body.chat-active .face{
   to{transform:scale(1.06);box-shadow:0 0 40px rgba(0,240,255,.6)}
 }
 
+/* ══════════════ 15 NEW ADVANCED 3D EYE EXPRESSIONS ══════════════ */
+
+/* 14. SUSPICIOUS */
+.state-suspicious .eyelid-top{
+  transform:scaleY(0.68) rotate(-4deg)!important;animation:none!important;
+}
+.state-suspicious .eye-socket:last-child .eyelid-top{
+  transform:scaleY(0.74) rotate(4deg)!important;
+}
+.state-suspicious .eyelid-bottom{
+  transform:scaleY(0.42)!important;animation:none!important;
+}
+.state-suspicious .eye-iris{
+  animation:suspicious-scan 2.8s ease-in-out infinite alternate;
+}
+@keyframes suspicious-scan{
+  0%{transform:translate(-65%, -50%) scale(0.9)}
+  100%{transform:translate(-35%, -50%) scale(0.9)}
+}
+
+/* 15. HEART-EYES */
+.state-heart-eyes .eye{
+  box-shadow:0 0 35px rgba(255,20,147,0.6), inset 0 0 25px rgba(255,105,180,0.4);
+  animation:heart-throb 0.8s ease-in-out infinite alternate;
+}
+.state-heart-eyes .eye-iris{
+  background:radial-gradient(circle at 50% 50%, #ff1493 0%, #ff007f 60%, #4a0026 100%)!important;
+}
+.state-heart-eyes .eye-pupil{
+  width:22px!important;height:22px!important;
+  background:#ff007f!important;
+  clip-path:polygon(50% 15%, 80% 0, 100% 20%, 100% 50%, 50% 95%, 0 50%, 0 20%, 20% 0);
+  animation:heart-pulse 0.8s ease-in-out infinite alternate;
+  box-shadow:0 0 16px #ff69b4;
+}
+@keyframes heart-throb{
+  from{transform:scale(1)}
+  to{transform:scale(1.08)}
+}
+@keyframes heart-pulse{
+  from{transform:translate(-50%,-50%) scale(1)}
+  to{transform:translate(-50%,-50%) scale(1.25)}
+}
+
+/* 16. CONFUSED */
+.state-confused .eye-socket:first-child .eyelid-top{
+  transform:scaleY(0.7) rotate(-12deg)!important;animation:none!important;
+}
+.state-confused .eye-socket:first-child .eyelid-bottom{
+  transform:scaleY(0.4)!important;animation:none!important;
+}
+.state-confused .eye-socket:last-child .eyelid-top,
+.state-confused .eye-socket:last-child .eyelid-bottom{
+  transform:scaleY(0)!important;animation:none!important;
+}
+.state-confused .eye-socket:last-child .eye{
+  transform:scale(1.1);
+}
+.state-confused .eye-iris{
+  transform:translate(-50%, -60%) scale(0.9);
+}
+
+/* 17. FOCUSED */
+.state-focused .eyelid-top{
+  transform:scaleY(0.38)!important;animation:none!important;
+}
+.state-focused .eyelid-bottom{
+  transform:scaleY(0.3)!important;animation:none!important;
+}
+.state-focused .eye{
+  box-shadow:0 0 35px var(--accent), inset 0 0 20px var(--accent);
+  animation:focus-pulse 2s ease-in-out infinite alternate;
+}
+.state-focused .eye-pupil{
+  transform:translate(-50%,-50%) scale(0.6);
+}
+.state-focused .eye-pupil-core{
+  background:#ffffff;box-shadow:0 0 12px #ffffff;opacity:1;
+}
+@keyframes focus-pulse{
+  0%{transform:scale(1.02)}
+  100%{transform:scale(1.08)}
+}
+
+/* 18. SCARED */
+.state-scared .eye{
+  animation:scared-jitter 0.12s infinite alternate;
+  box-shadow:0 0 45px rgba(0,240,255,0.7), inset 0 0 30px rgba(0,240,255,0.4);
+}
+.state-scared .eyelid-top, .state-scared .eyelid-bottom{
+  transform:scaleY(0)!important;animation:none!important;
+}
+.state-scared .eye-pupil{
+  transform:translate(-50%,-50%) scale(0.45);
+}
+@keyframes scared-jitter{
+  0%{transform:translate(-1.5px, 1.5px) scale(1.12)}
+  100%{transform:translate(1.5px, -1.5px) scale(1.14)}
+}
+
+/* 19. GLITCH */
+.state-glitch .eye{
+  animation:glitch-flicker 0.22s steps(2, start) infinite;
+  box-shadow:-4px 0 20px #00f0ff, 4px 0 20px #ff0055, inset 0 0 20px #ffffff;
+}
+.state-glitch .eye-iris{
+  filter:hue-rotate(90deg) contrast(1.8);
+  animation:glitch-slice 0.3s steps(3, end) infinite alternate;
+}
+@keyframes glitch-flicker{
+  0%{transform:translate(0, 0) skewX(0deg)}
+  25%{transform:translate(-3px, 1px) skewX(-4deg)}
+  50%{transform:translate(3px, -2px) skewX(3deg)}
+  75%{transform:translate(-2px, -1px) skewX(-2deg)}
+  100%{transform:translate(1px, 2px) skewX(1deg)}
+}
+@keyframes glitch-slice{
+  0%{clip-path:inset(0 0 0 0)}
+  33%{clip-path:inset(15% 0 30% 0)}
+  66%{clip-path:inset(40% 0 10% 0)}
+  100%{clip-path:inset(0 0 0 0)}
+}
+
+/* 20. STARGAZING */
+.state-stargazing .eyelid-top{
+  transform:scaleY(0.15)!important;animation:none!important;
+}
+.state-stargazing .eyelid-bottom{
+  transform:scaleY(0.1)!important;animation:none!important;
+}
+.state-stargazing .eye{
+  box-shadow:0 0 40px rgba(181,23,158,0.5), inset 0 0 30px rgba(0,240,255,0.4);
+}
+.state-stargazing .eye-iris{
+  transform:translate(-50%, -75%) scale(1.15);
+  background:radial-gradient(circle at 50% 40%, #ffffff 0%, #00f0ff 35%, #7209b7 70%, #150033 100%)!important;
+}
+.state-stargazing .eye-highlight{
+  animation:stargaze-sparkle 1.2s infinite alternate;
+}
+@keyframes stargaze-sparkle{
+  0%{transform:scale(0.8);opacity:0.6}
+  100%{transform:scale(1.4);opacity:1;box-shadow:0 0 12px #fff}
+}
+
+/* 21. DEAD / OFFLINE */
+.state-dead .eye{
+  opacity:0.22;
+  box-shadow:0 0 10px rgba(255,255,255,0.1), inset 0 0 10px rgba(0,0,0,0.8);
+  filter:grayscale(1);
+}
+.state-dead .eyelid-top{
+  transform:scaleY(0.85)!important;animation:none!important;
+}
+.state-dead .eyelid-bottom{
+  transform:scaleY(0.8)!important;animation:none!important;
+}
+.state-dead .eye-pupil{
+  opacity:0;
+}
+
+/* 22. EYEROLL */
+.state-eyeroll .eye-iris{
+  animation:eyeroll-anim 2s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+}
+.state-eyeroll .eyelid-top{
+  transform:scaleY(0.2)!important;animation:none!important;
+}
+@keyframes eyeroll-anim{
+  0%{transform:translate(-50%, -50%)}
+  25%{transform:translate(-70%, -80%)}
+  50%{transform:translate(0%, -85%)}
+  75%{transform:translate(25%, -60%)}
+  100%{transform:translate(-50%, -50%)}
+}
+
+/* 23. HYPNOTIZED */
+.state-hypnotized .eye-iris{
+  background:repeating-radial-gradient(circle, #00f0ff 0, #00f0ff 6px, #7209b7 7px, #7209b7 14px, #ff0055 15px, #ff0055 21px)!important;
+  animation:hypno-spiral 2s linear infinite;
+}
+.state-hypnotized .eye{
+  box-shadow:0 0 35px #7209b7, inset 0 0 25px #00f0ff;
+}
+@keyframes hypno-spiral{
+  0%{transform:translate(-50%,-50%) rotate(0deg) scale(1)}
+  50%{transform:translate(-50%,-50%) rotate(180deg) scale(1.15)}
+  100%{transform:translate(-50%,-50%) rotate(360deg) scale(1)}
+}
+
+/* 24. BORED */
+.state-bored .eyelid-top{
+  transform:scaleY(0.78)!important;animation:none!important;
+}
+.state-bored .eyelid-bottom{
+  transform:scaleY(0.35)!important;animation:none!important;
+}
+.state-bored .eye-iris{
+  transform:translate(-50%, -28%) scale(0.88);
+  opacity:0.65;
+}
+.state-bored .eye{
+  box-shadow:0 0 16px rgba(0,240,255,0.2);
+}
+
+/* 25. NINJA */
+.state-ninja .eyelid-top{
+  transform:scaleY(0.72) rotate(16deg)!important;animation:none!important;
+}
+.state-ninja .eye-socket:last-child .eyelid-top{
+  transform:scaleY(0.72) rotate(-16deg)!important;
+}
+.state-ninja .eyelid-bottom{
+  transform:scaleY(0.55) rotate(-12deg)!important;animation:none!important;
+}
+.state-ninja .eye-socket:last-child .eyelid-bottom{
+  transform:scaleY(0.55) rotate(12deg)!important;
+}
+.state-ninja .eye{
+  box-shadow:0 0 32px #ff0055, inset 0 0 16px #ff0055;
+}
+.state-ninja .eye-iris{
+  background:radial-gradient(circle, #ff0055 0%, #8b0000 60%, #1a0005 100%)!important;
+}
+
+/* 26. OVERHEATING */
+.state-overheating .eye{
+  animation:overheat-burn 0.6s ease-in-out infinite alternate;
+  box-shadow:0 0 45px #ff3b30, 0 0 80px rgba(255,59,48,0.5), inset 0 0 30px #ff9500;
+}
+.state-overheating .eye-iris{
+  background:radial-gradient(circle at 45% 45%, #ffcc00 0%, #ff3b30 50%, #660000 100%)!important;
+}
+.state-overheating .eyelid-top{
+  transform:scaleY(0.35)!important;animation:none!important;
+}
+.state-overheating .eyelid-bottom{
+  transform:scaleY(0.25)!important;animation:none!important;
+}
+@keyframes overheat-burn{
+  from{transform:scale(1);box-shadow:0 0 35px #ff3b30, inset 0 0 20px #ff9500}
+  to{transform:scale(1.1);box-shadow:0 0 55px #ff9500, inset 0 0 35px #ff3b30}
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    CHAT AREA & MESSAGE BUBBLES
    ═══════════════════════════════════════════════════════════════════ */
@@ -1056,3 +1300,152 @@ body.chat-active .face{
   opacity:1;transform:translateX(-50%) translateY(0);
 }
 .hidden{display:none!important}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CLAUDE-STYLE PROJECTS SYSTEM
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Active Project Badge in Header */
+.active-project-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:3px 10px;border-radius:14px;
+  background:rgba(0,240,255,0.12);border:1px solid rgba(0,240,255,0.3);
+  color:var(--accent);font-size:11.5px;font-weight:600;
+  cursor:pointer;max-width:160px;
+  transition:all .2s;margin-left:6px;
+}
+.active-project-badge:hover{
+  background:rgba(0,240,255,0.22);border-color:var(--accent);
+}
+.active-project-badge span{
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.project-dot{
+  width:6px;height:6px;border-radius:50%;background:var(--accent);
+  box-shadow:0 0 8px var(--accent);flex-shrink:0;
+}
+.btn-exit-project{
+  background:none;border:none;color:var(--text-muted);font-size:14px;line-height:1;
+  padding:0 2px;cursor:pointer;transition:color .2s;margin-left:2px;
+}
+.btn-exit-project:hover{color:#ff0055;}
+
+/* Project Modal */
+.project-dialog{
+  max-width:480px;
+}
+.project-modal-desc{
+  font-size:12.5px;color:var(--text-muted);line-height:1.5;margin-bottom:14px;
+}
+.project-field-group{
+  display:flex;flex-direction:column;gap:6px;margin-bottom:14px;
+}
+.project-label{
+  font-size:12px;font-weight:600;color:var(--text-primary);letter-spacing:0.3px;
+}
+.project-input, .project-textarea{
+  width:100%;padding:10px 14px;border-radius:12px;
+  background:rgba(255,255,255,0.04);border:1px solid var(--border-color);
+  color:var(--text-primary);font-size:13.5px;font-family:inherit;
+  outline:none;transition:border-color .2s, box-shadow .2s;
+}
+.project-input:focus, .project-textarea:focus{
+  border-color:var(--accent);box-shadow:0 0 10px var(--accent-glow-subtle);
+  background:rgba(255,255,255,0.07);
+}
+.project-textarea{resize:vertical;min-height:120px;line-height:1.5;}
+.project-dialog-actions{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px;
+}
+.project-dialog-action-right{
+  display:flex;align-items:center;gap:8px;margin-left:auto;
+}
+.btn-project-action{
+  padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;
+  cursor:pointer;transition:all .2s;border:none;
+}
+.btn-project-primary{
+  background:linear-gradient(135deg, var(--accent), var(--accent-secondary));
+  color:#000;font-weight:700;box-shadow:0 4px 14px var(--accent-glow-subtle);
+}
+.btn-project-primary:hover{
+  box-shadow:0 6px 18px var(--accent-glow);transform:translateY(-1px);
+}
+.btn-project-secondary{
+  background:rgba(255,255,255,0.06);border:1px solid var(--border-color);
+  color:var(--text-muted);
+}
+.btn-project-secondary:hover{
+  background:rgba(255,255,255,0.1);color:#fff;
+}
+.btn-project-danger{
+  background:rgba(255,0,85,0.12);border:1px solid rgba(255,0,85,0.3);
+  color:#ff0055;
+}
+.btn-project-danger:hover{
+  background:rgba(255,0,85,0.22);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   INSTANT IMAGE GENERATION CARD (Pollinations.ai)
+   ═══════════════════════════════════════════════════════════════════ */
+.msg-image-card{
+  display:flex;flex-direction:column;gap:10px;
+  background:rgba(18,24,36,0.65);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border:1px solid rgba(0,240,255,0.25);border-radius:18px;
+  padding:12px;max-width:440px;width:100%;
+  box-shadow:0 12px 32px rgba(0,0,0,0.5),0 0 20px var(--accent-glow-subtle);
+  animation:msg-pop .3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.msg-image-header{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+}
+.msg-image-tag{
+  display:flex;align-items:center;gap:6px;
+  font-size:11px;font-weight:700;color:var(--accent);letter-spacing:0.5px;
+  text-transform:uppercase;
+}
+.msg-image-wrap{
+  position:relative;width:100%;aspect-ratio:1/1;
+  border-radius:14px;overflow:hidden;
+  background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.06);
+}
+.msg-image-img{
+  width:100%;height:100%;object-fit:cover;display:block;
+  border-radius:14px;transition:transform .3s ease, opacity .35s ease;
+  opacity:0;
+}
+.msg-image-img.loaded{
+  opacity:1;
+}
+.msg-image-skeleton{
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:10px;color:var(--text-muted);font-size:12px;
+  background:linear-gradient(90deg, rgba(255,255,255,0.02) 0%, rgba(0,240,255,0.08) 50%, rgba(255,255,255,0.02) 100%);
+  background-size:200% 100%;
+  animation:skeleton-shimmer 1.8s infinite linear;
+}
+@keyframes skeleton-shimmer{
+  0%{background-position:200% 0}
+  100%{background-position:-200% 0}
+}
+.msg-image-prompt-text{
+  font-size:12.5px;line-height:1.45;color:var(--text-secondary);
+  font-style:italic;word-break:break-word;
+}
+.msg-image-footer{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  border-top:1px solid rgba(255,255,255,0.06);padding-top:8px;margin-top:2px;
+}
+.msg-image-action-btn{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:6px 11px;border-radius:8px;
+  background:rgba(255,255,255,0.05);border:1px solid var(--border-color);
+  color:var(--text-primary);font-size:11.5px;font-weight:600;
+  cursor:pointer;transition:all .2s;text-decoration:none;
+}
+.msg-image-action-btn:hover{
+  background:rgba(0,240,255,0.15);border-color:var(--accent);color:#fff;
+}
+

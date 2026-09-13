@@ -57,6 +57,19 @@ const DOM = {
   btnCloseSettings:   $('#btnCloseSettings'),
   topbarTitle:        $('#topbarTitle'),
 
+  // Projects System & Creative Studio
+  activeProjectBadge:   $('#activeProjectBadge'),
+  activeProjectName:    $('#activeProjectName'),
+  btnExitProject:       $('#btnExitProject'),
+  projectModal:         $('#projectModal'),
+  btnCloseProjectModal: $('#btnCloseProjectModal'),
+  projectNameInput:     $('#projectNameInput'),
+  projectPromptInput:   $('#projectPromptInput'),
+  btnSaveProject:       $('#btnSaveProject'),
+  btnCancelProject:     $('#btnCancelProject'),
+  btnClearProject:      $('#btnClearProject'),
+  navImageGen:          $('#navImageGen'),
+
   // Avatar & 3D Eyes
   avatarZone:         $('#avatarZone'),
   face:               $('#face'),
@@ -229,7 +242,7 @@ async function renameLocalSession(sessionId, newTitle) {
   }
 }
 
-/* ═══════ 3D EYE EXPRESSIONS ENGINE (10+ Advanced States) ═══════ */
+/* ═══════ 3D EYE EXPRESSIONS ENGINE (15+ Advanced States) ═══════ */
 const STATES = [
   'state-idle', 'state-listening', 'state-loading', 'state-processing', 'state-speaking',
   'state-sleepy', 'state-crying', 'state-winking', 'state-angry', 'state-surprised',
@@ -242,6 +255,10 @@ const STATES = [
   'state-farewell', 'state-joking', 'state-sarcastic', 'state-empathetic', 'state-motivating',
   'state-questioning', 'state-answering', 'state-coding', 'state-music', 'state-weather',
   'state-news', 'state-math', 'state-science', 'state-history', 'state-philosophy', 'state-gaming',
+  // 15 New Advanced States (Phase 3)
+  'state-suspicious', 'state-heart-eyes', 'state-focused', 'state-scared', 'state-glitch',
+  'state-stargazing', 'state-dead', 'state-eyeroll', 'state-hypnotized', 'state-ninja',
+  'state-overheating',
 ];
 
 let currentSessionId = sessionStorage.getItem(SESSION_STORAGE_KEY) || generateSessionId();
@@ -271,13 +288,25 @@ const _EX_MAP = [
   ['state-angry',       ['angry','gussa','hate','furious','rage','annoyed','terrible','worst','stupid','bakwas']],
   ['state-sleepy',      ['sleep','sleepy','tired','exhausted','bedtime','good night','yawning','neend','so jao']],
   ['state-scanning',    ['scan','scanning','analyze','inspect','search database','diagnose','check file','analyzing']],
-  ['state-dizzy',       ['dizzy','headache','confused','spinning','chakkar','round and round']],
+  ['state-dizzy',       ['dizzy','headache','spinning','chakkar','round and round']],
   ['state-thinking',    ['think','reasoning','algorithm','logic','pondering','plan','calculate','sochna','solve']],
   ['state-coding',      ['code','coding','program','debug','function','variable','script','python','javascript','html','css','api','developer','github']],
   ['state-math',        ['math','calculate','equation','formula','algebra','geometry','calculus','percent','multiply','sum']],
   ['state-music',       ['music','song','sing','melody','guitar','piano','rapper','album','spotify','concert']],
   ['state-weather',     ['weather','mausam','temperature','rain','sunny','cloudy','storm','snow']],
-  ['state-love',        ['love','pyaar','ishq','dil','heart','romantic','valentine','crush','baby','darling']],
+  ['state-heart-eyes',  ['love','pyaar','ishq','dil','heart','romantic','valentine','crush','baby','darling','adore','sweetheart']],
+  ['state-suspicious',  ['suspicious','sus','lie','lying','fake','doubt','shak','sach batao','imposter','conspiracy','cheat']],
+  ['state-confused',    ['confused','what do you mean','samajh nahi','kya keh rahe','puzzled','bewildered','lost']],
+  ['state-focused',     ['focus','concentrate','target','aim','precise','attention','dhyan','goal','mission','priority']],
+  ['state-scared',      ['scared','fear','ghost','horror','afraid','spooky','darr','bhut','creep','nightmare','terrified']],
+  ['state-glitch',      ['glitch','bug','matrix','corrupt','lag','crash','broken','cyberpunk','hacked']],
+  ['state-stargazing',  ['star','galaxy','space','universe','cosmos','astronomy','telescope','sky','planet','tara','chand']],
+  ['state-dead',        ['dead','offline','rip','shutdown','power off','khatam','sleep forever','mar gaya','turn off']],
+  ['state-eyeroll',     ['eyeroll','roll eyes','whatever','duh','annoying','chup','irritating','bakwaas']],
+  ['state-hypnotized',  ['hypnotize','hypnotized','trance','mesmerize','spell','magic','vash','illusion','mind blown']],
+  ['state-bored',       ['bored','boring','bore ho raha','meh','tiresome','uninteresting','so boring']],
+  ['state-ninja',       ['ninja','stealth','shadow','samurai','assassin','martial art','shinobi','silent','knife']],
+  ['state-overheating', ['overheat','overheating','hot','burning','fire','aag','garam','smoke','meltdown','explosion','too hot']],
 ];
 
 function detectEyeExpression(userText, aiText) {
@@ -332,6 +361,88 @@ async function initStatusBar() {
       console.warn('[StatusBar] Init error:', err);
     }
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CLAUDE-STYLE "PROJECTS" SYSTEM (Custom System Context & Persona)
+   ═══════════════════════════════════════════════════════════════════ */
+const ACTIVE_PROJECT_KEY = 'marvo.activeProject';
+let activeProject = null;
+
+async function loadActiveProject() {
+  try {
+    const data = await NativeStorage.getJSON(ACTIVE_PROJECT_KEY, null);
+    if (data && data.name && data.name.trim()) {
+      activeProject = {
+        name: data.name.trim(),
+        instructions: (data.instructions || '').trim(),
+      };
+      renderActiveProjectBadge();
+    } else {
+      activeProject = null;
+      renderActiveProjectBadge();
+    }
+  } catch (err) {
+    console.warn('[Projects] Failed to load active project:', err);
+  }
+}
+
+function renderActiveProjectBadge() {
+  if (!DOM.activeProjectBadge) return;
+  if (activeProject && activeProject.name) {
+    DOM.activeProjectBadge.classList.remove('hidden');
+    if (DOM.activeProjectName) DOM.activeProjectName.textContent = activeProject.name;
+    DOM.activeProjectBadge.title = `Project "${activeProject.name}" is active. Click to edit.`;
+    DOM.btnClearProject?.classList.remove('hidden');
+  } else {
+    DOM.activeProjectBadge.classList.add('hidden');
+    DOM.btnClearProject?.classList.add('hidden');
+  }
+}
+
+function openProjectModal() {
+  closeAllDropdowns();
+  closeSidebar();
+  if (activeProject) {
+    if (DOM.projectNameInput) DOM.projectNameInput.value = activeProject.name || '';
+    if (DOM.projectPromptInput) DOM.projectPromptInput.value = activeProject.instructions || '';
+    DOM.btnClearProject?.classList.remove('hidden');
+  } else {
+    if (DOM.projectNameInput) DOM.projectNameInput.value = '';
+    if (DOM.projectPromptInput) DOM.projectPromptInput.value = '';
+    DOM.btnClearProject?.classList.add('hidden');
+  }
+  DOM.projectModal?.classList.add('show');
+  DOM.projectNameInput?.focus();
+}
+
+function closeProjectModal() {
+  DOM.projectModal?.classList.remove('show');
+}
+
+async function saveActiveProject() {
+  const name = DOM.projectNameInput ? DOM.projectNameInput.value.trim() : '';
+  const instructions = DOM.projectPromptInput ? DOM.projectPromptInput.value.trim() : '';
+
+  if (!name) {
+    showToast('Please enter a project name');
+    DOM.projectNameInput?.focus();
+    return;
+  }
+
+  activeProject = { name, instructions };
+  await NativeStorage.setJSON(ACTIVE_PROJECT_KEY, activeProject);
+  renderActiveProjectBadge();
+  closeProjectModal();
+  showToast(`Project "${name}" activated!`);
+}
+
+async function clearActiveProject() {
+  activeProject = null;
+  await NativeStorage.remove(ACTIVE_PROJECT_KEY);
+  renderActiveProjectBadge();
+  closeProjectModal();
+  showToast('Project cleared. Standard Marvo brain active.');
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -552,6 +663,91 @@ function clearChat() {
   DOM.chatMessages.innerHTML = '';
 }
 
+/* Instant Image Generation Parsing & Card Rendering */
+function parseImageGenerationPrompt(input) {
+  if (!input) return null;
+  const trimmed = input.trim();
+
+  const patterns = [
+    /^(?:generate\s+image(?:\s+of)?|create\s+(?:an?\s+)?image(?:\s+of)?|make\s+(?:an?\s+)?(?:image|picture)(?:\s+of)?|draw(?:\s+me)?(?:\s+an?)?|paint(?:\s+me)?(?:\s+an?)?|imagine|sketch(?:\s+an?)?)\s*[:,-]?\s*(.+)/i,
+    /^(?:photo|picture|illustration|wallpaper|render)\s+of\s+(.+)/i,
+  ];
+
+  for (const re of patterns) {
+    const match = trimmed.match(re);
+    if (match && match[1] && match[1].trim()) {
+      return match[1].trim();
+    }
+  }
+
+  if (/^(?:generate\s+image|draw\s+image|create\s+image|paint\s+image|draw\s+something|generate\s+art)$/i.test(trimmed)) {
+    return 'a hyper-realistic futuristic neon cyberpunk city at twilight with flying vehicles, 8k resolution';
+  }
+
+  return null;
+}
+
+function renderImageMessageCard(promptText, imageUrl) {
+  const card = document.createElement('div');
+  card.className = 'msg-image-card';
+
+  card.innerHTML = `
+    <div class="msg-image-header">
+      <div class="msg-image-tag">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/><path d="M21 15l-5-5L5 21"/></svg>
+        <span>Marvo Visual AI</span>
+      </div>
+      <span style="font-size:11px;color:var(--text-dim);font-weight:600;">1024 x 1024</span>
+    </div>
+    <div class="msg-image-wrap">
+      <div class="msg-image-skeleton">
+        <span style="width:20px;height:20px;border:2px solid var(--accent);border-top-color:transparent;border-radius:50%;animation:iris-spin 0.8s linear infinite;"></span>
+        <span>Rendering visual generation...</span>
+      </div>
+      <img class="msg-image-img" src="${imageUrl}" alt="${promptText}" loading="lazy" />
+    </div>
+    <p class="msg-image-prompt-text">"${promptText}"</p>
+    <div class="msg-image-footer">
+      <button class="msg-image-action-btn action-copy-prompt" type="button" title="Copy Prompt">
+        <svg viewBox="0 0 24 24" width="12" height="12"><rect x="9" y="9" width="13" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+        <span>Copy Prompt</span>
+      </button>
+      <a href="${imageUrl}" target="_blank" rel="noopener noreferrer" class="msg-image-action-btn action-view-full" title="Open Full Size">
+        <svg viewBox="0 0 24 24" width="12" height="12"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" fill="none" stroke="currentColor" stroke-width="2"/><polyline points="15 3 21 3 21 9" fill="none" stroke="currentColor" stroke-width="2"/><line x1="10" y1="14" x2="21" y2="3" stroke="currentColor" stroke-width="2"/></svg>
+        <span>Full Size</span>
+      </a>
+    </div>
+  `;
+
+  const img = card.querySelector('.msg-image-img');
+  const skeleton = card.querySelector('.msg-image-skeleton');
+  const copyBtn = card.querySelector('.action-copy-prompt');
+
+  img.onload = () => {
+    if (skeleton) skeleton.style.display = 'none';
+    img.classList.add('loaded');
+  };
+
+  img.onerror = () => {
+    if (skeleton) {
+      skeleton.innerHTML = `
+        <span style="color:#ff0055;font-weight:600;">⚠️ Image failed to load</span>
+        <button class="msg-image-action-btn retry-img-btn" type="button" style="margin-top:6px;">Retry Loading</button>
+      `;
+      skeleton.querySelector('.retry-img-btn')?.addEventListener('click', () => {
+        img.src = `${imageUrl}&refresh=${Date.now()}`;
+      });
+    }
+  };
+
+  copyBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    copyToClipboard(promptText, copyBtn);
+  });
+
+  return card;
+}
+
 function addMessage(text, sender) {
   if (sender === 'user') {
     const el = document.createElement('div');
@@ -560,6 +756,21 @@ function addMessage(text, sender) {
     DOM.chatMessages.appendChild(el);
     scrollToBottom();
     return el;
+  }
+
+  // Check if this message is an Image Generation result
+  if (typeof text === 'string' && text.startsWith('__IMAGE_GEN__:')) {
+    const parts = text.split(':');
+    const promptText = decodeURIComponent(parts[1] || 'Generated image');
+    const imageUrl   = decodeURIComponent(parts.slice(2).join(':') || '');
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'msg-ai-wrapper';
+    const card = renderImageMessageCard(promptText, imageUrl);
+    wrapper.appendChild(card);
+    DOM.chatMessages.appendChild(wrapper);
+    scrollToBottom();
+    return wrapper;
   }
 
   // AI Message with ChatGPT-style Action Bar
@@ -629,7 +840,7 @@ function showLoading() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   CONTEXT-AWARE BACKEND COMMUNICATION (Time & Date Injection)
+   CONTEXT-AWARE BACKEND COMMUNICATION (Time, Project, & Image AI)
    ═══════════════════════════════════════════════════════════════════ */
 async function sendMessage(userText) {
   if (!userText || !userText.trim() || isBusy) return;
@@ -648,17 +859,57 @@ async function sendMessage(userText) {
   DOM.msgInput.value = '';
   DOM.btnSend.disabled = true;
 
+  // 1. Check for Instant Image Generation request (Pollinations.ai)
+  const imagePrompt = parseImageGenerationPrompt(cleanInput);
+  if (imagePrompt) {
+    const dots = showLoading();
+    const loadingMsgEl = dots.querySelector('.msg-ai');
+    if (loadingMsgEl) {
+      loadingMsgEl.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary);">
+          <span style="width:8px;height:8px;border-radius:50%;background:var(--accent);animation:sound-wave 1s infinite alternate;"></span>
+          <span>Generating visual: "${imagePrompt.length > 28 ? imagePrompt.slice(0, 28) + '...' : imagePrompt}"...</span>
+        </div>
+      `;
+    }
+    setEyeExpression('state-creative');
+
+    const seed = Math.floor(Math.random() * 1000000);
+    const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(imagePrompt)}?width=1024&height=1024&nologo=true&seed=${seed}`;
+    const storageContent = `__IMAGE_GEN__:${encodeURIComponent(imagePrompt)}:${encodeURIComponent(imageUrl)}`;
+
+    setTimeout(async () => {
+      dots.remove();
+      if (requestSessionId !== currentSessionId || requestVersion !== sessionVersion) return;
+      setEyeExpression('state-amazed');
+      addMessage(storageContent, 'ai');
+      await saveLocalMessage(requestSessionId, 'ai', storageContent);
+      updateHistorySidebar(cleanInput, requestSessionId);
+      isBusy = false;
+      DOM.btnSend.disabled = false;
+      DOM.msgInput.focus();
+    }, 600);
+    return;
+  }
+
+  // 2. Standard Text AI Response with Project Context & Time Injection
   const dots = showLoading();
   setEyeExpression('state-loading');
 
   const deviceTime = new Date().toLocaleString();
+
+  // Silently prepend custom instructions if an Anthropic Claude-style Project is active
+  let payloadMessage = cleanInput;
+  if (activeProject && activeProject.instructions && activeProject.instructions.trim()) {
+    payloadMessage = `[System Instructions / Persona for Project "${activeProject.name}":\n${activeProject.instructions.trim()}]\n\n[User Local Time: ${deviceTime}]\n\nUser Question: ${cleanInput}`;
+  }
 
   try {
     const res = await fetch(API_CHAT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        message:       cleanInput,
+        message:       payloadMessage,
         local_time:    deviceTime,
         thinking_mode: selectedMode,
         session_id:    requestSessionId,
@@ -1031,8 +1282,32 @@ DOM.btnCloseSidebar.addEventListener('click', closeSidebar);
 DOM.sidebarOverlay.addEventListener('click', closeSidebar);
 DOM.btnNewChat.addEventListener('click', newChat);
 DOM.btnNewProject.addEventListener('click', () => {
+  openProjectModal();
+});
+
+// ── Claude-Style Project Workspace Events ──
+DOM.activeProjectBadge?.addEventListener('click', (e) => {
+  if (e.target.closest('#btnExitProject')) return;
+  openProjectModal();
+});
+DOM.btnExitProject?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  clearActiveProject();
+});
+DOM.btnCloseProjectModal?.addEventListener('click', closeProjectModal);
+DOM.btnCancelProject?.addEventListener('click', closeProjectModal);
+DOM.btnSaveProject?.addEventListener('click', saveActiveProject);
+DOM.btnClearProject?.addEventListener('click', clearActiveProject);
+DOM.projectModal?.addEventListener('click', (e) => {
+  if (e.target === DOM.projectModal) closeProjectModal();
+});
+
+// ── Creative Studio Image Generator ──
+DOM.navImageGen?.addEventListener('click', () => {
   closeSidebar();
-  showToast('Project workspace created! (Pro Feature)');
+  DOM.msgInput.value = 'Draw ';
+  DOM.msgInput.focus();
+  showToast('Describe what you want to draw! (e.g. "Draw a cyberpunk robot")');
 });
 
 // Sidebar menu navigation items
@@ -1400,6 +1675,7 @@ async function initApp() {
   await initEyeCustomization();
   initInteractiveEyes();
   await initVoiceSelection();
+  await loadActiveProject();
   setEyeExpression('state-idle');
   await persistCurrentSession();
   await loadHistorySidebar();
@@ -1416,6 +1692,10 @@ window.marvo = {
   setTheme,
   playSpeech,
   showToast,
+  openProjectModal,
+  saveActiveProject,
+  clearActiveProject,
+  get activeProject() { return activeProject; },
   get currentVoice() { return currentVoice; },
   get session() { return currentSessionId; },
   get mode() { return selectedMode; },

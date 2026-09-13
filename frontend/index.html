@@ -58,13 +58,13 @@
     </button>
   </div>
 
-  <!-- Placeholders: Creative Studio -->
+  <!-- Creative Studio -->
   <div class="sidebar-nav-group">
     <div class="sidebar-section-title">CREATIVE STUDIO</div>
-    <button class="sidebar-nav-item placeholder-item" data-feature="Image Generation">
+    <button class="sidebar-nav-item" id="navImageGen">
       <svg viewBox="0 0 24 24" width="18" height="18"><rect x="3" y="3" width="18" height="18" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/><path d="M21 15l-5-5L5 21" stroke="currentColor" stroke-width="2" fill="none"/></svg>
-      <span>Image</span>
-      <span class="badge-coming">Soon</span>
+      <span>Image Generator</span>
+      <span class="badge-beta" style="background:rgba(0,255,136,0.15);color:#00ff88;border-color:rgba(0,255,136,0.3);">Free</span>
     </button>
     <button class="sidebar-nav-item placeholder-item" data-feature="Video Generation">
       <svg viewBox="0 0 24 24" width="18" height="18"><rect x="2" y="4" width="14" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><polygon points="22 8 16 12 22 16 22 8" fill="currentColor"/></svg>
@@ -124,6 +124,11 @@
       <div class="brand-title-wrap">
         <span class="topbar-title" id="topbarTitle">Marvo</span>
         <span class="topbar-status-dot"></span>
+        <div id="activeProjectBadge" class="active-project-badge hidden" title="Click to manage Project">
+          <svg viewBox="0 0 24 24" width="12" height="12"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+          <span id="activeProjectName">Project</span>
+          <button id="btnExitProject" class="btn-exit-project" title="Exit Project">&times;</button>
+        </div>
       </div>
     </div>
 
@@ -336,7 +341,21 @@
           <button class="btn-exp-play" data-exp="state-sleepy">Sleepy</button>
           <button class="btn-exp-play" data-exp="state-crying">Crying</button>
           <button class="btn-exp-play" data-exp="state-angry">Angry</button>
+          <button class="btn-exp-play" data-exp="state-suspicious">Suspicious</button>
+          <button class="btn-exp-play" data-exp="state-dizzy">Dizzy</button>
+          <button class="btn-exp-play" data-exp="state-heart-eyes">Heart-Eyes</button>
+          <button class="btn-exp-play" data-exp="state-confused">Confused</button>
+          <button class="btn-exp-play" data-exp="state-focused">Focused</button>
+          <button class="btn-exp-play" data-exp="state-scared">Scared</button>
+          <button class="btn-exp-play" data-exp="state-glitch">Glitch</button>
+          <button class="btn-exp-play" data-exp="state-stargazing">Stargazing</button>
+          <button class="btn-exp-play" data-exp="state-dead">Dead / Offline</button>
+          <button class="btn-exp-play" data-exp="state-eyeroll">Eyeroll</button>
+          <button class="btn-exp-play" data-exp="state-hypnotized">Hypnotized</button>
           <button class="btn-exp-play" data-exp="state-scanning">Scanning</button>
+          <button class="btn-exp-play" data-exp="state-bored">Bored</button>
+          <button class="btn-exp-play" data-exp="state-ninja">Ninja</button>
+          <button class="btn-exp-play" data-exp="state-overheating">Overheating</button>
           <button class="btn-exp-play" data-exp="state-error">Error</button>
         </div>
       </div>
@@ -401,6 +420,45 @@
             </button>
           </label>
 
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ CLAUDE-STYLE PROJECTS MODAL ═══════════ -->
+<div id="projectModal" class="settings-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="projectModalTitle">
+  <div class="settings-modal project-dialog">
+    <div class="settings-header">
+      <div class="dialog-title-wrap">
+        <svg viewBox="0 0 24 24" width="20" height="20" style="color:var(--accent);"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+        <h3 id="projectModalTitle" class="settings-title">Project Workspace</h3>
+      </div>
+      <button id="btnCloseProjectModal" class="btn-icon" aria-label="Close Project Modal">&times;</button>
+    </div>
+
+    <div class="settings-dialog-body project-dialog-body">
+      <p class="project-modal-desc">
+        Define custom system prompts, persona instructions, and constraints. Marvo will adhere to these rules for every question while this project is active.
+      </p>
+
+      <div class="project-field-group">
+        <label for="projectNameInput" class="project-label">Project Name</label>
+        <input type="text" id="projectNameInput" class="project-input" placeholder="e.g. Senior Python Architect, Novelist, Math Tutor..." maxlength="50" autocomplete="off" />
+      </div>
+
+      <div class="project-field-group">
+        <label for="projectPromptInput" class="project-label">Custom Instructions / System Prompt</label>
+        <textarea id="projectPromptInput" class="project-textarea" rows="6" placeholder="e.g. Act as a senior Python and TypeScript developer. Provide production-grade, concise code with full error handling and modern architecture..."></textarea>
+      </div>
+
+      <div class="project-dialog-actions">
+        <button id="btnClearProject" class="btn-project-action btn-project-danger hidden" type="button">
+          Clear Active Project
+        </button>
+        <div class="project-dialog-action-right">
+          <button id="btnCancelProject" class="btn-project-action btn-project-secondary" type="button">Cancel</button>
+          <button id="btnSaveProject" class="btn-project-action btn-project-primary" type="button">Save & Activate</button>
         </div>
       </div>
     </div>
