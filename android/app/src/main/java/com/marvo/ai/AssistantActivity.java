@@ -48,6 +48,10 @@ public class AssistantActivity extends AppCompatActivity {
     private TextView statusTextView;
     private ImageView orbImageView;
 
+    // State Management for Confirmation Protocol (Step 6 Part 5)
+    private String pendingActionType = null;
+    private Intent pendingIntent = null;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -180,9 +184,9 @@ public class AssistantActivity extends AppCompatActivity {
                     // Route through local intent router
                     routeCommand(transcribed);
 
-                    // If not an offline direct action (which handle their own UI and finish lifecycle), wait 2.5s and finish
+                    // If not an offline direct action or pending confirmation (which handle their own UI and finish lifecycle), wait 2.5s and finish
                     String lower = transcribed.trim().toLowerCase();
-                    boolean isHandledDirectly = lower.startsWith("call") || lower.startsWith("sms") || lower.startsWith("message") ||
+                    boolean isHandledDirectly = (pendingActionType != null) || lower.startsWith("call") || lower.startsWith("sms") || lower.startsWith("message") ||
                             lower.startsWith("text") || lower.startsWith("whatsapp") || lower.contains("timer") ||
                             lower.contains("alarm") || lower.contains("remind me") || lower.contains("calendar") ||
                             lower.contains("save contact") || lower.contains("add contact") || lower.contains("selfie") ||
@@ -192,7 +196,9 @@ public class AssistantActivity extends AppCompatActivity {
                             lower.contains("wifi") || lower.contains("bluetooth") || lower.contains("data") ||
                             lower.contains("internet") || lower.contains("airplane") || lower.contains("flight") ||
                             lower.contains("dark") || lower.contains("brightness") || lower.contains("display") ||
-                            lower.contains("calculator") || lower.contains("calculate");
+                            lower.contains("calculator") || lower.contains("calculate") || lower.contains("email") ||
+                            lower.contains("mail") || lower.contains("search") || lower.contains("google") ||
+                            lower.contains("news") || lower.contains("weather") || lower.contains("mausam");
                     if (!isHandledDirectly) {
                         new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
                             @Override
@@ -879,6 +885,119 @@ public class AssistantActivity extends AppCompatActivity {
         }
     }
 
+    private void updateUI(String text) {
+        if (statusTextView != null) {
+            statusTextView.setText(text);
+        }
+    }
+
+    private void finishDelayed(long delayMillis) {
+        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (!isFinishing()) {
+                    finish();
+                }
+            }
+        }, delayMillis);
+    }
+
+    private void startListeningDelayed(long delayMillis) {
+        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (!isFinishing()) {
+                    startListening();
+                }
+            }
+        }, delayMillis);
+    }
+
+    /**
+     * Confirmation Protocol:
+     * Prompts the user with a confirmation query, retains pending state,
+     * and automatically re-arms the speech listener after a 1.5s delay.
+     */
+    private void askForConfirmation(String promptText, Intent intent, String actionType) {
+        pendingIntent = intent;
+        pendingActionType = actionType;
+        updateUI(promptText + "\n(Say YES to confirm or NO to cancel)");
+        startListeningDelayed(1500);
+    }
+
+    /**
+     * Prepares an email draft Intent and asks user confirmation.
+     */
+    private void sendEmail(String recipient, String subject, String body) {
+        try {
+            Intent intent = new Intent(Intent.ACTION_SENDTO);
+            intent.setData(Uri.parse("mailto:" + (recipient != null ? recipient.trim() : "")));
+            if (subject != null && !subject.trim().isEmpty()) {
+                intent.putExtra(Intent.EXTRA_SUBJECT, subject.trim());
+            }
+            if (body != null && !body.trim().isEmpty()) {
+                intent.putExtra(Intent.EXTRA_TEXT, body.trim());
+            }
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            String target = (recipient != null && !recipient.trim().isEmpty()) ? recipient.trim() : "recipient";
+            askForConfirmation("Send email to " + target + "?", intent, "EMAIL");
+        } catch (Exception e) {
+            Log.e(TAG, "Error preparing email: " + e.getMessage(), e);
+            updateUI("Failed to prepare email.");
+            finishDelayed(2000);
+        }
+    }
+
+    /**
+     * Performs a web search on Google.
+     */
+    private void searchWeb(String query) {
+        if (query == null || query.trim().isEmpty()) return;
+        try {
+            String encoded = URLEncoder.encode(query.trim(), "UTF-8");
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/search?q=" + encoded));
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+            if (!isFinishing()) finish();
+        } catch (Exception e) {
+            Log.e(TAG, "Error searching web: " + e.getMessage(), e);
+            updateUI("Web search unavailable.");
+            finishDelayed(2000);
+        }
+    }
+
+    /**
+     * Opens Google News.
+     */
+    private void openNews() {
+        try {
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://news.google.com"));
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+            if (!isFinishing()) finish();
+        } catch (Exception e) {
+            Log.e(TAG, "Error opening news: " + e.getMessage(), e);
+            updateUI("News unavailable.");
+            finishDelayed(2000);
+        }
+    }
+
+    /**
+     * Opens weather forecast on Google.
+     */
+    private void openWeather() {
+        try {
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/search?q=weather"));
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+            if (!isFinishing()) finish();
+        } catch (Exception e) {
+            Log.e(TAG, "Error opening weather: " + e.getMessage(), e);
+            updateUI("Weather unavailable.");
+            finishDelayed(2000);
+        }
+    }
+
     /**
      * Local Intent Router:
      * Separates offline hardware / system commands (calls, sms, flashlight) from online AI queries.
@@ -886,6 +1005,33 @@ public class AssistantActivity extends AppCompatActivity {
     private void routeCommand(String command) {
         if (statusTextView == null) return;
         String lower = (command == null ? "" : command.trim().toLowerCase());
+
+        // Step 6 Part 5: Confirmation Protocol (State Management)
+        if (pendingActionType != null) {
+            if (lower.contains("yes") || lower.contains("haan") || lower.contains("confirm") || lower.contains("ok") || lower.contains("karo") || lower.contains("sure")) {
+                updateUI("Action Confirmed. Executing...");
+                if (pendingIntent != null) {
+                    try {
+                        startActivity(pendingIntent);
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error executing confirmed intent: " + e.getMessage(), e);
+                        updateUI("Failed to execute action.");
+                    }
+                }
+                pendingActionType = null;
+                pendingIntent = null;
+                finishDelayed(1500);
+            } else if (lower.contains("no") || lower.contains("cancel") || lower.contains("nahi") || lower.contains("mat") || lower.contains("stop")) {
+                updateUI("Action Cancelled.");
+                pendingActionType = null;
+                pendingIntent = null;
+                finishDelayed(1500);
+            } else {
+                updateUI("Didn't catch that. Say YES or NO.");
+                startListeningDelayed(1500);
+            }
+            return; // Exit the router since we handled the confirmation
+        }
 
         // Step 5: Native Offline Contact Calling
         if (lower.startsWith("call")) {
@@ -1158,8 +1304,55 @@ public class AssistantActivity extends AppCompatActivity {
             }, 1500);
             return;
         } else if (lower.contains("uninstall") || (lower.contains("delete") && lower.contains("app")) || (lower.contains("remove") && lower.contains("app"))) {
-            statusTextView.setText("Opening App Settings...");
-            openUninstallSettings();
+            Intent intent = new Intent(Settings.ACTION_APPLICATION_SETTINGS);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            askForConfirmation("Open settings to manage/uninstall apps?", intent, "UNINSTALL");
+            return;
+        } else if (lower.contains("email") || lower.contains("mail")) {
+            String target = "";
+            String body = "";
+            String raw = command.trim();
+            String cleaned = raw.replaceAll("(?i)^(send an email to|send email to|send a mail to|send mail to|email to|mail to|email|mail)\\s*", "").trim();
+            int idxThat = cleaned.toLowerCase().indexOf(" that ");
+            int idxSaying = cleaned.toLowerCase().indexOf(" saying ");
+            int splitIdx = -1;
+            int splitLen = 0;
+            if (idxThat != -1 && idxSaying != -1) {
+                if (idxThat < idxSaying) {
+                    splitIdx = idxThat;
+                    splitLen = 6;
+                } else {
+                    splitIdx = idxSaying;
+                    splitLen = 8;
+                }
+            } else if (idxThat != -1) {
+                splitIdx = idxThat;
+                splitLen = 6;
+            } else if (idxSaying != -1) {
+                splitIdx = idxSaying;
+                splitLen = 8;
+            }
+
+            if (splitIdx != -1) {
+                target = cleaned.substring(0, splitIdx).trim();
+                body = cleaned.substring(splitIdx + splitLen).trim();
+            } else {
+                int firstSpace = cleaned.indexOf(" ");
+                if (firstSpace != -1) {
+                    target = cleaned.substring(0, firstSpace).trim();
+                    body = cleaned.substring(firstSpace + 1).trim();
+                } else {
+                    target = cleaned;
+                }
+            }
+
+            if (target.isEmpty()) {
+                updateUI("Who would you like to email?");
+                finishDelayed(2000);
+                return;
+            }
+
+            sendEmail(target, "Marvo Message", body);
             return;
         } else if (lower.contains("install") || lower.contains("download")) {
             String appName = command;
@@ -1202,6 +1395,34 @@ public class AssistantActivity extends AppCompatActivity {
             statusTextView.setText("Opening Calculator...");
             openCalculator();
             return;
+        } else if (lower.contains("news") || lower.contains("samachar") || lower.contains("khabar")) {
+            updateUI("Opening Latest News...");
+            openNews();
+            return;
+        } else if (lower.contains("weather") || lower.contains("mausam") || lower.contains("temperature")) {
+            updateUI("Checking Weather Forecast...");
+            openWeather();
+            return;
+        } else if (lower.startsWith("search") || lower.startsWith("google") || lower.startsWith("khojo") || lower.startsWith("dhoondo")) {
+            String query = command;
+            String[] prefixes = new String[]{
+                "search on google for ", "search google for ", "search for ",
+                "search on google ", "search google ", "search ",
+                "google ", "khojo ", "dhoondo "
+            };
+            for (String p : prefixes) {
+                int idx = query.toLowerCase().indexOf(p);
+                if (idx != -1) {
+                    query = query.substring(idx + p.length()).trim();
+                    break;
+                }
+            }
+            if (query.isEmpty()) {
+                query = "Latest Updates";
+            }
+            updateUI("Searching for \"" + query + "\"...");
+            searchWeb(query);
+            return;
         } else {
             statusTextView.setText("Action: Online AI Query");
         }
@@ -1228,6 +1449,7 @@ public class AssistantActivity extends AppCompatActivity {
     private void startListening() {
         if (speechRecognizer != null && speechRecognizerIntent != null) {
             try {
+                speechRecognizer.cancel();
                 speechRecognizer.startListening(speechRecognizerIntent);
             } catch (Exception e) {
                 Log.e(TAG, "Error starting speech recognition: " + e.getMessage(), e);
