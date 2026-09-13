@@ -245,31 +245,37 @@
   <div class="input-bar">
     <div class="input-glass">
 
-      <!-- Attachment Menu (Far Left) -->
+      <!-- Attachment / Quick Tools Menu (Plus Button) -->
       <div class="attach-container">
-        <button id="btnAttach" class="btn btn-attach" aria-label="Attachment">
+        <button id="btnAttach" class="btn btn-attach" aria-label="Create & Attach Tools" title="Create & Attach (+)">
           <svg viewBox="0 0 24 24" width="20" height="20"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" fill="currentColor"/></svg>
         </button>
         <div id="attachMenu" class="dropdown-menu attach-menu">
-          <button class="dropdown-item attach-item" data-type="Photo">
+          <button class="dropdown-item attach-item btn-tool-image-gen" id="btnAttachImageGen" type="button" data-type="Generate Image">
+            <svg viewBox="0 0 24 24" width="16" height="16" style="color:var(--accent);"><rect x="3" y="3" width="18" height="18" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/><path d="M21 15l-5-5L5 21" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+            <span>Generate Image</span>
+            <span class="badge-beta" style="margin-left:auto;font-size:9.5px;padding:2px 6px;background:rgba(0,240,255,0.15);color:var(--accent);border-radius:6px;">AI</span>
+          </button>
+          <div class="dropdown-divider"></div>
+          <button class="dropdown-item attach-item" data-type="Photo" type="button">
             <svg viewBox="0 0 24 24" width="16" height="16"><rect x="3" y="3" width="18" height="18" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/><path d="M21 15l-5-5L5 21" stroke="currentColor" stroke-width="2" fill="none"/></svg>
-            Photo
+            <span>Photo</span>
           </button>
-          <button class="dropdown-item attach-item" data-type="Files">
+          <button class="dropdown-item attach-item" data-type="Files" type="button">
             <svg viewBox="0 0 24 24" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" fill="none" stroke="currentColor" stroke-width="2"/><polyline points="14 2 14 8 20 8" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-            Files
+            <span>Files</span>
           </button>
-          <button class="dropdown-item attach-item" data-type="PDF">
+          <button class="dropdown-item attach-item" data-type="PDF" type="button">
             <svg viewBox="0 0 24 24" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" fill="none" stroke="currentColor" stroke-width="2"/><text x="7" y="16" font-size="6" font-weight="bold" fill="currentColor">PDF</text></svg>
-            PDF
+            <span>PDF</span>
           </button>
-          <button class="dropdown-item attach-item" data-type="Text File">
+          <button class="dropdown-item attach-item" data-type="Text File" type="button">
             <svg viewBox="0 0 24 24" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" fill="none" stroke="currentColor" stroke-width="2"/><line x1="8" y1="13" x2="16" y2="13" stroke="currentColor" stroke-width="2"/><line x1="8" y1="17" x2="13" y2="17" stroke="currentColor" stroke-width="2"/></svg>
-            Text File
+            <span>Text File</span>
           </button>
-          <button class="dropdown-item attach-item" data-type="Code File">
+          <button class="dropdown-item attach-item" data-type="Code File" type="button">
             <svg viewBox="0 0 24 24" width="16" height="16"><polyline points="16 18 22 12 16 6" fill="none" stroke="currentColor" stroke-width="2"/><polyline points="8 6 2 12 8 18" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-            Code File
+            <span>Code File</span>
           </button>
         </div>
       </div>

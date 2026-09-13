@@ -80,6 +80,7 @@ const DOM = {
   chatMessages:       $('#chatMessages'),
   btnAttach:          $('#btnAttach'),
   attachMenu:         $('#attachMenu'),
+  btnAttachImageGen:  $('#btnAttachImageGen'),
   msgInput:           $('#msgInput'),
   btnSend:            $('#btnSend'),
   btnMic:             $('#btnMic'),
@@ -690,12 +691,13 @@ function parseImageGenerationPrompt(input) {
 function renderImageMessageCard(promptText, imageUrl) {
   const card = document.createElement('div');
   card.className = 'msg-image-card';
+  const isBase64 = imageUrl && imageUrl.startsWith('data:');
 
   card.innerHTML = `
     <div class="msg-image-header">
       <div class="msg-image-tag">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/><path d="M21 15l-5-5L5 21"/></svg>
-        <span>Marvo Visual AI</span>
+        <span>Marvo Visual AI ${isBase64 ? '(SDXL HD)' : ''}</span>
       </div>
       <span style="font-size:11px;color:var(--text-dim);font-weight:600;">1024 x 1024</span>
     </div>
@@ -712,9 +714,9 @@ function renderImageMessageCard(promptText, imageUrl) {
         <svg viewBox="0 0 24 24" width="12" height="12"><rect x="9" y="9" width="13" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" fill="none" stroke="currentColor" stroke-width="2"/></svg>
         <span>Copy Prompt</span>
       </button>
-      <a href="${imageUrl}" target="_blank" rel="noopener noreferrer" class="msg-image-action-btn action-view-full" title="Open Full Size">
+      <a href="${imageUrl}" ${isBase64 ? 'download="marvo-art.jpg"' : 'target="_blank" rel="noopener noreferrer"'} class="msg-image-action-btn action-view-full" title="${isBase64 ? 'Download Image' : 'Open Full Size'}">
         <svg viewBox="0 0 24 24" width="12" height="12"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" fill="none" stroke="currentColor" stroke-width="2"/><polyline points="15 3 21 3 21 9" fill="none" stroke="currentColor" stroke-width="2"/><line x1="10" y1="14" x2="21" y2="3" stroke="currentColor" stroke-width="2"/></svg>
-        <span>Full Size</span>
+        <span>${isBase64 ? 'Save HD' : 'Full Size'}</span>
       </a>
     </div>
   `;
@@ -732,10 +734,10 @@ function renderImageMessageCard(promptText, imageUrl) {
     if (skeleton) {
       skeleton.innerHTML = `
         <span style="color:#ff0055;font-weight:600;">⚠️ Image failed to load</span>
-        <button class="msg-image-action-btn retry-img-btn" type="button" style="margin-top:6px;">Retry Loading</button>
+        <button class="msg-image-action-btn retry-img-btn" type="button" style="margin-top:6px;">Retry</button>
       `;
       skeleton.querySelector('.retry-img-btn')?.addEventListener('click', () => {
-        img.src = `${imageUrl}&refresh=${Date.now()}`;
+        img.src = `${imageUrl}${imageUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
       });
     }
   };
@@ -840,7 +842,7 @@ function showLoading() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   CONTEXT-AWARE BACKEND COMMUNICATION (Time, Project, & Image AI)
+   CONTEXT-AWARE BACKEND COMMUNICATION (Time, Project, & Agents Pipeline)
    ═══════════════════════════════════════════════════════════════════ */
 async function sendMessage(userText) {
   if (!userText || !userText.trim() || isBusy) return;
@@ -859,42 +861,23 @@ async function sendMessage(userText) {
   DOM.msgInput.value = '';
   DOM.btnSend.disabled = true;
 
-  // 1. Check for Instant Image Generation request (Pollinations.ai)
-  const imagePrompt = parseImageGenerationPrompt(cleanInput);
-  if (imagePrompt) {
-    const dots = showLoading();
+  const dots = showLoading();
+  const isImageRequest = parseImageGenerationPrompt(cleanInput);
+
+  if (isImageRequest) {
     const loadingMsgEl = dots.querySelector('.msg-ai');
     if (loadingMsgEl) {
       loadingMsgEl.innerHTML = `
         <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary);">
           <span style="width:8px;height:8px;border-radius:50%;background:var(--accent);animation:sound-wave 1s infinite alternate;"></span>
-          <span>Generating visual: "${imagePrompt.length > 28 ? imagePrompt.slice(0, 28) + '...' : imagePrompt}"...</span>
+          <span>Generating visual: "${isImageRequest.length > 26 ? isImageRequest.slice(0, 26) + '...' : isImageRequest}"...</span>
         </div>
       `;
     }
     setEyeExpression('state-creative');
-
-    const seed = Math.floor(Math.random() * 1000000);
-    const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(imagePrompt)}?width=1024&height=1024&nologo=true&seed=${seed}`;
-    const storageContent = `__IMAGE_GEN__:${encodeURIComponent(imagePrompt)}:${encodeURIComponent(imageUrl)}`;
-
-    setTimeout(async () => {
-      dots.remove();
-      if (requestSessionId !== currentSessionId || requestVersion !== sessionVersion) return;
-      setEyeExpression('state-amazed');
-      addMessage(storageContent, 'ai');
-      await saveLocalMessage(requestSessionId, 'ai', storageContent);
-      updateHistorySidebar(cleanInput, requestSessionId);
-      isBusy = false;
-      DOM.btnSend.disabled = false;
-      DOM.msgInput.focus();
-    }, 600);
-    return;
+  } else {
+    setEyeExpression('state-loading');
   }
-
-  // 2. Standard Text AI Response with Project Context & Time Injection
-  const dots = showLoading();
-  setEyeExpression('state-loading');
 
   const deviceTime = new Date().toLocaleString();
 
@@ -920,28 +903,54 @@ async function sendMessage(userText) {
     if (!res.ok) throw new Error(`Server responded with ${res.status}`);
 
     const data = await res.json();
-    const aiText  = data.response || 'No response received.';
-    const aiState = data.state || 'state-speaking';
-
     if (requestSessionId !== currentSessionId || requestVersion !== sessionVersion) return;
 
-    setEyeExpression(aiState);
-    addMessage(aiText, 'ai');
-    await saveLocalMessage(requestSessionId, 'ai', aiText);
-    updateHistorySidebar(cleanInput, requestSessionId);
+    // Handle Structured Backend Agent Response (type === 'image' vs 'text')
+    if (data.type === 'image' && data.content) {
+      const imageContent = data.content;
+      const promptUsed = data.prompt || cleanInput;
+      const aiState = data.state || 'state-amazed';
 
-    // Trigger contextual eye state
-    const detected = detectEyeExpression(cleanInput, aiText);
-    if (detected) setEyeExpression(detected);
+      setEyeExpression(aiState);
+      const storageContent = `__IMAGE_GEN__:${encodeURIComponent(promptUsed)}:${encodeURIComponent(imageContent)}`;
+      addMessage(storageContent, 'ai');
+      await saveLocalMessage(requestSessionId, 'ai', storageContent);
+      updateHistorySidebar(cleanInput, requestSessionId);
+    } else {
+      const aiText  = data.response || 'No response received.';
+      const aiState = data.state || 'state-speaking';
+
+      setEyeExpression(aiState);
+      addMessage(aiText, 'ai');
+      await saveLocalMessage(requestSessionId, 'ai', aiText);
+      updateHistorySidebar(cleanInput, requestSessionId);
+
+      // Trigger contextual eye state
+      const detected = detectEyeExpression(cleanInput, aiText);
+      if (detected) setEyeExpression(detected);
+    }
 
   } catch (err) {
     if (requestSessionId !== currentSessionId || requestVersion !== sessionVersion) return;
     dots.remove();
-    setEyeExpression('state-error');
-    const errMsg = "I couldn't reach my cloud brain right now. Please check your internet connection.";
-    addMessage(errMsg, 'ai');
-    await saveLocalMessage(requestSessionId, 'ai', errMsg);
-    console.error('[Marvo] Chat error:', err);
+
+    // Resilient client-side fallback if image creation encounters network error
+    if (isImageRequest) {
+      showToast('Offline visual generator fallback active');
+      const seed = Math.floor(Math.random() * 1000000);
+      const fallbackUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(isImageRequest)}?width=1024&height=1024&nologo=true&seed=${seed}`;
+      const storageContent = `__IMAGE_GEN__:${encodeURIComponent(isImageRequest)}:${encodeURIComponent(fallbackUrl)}`;
+      setEyeExpression('state-amazed');
+      addMessage(storageContent, 'ai');
+      await saveLocalMessage(requestSessionId, 'ai', storageContent);
+      updateHistorySidebar(cleanInput, requestSessionId);
+    } else {
+      setEyeExpression('state-error');
+      const errMsg = "I couldn't reach my cloud brain right now. Please check your internet connection.";
+      addMessage(errMsg, 'ai');
+      await saveLocalMessage(requestSessionId, 'ai', errMsg);
+      console.error('[Marvo] Chat error:', err);
+    }
   } finally {
     if (requestSessionId !== currentSessionId || requestVersion !== sessionVersion) return;
     isBusy = false;
@@ -1261,13 +1270,14 @@ function newChat() {
    DROPDOWN & CONTEXT MENU MANAGEMENT
    ═══════════════════════════════════════════════════════════════════ */
 function closeAllDropdowns() {
-  DOM.appDropdown.classList.remove('show');
-  DOM.historyContextMenu.classList.remove('show');
-  DOM.attachMenu.classList.remove('show');
+  DOM.appDropdown?.classList.remove('show');
+  DOM.historyContextMenu?.classList.remove('show');
+  DOM.attachMenu?.classList.remove('show');
+  DOM.btnAttach?.classList.remove('active');
 }
 
 document.addEventListener('click', (e) => {
-  if (!e.target.closest('.menu-container') && !e.target.closest('.dropdown-menu')) {
+  if (!e.target.closest('.menu-container') && !e.target.closest('.dropdown-menu') && !e.target.closest('.attach-container')) {
     closeAllDropdowns();
   }
 });
@@ -1426,15 +1436,32 @@ DOM.msgInput.addEventListener('keydown', (e) => {
   }
 });
 
-// Attachments
+// Plus / Attachments Menu
 DOM.btnAttach.addEventListener('click', (e) => {
   e.stopPropagation();
   const isOpen = DOM.attachMenu.classList.contains('show');
   closeAllDropdowns();
-  if (!isOpen) DOM.attachMenu.classList.add('show');
+  if (!isOpen) {
+    DOM.attachMenu.classList.add('show');
+    DOM.btnAttach.classList.add('active');
+  }
+});
+
+DOM.btnAttachImageGen?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  closeAllDropdowns();
+  const currentVal = DOM.msgInput.value.trim();
+  if (!currentVal || !currentVal.toLowerCase().startsWith('generate an image of')) {
+    DOM.msgInput.value = 'Generate an image of ';
+  }
+  DOM.msgInput.focus();
+  const len = DOM.msgInput.value.length;
+  DOM.msgInput.setSelectionRange(len, len);
+  showToast('Describe what you want Marvo to draw and press Send!');
 });
 
 DOM.attachMenu.addEventListener('click', (e) => {
+  if (e.target.closest('#btnAttachImageGen')) return;
   const item = e.target.closest('.attach-item');
   if (item) {
     closeAllDropdowns();

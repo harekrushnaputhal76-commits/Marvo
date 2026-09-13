@@ -29,13 +29,21 @@ try:
 except Exception:
     pass
 
-# 1. Direct connection to your AI's core logic
+import urllib.parse
+
+# 1. Direct connection to your AI's Agent Manager & Core Brain
 try:
-    from core.brain import think_and_respond
-except Exception as _brain_err:
-    logging.error(f"Failed to import core.brain: {_brain_err}", exc_info=True)
-    def think_and_respond(text, thinking_mode='medium', session_id='default'):
-        return "Brain module is offline.", "state-idle"
+    from agents.manager import handle_request
+except Exception as _agent_err:
+    logging.error(f"Failed to import agents.manager: {_agent_err}", exc_info=True)
+    try:
+        from core.brain import think_and_respond
+        def handle_request(message, thinking_mode='medium', session_id='default', local_time=None):
+            resp, state = think_and_respond(message, thinking_mode=thinking_mode, session_id=session_id)
+            return {"type": "text", "response": resp, "state": state, "session_id": session_id}
+    except Exception:
+        def handle_request(message, thinking_mode='medium', session_id='default', local_time=None):
+            return {"type": "text", "response": "Brain module is offline.", "state": "state-idle", "session_id": session_id}
 
 # 2. Voice Module Integration
 try:
@@ -164,34 +172,63 @@ def chat_endpoint():
         logging.info(f"Chat request - Session: {session_id} | Mode: {thinking_mode} | Msg: {user_message[:60]}")
 
         local_time = data.get('local_time')
-        prompt_for_brain = user_message
-        if local_time:
-            prompt_for_brain = f"[Device Context: User's local time is {local_time}]\n\n{user_message}"
 
-        # Process the message through the AI Brain
-        ai_response, animation_state = think_and_respond(
-            prompt_for_brain,
+        # Process the message through the Agent Manager
+        result = handle_request(
+            message=user_message,
             thinking_mode=thinking_mode,
-            session_id=session_id
+            session_id=session_id,
+            local_time=local_time
         )
+
+        resp_type = result.get("type", "text")
+        ai_response = result.get("response", "")
+        animation_state = result.get("state", "state-speaking")
+        image_content = result.get("content")
 
         # Save conversation history
         session = _read_session(session_id) or {
             'session_id': session_id,
             'messages': []
         }
-        session['messages'].extend([
-            {'role': 'user', 'content': user_message},
-            {'role': 'assistant', 'content': ai_response}
-        ])
-        _save_session(session_id, session['messages'])
 
-        # Send data back to frontend
-        return jsonify({
-            "response": ai_response,
-            "state": animation_state,
-            "session_id": session_id
-        }), 200
+        if resp_type == "image" and image_content:
+            prompt_used = result.get("prompt", user_message)
+            session['messages'].extend([
+                {'role': 'user', 'content': user_message},
+                {
+                    'role': 'assistant',
+                    'content': f"__IMAGE_GEN__:{urllib.parse.quote(prompt_used)}:{urllib.parse.quote(image_content)}",
+                    'type': 'image',
+                    'image_url': image_content,
+                    'prompt': prompt_used
+                }
+            ])
+            _save_session(session_id, session['messages'])
+
+            return jsonify({
+                "type": "image",
+                "content": image_content,
+                "prompt": prompt_used,
+                "source": result.get("source", "pollinations"),
+                "response": ai_response,
+                "state": animation_state,
+                "session_id": session_id
+            }), 200
+
+        else:
+            session['messages'].extend([
+                {'role': 'user', 'content': user_message},
+                {'role': 'assistant', 'content': ai_response}
+            ])
+            _save_session(session_id, session['messages'])
+
+            return jsonify({
+                "type": "text",
+                "response": ai_response,
+                "state": animation_state,
+                "session_id": session_id
+            }), 200
 
     except Exception as e:
         logging.error(f"Server Error during chat processing: {str(e)}", exc_info=True)
