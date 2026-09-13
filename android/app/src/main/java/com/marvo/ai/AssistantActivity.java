@@ -231,7 +231,9 @@ public class AssistantActivity extends AppCompatActivity {
     }
 
     /**
-     * Resolves a contact's phone number by name from the device's Contacts Provider.
+     * Universal Contact Resolver (Step 6 Part 8 Hotfix):
+     * Dynamically searches ALL device contacts with case-insensitive matching.
+     * Prioritises exact match, then falls back to contains match.
      */
     private String getPhoneNumber(String contactName) {
         if (contactName == null || contactName.trim().isEmpty()) return null;
@@ -246,24 +248,33 @@ public class AssistantActivity extends AppCompatActivity {
             return null;
         }
 
-        String number = null;
-        String selection = ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " LIKE ?";
-        String[] selectionArgs = new String[]{"%" + contactName.trim() + "%"};
+        String phoneNumber = null;
+        String searchName = contactName.toLowerCase().trim();
+        Uri uri = ContactsContract.CommonDataKinds.Phone.CONTENT_URI;
+        String[] projection = new String[]{
+            ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+            ContactsContract.CommonDataKinds.Phone.NUMBER
+        };
+
         Cursor cursor = null;
-
         try {
-            cursor = getContentResolver().query(
-                ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-                new String[]{ContactsContract.CommonDataKinds.Phone.NUMBER, ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME},
-                selection,
-                selectionArgs,
-                null
-            );
-
-            if (cursor != null && cursor.moveToFirst()) {
+            cursor = getContentResolver().query(uri, projection, null, null, null);
+            if (cursor != null) {
+                int nameIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME);
                 int numberIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER);
-                if (numberIndex != -1) {
-                    number = cursor.getString(numberIndex);
+
+                while (cursor.moveToNext()) {
+                    String name = cursor.getString(nameIndex);
+                    String number = cursor.getString(numberIndex);
+
+                    if (name != null) {
+                        String lowerName = name.toLowerCase().trim();
+                        // Check for exact match or contains match
+                        if (lowerName.equals(searchName) || lowerName.contains(searchName)) {
+                            phoneNumber = number;
+                            break; // Found the best match
+                        }
+                    }
                 }
             }
         } catch (Exception e) {
@@ -274,7 +285,7 @@ public class AssistantActivity extends AppCompatActivity {
             }
         }
 
-        return number;
+        return phoneNumber;
     }
 
     /**
