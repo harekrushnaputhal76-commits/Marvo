@@ -2,14 +2,22 @@ package com.marvo.ai;
 
 import android.Manifest;
 import android.content.ActivityNotFoundException;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.SharedPreferences;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraManager;
 import android.media.AudioManager;
 import android.net.Uri;
+import android.os.BatteryManager;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.AlarmClock;
@@ -31,17 +39,27 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.net.URLEncoder;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 public class AssistantActivity extends AppCompatActivity {
     private static final String TAG = "MarvoAssistant";
     private static final int PERMISSION_REQUEST_RECORD_AUDIO = 101;
     private static final int PERMISSION_REQUEST_CONTACTS_CALL = 102;
     private static final int PERMISSION_REQUEST_SMS = 103;
+    private static final String PREFS_NAME = "MarvoBusinessPrefs";
 
     private SpeechRecognizer speechRecognizer;
     private Intent speechRecognizerIntent;
@@ -177,7 +195,21 @@ public class AssistantActivity extends AppCompatActivity {
                             lower.contains("news") || lower.contains("weather") || lower.contains("mausam") ||
                             lower.contains("amazon") || lower.contains("flipkart") || lower.contains("myntra") ||
                             lower.contains("buy") || lower.contains("shop") || lower.contains("kharid") ||
-                            lower.contains("review") || lower.contains("rating");
+                            lower.contains("review") || lower.contains("rating") ||
+                            lower.contains("order") || lower.contains("stock") || lower.contains("khata") ||
+                            lower.contains("bill") || lower.contains("client") || lower.contains("bulk rate") ||
+                            lower.contains("calculate rate") || lower.contains("hisab") ||
+                            lower.contains("business reminder") || lower.contains("delivery reminder") ||
+                            lower.contains("payment reminder") || lower.contains("pickup reminder") ||
+                            lower.contains("find file") || lower.contains("search document") ||
+                            lower.contains("search file") || lower.contains("note down") ||
+                            lower.startsWith("remember this") || lower.contains("save note") ||
+                            lower.contains("read notes") || lower.contains("show notes") || lower.contains("my notes") ||
+                            lower.startsWith("copy ") || lower.contains("clipboard") || lower.contains("paste") ||
+                            lower.contains("count words") || lower.contains("word count") ||
+                            lower.contains("uppercase") || lower.contains("lowercase") ||
+                            lower.startsWith("open ") || lower.startsWith("launch ") || lower.startsWith("kholo ") ||
+                            lower.contains("battery") || lower.contains("charge") || lower.contains("phone status");
                     if (!isHandledDirectly) {
                         new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
                             @Override
@@ -1113,8 +1145,380 @@ public class AssistantActivity extends AppCompatActivity {
         }
     }
 
+    // =====================================================================
+    // Step 7: Offline Business Suite (Orders, Inventory, Bulk Rate, Client Dialer)
+    // =====================================================================
+
     /**
-     * Local Intent Router:
+     * Saves a business order to local SharedPreferences as a JSON array.
+     */
+    private void saveBusinessOrder(String clientName, String quantity) {
+        try {
+            SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+            String ordersJson = prefs.getString("orders", "[]");
+            JSONArray orders = new JSONArray(ordersJson);
+
+            JSONObject order = new JSONObject();
+            order.put("date", new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(new Date()));
+            order.put("client", clientName);
+            order.put("product", "Paper Plates");
+            order.put("quantity", quantity);
+
+            orders.put(order);
+            prefs.edit().putString("orders", orders.toString()).apply();
+
+            updateUI("Order saved for " + clientName + " - " + quantity + " pieces.");
+            finishDelayed(2000);
+        } catch (Exception e) {
+            Log.e(TAG, "Error saving business order: " + e.getMessage(), e);
+            updateUI("Failed to save order.");
+            finishDelayed(2000);
+        }
+    }
+
+    /**
+     * Reads and displays current inventory stock from local SharedPreferences.
+     */
+    private void checkInventoryStock() {
+        try {
+            SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+            String stockJson = prefs.getString("inventory", "{}");
+            JSONObject stock = new JSONObject(stockJson);
+
+            if (stock.length() == 0) {
+                updateUI("No stock data recorded yet.\nSay 'update stock' to add.");
+            } else {
+                StringBuilder sb = new StringBuilder("Current Stock:\n");
+                java.util.Iterator<String> keys = stock.keys();
+                while (keys.hasNext()) {
+                    String key = keys.next();
+                    sb.append("• ").append(key).append(": ").append(stock.getString(key)).append("\n");
+                }
+                updateUI(sb.toString().trim());
+            }
+            finishDelayed(3000);
+        } catch (Exception e) {
+            Log.e(TAG, "Error reading inventory: " + e.getMessage(), e);
+            updateUI("Failed to read stock.");
+            finishDelayed(2000);
+        }
+    }
+
+    /**
+     * Updates inventory stock in local SharedPreferences.
+     */
+    private void updateInventoryStock(String itemName, String quantity) {
+        try {
+            SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+            String stockJson = prefs.getString("inventory", "{}");
+            JSONObject stock = new JSONObject(stockJson);
+            stock.put(itemName, quantity);
+            prefs.edit().putString("inventory", stock.toString()).apply();
+
+            updateUI("Stock updated: " + itemName + " = " + quantity);
+            finishDelayed(2000);
+        } catch (Exception e) {
+            Log.e(TAG, "Error updating inventory: " + e.getMessage(), e);
+            updateUI("Failed to update stock.");
+            finishDelayed(2000);
+        }
+    }
+
+    /**
+     * Calls a business client using the universal contact resolver.
+     */
+    private void callBusinessClient(String clientName) {
+        if (clientName == null || clientName.trim().isEmpty()) {
+            updateUI("Which client should I call?");
+            finishDelayed(2000);
+            return;
+        }
+        String number = getPhoneNumber(clientName);
+        if (number != null && !number.trim().isEmpty()) {
+            updateUI("Calling " + clientName + "...");
+            makeCall(number);
+            finishDelayed(1500);
+        } else {
+            updateUI("Client '" + clientName + "' not found in contacts.");
+            finishDelayed(2000);
+        }
+    }
+
+    /**
+     * Offline bulk rate calculator: parses quantity and per-item rate from voice.
+     */
+    private void calculateBulkRate(String command) {
+        try {
+            // Extract all numbers from the command
+            Matcher m = Pattern.compile("(\\d+\\.?\\d*)").matcher(command);
+            ArrayList<Double> numbers = new ArrayList<>();
+            while (m.find()) {
+                numbers.add(Double.parseDouble(m.group(1)));
+            }
+
+            if (numbers.size() >= 2) {
+                double quantity = numbers.get(0);
+                double rate = numbers.get(1);
+
+                // Check if rate is in paise (e.g., "45 paise")
+                String lower = command.toLowerCase();
+                if (lower.contains("paise") || lower.contains("paisa")) {
+                    rate = rate / 100.0;
+                }
+
+                double total = quantity * rate;
+                String formattedTotal = String.format(Locale.getDefault(), "%.2f", total);
+                updateUI("Bulk Rate Estimate:\n" +
+                    String.format(Locale.getDefault(), "%.0f", quantity) + " × ₹" +
+                    String.format(Locale.getDefault(), "%.2f", rate) + " = ₹" + formattedTotal);
+            } else if (numbers.size() == 1) {
+                updateUI("Got quantity " + String.format(Locale.getDefault(), "%.0f", numbers.get(0)) +
+                    ". What is the rate per item?");
+            } else {
+                updateUI("Please say quantity and rate. E.g., 'Calculate 5000 at 45 paise'");
+            }
+            finishDelayed(3000);
+        } catch (Exception e) {
+            Log.e(TAG, "Error calculating rate: " + e.getMessage(), e);
+            updateUI("Calculation error.");
+            finishDelayed(2000);
+        }
+    }
+
+    /**
+     * Sets a business reminder via the native alarm/calendar system.
+     */
+    private void setBusinessReminder(String reminderText) {
+        try {
+            Intent intent = new Intent(Intent.ACTION_INSERT);
+            intent.setData(CalendarContract.Events.CONTENT_URI);
+            intent.putExtra(CalendarContract.Events.TITLE, "Marvo Biz: " + reminderText);
+            intent.putExtra(CalendarContract.Events.DESCRIPTION, "Business reminder set by Marvo AI");
+            intent.putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, System.currentTimeMillis() + 3600000L); // 1 hr from now
+            intent.putExtra(CalendarContract.EXTRA_EVENT_END_TIME, System.currentTimeMillis() + 7200000L);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+            updateUI("Business reminder set: " + reminderText);
+            finishDelayed(1500);
+        } catch (Exception e) {
+            Log.e(TAG, "Error setting business reminder: " + e.getMessage(), e);
+            updateUI("Failed to set reminder.");
+            finishDelayed(2000);
+        }
+    }
+
+    // =====================================================================
+    // Step 8: Offline File Search & Smart Local Note-Taking
+    // =====================================================================
+
+    /**
+     * Launches a file picker/search intent for local document searching.
+     */
+    private void searchLocalFiles(String query) {
+        try {
+            Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+            intent.setType("*/*");
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.putExtra(Intent.EXTRA_TITLE, query);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(Intent.createChooser(intent, "Search: " + query));
+            updateUI("Opening file browser for: " + query);
+            finishDelayed(1500);
+        } catch (Exception e) {
+            Log.e(TAG, "Error opening file browser: " + e.getMessage(), e);
+            updateUI("File browser unavailable.");
+            finishDelayed(2000);
+        }
+    }
+
+    /**
+     * Saves a quick note to a local MarvoNotes.txt file in internal storage.
+     */
+    private void saveLocalNote(String noteContent) {
+        try {
+            File notesDir = new File(getFilesDir(), "MarvoNotes");
+            if (!notesDir.exists()) {
+                notesDir.mkdirs();
+            }
+            File notesFile = new File(notesDir, "MarvoNotes.txt");
+            FileWriter writer = new FileWriter(notesFile, true); // append mode
+            String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date());
+            writer.write("[" + timestamp + "] " + noteContent + "\n");
+            writer.flush();
+            writer.close();
+
+            updateUI("Note saved successfully.");
+            finishDelayed(1500);
+        } catch (Exception e) {
+            Log.e(TAG, "Error saving note: " + e.getMessage(), e);
+            updateUI("Failed to save note.");
+            finishDelayed(2000);
+        }
+    }
+
+    /**
+     * Reads and displays all saved notes from MarvoNotes.txt.
+     */
+    private void readLocalNotes() {
+        try {
+            File notesFile = new File(new File(getFilesDir(), "MarvoNotes"), "MarvoNotes.txt");
+            if (!notesFile.exists()) {
+                updateUI("No notes saved yet.\nSay 'note down...' to create one.");
+                finishDelayed(2000);
+                return;
+            }
+
+            BufferedReader reader = new BufferedReader(new FileReader(notesFile));
+            StringBuilder sb = new StringBuilder("Your Notes:\n");
+            String line;
+            int count = 0;
+            while ((line = reader.readLine()) != null && count < 10) {
+                sb.append(line).append("\n");
+                count++;
+            }
+            reader.close();
+
+            if (count == 0) {
+                updateUI("No notes saved yet.");
+            } else {
+                updateUI(sb.toString().trim());
+            }
+            finishDelayed(4000);
+        } catch (Exception e) {
+            Log.e(TAG, "Error reading notes: " + e.getMessage(), e);
+            updateUI("Failed to read notes.");
+            finishDelayed(2000);
+        }
+    }
+
+    // =====================================================================
+    // Step 7 Part 3: Clipboard & Smart Text Utilities
+    // =====================================================================
+
+    /**
+     * Copies text to the system clipboard.
+     */
+    private void copyTextToClipboard(String text) {
+        try {
+            ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+            ClipData clip = ClipData.newPlainText("Marvo Copied Text", text);
+            if (clipboard != null) {
+                clipboard.setPrimaryClip(clip);
+            }
+            updateUI("Text copied to clipboard.");
+            finishDelayed(1500);
+        } catch (Exception e) {
+            Log.e(TAG, "Error copying to clipboard: " + e.getMessage(), e);
+            updateUI("Failed to copy text.");
+            finishDelayed(2000);
+        }
+    }
+
+    /**
+     * Reads and displays current clipboard content.
+     */
+    private void readTextFromClipboard() {
+        try {
+            ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+            if (clipboard != null && clipboard.hasPrimaryClip()) {
+                ClipData.Item item = clipboard.getPrimaryClip().getItemAt(0);
+                CharSequence pasteData = item.getText();
+                if (pasteData != null && pasteData.length() > 0) {
+                    updateUI("Clipboard:\n" + pasteData.toString());
+                } else {
+                    updateUI("Clipboard is empty.");
+                }
+            } else {
+                updateUI("Clipboard is empty.");
+            }
+            finishDelayed(3000);
+        } catch (Exception e) {
+            Log.e(TAG, "Error reading clipboard: " + e.getMessage(), e);
+            updateUI("Failed to read clipboard.");
+            finishDelayed(2000);
+        }
+    }
+
+    /**
+     * Counts words and characters in a spoken sentence.
+     */
+    private void countWordsInText(String text) {
+        if (text == null || text.trim().isEmpty()) {
+            updateUI("No text to count.");
+            finishDelayed(1500);
+            return;
+        }
+        String cleaned = text.trim();
+        int wordCount = cleaned.split("\\s+").length;
+        int charCount = cleaned.length();
+        updateUI("Word Count: " + wordCount + "\nCharacter Count: " + charCount);
+        finishDelayed(2500);
+    }
+
+    // =====================================================================
+    // Step 7 Part 4: App Launcher & Device Status
+    // =====================================================================
+
+    /**
+     * Launches an installed app by matching the spoken name to package labels.
+     */
+    private void launchAppByName(String appName) {
+        if (appName == null || appName.trim().isEmpty()) {
+            updateUI("Which app should I open?");
+            finishDelayed(2000);
+            return;
+        }
+
+        String searchName = appName.toLowerCase().trim();
+        PackageManager pm = getPackageManager();
+        List<ApplicationInfo> apps = pm.getInstalledApplications(PackageManager.GET_META_DATA);
+
+        for (ApplicationInfo app : apps) {
+            String label = pm.getApplicationLabel(app).toString().toLowerCase().trim();
+            if (label.equals(searchName) || label.contains(searchName)) {
+                Intent launchIntent = pm.getLaunchIntentForPackage(app.packageName);
+                if (launchIntent != null) {
+                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    updateUI("Opening " + pm.getApplicationLabel(app) + "...");
+                    startActivity(launchIntent);
+                    finishDelayed(1000);
+                    return;
+                }
+            }
+        }
+
+        updateUI("App '" + appName + "' not found.");
+        finishDelayed(2000);
+    }
+
+    /**
+     * Queries and displays the current battery level.
+     */
+    private void getDeviceBatteryLevel() {
+        try {
+            IntentFilter ifilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+            Intent batteryStatus = registerReceiver(null, ifilter);
+            if (batteryStatus != null) {
+                int level = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+                int scale = batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
+                int status = batteryStatus.getIntExtra(BatteryManager.EXTRA_STATUS, -1);
+                float batteryPct = level * 100 / (float) scale;
+                String chargingState = (status == BatteryManager.BATTERY_STATUS_CHARGING ||
+                    status == BatteryManager.BATTERY_STATUS_FULL) ? "Charging" : "Not Charging";
+                updateUI("Battery: " + (int) batteryPct + "%\nStatus: " + chargingState);
+            } else {
+                updateUI("Unable to read battery status.");
+            }
+            finishDelayed(2500);
+        } catch (Exception e) {
+            Log.e(TAG, "Error reading battery: " + e.getMessage(), e);
+            updateUI("Battery check failed.");
+            finishDelayed(2000);
+        }
+    }
+
+    /**
+      * Local Intent Router:
      * Separates offline hardware / system commands (calls, sms, flashlight) from online AI queries.
      */
     private void routeCommand(String command) {
@@ -1625,7 +2029,151 @@ public class AssistantActivity extends AppCompatActivity {
             updateUI("Opening " + platform + " for " + product + ".\nWould you like to proceed with Cash on Delivery or Online Payment?");
             startListeningDelayed(2000);
             return;
-        } else {
+        }
+
+        // =====================================================================
+        // Step 7: Offline Business Suite
+        // =====================================================================
+        else if (lower.contains("order") || lower.contains("stock") || lower.contains("khata") || lower.contains("bill")) {
+            if (lower.contains("check stock") || lower.contains("stock level") || lower.contains("inventory") || lower.contains("maal")) {
+                statusTextView.setText("Checking inventory...");
+                checkInventoryStock();
+                return;
+            } else if (lower.contains("update stock") || lower.contains("stock update")) {
+                String cleaned = command.replaceAll("(?i)(update stock|stock update|for|of)\\s*", "").trim();
+                String[] parts = cleaned.split("\\s+", 2);
+                String item = parts.length > 0 ? parts[0] : "General";
+                String qty = parts.length > 1 ? parts[1] : "0";
+                Matcher qm = Pattern.compile("(\\d+)").matcher(cleaned);
+                if (qm.find()) {
+                    qty = qm.group(1);
+                    item = cleaned.replaceAll("\\d+", "").trim();
+                    if (item.isEmpty()) item = "Paper Plates";
+                }
+                updateInventoryStock(item, qty);
+                return;
+            } else if (lower.contains("order for") || lower.contains("save order") || lower.startsWith("order")) {
+                String cleaned = command.replaceAll("(?i)(save order for|order for|save order|order)\\s*", "").trim();
+                String clientName = "Customer";
+                String quantity = "0";
+                Matcher qm = Pattern.compile("(\\d+)").matcher(cleaned);
+                if (qm.find()) {
+                    quantity = qm.group(1);
+                    clientName = cleaned.replaceAll("\\d+", "").replaceAll("(?i)(pieces|plates|dona|packet)\\s*", "").trim();
+                    if (clientName.isEmpty()) clientName = "Customer";
+                } else {
+                    clientName = cleaned;
+                }
+                saveBusinessOrder(clientName, quantity);
+                return;
+            } else if (lower.contains("bill") || lower.contains("khata")) {
+                statusTextView.setText("Checking ledger...");
+                checkInventoryStock();
+                return;
+            }
+        }
+
+        // Step 7: Business Dialer
+        else if (lower.startsWith("call client") || lower.startsWith("client call")) {
+            String clientName = command.replaceAll("(?i)(call client|client call)\\s*", "").trim();
+            callBusinessClient(clientName);
+            return;
+        }
+
+        // Step 7: Bulk Rate Calculator
+        else if (lower.contains("calculate rate") || lower.contains("bulk rate") || lower.contains("rate calculate") || lower.contains("hisab")) {
+            calculateBulkRate(command);
+            return;
+        }
+
+        // Step 7: Business Reminders
+        else if (lower.contains("business reminder") || lower.contains("delivery reminder") || lower.contains("payment reminder") || lower.contains("pickup reminder")) {
+            String reminderText = command.replaceAll("(?i)(set|add|create)?\\s*(business|delivery|payment|pickup)?\\s*reminder\\s*(for|about|of)?\\s*", "").trim();
+            if (reminderText.isEmpty()) reminderText = "Business Task";
+            setBusinessReminder(reminderText);
+            return;
+        }
+
+        // =====================================================================
+        // Step 8: File Search & Note-Taking
+        // =====================================================================
+        else if (lower.contains("find file") || lower.contains("search document") || lower.contains("search file") || lower.contains("open document") || lower.contains("file dhundho")) {
+            String query = command.replaceAll("(?i)(find file|search document|search file|open document|file dhundho|for|named)\\s*", "").trim();
+            if (query.isEmpty()) query = "document";
+            searchLocalFiles(query);
+            return;
+        } else if (lower.startsWith("note down") || lower.startsWith("remember this") || lower.startsWith("save note") || lower.startsWith("yaad rakh") || lower.startsWith("likh le")) {
+            String noteContent = command.replaceAll("(?i)(note down|remember this|save note|yaad rakh|likh le|that)?\\s*", "").trim();
+            if (noteContent.isEmpty()) {
+                updateUI("What should I note down?");
+                finishDelayed(2000);
+            } else {
+                saveLocalNote(noteContent);
+            }
+            return;
+        } else if (lower.contains("read notes") || lower.contains("show notes") || lower.contains("my notes") || lower.contains("mera note")) {
+            readLocalNotes();
+            return;
+        }
+
+        // =====================================================================
+        // Step 7 Part 3: Clipboard & Text Utilities
+        // =====================================================================
+        else if (lower.startsWith("copy ") || lower.startsWith("clipboard ")) {
+            String text = command.replaceAll("(?i)(copy|clipboard)\\s*", "").trim();
+            if (text.isEmpty()) {
+                updateUI("What should I copy?");
+                finishDelayed(2000);
+            } else {
+                copyTextToClipboard(text);
+            }
+            return;
+        } else if (lower.contains("read clipboard") || lower.contains("show clipboard") || lower.contains("paste") || lower.contains("clipboard dikhao")) {
+            readTextFromClipboard();
+            return;
+        } else if (lower.contains("count words") || lower.contains("word count") || lower.contains("kitne shabd")) {
+            String text = command.replaceAll("(?i)(count words|word count|kitne shabd|in|of|for)\\s*", "").trim();
+            countWordsInText(text);
+            return;
+        } else if (lower.contains("uppercase") || lower.contains("capital") || lower.contains("bada karo")) {
+            String text = command.replaceAll("(?i)(convert to uppercase|make uppercase|uppercase|capital letters|bada karo)\\s*", "").trim();
+            if (!text.isEmpty()) {
+                copyTextToClipboard(text.toUpperCase());
+            } else {
+                updateUI("What text should I convert?");
+                finishDelayed(2000);
+            }
+            return;
+        } else if (lower.contains("lowercase") || lower.contains("chhota karo") || lower.contains("small letters")) {
+            String text = command.replaceAll("(?i)(convert to lowercase|make lowercase|lowercase|small letters|chhota karo)\\s*", "").trim();
+            if (!text.isEmpty()) {
+                copyTextToClipboard(text.toLowerCase());
+            } else {
+                updateUI("What text should I convert?");
+                finishDelayed(2000);
+            }
+            return;
+        }
+
+        // =====================================================================
+        // Step 7 Part 4: App Launcher & Device Status
+        // =====================================================================
+        else if (lower.startsWith("open ") || lower.startsWith("launch ") || lower.startsWith("start app ") || lower.startsWith("kholo ")) {
+            String appName = command.replaceAll("(?i)(open app|launch app|start app|open|launch|kholo)\\s*", "").trim();
+            if (appName.isEmpty()) {
+                updateUI("Which app should I open?");
+                finishDelayed(2000);
+            } else {
+                launchAppByName(appName);
+            }
+            return;
+        } else if (lower.contains("battery") || lower.contains("charge") || lower.contains("phone status") || lower.contains("kitna charge")) {
+            getDeviceBatteryLevel();
+            return;
+        }
+
+        // Fallback: Online AI Query
+        else {
             statusTextView.setText("Action: Online AI Query");
         }
     }
