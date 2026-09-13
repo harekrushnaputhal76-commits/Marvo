@@ -30,49 +30,57 @@
     <button id="btnCloseSidebar" class="sidebar-close" aria-label="Close">&times;</button>
   </div>
 
-  <!-- Creative Agents Section (Above New Chat) -->
-  <div class="sidebar-section sidebar-agents-section">
-    <div class="sidebar-section-title">AGENTS</div>
-    <div class="sidebar-agents-grid" id="sidebarAgentsGrid">
-      <button class="agent-chip-btn" data-agent="lumina" type="button" title="Lumina — Vision & Art">
-        <div class="agent-chip-icon lumina">
-          <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="currentColor"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4" stroke="currentColor" stroke-width="2"/></svg>
-        </div>
-        <div class="agent-chip-info">
-          <span class="agent-chip-name">Lumina</span>
-          <span class="agent-chip-role">Vision & Art</span>
-        </div>
-      </button>
+  <!-- Collapsible Agents Accordion Section (Above New Chat) -->
+  <div class="sidebar-section sidebar-agents-accordion" id="agentsAccordion">
+    <button class="agents-accordion-header" id="btnToggleAgents" type="button" aria-expanded="false">
+      <div class="agents-accordion-title">
+        <span class="agents-title-text">🤖 All Agents</span>
+        <span class="agents-active-indicator" id="agentsActiveIndicator">Aura</span>
+      </div>
+      <svg class="agents-chevron" viewBox="0 0 24 24" width="16" height="16"><polyline points="6 9 12 15 18 9" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+    </button>
+    <div class="agents-accordion-content collapsed" id="agentsAccordionContent">
+      <div class="sidebar-agents-grid" id="sidebarAgentsGrid">
+        <button class="agent-chip-btn" data-agent="lumina" type="button" title="Lumina — For Art & Images">
+          <div class="agent-chip-icon lumina">
+            <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="currentColor"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4" stroke="currentColor" stroke-width="2"/></svg>
+          </div>
+          <div class="agent-chip-info">
+            <span class="agent-chip-name">Lumina</span>
+            <span class="agent-chip-role">For Art & Images</span>
+          </div>
+        </button>
 
-      <button class="agent-chip-btn" data-agent="nexus" type="button" title="Nexus — Code & Logic">
-        <div class="agent-chip-icon nexus">
-          <svg viewBox="0 0 24 24" width="16" height="16"><polyline points="16 18 22 12 16 6" fill="none" stroke="currentColor" stroke-width="2"/><polyline points="8 6 2 12 8 18" fill="none" stroke="currentColor" stroke-width="2"/><line x1="14" y1="4" x2="10" y2="20" stroke="currentColor" stroke-width="2"/></svg>
-        </div>
-        <div class="agent-chip-info">
-          <span class="agent-chip-name">Nexus</span>
-          <span class="agent-chip-role">Code & Logic</span>
-        </div>
-      </button>
+        <button class="agent-chip-btn" data-agent="nexus" type="button" title="Nexus — For Code & Logic">
+          <div class="agent-chip-icon nexus">
+            <svg viewBox="0 0 24 24" width="16" height="16"><polyline points="16 18 22 12 16 6" fill="none" stroke="currentColor" stroke-width="2"/><polyline points="8 6 2 12 8 18" fill="none" stroke="currentColor" stroke-width="2"/><line x1="14" y1="4" x2="10" y2="20" stroke="currentColor" stroke-width="2"/></svg>
+          </div>
+          <div class="agent-chip-info">
+            <span class="agent-chip-name">Nexus</span>
+            <span class="agent-chip-role">For Code & Logic</span>
+          </div>
+        </button>
 
-      <button class="agent-chip-btn" data-agent="orion" type="button" title="Orion — Deep Research">
-        <div class="agent-chip-icon orion">
-          <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="11" cy="11" r="8" fill="none" stroke="currentColor" stroke-width="2"/><line x1="21" y1="21" x2="16.65" y2="16.65" stroke="currentColor" stroke-width="2"/><circle cx="11" cy="11" r="3.5" fill="currentColor"/></svg>
-        </div>
-        <div class="agent-chip-info">
-          <span class="agent-chip-name">Orion</span>
-          <span class="agent-chip-role">Deep Research</span>
-        </div>
-      </button>
+        <button class="agent-chip-btn" data-agent="orion" type="button" title="Orion — For Deep Research">
+          <div class="agent-chip-icon orion">
+            <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="11" cy="11" r="8" fill="none" stroke="currentColor" stroke-width="2"/><line x1="21" y1="21" x2="16.65" y2="16.65" stroke="currentColor" stroke-width="2"/><circle cx="11" cy="11" r="3.5" fill="currentColor"/></svg>
+          </div>
+          <div class="agent-chip-info">
+            <span class="agent-chip-name">Orion</span>
+            <span class="agent-chip-role">For Deep Research</span>
+          </div>
+        </button>
 
-      <button class="agent-chip-btn active" data-agent="aura" type="button" title="Aura — General Assistant">
-        <div class="agent-chip-icon aura">
-          <svg viewBox="0 0 24 24" width="16" height="16"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" fill="currentColor"/></svg>
-        </div>
-        <div class="agent-chip-info">
-          <span class="agent-chip-name">Aura</span>
-          <span class="agent-chip-role">General Assistant</span>
-        </div>
-      </button>
+        <button class="agent-chip-btn active" data-agent="aura" type="button" title="Aura — General Assistant">
+          <div class="agent-chip-icon aura">
+            <svg viewBox="0 0 24 24" width="16" height="16"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" fill="currentColor"/></svg>
+          </div>
+          <div class="agent-chip-info">
+            <span class="agent-chip-name">Aura</span>
+            <span class="agent-chip-role">General Assistant</span>
+          </div>
+        </button>
+      </div>
     </div>
   </div>
 
@@ -349,7 +357,7 @@
   <div class="settings-modal">
     <div class="settings-header">
       <h3 class="settings-title">App Customization</h3>
-      <button id="btnCloseSettings" class="btn-icon" aria-label="Close Settings">&times;</button>
+      <button id="btnCloseSettings" class="btn-icon modal-close-btn" aria-label="Close Settings">&times;</button>
     </div>
     <div class="settings-body">
       
@@ -486,7 +494,7 @@
         <svg viewBox="0 0 24 24" width="20" height="20" style="color:var(--accent);"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
         <h3 id="projectModalTitle" class="settings-title">Project Workspace</h3>
       </div>
-      <button id="btnCloseProjectModal" class="btn-icon" aria-label="Close Project Modal">&times;</button>
+      <button id="btnCloseProjectModal" class="btn-icon modal-close-btn" aria-label="Close Project Modal">&times;</button>
     </div>
 
     <div class="settings-dialog-body project-dialog-body">
@@ -559,6 +567,18 @@
       <button id="btnCloseNotebookModal" class="btn-icon modal-close-btn" aria-label="Close Notebook Modal">&times;</button>
     </div>
     <div class="settings-dialog-body">
+      <!-- Temporary Notes Section -->
+      <div class="notebook-quick-note-wrap">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <label for="notebookQuickNote" class="project-label" style="margin:0;">📝 Temporary Scratchpad</label>
+          <span id="notebookNoteStatus" style="font-size:10.5px;color:var(--text-dim);">Auto-saved locally</span>
+        </div>
+        <textarea id="notebookQuickNote" class="project-textarea" rows="4" placeholder="Type quick thoughts, snippets, or draft ideas here..."></textarea>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px;margin-bottom:14px;">
+          <button id="btnClearQuickNote" class="msg-image-action-btn" type="button" style="padding:4px 10px;font-size:11px;">Clear Note</button>
+        </div>
+      </div>
+
       <div class="notebook-action-bar">
         <button id="btnSaveChatToNotebook" class="btn-project-action btn-project-primary" type="button">
           <svg viewBox="0 0 24 24" width="16" height="16"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" fill="none" stroke="currentColor" stroke-width="2"/><polyline points="17 21 17 13 7 13 7 21" fill="none" stroke="currentColor" stroke-width="2"/><polyline points="7 3 7 8 15 8" fill="none" stroke="currentColor" stroke-width="2"/></svg>

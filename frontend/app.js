@@ -28,6 +28,7 @@ const CHAT_PREFIX          = 'marvo.chat.';
 const AGENT_STORAGE_KEY    = 'marvo.activeAgent';
 const MODE_STORAGE_KEY     = 'marvo.selectedMode';
 const NOTEBOOK_STORAGE_KEY = 'marvo.notebook';
+const QUICK_NOTE_STORAGE_KEY = 'marvo.quickNote';
 
 /* ═══════ DOM CACHE ═══════ */
 const $ = (sel) => document.querySelector(sel);
@@ -45,8 +46,11 @@ const DOM = {
   btnRenameChat:      $('#btnRenameChat'),
   btnDeleteChat:      $('#btnDeleteChat'),
 
-  // Creative Agents
-  sidebarAgentsGrid:  $('#sidebarAgentsGrid'),
+  // Creative Agents & Collapsible Accordion
+  sidebarAgentsGrid:      $('#sidebarAgentsGrid'),
+  btnToggleAgents:        $('#btnToggleAgents'),
+  agentsAccordionContent: $('#agentsAccordionContent'),
+  agentsActiveIndicator:  $('#agentsActiveIndicator'),
 
   // Top Bar & Menus
   btnAppMenu:         $('#btnAppMenu'),
@@ -70,6 +74,9 @@ const DOM = {
   btnCloseNotebookModal:$('#btnCloseNotebookModal'),
   btnSaveChatToNotebook:$('#btnSaveChatToNotebook'),
   notebookNotesList:    $('#notebookNotesList'),
+  notebookQuickNote:    $('#notebookQuickNote'),
+  btnClearQuickNote:    $('#btnClearQuickNote'),
+  notebookNoteStatus:   $('#notebookNoteStatus'),
   shareModal:           $('#shareModal'),
   btnCloseShareModal:   $('#btnCloseShareModal'),
   btnSharePDF:          $('#btnSharePDF'),
@@ -1821,6 +1828,9 @@ function setActiveAgent(agentName, persist = true) {
       }
     });
   }
+  if (DOM.agentsActiveIndicator) {
+    DOM.agentsActiveIndicator.textContent = key.charAt(0).toUpperCase() + key.slice(1);
+  }
   const placeholder = AGENT_PLACEHOLDERS[key] || 'Ask Marvo anything...';
   if (DOM.msgInput) {
     DOM.msgInput.placeholder = placeholder;
@@ -1833,6 +1843,21 @@ function setActiveAgent(agentName, persist = true) {
 async function initAgents() {
   const saved = (await NativeStorage.get(AGENT_STORAGE_KEY)) || 'aura';
   setActiveAgent(saved, false);
+
+  // Accordion Toggle for De-clutter UX (Collapsed by default)
+  if (DOM.btnToggleAgents && DOM.agentsAccordionContent) {
+    DOM.btnToggleAgents.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isCollapsed = DOM.agentsAccordionContent.classList.contains('collapsed');
+      if (isCollapsed) {
+        DOM.agentsAccordionContent.classList.remove('collapsed');
+        DOM.btnToggleAgents.setAttribute('aria-expanded', 'true');
+      } else {
+        DOM.agentsAccordionContent.classList.add('collapsed');
+        DOM.btnToggleAgents.setAttribute('aria-expanded', 'false');
+      }
+    });
+  }
 
   if (DOM.sidebarAgentsGrid) {
     DOM.sidebarAgentsGrid.addEventListener('click', (e) => {
@@ -1869,9 +1894,40 @@ async function initModeSelection() {
 /* ═══════════════════════════════════════════════════════════════════
    NOTEBOOK & SHARE MODAL ACTIONS
    ═══════════════════════════════════════════════════════════════════ */
+async function loadQuickNote() {
+  if (!DOM.notebookQuickNote) return;
+  const note = (await NativeStorage.get(QUICK_NOTE_STORAGE_KEY)) || '';
+  DOM.notebookQuickNote.value = note;
+  if (DOM.notebookNoteStatus) DOM.notebookNoteStatus.textContent = note ? 'Auto-saved locally' : '';
+}
+
+let quickNoteDebounceTimer = null;
+function setupQuickNoteListeners() {
+  if (DOM.notebookQuickNote) {
+    DOM.notebookQuickNote.addEventListener('input', () => {
+      if (DOM.notebookNoteStatus) DOM.notebookNoteStatus.textContent = 'Saving...';
+      clearTimeout(quickNoteDebounceTimer);
+      quickNoteDebounceTimer = setTimeout(async () => {
+        await NativeStorage.set(QUICK_NOTE_STORAGE_KEY, DOM.notebookQuickNote.value);
+        if (DOM.notebookNoteStatus) DOM.notebookNoteStatus.textContent = 'Auto-saved locally';
+      }, 400);
+    });
+  }
+
+  if (DOM.btnClearQuickNote) {
+    DOM.btnClearQuickNote.addEventListener('click', async () => {
+      if (DOM.notebookQuickNote) DOM.notebookQuickNote.value = '';
+      await NativeStorage.set(QUICK_NOTE_STORAGE_KEY, '');
+      if (DOM.notebookNoteStatus) DOM.notebookNoteStatus.textContent = 'Cleared';
+      showToast('Scratchpad cleared');
+    });
+  }
+}
+
 async function openNotebookModal() {
   closeAllDropdowns();
   openModal(DOM.notebookModal);
+  await loadQuickNote();
   await renderNotebookNotes();
 }
 
@@ -1983,6 +2039,7 @@ async function initApp() {
   await initEyeCustomization();
   await initAgents();
   await initModeSelection();
+  setupQuickNoteListeners();
   initInteractiveEyes();
   await initVoiceSelection();
   await loadActiveProject();

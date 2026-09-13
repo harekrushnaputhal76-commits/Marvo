@@ -1500,16 +1500,79 @@ body.chat-active .face{
 /* ═══════════════════════════════════════════════════════════════════
    PHASE 5: CREATIVE AGENTS SIDEBAR SECTION
    ═══════════════════════════════════════════════════════════════════ */
-.sidebar-agents-section {
+.sidebar-agents-accordion {
   padding-bottom: 6px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   margin-bottom: 10px;
+}
+.agents-accordion-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  min-height: 44px;
+}
+.agents-accordion-header:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+.agents-accordion-header:active {
+  transform: scale(0.98);
+}
+.agents-accordion-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.agents-title-text {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.3px;
+}
+.agents-active-indicator {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(0, 240, 255, 0.12);
+  color: var(--accent);
+  border: 1px solid rgba(0, 240, 255, 0.25);
+  text-transform: capitalize;
+}
+.agents-chevron {
+  color: var(--text-muted);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.agents-accordion-header[aria-expanded="true"] .agents-chevron,
+.agents-accordion-header.open .agents-chevron {
+  transform: rotate(180deg);
+  color: var(--accent);
+}
+.agents-accordion-content {
+  overflow: hidden;
+  max-height: 280px;
+  opacity: 1;
+  transition: max-height 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease, margin-top 0.25s ease;
+  margin-top: 8px;
+}
+.agents-accordion-content.collapsed {
+  max-height: 0;
+  opacity: 0;
+  margin-top: 0;
+  pointer-events: none;
 }
 .sidebar-agents-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 8px;
-  margin-top: 6px;
+  margin-top: 4px;
 }
 .agent-chip-btn {
   display: flex;
@@ -1670,6 +1733,18 @@ body.chat-active .face{
 }
 
 /* Notebook Modal */
+.notebook-quick-note-wrap {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 12px;
+  margin-bottom: 14px;
+}
+.notebook-quick-note-wrap .project-textarea {
+  margin-top: 6px;
+  min-height: 80px;
+  resize: vertical;
+}
 .notebook-action-bar {
   margin-bottom: 14px;
 }

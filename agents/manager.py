@@ -2,11 +2,11 @@
 Marvo AI — Agent Manager & Master Router
 ========================================
 Acts as the central orchestrator:
-- Intercepts incoming user prompts and performs semantic intent detection.
-- Routes image creation requests to image_agent (detecting "generate", "image", "draw", "thumbnail", "photo", etc.).
-- Routes reasoning and conversational queries to chat_agent.
+- Intercepts incoming user prompts and performs aggressive image intent detection.
+- Checks against: ["generate", "image", "draw", "photo", "picture", "creat", "create", "pic", "paint", "thumbnail"].
+- If ANY of these words exist in the prompt, routes directly to agents.image_agent.
+- Routes conversational queries to chat_agent.
 - Supports creative personas: Lumina (Vision), Nexus (Code), Orion (Research), Aura (General).
-- Provides unified response formatting.
 """
 
 import re
@@ -23,17 +23,17 @@ PERSONA_INSTRUCTIONS = {
     "lumina": (
         "You are Lumina, Marvo's Vision & Art Specialist. "
         "You embody high visual creativity, artistic flair, and aesthetic mastery. "
-        "When describing or suggesting ideas, focus on visual aesthetics, composition, lighting, color palettes, and cinematic wonder."
+        "Focus on visual aesthetics, composition, lighting, color palettes, and creative imagery."
     ),
     "nexus": (
         "You are Nexus, Marvo's Code & Logic Specialist. "
         "You write concise, production-grade, highly optimized code. "
-        "Prioritize modern patterns, strict typing, error handling, algorithmic elegance, and architectural clarity."
+        "Prioritize modern patterns, strict typing, error handling, and architectural clarity."
     ),
     "orion": (
         "You are Orion, Marvo's Deep Research Specialist. "
         "You provide rigorous, deeply researched, and analytical answers. "
-        "Structure your reasoning systematically with facts, structured breakdowns, and comprehensive domain depth."
+        "Structure your reasoning systematically with facts and comprehensive domain depth."
     ),
     "aura": (
         "You are Aura, Marvo's Flagship General Assistant. "
@@ -41,54 +41,50 @@ PERSONA_INSTRUCTIONS = {
     )
 }
 
-# Compiled regex patterns for detecting image generation intent
-_IMAGE_INTENT_PATTERNS = [
-    # Explicit command starts
-    re.compile(r"^\s*(?:please\s+)?(?:generate|create|make|produce|render)\s+(?:an?\s+)?(?:image|picture|photo|illustration|render|wallpaper|thumbnail|drawing|artwork|poster)", re.IGNORECASE),
-    re.compile(r"^\s*(?:please\s+)?(?:draw|paint|sketch|illustrate|design)(?:\s+me)?(?:\s+an?)?\s+", re.IGNORECASE),
-    re.compile(r"^\s*(?:imagine|visualize)\s+(?:an?\s+)?(?:image\s+of\s+|a\s+|an\s+)?", re.IGNORECASE),
-    re.compile(r"^\s*(?:photo|picture|wallpaper|render|thumbnail)\s+of\s+", re.IGNORECASE),
+# Explicit user-required trigger words (including typos/stems like 'creat' and 'pic')
+IMAGE_TRIGGER_WORDS = [
+    "generate",
+    "image",
+    "draw",
+    "photo",
+    "picture",
+    "creat",
+    "create",
+    "pic",
+    "paint",
+    "thumbnail"
+]
 
-    # Keywords inside query
-    re.compile(r"\b(?:generate\s+image|draw\s+this|create\s+image|draw\s+an?\s+image|make\s+an?\s+image)\b", re.IGNORECASE),
-    re.compile(r"\b(?:thumbnail\s+for|create\s+thumbnail|design\s+thumbnail|youtube\s+thumbnail)\b", re.IGNORECASE),
-    re.compile(r"\b(?:photo\s+of|realistic\s+photo|generate\s+photo|create\s+photo)\b", re.IGNORECASE),
-    re.compile(r"\b(?:generate\s+a?\s*wallpaper|drawing\s+of|sketch\s+of)\b", re.IGNORECASE),
-
-    # Hindi / Hinglish keywords
-    re.compile(r"\b(?:tasveer\s+banao|photo\s+banao|drawing\s+banao|chitra\s+banao|image\s+banao|photo\s+kheecho)\b", re.IGNORECASE),
+# Additional regional & contextual phrases
+_ADDITIONAL_IMAGE_PATTERNS = [
+    re.compile(r"\b(?:wallpaper|sketch|illustration|portrait|artwork|poster)\b", re.IGNORECASE),
+    re.compile(r"\b(?:tasveer\s+banao|photo\s+banao|drawing\s+banao|chitra\s+banao|image\s+banao)\b", re.IGNORECASE),
 ]
 
 
 def is_image_intent(prompt: str) -> bool:
     """
-    Returns True if the prompt is asking to generate, draw, render an image, thumbnail, or photo.
+    Extremely aggressive image intent routing.
+    If ANY of ['generate', 'image', 'draw', 'photo', 'picture', 'creat', 'create', 'pic', 'paint', 'thumbnail']
+    exist anywhere in the user prompt, immediately return True.
     """
     if not prompt or not isinstance(prompt, str):
         return False
 
     clean = prompt.strip().lower()
 
-    # Direct pattern checks
-    for pattern in _IMAGE_INTENT_PATTERNS:
-        if pattern.search(clean):
+    # 1. Exact match against user's required trigger word list
+    for word in IMAGE_TRIGGER_WORDS:
+        # Check both word boundary and substring match (catches typos like 'creat', 'create', 'pic', etc.)
+        if word in clean:
+            logger.info(f"[AgentManager] Aggressive image trigger matched: '{word}' in prompt: {clean[:50]}")
             return True
 
-    # Standalone keyword triggers in generative/visual contexts
-    if re.search(r"\b(?:thumbnail)\b", clean):
-        # Almost all requests containing "thumbnail" in an AI chat are asking for image generation
-        return True
-
-    if re.search(r"^(?:draw|sketch|paint)\s+", clean):
-        return True
-
-    # If prompt starts with "generate ..." or "create ..." and contains visual nouns
-    if re.search(r"^(?:generate|create|make)\b", clean) and re.search(r"\b(?:image|photo|picture|wallpaper|portrait|illustration|avatar|poster)\b", clean):
-        return True
-
-    # Check for direct phrase "photo of" or "image of"
-    if "photo of" in clean or "image of" in clean or "picture of" in clean:
-        return True
+    # 2. Regional / auxiliary visual patterns
+    for pattern in _ADDITIONAL_IMAGE_PATTERNS:
+        if pattern.search(clean):
+            logger.info(f"[AgentManager] Visual pattern matched in prompt: {clean[:50]}")
+            return True
 
     return False
 
@@ -103,11 +99,10 @@ def handle_request(
     """
     Master entry point for processing incoming messages.
     Inspects user intent and routes to the appropriate specialized agent.
-    Supports agent personas (Lumina, Nexus, Orion, Aura).
     """
     clean_message = (message or "").strip()
 
-    # 1. Intent Detection: Image Generation
+    # 1. Aggressive Intent Detection: Image Generation
     if is_image_intent(clean_message):
         logger.info(f"[AgentManager] Routing prompt to ImageAgent: {clean_message[:60]}")
         image_result = generate_image(clean_message)
