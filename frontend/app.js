@@ -703,33 +703,43 @@ function clearChat() {
 }
 
 /* Instant Image Generation Parsing & Card Rendering */
+const IMAGE_TRIGGER_KEYWORDS = [
+  'generate', 'image', 'draw', 'photo', 'picture', 'creat', 'create', 'pic', 'paint', 'thumbnail'
+];
+
+function cleanPromptForDisplay(raw) {
+  if (!raw) return 'Visual generation';
+  let t = String(raw);
+  // Strip bracketed system instructions or time
+  t = t.replace(/\[.*?\]/gs, '');
+  t = t.replace(/^(?:user\s+question|user|question|prompt)\s*:\s*/i, '').trim();
+  const lines = t.split('\n').map(l => l.trim()).filter(Boolean);
+  if (lines.length) t = lines[lines.length - 1];
+  t = t.replace(/^(?:user\s+question|user|question|prompt)\s*:\s*/i, '').trim();
+  t = t.replace(/^(?:please\s+)?(?:generate|create|creat|make|produce|render|draw|paint|sketch)\s+(?:an?\s+)?(?:image|picture|pic|photo|thumbnail)?\s*(?:of|for|showing|about)?\s*/i, '');
+  t = t.replace(/\s+(?:image|picture|photo|pic|drawing)$/i, '');
+  t = t.trim().replace(/^["']|["']$/g, '');
+  return t || 'Visual generation';
+}
+
 function parseImageGenerationPrompt(input) {
   if (!input) return null;
   const trimmed = input.trim();
+  const lower = trimmed.toLowerCase();
 
-  const patterns = [
-    /^(?:generate\s+image(?:\s+of)?|create\s+(?:an?\s+)?image(?:\s+of)?|make\s+(?:an?\s+)?(?:image|picture)(?:\s+of)?|draw(?:\s+me)?(?:\s+an?)?|paint(?:\s+me)?(?:\s+an?)?|imagine|sketch(?:\s+an?)?)\s*[:,-]?\s*(.+)/i,
-    /^(?:photo|picture|illustration|wallpaper|render)\s+of\s+(.+)/i,
-  ];
+  // Check against the exact trigger list
+  const hasTrigger = IMAGE_TRIGGER_KEYWORDS.some(w => lower.includes(w));
+  if (!hasTrigger) return null;
 
-  for (const re of patterns) {
-    const match = trimmed.match(re);
-    if (match && match[1] && match[1].trim()) {
-      return match[1].trim();
-    }
-  }
-
-  if (/^(?:generate\s+image|draw\s+image|create\s+image|paint\s+image|draw\s+something|generate\s+art)$/i.test(trimmed)) {
-    return 'a hyper-realistic futuristic neon cyberpunk city at twilight with flying vehicles, 8k resolution';
-  }
-
-  return null;
+  const cleaned = cleanPromptForDisplay(trimmed);
+  return cleaned || 'a futuristic visual concept';
 }
 
 function renderImageMessageCard(promptText, imageUrl) {
   const card = document.createElement('div');
   card.className = 'msg-image-card';
   const isBase64 = imageUrl && imageUrl.startsWith('data:');
+  const cleanPrompt = cleanPromptForDisplay(promptText);
 
   card.innerHTML = `
     <div class="msg-image-header">
@@ -741,18 +751,18 @@ function renderImageMessageCard(promptText, imageUrl) {
     </div>
     <div class="msg-image-wrap">
       <div class="msg-image-skeleton">
-        <span style="width:20px;height:20px;border:2px solid var(--accent);border-top-color:transparent;border-radius:50%;animation:iris-spin 0.8s linear infinite;"></span>
+        <span style="width:22px;height:22px;border:2px solid var(--accent);border-top-color:transparent;border-radius:50%;animation:iris-spin 0.8s linear infinite;"></span>
         <span>Rendering visual generation...</span>
       </div>
-      <img class="msg-image-img" src="${imageUrl}" alt="${promptText}" loading="lazy" />
+      <img class="msg-image-img" src="${imageUrl}" alt="${escapeHtml(cleanPrompt)}" loading="lazy" />
     </div>
-    <p class="msg-image-prompt-text">"${promptText}"</p>
+    <p class="msg-image-prompt-text">"${escapeHtml(cleanPrompt)}"</p>
     <button class="msg-image-download-btn action-download-img" type="button" title="Download Image">
       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       <span>Download Image</span>
     </button>
     <div class="msg-image-footer">
-      <button class="msg-image-action-btn action-copy-prompt" type="button" title="Copy Prompt">
+      <button class="msg-image-action-btn action-copy-prompt" type="button" title="Copy Clean Prompt">
         <svg viewBox="0 0 24 24" width="12" height="12"><rect x="9" y="9" width="13" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" fill="none" stroke="currentColor" stroke-width="2"/></svg>
         <span>Copy Prompt</span>
       </button>
@@ -774,41 +784,70 @@ function renderImageMessageCard(promptText, imageUrl) {
   };
 
   img.onerror = () => {
+    img.style.display = 'none';
     if (skeleton) {
+      skeleton.style.display = 'flex';
+      skeleton.style.animation = 'none';
+      skeleton.style.background = 'rgba(15, 20, 30, 0.9)';
       skeleton.innerHTML = `
-        <span style="color:#ff0055;font-weight:600;">⚠️ Image failed to load</span>
-        <button class="msg-image-action-btn retry-img-btn" type="button" style="margin-top:6px;">Retry</button>
+        <div class="msg-image-fail-card">
+          <div class="fail-icon-badge">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#ff0055" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+          </div>
+          <span class="fail-title">Generation Refresh Needed</span>
+          <span class="fail-desc">Service busy or refreshing. Tap below to reload.</span>
+          <button class="retry-img-btn" type="button">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            <span>Reload Visual</span>
+          </button>
+        </div>
       `;
       skeleton.querySelector('.retry-img-btn')?.addEventListener('click', () => {
-        img.src = `${imageUrl}${imageUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
+        img.style.display = 'block';
+        skeleton.style.display = 'flex';
+        skeleton.style.animation = '';
+        skeleton.style.background = '';
+        skeleton.innerHTML = `
+          <span style="width:22px;height:22px;border:2px solid var(--accent);border-top-color:transparent;border-radius:50%;animation:iris-spin 0.8s linear infinite;"></span>
+          <span>Refreshing generation...</span>
+        `;
+        const cleanBase = imageUrl.split('&t=')[0].split('?t=')[0];
+        const sep = cleanBase.includes('?') ? '&' : '?';
+        img.src = `${cleanBase}${sep}seed=${Math.floor(Math.random() * 1000000)}&t=${Date.now()}`;
       });
     }
   };
 
   copyBtn?.addEventListener('click', (e) => {
     e.stopPropagation();
-    copyToClipboard(promptText, copyBtn);
+    copyToClipboard(cleanPrompt, copyBtn);
+    showToast('Prompt copied!');
   });
 
   downloadBtn?.addEventListener('click', async (e) => {
     e.stopPropagation();
     try {
       showToast('Downloading image...');
+      const filename = `marvo-art-${Date.now()}.jpg`;
       if (imageUrl.startsWith('data:')) {
         const a = document.createElement('a');
         a.href = imageUrl;
-        a.download = `marvo-art-${Date.now()}.jpg`;
+        a.download = filename;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        showToast('Image downloaded!');
+        showToast('Image saved!');
       } else {
         const resp = await fetch(imageUrl);
         const blob = await resp.blob();
         const blobUrl = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = blobUrl;
-        a.download = `marvo-art-${Date.now()}.jpg`;
+        a.download = filename;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -816,8 +855,14 @@ function renderImageMessageCard(promptText, imageUrl) {
         showToast('Image downloaded!');
       }
     } catch (err) {
-      console.warn('Direct download failed, opening in new tab', err);
-      window.open(imageUrl, '_blank');
+      console.warn('Direct blob fetch failed, opening download link', err);
+      const a = document.createElement('a');
+      a.href = imageUrl;
+      a.download = `marvo-art-${Date.now()}.jpg`;
+      a.target = '_blank';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     }
   });
 
@@ -939,15 +984,17 @@ async function sendMessage(userText) {
   const isImageRequest = parseImageGenerationPrompt(cleanInput);
 
   if (isImageRequest) {
-    const loadingMsgEl = dots.querySelector('.msg-ai');
-    if (loadingMsgEl) {
-      loadingMsgEl.innerHTML = `
-        <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary);">
-          <span style="width:8px;height:8px;border-radius:50%;background:var(--accent);animation:sound-wave 1s infinite alternate;"></span>
-          <span>Generating visual: "${isImageRequest.length > 26 ? isImageRequest.slice(0, 26) + '...' : isImageRequest}"...</span>
+    dots.innerHTML = `
+      <div class="msg-image-loading-card">
+        <div class="msg-image-shimmer-preview">
+          <div class="image-shimmer-inner">
+            <span class="image-loading-spinner"></span>
+            <span class="image-loading-label">Crafting visual masterpiece...</span>
+            <span class="image-loading-prompt">"${escapeHtml(cleanPromptForDisplay(isImageRequest))}"</span>
+          </div>
         </div>
-      `;
-    }
+      </div>
+    `;
     setEyeExpression('state-creative');
   } else {
     setEyeExpression('state-loading');
