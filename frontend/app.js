@@ -651,19 +651,15 @@ async function sendMessage(userText) {
   const dots = showLoading();
   setEyeExpression('state-loading');
 
-  // Silently construct exact temporal context
-  const now = new Date();
-  const timeString = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
-  const dateString = now.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Local Time';
-  const temporalPrompt = `[Context: Current local time is ${timeString} on ${dateString} (${timeZone})]\n\n${cleanInput}`;
+  const deviceTime = new Date().toLocaleString();
 
   try {
     const res = await fetch(API_CHAT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        message:       temporalPrompt,
+        message:       cleanInput,
+        local_time:    deviceTime,
         thinking_mode: selectedMode,
         session_id:    requestSessionId,
       }),
@@ -1222,11 +1218,187 @@ document.addEventListener('keydown', (e) => {
 });
 
 /* ═══════════════════════════════════════════════════════════════════
+   INTERACTIVE 3D EYES (Parallax & Touch/Hover Physics)
+   ═══════════════════════════════════════════════════════════════════ */
+function initInteractiveEyes() {
+  const face = DOM.face;
+  const avatarZone = DOM.avatarZone;
+  if (!face || !avatarZone) return;
+
+  let targetX = 0;
+  let targetY = 0;
+  let currentX = 0;
+  let currentY = 0;
+  let animId = null;
+
+  function updateParallax() {
+    currentX += (targetX - currentX) * 0.15;
+    currentY += (targetY - currentY) * 0.15;
+
+    document.documentElement.style.setProperty('--eye-look-x', `${currentX.toFixed(2)}px`);
+    document.documentElement.style.setProperty('--eye-look-y', `${currentY.toFixed(2)}px`);
+
+    if (Math.abs(targetX - currentX) > 0.08 || Math.abs(targetY - currentY) > 0.08) {
+      animId = requestAnimationFrame(updateParallax);
+    } else {
+      animId = null;
+    }
+  }
+
+  function handlePointerMove(clientX, clientY) {
+    const rect = face.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+
+    const maxOffset = 12;
+    const normX = Math.max(-1, Math.min(1, (clientX - centerX) / (window.innerWidth / 2)));
+    const normY = Math.max(-1, Math.min(1, (clientY - centerY) / (window.innerHeight / 2)));
+
+    targetX = normX * maxOffset;
+    targetY = normY * maxOffset;
+
+    if (!animId) {
+      animId = requestAnimationFrame(updateParallax);
+    }
+  }
+
+  window.addEventListener('mousemove', (e) => {
+    handlePointerMove(e.clientX, e.clientY);
+  }, { passive: true });
+
+  window.addEventListener('touchmove', (e) => {
+    if (e.touches && e.touches.length > 0) {
+      handlePointerMove(e.touches[0].clientX, e.touches[0].clientY);
+    }
+  }, { passive: true });
+
+  window.addEventListener('mouseleave', () => {
+    targetX = 0;
+    targetY = 0;
+    if (!animId) animId = requestAnimationFrame(updateParallax);
+  });
+  window.addEventListener('touchend', () => {
+    targetX = 0;
+    targetY = 0;
+    if (!animId) animId = requestAnimationFrame(updateParallax);
+  });
+
+  // Depth simulation (Z-axis scale on hover/touch)
+  avatarZone.addEventListener('mouseenter', () => face.classList.add('eye-focused'));
+  avatarZone.addEventListener('mouseleave', () => face.classList.remove('eye-focused'));
+  avatarZone.addEventListener('touchstart', () => face.classList.add('eye-focused'), { passive: true });
+  avatarZone.addEventListener('touchend', () => face.classList.remove('eye-focused'), { passive: true });
+
+  // Poke / Click Reaction
+  avatarZone.addEventListener('click', () => {
+    const reactions = ['state-surprised', 'state-winking', 'state-laughing'];
+    const randomReaction = reactions[Math.floor(Math.random() * reactions.length)];
+    const previousLabel = DOM.stateLabel.textContent.toLowerCase();
+    const prevClass = 'state-' + previousLabel;
+
+    setEyeExpression(randomReaction);
+    face.classList.add('eye-focused');
+
+    setTimeout(() => {
+      face.classList.remove('eye-focused');
+      if (!isBusy) {
+        setEyeExpression(STATES.includes(prevClass) ? prevClass : 'state-idle');
+      }
+    }, 1400);
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CUSTOMIZATION SETTINGS (Eye Color Swatches & Expression Playground)
+   ═══════════════════════════════════════════════════════════════════ */
+const EYE_COLORS = {
+  'neon-blue': {
+    primary: '#00f0ff',
+    secondary: '#0072ff',
+    glow: 'rgba(0, 240, 255, 0.4)',
+    accentGlow: 'rgba(0, 240, 255, 0.16)'
+  },
+  'cyber-red': {
+    primary: '#ff0055',
+    secondary: '#d90429',
+    glow: 'rgba(255, 0, 85, 0.45)',
+    accentGlow: 'rgba(255, 0, 85, 0.18)'
+  },
+  'emerald': {
+    primary: '#00ff88',
+    secondary: '#00aa55',
+    glow: 'rgba(0, 255, 136, 0.45)',
+    accentGlow: 'rgba(0, 255, 136, 0.18)'
+  },
+  'amethyst': {
+    primary: '#b5179e',
+    secondary: '#7209b7',
+    glow: 'rgba(181, 23, 158, 0.45)',
+    accentGlow: 'rgba(181, 23, 158, 0.18)'
+  },
+  'white': {
+    primary: '#ffffff',
+    secondary: '#94a3b8',
+    glow: 'rgba(255, 255, 255, 0.35)',
+    accentGlow: 'rgba(255, 255, 255, 0.15)'
+  }
+};
+
+const EYE_COLOR_STORAGE_KEY = 'marvo.eyeColor';
+
+async function setEyeColor(colorKey, save = true) {
+  const config = EYE_COLORS[colorKey] || EYE_COLORS['neon-blue'];
+  const root = document.documentElement;
+
+  root.style.setProperty('--primary-eye-color', config.primary);
+  root.style.setProperty('--secondary-eye-color', config.secondary);
+  root.style.setProperty('--eye-glow', config.glow);
+  root.style.setProperty('--accent', config.primary);
+  root.style.setProperty('--accent-glow', config.glow);
+  root.style.setProperty('--accent-glow-subtle', config.accentGlow);
+
+  document.querySelectorAll('.color-swatch-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.color === colorKey);
+  });
+
+  if (save) {
+    await NativeStorage.set(EYE_COLOR_STORAGE_KEY, colorKey);
+  }
+}
+
+async function initEyeCustomization() {
+  const savedColor = (await NativeStorage.get(EYE_COLOR_STORAGE_KEY)) || 'neon-blue';
+  await setEyeColor(savedColor, false);
+
+  // Swatch buttons
+  document.querySelectorAll('.color-swatch-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const colorKey = btn.dataset.color;
+      await setEyeColor(colorKey, true);
+      showToast(`Eye theme set to ${btn.title}`);
+    });
+  });
+
+  // Expression playground
+  document.querySelectorAll('.btn-exp-play').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const exp = btn.dataset.exp;
+      document.querySelectorAll('.btn-exp-play').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      setEyeExpression(exp);
+      showToast(`Previewing ${exp.replace('state-', '')}`);
+    });
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════════
    APP INITIALIZATION
    ═══════════════════════════════════════════════════════════════════ */
 async function initApp() {
   await initStatusBar();
   await initTheme();
+  await initEyeCustomization();
+  initInteractiveEyes();
   await initVoiceSelection();
   setEyeExpression('state-idle');
   await persistCurrentSession();

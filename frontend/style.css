@@ -31,6 +31,13 @@
   --accent-glow: rgba(0, 240, 255, 0.28);
   --accent-glow-subtle: rgba(0, 240, 255, 0.12);
 
+  /* Dynamic Eye Customization & Parallax */
+  --primary-eye-color: #00f0ff;
+  --secondary-eye-color: #0072ff;
+  --eye-glow: rgba(0, 240, 255, 0.35);
+  --eye-look-x: 0px;
+  --eye-look-y: 0px;
+
   --user-bubble: rgba(0, 114, 255, 0.16);
   --user-border: rgba(0, 170, 255, 0.22);
   --ai-bubble: rgba(16, 22, 34, 0.75);
@@ -316,34 +323,44 @@ body.chat-active .face{
   position:relative;width:108px;height:108px;border-radius:50%;
   background:radial-gradient(circle at 38% 32%, #111a2e 0%, #080e18 55%, #020408 100%);
   box-shadow:
-    0 0 24px rgba(0,240,255,.24),
-    0 0 48px rgba(0,114,255,.12),
-    inset 0 0 24px rgba(0,240,255,.14),
+    0 0 24px var(--eye-glow),
+    0 0 48px var(--accent-glow-subtle),
+    inset 0 0 24px var(--eye-glow),
     inset 0 0 44px rgba(0,30,70,.35);
   overflow:hidden;
+  cursor:pointer;
   will-change:transform,box-shadow;
   transition:transform .35s cubic-bezier(0.16, 1, 0.3, 1),box-shadow .35s;
+}
+
+.face.eye-focused .eye{
+  transform:scale(1.15);
+  box-shadow:
+    0 0 38px var(--eye-glow),
+    0 0 72px var(--eye-glow),
+    inset 0 0 28px var(--eye-glow);
 }
 
 .eye-outer-ring{
   position:absolute;inset:-1px;border-radius:50%;
   border:1.5px solid rgba(0,240,255,.32);
-  box-shadow:0 0 12px rgba(0,240,255,.22),inset 0 0 8px rgba(0,240,255,.12);
+  box-shadow:0 0 12px var(--eye-glow),inset 0 0 8px var(--accent-glow-subtle);
   will-change:opacity;transition:opacity .3s,border-color .3s;
 }
 
 .eye-iris{
   position:absolute;top:50%;left:50%;
-  width:58px;height:58px;transform:translate(-50%,-50%);
+  width:58px;height:58px;
+  transform:translate(calc(-50% + var(--eye-look-x, 0px)), calc(-50% + var(--eye-look-y, 0px)));
   border-radius:50%;
-  background:radial-gradient(circle at 40% 35%, #00f0ff 0%, #0088ff 42%, #003666 78%, #001224 100%);
+  background:radial-gradient(circle at 40% 35%, var(--primary-eye-color, #00f0ff) 0%, var(--secondary-eye-color, #0088ff) 42%, #003666 78%, #001224 100%);
   box-shadow:
-    0 0 20px rgba(0,240,255,.6),
-    0 0 38px rgba(0,114,255,.3),
+    0 0 20px var(--eye-glow),
+    0 0 38px var(--accent-glow-subtle),
     inset 0 -5px 12px rgba(0,0,0,.65),
     inset 0 4px 8px rgba(180,245,255,.35);
   will-change:transform,box-shadow;
-  transition:transform .35s cubic-bezier(0.16, 1, 0.3, 1),box-shadow .35s,background .4s;
+  transition:transform .12s cubic-bezier(0.16, 1, 0.3, 1),box-shadow .35s,background .4s;
 }
 
 .eye-iris-pattern{
@@ -356,18 +373,19 @@ body.chat-active .face{
 
 .eye-pupil{
   position:absolute;top:50%;left:50%;
-  width:20px;height:20px;transform:translate(-50%,-50%);
+  width:20px;height:20px;
+  transform:translate(calc(-50% + var(--eye-look-x, 0px) * 0.7), calc(-50% + var(--eye-look-y, 0px) * 0.7));
   border-radius:50%;
   background:radial-gradient(circle, #000 60%, #001828);
-  box-shadow:0 0 10px rgba(0,0,0,.9),inset 0 0 6px rgba(0,240,255,.25);
-  will-change:transform;transition:transform .3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow:0 0 10px rgba(0,0,0,.9),inset 0 0 6px var(--eye-glow);
+  will-change:transform;transition:transform .12s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .eye-pupil-core{
   position:absolute;top:50%;left:50%;
   width:6px;height:6px;transform:translate(-50%,-50%);
   border-radius:50%;
-  background:radial-gradient(circle, #00f0ff, transparent 75%);
+  background:radial-gradient(circle, var(--primary-eye-color, #00f0ff), transparent 75%);
   opacity:.6;transition:opacity .3s;
 }
 
@@ -957,9 +975,54 @@ body.chat-active .face{
   margin-bottom:16px;
 }
 .settings-title{font-size:17px;font-weight:700;color:var(--text-primary)}
+.settings-body{
+  max-height:calc(80vh - 80px);
+  overflow-y:auto;overflow-x:hidden;
+  display:flex;flex-direction:column;gap:18px;
+  padding-right:4px;
+}
+
 .settings-section-title{
   font-size:11px;font-weight:700;letter-spacing:1px;color:var(--text-dim);
-  margin-bottom:10px;
+  margin-bottom:10px;text-transform:uppercase;
+}
+
+/* Color Swatches Grid */
+.color-swatches-grid{
+  display:grid;grid-template-columns:repeat(auto-fill, minmax(110px, 1fr));gap:8px;
+}
+.color-swatch-btn{
+  display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;
+  background:rgba(255,255,255,0.04);border:1px solid var(--border-color);
+  color:var(--text-primary);font-size:12px;font-weight:500;
+  transition:all .2s;
+}
+.color-swatch-btn:hover{background:rgba(255,255,255,0.08)}
+.color-swatch-btn.active{
+  border-color:var(--accent);background:rgba(0,240,255,0.12);
+  box-shadow:0 0 10px var(--accent-glow-subtle);
+}
+.swatch-circle{
+  width:12px;height:12px;border-radius:50%;flex-shrink:0;
+}
+
+/* Expression Playground Grid */
+.expression-playground-grid{
+  display:grid;grid-template-columns:repeat(3, 1fr);gap:7px;
+}
+.btn-exp-play{
+  padding:8px 4px;border-radius:8px;
+  background:rgba(255,255,255,0.04);border:1px solid var(--border-color);
+  color:var(--text-muted);font-size:11.5px;font-weight:600;
+  text-align:center;transition:all .2s;
+}
+.btn-exp-play:hover{
+  color:#fff;background:rgba(255,255,255,0.1);
+}
+.btn-exp-play.active{
+  background:linear-gradient(135deg, rgba(0,240,255,0.2), rgba(0,114,255,0.2));
+  border-color:var(--accent);color:#fff;
+  box-shadow:0 0 10px var(--accent-glow-subtle);
 }
 .voice-options-list{display:flex;flex-direction:column;gap:8px}
 .voice-option-item{

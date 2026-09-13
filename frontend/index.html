@@ -287,15 +287,61 @@
   </div>
 </main>
 
-<!-- ═══════════ SETTINGS MODAL (Voice Selection) ═══════════ -->
+<!-- ═══════════ SETTINGS MODAL (Customization & Voices) ═══════════ -->
 <div id="settingsModal" class="settings-modal-overlay">
   <div class="settings-modal">
     <div class="settings-header">
-      <h3 class="settings-title">Voice & Audio</h3>
+      <h3 class="settings-title">App Customization</h3>
       <button id="btnCloseSettings" class="btn-icon" aria-label="Close Settings">&times;</button>
     </div>
     <div class="settings-body">
-      <!-- Category: Voices -->
+      
+      <!-- Section: Eye Color Customization -->
+      <div class="settings-section">
+        <h4 class="settings-section-title">3D EYE COLOR</h4>
+        <div class="color-swatches-grid" id="colorSwatchesGrid">
+          <button class="color-swatch-btn active" data-color="neon-blue" title="Neon Blue">
+            <span class="swatch-circle" style="background:#00f0ff;box-shadow:0 0 10px #00f0ff;"></span>
+            <span>Neon Blue</span>
+          </button>
+          <button class="color-swatch-btn" data-color="cyber-red" title="Cyber Red">
+            <span class="swatch-circle" style="background:#ff0055;box-shadow:0 0 10px #ff0055;"></span>
+            <span>Cyber Red</span>
+          </button>
+          <button class="color-swatch-btn" data-color="emerald" title="Emerald">
+            <span class="swatch-circle" style="background:#00ff88;box-shadow:0 0 10px #00ff88;"></span>
+            <span>Emerald</span>
+          </button>
+          <button class="color-swatch-btn" data-color="amethyst" title="Amethyst">
+            <span class="swatch-circle" style="background:#b5179e;box-shadow:0 0 10px #b5179e;"></span>
+            <span>Amethyst</span>
+          </button>
+          <button class="color-swatch-btn" data-color="white" title="Starlight">
+            <span class="swatch-circle" style="background:#ffffff;box-shadow:0 0 10px #ffffff;"></span>
+            <span>Starlight</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Section: Expression Playground -->
+      <div class="settings-section">
+        <h4 class="settings-section-title">EXPRESSION PLAYGROUND</h4>
+        <div class="expression-playground-grid" id="expressionPlaygroundGrid">
+          <button class="btn-exp-play" data-exp="state-idle">Idle</button>
+          <button class="btn-exp-play" data-exp="state-thinking">Thinking</button>
+          <button class="btn-exp-play" data-exp="state-speaking">Speaking</button>
+          <button class="btn-exp-play" data-exp="state-winking">Winking</button>
+          <button class="btn-exp-play" data-exp="state-surprised">Surprised</button>
+          <button class="btn-exp-play" data-exp="state-laughing">Laughing</button>
+          <button class="btn-exp-play" data-exp="state-sleepy">Sleepy</button>
+          <button class="btn-exp-play" data-exp="state-crying">Crying</button>
+          <button class="btn-exp-play" data-exp="state-angry">Angry</button>
+          <button class="btn-exp-play" data-exp="state-scanning">Scanning</button>
+          <button class="btn-exp-play" data-exp="state-error">Error</button>
+        </div>
+      </div>
+
+      <!-- Section: Voices -->
       <div class="settings-section">
         <h4 class="settings-section-title">VOICES</h4>
         <div class="voice-options-list">

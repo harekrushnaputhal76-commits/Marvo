@@ -163,27 +163,17 @@ def chat_endpoint():
         # Log session context
         logging.info(f"Chat request - Session: {session_id} | Mode: {thinking_mode} | Msg: {user_message[:60]}")
 
-        # Real-time Date / Time keyword check
-        lower_msg = user_message.lower()
-        date_time_keywords = [
-            "time", "samay", "waqt", "date", "tarikh", "tareekh",
-            "aaj kya hai", "aaj kitni tarikh", "kya samay hai", "aaj kaun sa din"
-        ]
-        is_date_time_query = any(kw in lower_msg for kw in date_time_keywords)
+        local_time = data.get('local_time')
+        prompt_for_brain = user_message
+        if local_time:
+            prompt_for_brain = f"[Device Context: User's local time is {local_time}]\n\n{user_message}"
 
-        if is_date_time_query:
-            now = datetime.now()
-            formatted_date = now.strftime("%d %B %Y")
-            formatted_time = now.strftime("%I:%M %p").lstrip('0')
-            ai_response = f"Aaj ki tarikh {formatted_date} hai, aur abhi samay {formatted_time} ho raha hai."
-            animation_state = 'state-speaking'
-        else:
-            # Process the message through the AI Brain
-            ai_response, animation_state = think_and_respond(
-                user_message,
-                thinking_mode=thinking_mode,
-                session_id=session_id
-            )
+        # Process the message through the AI Brain
+        ai_response, animation_state = think_and_respond(
+            prompt_for_brain,
+            thinking_mode=thinking_mode,
+            session_id=session_id
+        )
 
         # Save conversation history
         session = _read_session(session_id) or {
