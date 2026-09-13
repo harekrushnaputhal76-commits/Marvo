@@ -85,6 +85,7 @@ let isBusy           = false;
 let hasInteracted    = false;
 let contextTargetSessionId = null;
 let currentAudio     = null;
+let lastUserMessage  = '';
 
 /* ═══════════════════════════════════════════════════════════════════
    THEME MANAGEMENT
@@ -323,13 +324,21 @@ async function playSpeech(text, btn) {
   const cleanText = text.replace(/[*_~`#>]/g, '').trim();
   if (!cleanText) return;
 
+  // If audio is currently playing, check if clicking the same button to toggle stop
   if (currentAudio) {
+    const isPlayingCurrentBtn = btn && (btn.classList.contains('playing-audio') || btn.classList.contains('playing-sample'));
     try {
       currentAudio.pause();
       currentAudio.currentTime = 0;
     } catch {}
     currentAudio = null;
+    document.querySelectorAll('.playing-audio, .playing-sample').forEach(b => b.classList.remove('playing-audio', 'playing-sample'));
+    DOM.face.classList.remove('speaking-mode');
+    document.querySelectorAll('.eye').forEach(el => el.classList.remove('speaking-mode'));
+    setEyeExpression('state-idle');
+    if (isPlayingCurrentBtn) return;
   }
+  document.querySelectorAll('.playing-audio, .playing-sample').forEach(b => b.classList.remove('playing-audio', 'playing-sample'));
 
   try {
     const res = await fetch(API_SPEAK, {
@@ -390,32 +399,167 @@ async function playSpeech(text, btn) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
+   ACTION HELPERS (Copy, Contextual Prompt Lookup)
+   ═══════════════════════════════════════════════════════════════════ */
+
+async function copyToClipboard(text, btn) {
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+    }
+    btn.classList.add('copied');
+    btn.setAttribute('data-tooltip', 'Copied!');
+    const origSvg = btn.innerHTML;
+    btn.innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13"><polyline points="20 6 9 17 4 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.setAttribute('data-tooltip', 'Copy text');
+      btn.innerHTML = origSvg;
+    }, 1800);
+  } catch (err) {
+    console.warn('[Marvo] Copy failed:', err);
+  }
+}
+
+function getLastUserPrompt(aiWrapperEl) {
+  let prev = aiWrapperEl ? aiWrapperEl.previousElementSibling : null;
+  while (prev) {
+    if (prev.classList.contains('msg-user')) {
+      return prev.textContent.trim();
+    }
+    prev = prev.previousElementSibling;
+  }
+  return lastUserMessage || '';
+}
+
+/* ═══════════════════════════════════════════════════════════════════
    CHAT RENDERING
    ═══════════════════════════════════════════════════════════════════ */
 
 function addMessage(text, sender) {
-  const el = document.createElement('div');
-  el.className = `msg msg-${sender}`;
-  el.textContent = text;
-
-  // If AI message, append inline speaker button wired to /api/speak
-  if (sender === 'ai') {
-    const speakerBtn = document.createElement('button');
-    speakerBtn.className = 'msg-speaker';
-    speakerBtn.setAttribute('aria-label', 'Read Aloud');
-    speakerBtn.setAttribute('title', 'Read aloud');
-    speakerBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
-
-    speakerBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      playSpeech(text, speakerBtn);
-    });
-
-    el.appendChild(speakerBtn);
+  if (sender === 'user') {
+    const el = document.createElement('div');
+    el.className = 'msg msg-user';
+    el.textContent = text;
+    DOM.chatMessages.appendChild(el);
+    scrollToBottom();
+    return el;
   }
 
-  DOM.chatMessages.appendChild(el);
+  // ── AI Message Bubble with Sleek ChatGPT-Style Action Bar ──
+  const wrapper = document.createElement('div');
+  wrapper.className = 'msg-ai-wrapper';
+
+  const bubble = document.createElement('div');
+  bubble.className = 'msg msg-ai';
+  bubble.textContent = text;
+  wrapper.appendChild(bubble);
+
+  const actionBar = document.createElement('div');
+  actionBar.className = 'msg-action-bar';
+
+  // 1. Speaker Button (Plays TTS audio for ONLY this message)
+  const speakerBtn = document.createElement('button');
+  speakerBtn.className = 'msg-action-btn action-speaker';
+  speakerBtn.setAttribute('data-tooltip', 'Read aloud');
+  speakerBtn.setAttribute('aria-label', 'Read aloud');
+  speakerBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
+  speakerBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    playSpeech(text, speakerBtn);
+  });
+  actionBar.appendChild(speakerBtn);
+
+  // 2. Copy Button (Copies text with visual feedback)
+  const copyBtn = document.createElement('button');
+  copyBtn.className = 'msg-action-btn action-copy';
+  copyBtn.setAttribute('data-tooltip', 'Copy text');
+  copyBtn.setAttribute('aria-label', 'Copy response');
+  copyBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" fill="none" stroke="currentColor" stroke-width="2"/></svg>`;
+  copyBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    copyToClipboard(text, copyBtn);
+  });
+  actionBar.appendChild(copyBtn);
+
+  // 3. Regenerate/Retry Button
+  const retryBtn = document.createElement('button');
+  retryBtn.className = 'msg-action-btn action-retry';
+  retryBtn.setAttribute('data-tooltip', 'Regenerate');
+  retryBtn.setAttribute('aria-label', 'Regenerate response');
+  retryBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14"><polyline points="1 4 1 10 7 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  retryBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const prompt = getLastUserPrompt(wrapper);
+    if (prompt && !isBusy) {
+      sendMessage(prompt);
+    }
+  });
+  actionBar.appendChild(retryBtn);
+
+  // 4. Three-Dot Menu (More Options)
+  const moreContainer = document.createElement('div');
+  moreContainer.className = 'action-menu-container';
+
+  const moreBtn = document.createElement('button');
+  moreBtn.className = 'msg-action-btn action-more';
+  moreBtn.setAttribute('data-tooltip', 'More');
+  moreBtn.setAttribute('aria-label', 'More options');
+  moreBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14"><circle cx="12" cy="5" r="1.8" fill="currentColor"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/><circle cx="12" cy="19" r="1.8" fill="currentColor"/></svg>`;
+
+  const dropdown = document.createElement('div');
+  dropdown.className = 'dropdown-menu action-dropdown-menu';
+
+  // 4a. Rewrite Option
+  const rewriteBtn = document.createElement('button');
+  rewriteBtn.className = 'dropdown-item';
+  rewriteBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14"><path d="M12 20h9" stroke="currentColor" stroke-width="2"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" fill="none" stroke="currentColor" stroke-width="2"/></svg>Rewrite`;
+  rewriteBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeAllDropdowns();
+    const prompt = getLastUserPrompt(wrapper);
+    const rewritePrompt = prompt
+      ? `Rewrite your answer to: "${prompt}" in a fresh, clearer, and more engaging way.`
+      : `Rewrite your previous response differently: "${text.slice(0, 100)}..."`;
+    if (!isBusy) sendMessage(rewritePrompt);
+  });
+  dropdown.appendChild(rewriteBtn);
+
+  // 4b. Change Voice Option
+  const voiceBtn = document.createElement('button');
+  voiceBtn.className = 'dropdown-item';
+  voiceBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" fill="currentColor"/><path d="M19 10v2a7 7 0 0 1-14 0v-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="19" x2="12" y2="23" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="8" y1="23" x2="16" y2="23" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Change Voice`;
+  voiceBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeAllDropdowns();
+    openSettingsModal();
+  });
+  dropdown.appendChild(voiceBtn);
+
+  moreBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isShown = dropdown.classList.contains('show');
+    closeAllDropdowns();
+    if (!isShown) dropdown.classList.add('show');
+  });
+
+  moreContainer.appendChild(moreBtn);
+  moreContainer.appendChild(dropdown);
+  actionBar.appendChild(moreContainer);
+
+  wrapper.appendChild(actionBar);
+  DOM.chatMessages.appendChild(wrapper);
   scrollToBottom();
+  return wrapper;
 }
 
 function showLoading() {
@@ -439,6 +583,7 @@ function scrollToBottom() {
 
 async function sendMessage(userText) {
   if (!userText.trim() || isBusy) return;
+  lastUserMessage = userText.trim();
   isBusy = true;
   const requestSessionId = currentSessionId;
   const requestVersion   = sessionVersion;
@@ -475,16 +620,14 @@ async function sendMessage(userText) {
     if (requestSessionId !== currentSessionId || requestVersion !== sessionVersion) return;
 
     setEyeExpression(aiState);
-    const aiMsgEl = addMessage(aiText, 'ai');
+    addMessage(aiText, 'ai');
     updateHistorySidebar(userText, requestSessionId);
 
     // Contextual eye expression based on AI response + user query keywords
     const contextState = detectEyeExpression(userText, aiText);
     if (contextState) setEyeExpression(contextState);
 
-    // Auto-play speech for AI response; audio onplay/onended dynamically syncs eye animation
-    const speakerBtn = aiMsgEl ? aiMsgEl.querySelector('.msg-speaker') : null;
-    playSpeech(aiText, speakerBtn);
+    // Note: Auto-play TTS disabled. Audio plays on-demand via the Speaker action button.
 
   } catch (err) {
     if (requestSessionId !== currentSessionId || requestVersion !== sessionVersion) return;
@@ -513,6 +656,7 @@ function closeAllDropdowns() {
   DOM.attachMenu.classList.remove('show');
   DOM.historyContextMenu.classList.remove('show');
   document.querySelectorAll('.history-more-btn.active').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.action-dropdown-menu.show').forEach(m => m.classList.remove('show'));
 }
 
 // Click outside handler
@@ -520,7 +664,8 @@ document.addEventListener('click', (e) => {
   if (!e.target.closest('.menu-container') &&
       !e.target.closest('.attach-container') &&
       !e.target.closest('.history-context-menu') &&
-      !e.target.closest('.history-more-btn')) {
+      !e.target.closest('.history-more-btn') &&
+      !e.target.closest('.action-menu-container')) {
     closeAllDropdowns();
   }
   if (e.target === DOM.settingsModal) {
