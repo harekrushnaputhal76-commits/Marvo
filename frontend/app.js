@@ -20,8 +20,10 @@ const API_SPEAK = `${API_BASE}/api/speak`;
 const API_PREVIEW_VOICE = `${API_BASE}/api/preview_voice`;
 const API_SESSIONS = `${API_BASE}/api/sessions`;
 const SESSION_STORAGE_KEY = 'marvo.currentSessionId';
-const THEME_STORAGE_KEY = 'marvo.theme';
-const VOICE_STORAGE_KEY = 'marvo.voice';
+const THEME_STORAGE_KEY   = 'marvo.theme';
+const VOICE_STORAGE_KEY   = 'marvo.voice';
+const SESSIONS_STORAGE_KEY = 'marvo.sessions';
+const CHAT_PREFIX          = 'marvo.chat.';
 
 /* ═══════ DOM CACHE ═══════ */
 const $ = (sel) => document.querySelector(sel);
@@ -61,6 +63,144 @@ const DOM = {
   btnVoiceCancel:     $('#btnVoiceCancel'),
 };
 
+/* ═══════ NATIVE STORAGE (@capacitor/preferences + localStorage fallback) ═══════ */
+const NativeStorage = {
+  async get(key) {
+    try {
+      if (window.Capacitor?.Plugins?.Preferences) {
+        const res = await window.Capacitor.Plugins.Preferences.get({ key });
+        if (res && res.value !== null && res.value !== undefined) {
+          return res.value;
+        }
+      }
+    } catch (e) {
+      console.warn('[NativeStorage] Capacitor get error:', e);
+    }
+    try {
+      return localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  },
+
+  async set(key, value) {
+    try {
+      if (window.Capacitor?.Plugins?.Preferences) {
+        await window.Capacitor.Plugins.Preferences.set({ key, value: String(value) });
+        return;
+      }
+    } catch (e) {
+      console.warn('[NativeStorage] Capacitor set error:', e);
+    }
+    try {
+      localStorage.setItem(key, String(value));
+    } catch {}
+  },
+
+  async remove(key) {
+    try {
+      if (window.Capacitor?.Plugins?.Preferences) {
+        await window.Capacitor.Plugins.Preferences.remove({ key });
+        return;
+      }
+    } catch (e) {
+      console.warn('[NativeStorage] Capacitor remove error:', e);
+    }
+    try {
+      localStorage.removeItem(key);
+    } catch {}
+  },
+
+  async getJSON(key, defaultVal = null) {
+    const raw = await this.get(key);
+    if (!raw) return defaultVal;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return defaultVal;
+    }
+  },
+
+  async setJSON(key, value) {
+    await this.set(key, JSON.stringify(value));
+  }
+};
+
+/* ═══════ LOCAL CHAT PERSISTENCE HELPERS ═══════ */
+async function saveLocalMessage(sessionId, role, content) {
+  if (!sessionId || !content) return;
+  try {
+    const key = CHAT_PREFIX + sessionId;
+    const msgs = (await NativeStorage.getJSON(key, [])) || [];
+    msgs.push({ role, content, timestamp: Date.now() });
+    await NativeStorage.setJSON(key, msgs);
+  } catch (err) {
+    console.warn('[NativeStorage] Save message error:', err);
+  }
+}
+
+async function getLocalMessages(sessionId) {
+  if (!sessionId) return [];
+  try {
+    return (await NativeStorage.getJSON(CHAT_PREFIX + sessionId, [])) || [];
+  } catch (err) {
+    console.warn('[NativeStorage] Get messages error:', err);
+    return [];
+  }
+}
+
+async function saveLocalSession(sessionId, title) {
+  if (!sessionId) return;
+  try {
+    let sessions = (await NativeStorage.getJSON(SESSIONS_STORAGE_KEY, [])) || [];
+    const cleanTitle = (title && title.trim()) ? title.trim().slice(0, 60) : 'New Conversation';
+    const existingIndex = sessions.findIndex(s => s.session_id === sessionId);
+    if (existingIndex >= 0) {
+      if (title && title.trim()) sessions[existingIndex].title = cleanTitle;
+      sessions[existingIndex].updated_at = Date.now();
+      const item = sessions.splice(existingIndex, 1)[0];
+      sessions.unshift(item);
+    } else {
+      sessions.unshift({
+        session_id: sessionId,
+        title: cleanTitle,
+        updated_at: Date.now(),
+      });
+    }
+    if (sessions.length > 100) sessions = sessions.slice(0, 100);
+    await NativeStorage.setJSON(SESSIONS_STORAGE_KEY, sessions);
+  } catch (err) {
+    console.warn('[NativeStorage] Save session error:', err);
+  }
+}
+
+async function deleteLocalSession(sessionId) {
+  if (!sessionId) return;
+  try {
+    let sessions = (await NativeStorage.getJSON(SESSIONS_STORAGE_KEY, [])) || [];
+    sessions = sessions.filter(s => s.session_id !== sessionId);
+    await NativeStorage.setJSON(SESSIONS_STORAGE_KEY, sessions);
+    await NativeStorage.remove(CHAT_PREFIX + sessionId);
+  } catch (err) {
+    console.warn('[NativeStorage] Delete session error:', err);
+  }
+}
+
+async function renameLocalSession(sessionId, newTitle) {
+  if (!sessionId || !newTitle) return;
+  try {
+    let sessions = (await NativeStorage.getJSON(SESSIONS_STORAGE_KEY, [])) || [];
+    const target = sessions.find(s => s.session_id === sessionId);
+    if (target) {
+      target.title = newTitle.trim().slice(0, 60);
+      target.updated_at = Date.now();
+      await NativeStorage.setJSON(SESSIONS_STORAGE_KEY, sessions);
+    }
+  } catch (err) {
+    console.warn('[NativeStorage] Rename session error:', err);
+  }
+}
+
 /* ═══════ STATE ═══════ */
 const STATES = [
   'state-idle','state-listening','state-loading','state-processing','state-speaking',
@@ -91,19 +231,19 @@ let lastUserMessage  = '';
    THEME MANAGEMENT
    ═══════════════════════════════════════════════════════════════════ */
 
-function setTheme(theme) {
+async function setTheme(theme) {
   if (theme === 'light') {
     DOM.body.classList.add('theme-light');
   } else {
     DOM.body.classList.remove('theme-light');
   }
-  localStorage.setItem(THEME_STORAGE_KEY, theme);
+  await NativeStorage.set(THEME_STORAGE_KEY, theme);
   closeAllDropdowns();
 }
 
-function initTheme() {
-  const saved = localStorage.getItem(THEME_STORAGE_KEY) || 'dark';
-  setTheme(saved);
+async function initTheme() {
+  const saved = (await NativeStorage.get(THEME_STORAGE_KEY)) || 'dark';
+  await setTheme(saved);
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -119,7 +259,11 @@ function closeSettingsModal() {
   DOM.settingsModal.classList.remove('show');
 }
 
-function initVoiceSelection() {
+async function initVoiceSelection() {
+  const savedVoice = await NativeStorage.get(VOICE_STORAGE_KEY);
+  if (savedVoice) {
+    currentVoice = savedVoice;
+  }
   const targetRadio = document.querySelector(`input[name="marvoVoiceRadio"][value="${currentVoice}"]`);
   if (targetRadio) {
     targetRadio.checked = true;
@@ -127,10 +271,10 @@ function initVoiceSelection() {
 
   // Radio button change listener
   document.querySelectorAll('input[name="marvoVoiceRadio"]').forEach(radio => {
-    radio.addEventListener('change', (e) => {
+    radio.addEventListener('change', async (e) => {
       if (e.target.checked) {
         currentVoice = e.target.value;
-        localStorage.setItem(VOICE_STORAGE_KEY, currentVoice);
+        await NativeStorage.set(VOICE_STORAGE_KEY, currentVoice);
       }
     });
   });
@@ -215,8 +359,11 @@ function generateSessionId() {
   return `s_${ts}_${rnd}`;
 }
 
-function persistCurrentSession() {
-  sessionStorage.setItem(SESSION_STORAGE_KEY, currentSessionId);
+async function persistCurrentSession() {
+  try {
+    sessionStorage.setItem(SESSION_STORAGE_KEY, currentSessionId);
+  } catch {}
+  await NativeStorage.set(SESSION_STORAGE_KEY, currentSessionId);
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -590,6 +737,10 @@ async function sendMessage(userText) {
 
   activateChatMode();
   addMessage(userText, 'user');
+  await saveLocalMessage(requestSessionId, 'user', userText);
+  await saveLocalSession(requestSessionId, userText);
+  updateHistorySidebar(userText, requestSessionId);
+
   DOM.msgInput.value = '';
   DOM.btnSend.disabled = true;
 
@@ -621,6 +772,7 @@ async function sendMessage(userText) {
 
     setEyeExpression(aiState);
     addMessage(aiText, 'ai');
+    await saveLocalMessage(requestSessionId, 'ai', aiText);
     updateHistorySidebar(userText, requestSessionId);
 
     // Contextual eye expression based on AI response + user query keywords
@@ -634,10 +786,9 @@ async function sendMessage(userText) {
 
     dots.remove();
     setEyeExpression('state-idle');
-    addMessage(
-      "I couldn't connect to my brain right now. Make sure the server is running on port 5000.",
-      'ai'
-    );
+    const errMsg = "I couldn't connect to my brain right now. Make sure the server is running on port 5000.";
+    addMessage(errMsg, 'ai');
+    await saveLocalMessage(requestSessionId, 'ai', errMsg);
     console.error('[Marvo] API Error:', err);
   } finally {
     if (requestSessionId !== currentSessionId || requestVersion !== sessionVersion) return;
@@ -752,29 +903,54 @@ function createHistoryItem(text, sessionId) {
 
 async function loadSessionHistory(sessionId) {
   currentSessionId = sessionId;
-  persistCurrentSession();
+  await persistCurrentSession();
   sessionVersion += 1;
   isBusy = false;
   DOM.btnSend.disabled = false;
   clearChat();
   highlightActiveSession();
 
+  // 1. Instantly load messages from NativeStorage
+  let localCount = 0;
   try {
-    const res = await fetch(`${API_BASE}/api/history/${encodeURIComponent(sessionId)}`);
-    if (!res.ok) throw new Error(`Server status ${res.status}`);
-    const data = await res.json();
-    if (sessionId !== currentSessionId) return;
-
-    const msgs = data.messages || [];
-    msgs.forEach(m => {
-      addMessage(m.content, m.role === 'user' ? 'user' : 'ai');
-    });
-
-    if (msgs.length > 0) {
+    const localMsgs = await getLocalMessages(sessionId);
+    if (Array.isArray(localMsgs) && localMsgs.length > 0) {
+      localMsgs.forEach(m => {
+        addMessage(m.content, m.role === 'user' ? 'user' : 'ai');
+      });
       activateChatMode();
+      localCount = localMsgs.length;
     }
   } catch (err) {
-    console.error('[Marvo] History load error:', err);
+    console.warn('[Marvo] Native storage load error:', err);
+  }
+
+  // 2. Fetch and synchronize with backend history if online
+  try {
+    const res = await fetch(`${API_BASE}/api/history/${encodeURIComponent(sessionId)}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (sessionId === currentSessionId) {
+        const msgs = data.messages || [];
+        if (msgs.length > 0) {
+          await NativeStorage.setJSON(CHAT_PREFIX + sessionId, msgs.map(m => ({
+            role: m.role === 'user' ? 'user' : 'ai',
+            content: m.content,
+            timestamp: Date.now(),
+          })));
+
+          if (msgs.length !== localCount) {
+            clearChat();
+            msgs.forEach(m => {
+              addMessage(m.content, m.role === 'user' ? 'user' : 'ai');
+            });
+            activateChatMode();
+          }
+        }
+      }
+    }
+  } catch (err) {
+    // Offline - native local storage was already presented
   }
   closeSidebar();
 }
@@ -798,40 +974,104 @@ function updateHistorySidebar(text, sessionId = currentSessionId) {
 }
 
 async function loadHistorySidebar() {
+  // 1. Instantly render sessions from NativeStorage
+  try {
+    const localSessions = await NativeStorage.getJSON(SESSIONS_STORAGE_KEY, []);
+    if (Array.isArray(localSessions) && localSessions.length > 0) {
+      DOM.historyList.innerHTML = '';
+      localSessions.forEach(session => {
+        DOM.historyList.appendChild(createHistoryItem(session.title || 'Chat', session.session_id));
+      });
+      highlightActiveSession();
+    }
+  } catch (err) {
+    console.warn('[Marvo] Local sessions error:', err);
+  }
+
+  // 2. Sync with backend sessions if available
   try {
     const res = await fetch(API_SESSIONS);
     if (!res.ok) return;
-    const sessions = await res.json();
-    DOM.historyList.innerHTML = '';
-    sessions.forEach(session => {
-      DOM.historyList.appendChild(createHistoryItem(session.title, session.session_id));
-    });
-    highlightActiveSession();
+    const remoteSessions = await res.json();
+    if (Array.isArray(remoteSessions) && remoteSessions.length > 0) {
+      const localSessions = (await NativeStorage.getJSON(SESSIONS_STORAGE_KEY, [])) || [];
+      const sessionMap = new Map();
+      localSessions.forEach(s => sessionMap.set(s.session_id, s));
+      remoteSessions.forEach(s => {
+        if (!sessionMap.has(s.session_id)) {
+          sessionMap.set(s.session_id, {
+            session_id: s.session_id,
+            title: s.title,
+            updated_at: Date.now()
+          });
+        }
+      });
+      const merged = Array.from(sessionMap.values());
+      await NativeStorage.setJSON(SESSIONS_STORAGE_KEY, merged);
+
+      DOM.historyList.innerHTML = '';
+      merged.forEach(session => {
+        DOM.historyList.appendChild(createHistoryItem(session.title, session.session_id));
+      });
+      highlightActiveSession();
+    }
   } catch (err) {
-    console.error('[Marvo] Error loading sessions:', err);
+    // Offline
   }
 }
 
 async function restoreCurrentSession() {
+  // Check if there is a saved currentSessionId in NativeStorage
+  const savedSessionId = await NativeStorage.get(SESSION_STORAGE_KEY);
+  if (savedSessionId) {
+    currentSessionId = savedSessionId;
+  }
+
+  // 1. Instantly load from local storage
+  let localCount = 0;
+  try {
+    const localMsgs = await getLocalMessages(currentSessionId);
+    if (Array.isArray(localMsgs) && localMsgs.length > 0) {
+      localMsgs.forEach(m => {
+        addMessage(m.content, m.role === 'user' ? 'user' : 'ai');
+      });
+      activateChatMode();
+      localCount = localMsgs.length;
+    }
+  } catch (err) {
+    console.warn('[Marvo] Local restore error:', err);
+  }
+  highlightActiveSession();
+
+  // 2. Sync with backend if available
   try {
     const res = await fetch(`${API_BASE}/api/history/${encodeURIComponent(currentSessionId)}`);
     if (!res.ok) return;
     const data = await res.json();
     const msgs = data.messages || [];
-    msgs.forEach(m => {
-      addMessage(m.content, m.role === 'user' ? 'user' : 'ai');
-    });
     if (msgs.length > 0) {
-      activateChatMode();
+      await NativeStorage.setJSON(CHAT_PREFIX + currentSessionId, msgs.map(m => ({
+        role: m.role === 'user' ? 'user' : 'ai',
+        content: m.content,
+        timestamp: Date.now(),
+      })));
+
+      if (msgs.length !== localCount) {
+        clearChat();
+        msgs.forEach(m => {
+          addMessage(m.content, m.role === 'user' ? 'user' : 'ai');
+        });
+        activateChatMode();
+      }
     }
     highlightActiveSession();
   } catch (err) {
-    console.error('[Marvo] Restore session error:', err);
+    // Offline
   }
 }
 
 /* Rename Chat */
-DOM.btnRenameChat.addEventListener('click', () => {
+DOM.btnRenameChat.addEventListener('click', async () => {
   if (!contextTargetSessionId) return;
   const li = DOM.historyList.querySelector(`li[data-sid="${contextTargetSessionId}"]`);
   const titleSpan = li?.querySelector('.history-title');
@@ -843,12 +1083,13 @@ DOM.btnRenameChat.addEventListener('click', () => {
       titleSpan.textContent = newTitle.trim();
       titleSpan.title = newTitle.trim();
     }
+    await renameLocalSession(contextTargetSessionId, newTitle.trim());
   }
   closeAllDropdowns();
 });
 
 /* Delete Chat */
-DOM.btnDeleteChat.addEventListener('click', () => {
+DOM.btnDeleteChat.addEventListener('click', async () => {
   if (!contextTargetSessionId) return;
   const confirmDelete = confirm('Are you sure you want to delete this chat?');
   if (!confirmDelete) {
@@ -856,10 +1097,12 @@ DOM.btnDeleteChat.addEventListener('click', () => {
     return;
   }
 
-  const li = DOM.historyList.querySelector(`li[data-sid="${contextTargetSessionId}"]`);
+  const targetId = contextTargetSessionId;
+  const li = DOM.historyList.querySelector(`li[data-sid="${targetId}"]`);
   if (li) li.remove();
+  await deleteLocalSession(targetId);
 
-  if (contextTargetSessionId === currentSessionId) {
+  if (targetId === currentSessionId) {
     newChat();
   }
   closeAllDropdowns();
@@ -1017,13 +1260,17 @@ document.addEventListener('keydown', (e) => {
 /* ═══════════════════════════════════════════════════════════════════
    INITIALIZATION
    ═══════════════════════════════════════════════════════════════════ */
-initTheme();
-initVoiceSelection();
-setEyeExpression('state-idle');
-persistCurrentSession();
-loadHistorySidebar();
-restoreCurrentSession();
-DOM.msgInput.focus();
+async function initApp() {
+  await initTheme();
+  await initVoiceSelection();
+  setEyeExpression('state-idle');
+  await persistCurrentSession();
+  await loadHistorySidebar();
+  await restoreCurrentSession();
+  DOM.msgInput.focus();
+}
+
+initApp();
 
 window.marvo = {
   setEyeExpression,
