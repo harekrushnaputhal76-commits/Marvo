@@ -1,9 +1,8 @@
 package com.marvo.ai;
 
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.util.Log;
+import android.view.View;
 import androidx.appcompat.app.AppCompatActivity;
 
 public class AssistantActivity extends AppCompatActivity {
@@ -12,16 +11,35 @@ public class AssistantActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        overridePendingTransition(R.anim.slide_up_assistant, 0);
+        setContentView(R.layout.activity_assistant);
         Log.d(TAG, "Marvo Assistant Triggered via Hardware Button!");
 
-        // Finish activity after 2 seconds for now (UI will be added later)
-        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                if (!isFinishing()) {
+        // Tap outside bottom sheet to dismiss
+        View rootLayout = findViewById(R.id.assistantRootLayout);
+        if (rootLayout != null) {
+            rootLayout.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
                     finish();
                 }
-            }
-        }, 2000);
+            });
+        }
+
+        View bottomSheet = findViewById(R.id.bottomSheetContainer);
+        if (bottomSheet != null) {
+            bottomSheet.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    // Consume click so tapping the sheet itself does not dismiss
+                }
+            });
+        }
+    }
+
+    @Override
+    public void finish() {
+        super.finish();
+        overridePendingTransition(0, R.anim.slide_down_assistant);
     }
 }
