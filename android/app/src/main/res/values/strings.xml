@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Marvo</string>
+    <string name="title_activity_main">Marvo</string>
+    <string name="package_name">com.marvo.ai</string>
+    <string name="custom_url_scheme">com.marvo.ai</string>
+</resources>
