@@ -1,6 +1,7 @@
 package com.marvo.ai;
 
 import android.Manifest;
+import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
@@ -23,6 +24,7 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Locale;
 
@@ -169,9 +171,9 @@ public class AssistantActivity extends AppCompatActivity {
                     // Route through local intent router
                     routeCommand(transcribed);
 
-                    // If not an offline direct action (call/sms/message/text handle their own finish timers), wait 2.5s and finish
+                    // If not an offline direct action (call/sms/message/text/whatsapp handle their own finish timers), wait 2.5s and finish
                     String lower = transcribed.trim().toLowerCase();
-                    boolean isHandledDirectly = lower.startsWith("call") || lower.startsWith("sms") || lower.startsWith("message") || lower.startsWith("text");
+                    boolean isHandledDirectly = lower.startsWith("call") || lower.startsWith("sms") || lower.startsWith("message") || lower.startsWith("text") || lower.startsWith("whatsapp");
                     if (!isHandledDirectly) {
                         new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
                             @Override
@@ -283,6 +285,10 @@ public class AssistantActivity extends AppCompatActivity {
         String lower = raw.toLowerCase();
 
         String[] prefixes = new String[]{
+            "send a whatsapp message to ", "send a whatsapp to ",
+            "send whatsapp message to ", "send whatsapp to ",
+            "whatsapp message to ", "whatsapp to ",
+            "whatsapp message ", "whatsapp ",
             "send an sms to ", "send a message to ", "send a text to ",
             "send sms to ", "send message to ", "send text to ",
             "send sms ", "send message ", "send text ",
@@ -298,7 +304,7 @@ public class AssistantActivity extends AppCompatActivity {
             }
         }
 
-        if (remainder.isEmpty() || remainder.equalsIgnoreCase("sms") || remainder.equalsIgnoreCase("message") || remainder.equalsIgnoreCase("text")) {
+        if (remainder.isEmpty() || remainder.equalsIgnoreCase("sms") || remainder.equalsIgnoreCase("message") || remainder.equalsIgnoreCase("text") || remainder.equalsIgnoreCase("whatsapp")) {
             return new String[]{"", ""};
         }
 
@@ -382,6 +388,70 @@ public class AssistantActivity extends AppCompatActivity {
             Log.d(TAG, "Silent SMS successfully sent to " + phoneNumber);
         } catch (Exception e) {
             Log.e(TAG, "Error sending silent SMS: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Dispatches a message to WhatsApp via deep-link Intent.
+     */
+    private void sendWhatsAppMessage(String phoneNumber, String message) {
+        if (phoneNumber == null || phoneNumber.trim().isEmpty()) {
+            Log.w(TAG, "sendWhatsAppMessage: Empty phone number");
+            return;
+        }
+
+        // Clean the phone number (remove spaces, dashes, parentheses)
+        String cleanNumber = phoneNumber.replaceAll("[\\s-()]", "");
+
+        // Prepend +91 if no country code (+) is present
+        if (!cleanNumber.startsWith("+")) {
+            if (cleanNumber.startsWith("91") && cleanNumber.length() == 12) {
+                cleanNumber = "+" + cleanNumber;
+            } else {
+                cleanNumber = "+91" + cleanNumber;
+            }
+        }
+
+        try {
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            String encodedText = "";
+            try {
+                encodedText = URLEncoder.encode(message != null ? message : "", "UTF-8");
+            } catch (Exception ignored) {
+                encodedText = message != null ? message : "";
+            }
+            intent.setData(Uri.parse("https://api.whatsapp.com/send?phone=" + cleanNumber + "&text=" + encodedText));
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+            if (!isFinishing()) {
+                finish();
+            }
+        } catch (ActivityNotFoundException e) {
+            Log.w(TAG, "WhatsApp not installed: " + e.getMessage());
+            if (statusTextView != null) {
+                statusTextView.setText("WhatsApp not installed.");
+            }
+            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    if (!isFinishing()) {
+                        finish();
+                    }
+                }
+            }, 2000);
+        } catch (Exception e) {
+            Log.e(TAG, "Error opening WhatsApp: " + e.getMessage(), e);
+            if (statusTextView != null) {
+                statusTextView.setText("Failed to open WhatsApp.");
+            }
+            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    if (!isFinishing()) {
+                        finish();
+                    }
+                }
+            }, 2000);
         }
     }
 
@@ -485,6 +555,53 @@ public class AssistantActivity extends AppCompatActivity {
                         }
                     }
                 }, 2000);
+            } else {
+                statusTextView.setText("Contact not found.");
+                new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (!isFinishing()) {
+                            finish();
+                        }
+                    }
+                }, 2000);
+            }
+            return;
+        }
+
+        // Step 6 Part 2: Advanced Third-Party Messaging (WhatsApp Engine)
+        else if (lower.startsWith("whatsapp ") || lower.equals("whatsapp")) {
+            String[] parsed = parseSmsCommand(command);
+            final String contactName = parsed[0];
+            final String messageBody = parsed[1];
+
+            if (contactName.isEmpty()) {
+                statusTextView.setText("Who would you like to message on WhatsApp?");
+                new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (!isFinishing()) finish();
+                    }
+                }, 2000);
+                return;
+            }
+
+            if (messageBody.isEmpty()) {
+                statusTextView.setText("What message for " + contactName + "?");
+                new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (!isFinishing()) finish();
+                    }
+                }, 2000);
+                return;
+            }
+
+            statusTextView.setText("Opening WhatsApp for " + contactName + "...");
+            String number = getPhoneNumber(contactName);
+
+            if (number != null && !number.trim().isEmpty()) {
+                sendWhatsAppMessage(number, messageBody);
             } else {
                 statusTextView.setText("Contact not found.");
                 new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
