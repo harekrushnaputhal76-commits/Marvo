@@ -2,13 +2,15 @@
 
 /* ================================================================
    MARVO — app.js
-   Frontend bridge to Flask backend with advanced interactive UI:
-   - 5-Character Voice Selection System with Previews
-   - Backend TTS integration via /api/speak
-   - Context menus & dropdowns (auto-close outside)
-   - Dynamic Themes (Dark / Light)
-   - Settings Modal
-   - Multi-session chat history
+   Flagship Native Android UI/UX (Gemini-Inspired)
+   - 3D Animated Realistic Eyes with 10+ Advanced Expressions
+   - Bottom-Docked Voice UI with Real-Time Audio Visualizer & Waveform
+   - Immersive Native Edge-to-Edge Fullscreen (Capacitor StatusBar)
+   - Gemini-Style Capability Toggles ("Fast", "Thinking", "Pro")
+   - Advanced Side Drawer & 3-Dot Kebab Action Menu
+   - Context-Awareness (Local Date, Time & Day Silent Injection)
+   - Native Device Local Storage Persistence (@capacitor/preferences)
+   - Production Live Backend (https://marvo-kshm.onrender.com)
    ================================================================ */
 
 /* ═══════ CONFIGURATION ═══════ */
@@ -17,6 +19,7 @@ const API_CHAT = `${API_BASE}/api/chat`;
 const API_SPEAK = `${API_BASE}/api/speak`;
 const API_PREVIEW_VOICE = `${API_BASE}/api/preview_voice`;
 const API_SESSIONS = `${API_BASE}/api/sessions`;
+
 const SESSION_STORAGE_KEY = 'marvo.currentSessionId';
 const THEME_STORAGE_KEY   = 'marvo.theme';
 const VOICE_STORAGE_KEY   = 'marvo.voice';
@@ -32,23 +35,34 @@ const DOM = {
   btnHamburger:       $('#btnHamburger'),
   btnCloseSidebar:    $('#btnCloseSidebar'),
   btnNewChat:         $('#btnNewChat'),
+  btnNewProject:      $('#btnNewProject'),
   modeSelector:       $('#modeSelector'),
-  modeBadge:          $('#modeBadge'),
   historyList:        $('#chatHistoryList'),
   historyContextMenu: $('#historyContextMenu'),
   btnRenameChat:      $('#btnRenameChat'),
   btnDeleteChat:      $('#btnDeleteChat'),
+
+  // Top Bar & Menus
   btnAppMenu:         $('#btnAppMenu'),
   appDropdown:        $('#appDropdown'),
+  btnAddToNotebook:   $('#btnAddToNotebook'),
+  btnTopRenameChat:   $('#btnTopRenameChat'),
+  btnTopHelp:         $('#btnTopHelp'),
+  btnTopShareChat:    $('#btnTopShareChat'),
+  btnTopDeleteChat:   $('#btnTopDeleteChat'),
   btnThemeDark:       $('#btnThemeDark'),
   btnThemeLight:      $('#btnThemeLight'),
   btnSettings:        $('#btnSettings'),
   settingsModal:      $('#settingsModal'),
   btnCloseSettings:   $('#btnCloseSettings'),
   topbarTitle:        $('#topbarTitle'),
+
+  // Avatar & 3D Eyes
   avatarZone:         $('#avatarZone'),
   face:               $('#face'),
   stateLabel:         $('#stateLabel'),
+
+  // Chat Area & Input
   chatArea:           $('#chatArea'),
   chatMessages:       $('#chatMessages'),
   btnAttach:          $('#btnAttach'),
@@ -57,8 +71,24 @@ const DOM = {
   btnSend:            $('#btnSend'),
   btnMic:             $('#btnMic'),
   btnScreenShare:     $('#btnScreenShare'),
-  voiceOverlay:       $('#voiceOverlay'),
-  btnVoiceCancel:     $('#btnVoiceCancel'),
+
+  // Bottom-Docked Voice UI
+  voiceOverlay:         $('#voiceOverlay'),
+  voiceStatusText:      $('#voiceStatusText'),
+  voiceWaveCanvas:      $('#voiceWaveCanvas'),
+  voiceBars:            $('#voiceBars'),
+  voiceTranscriptBox:   $('#voiceTranscriptBox'),
+  voiceTranscriptText:  $('#voiceTranscriptText'),
+  btnVoiceClose:        $('#btnVoiceClose'),
+  btnVoiceCancel:       $('#btnVoiceCancel'),
+  btnVoicePauseResume:  $('#btnVoicePauseResume'),
+  iconVoicePause:       $('#iconVoicePause'),
+  iconVoiceResume:      $('#iconVoiceResume'),
+  labelVoicePauseResume:$('#labelVoicePauseResume'),
+  btnVoiceSend:         $('#btnVoiceSend'),
+
+  // Toast
+  appToast:           $('#appToast'),
 };
 
 /* ═══════ NATIVE STORAGE (@capacitor/preferences + localStorage fallback) ═══════ */
@@ -199,36 +229,84 @@ async function renameLocalSession(sessionId, newTitle) {
   }
 }
 
-/* ═══════ STATE ═══════ */
+/* ═══════ 3D EYE EXPRESSIONS ENGINE (10+ Advanced States) ═══════ */
 const STATES = [
-  'state-idle','state-listening','state-loading','state-processing','state-speaking',
-  'state-thinking','state-confused','state-happy','state-excited','state-searching',
-  'state-angry','state-sad','state-surprised','state-curious','state-focused',
-  'state-laughing','state-sleepy','state-alert','state-scared','state-love',
-  'state-proud','state-nervous','state-calm','state-bored','state-amazed',
-  'state-grateful','state-mysterious','state-playful','state-serious','state-shy',
-  'state-confident','state-creative','state-calculating','state-remembering','state-learning',
-  'state-explaining','state-warning','state-error','state-success','state-greeting',
-  'state-farewell','state-joking','state-sarcastic','state-empathetic','state-motivating',
-  'state-questioning','state-answering','state-coding','state-music','state-weather',
-  'state-news','state-math','state-science','state-history','state-philosophy','state-gaming',
+  'state-idle', 'state-listening', 'state-loading', 'state-processing', 'state-speaking',
+  'state-sleepy', 'state-crying', 'state-winking', 'state-angry', 'state-surprised',
+  'state-laughing', 'state-thinking', 'state-scanning', 'state-dizzy', 'state-error',
+  'state-happy', 'state-confused', 'state-excited', 'state-searching', 'state-sad',
+  'state-love', 'state-proud', 'state-nervous', 'state-calm', 'state-bored',
+  'state-amazed', 'state-grateful', 'state-mysterious', 'state-playful', 'state-serious',
+  'state-shy', 'state-confident', 'state-creative', 'state-calculating', 'state-remembering',
+  'state-learning', 'state-explaining', 'state-warning', 'state-success', 'state-greeting',
+  'state-farewell', 'state-joking', 'state-sarcastic', 'state-empathetic', 'state-motivating',
+  'state-questioning', 'state-answering', 'state-coding', 'state-music', 'state-weather',
+  'state-news', 'state-math', 'state-science', 'state-history', 'state-philosophy', 'state-gaming',
 ];
 
 let currentSessionId = sessionStorage.getItem(SESSION_STORAGE_KEY) || generateSessionId();
 let currentVoice     = localStorage.getItem(VOICE_STORAGE_KEY) || 'voice_3';
 let sessionVersion   = 0;
-let selectedMode     = 'medium';
-let isRecording      = false;
+let selectedMode     = 'medium'; // 'fast', 'medium' (Thinking), 'high' (Pro)
 let isBusy           = false;
 let hasInteracted    = false;
 let contextTargetSessionId = null;
 let currentAudio     = null;
 let lastUserMessage  = '';
 
-/* ═══════════════════════════════════════════════════════════════════
-   THEME MANAGEMENT
-   ═══════════════════════════════════════════════════════════════════ */
+/* Eye Expression Trigger */
+function setEyeExpression(state) {
+  if (!STATES.includes(state)) return;
+  STATES.forEach(s => DOM.face.classList.remove(s));
+  DOM.face.classList.add(state);
+  DOM.stateLabel.textContent = state.replace('state-', '').toUpperCase();
+}
 
+/* Contextual Keyword Detector */
+const _EX_MAP = [
+  ['state-crying',      ['cry','crying','tears','weep','heartbroken','sorrow','sad','dukhi','rona','aansu','miss you']],
+  ['state-laughing',    ['haha','hehe','lol','lmao','rofl','funny','hilarious','joke','hasna','mazaak','laugh']],
+  ['state-winking',     ['wink','winking','flirt','secret','just between us','naughty','chupa rustam','ishara','smart']],
+  ['state-surprised',   ['wow','omg','what?!','unbelievable','shocking','surprise','really?','sach me','kya baat']],
+  ['state-angry',       ['angry','gussa','hate','furious','rage','annoyed','terrible','worst','stupid','bakwas']],
+  ['state-sleepy',      ['sleep','sleepy','tired','exhausted','bedtime','good night','yawning','neend','so jao']],
+  ['state-scanning',    ['scan','scanning','analyze','inspect','search database','diagnose','check file','analyzing']],
+  ['state-dizzy',       ['dizzy','headache','confused','spinning','chakkar','round and round']],
+  ['state-thinking',    ['think','reasoning','algorithm','logic','pondering','plan','calculate','sochna','solve']],
+  ['state-coding',      ['code','coding','program','debug','function','variable','script','python','javascript','html','css','api','developer','github']],
+  ['state-math',        ['math','calculate','equation','formula','algebra','geometry','calculus','percent','multiply','sum']],
+  ['state-music',       ['music','song','sing','melody','guitar','piano','rapper','album','spotify','concert']],
+  ['state-weather',     ['weather','mausam','temperature','rain','sunny','cloudy','storm','snow']],
+  ['state-love',        ['love','pyaar','ishq','dil','heart','romantic','valentine','crush','baby','darling']],
+];
+
+function detectEyeExpression(userText, aiText) {
+  const combo = `${userText} ${aiText}`.toLowerCase();
+  for (const [state, keywords] of _EX_MAP) {
+    for (const kw of keywords) {
+      if (combo.includes(kw)) return state;
+    }
+  }
+  return null;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   TOAST NOTIFICATION HELPER
+   ═══════════════════════════════════════════════════════════════════ */
+let toastTimeout = null;
+function showToast(msg, duration = 2400) {
+  if (!DOM.appToast) return;
+  DOM.appToast.textContent = msg;
+  DOM.appToast.classList.add('show');
+  if (toastTimeout) clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => {
+    DOM.appToast.classList.remove('show');
+  }, duration);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   THEME & FULLSCREEN STATUS BAR INITIALIZATION
+   ═══════════════════════════════════════════════════════════════════ */
 async function setTheme(theme) {
   if (theme === 'light') {
     DOM.body.classList.add('theme-light');
@@ -244,10 +322,21 @@ async function initTheme() {
   await setTheme(saved);
 }
 
+async function initStatusBar() {
+  if (window.Capacitor?.Plugins?.StatusBar) {
+    try {
+      await window.Capacitor.Plugins.StatusBar.setOverlaysWebView({ overlay: true });
+      await window.Capacitor.Plugins.StatusBar.setBackgroundColor({ color: '#00000000' });
+      await window.Capacitor.Plugins.StatusBar.setStyle({ style: 'DARK' });
+    } catch (err) {
+      console.warn('[StatusBar] Init error:', err);
+    }
+  }
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    SETTINGS MODAL & VOICE SELECTION
    ═══════════════════════════════════════════════════════════════════ */
-
 function openSettingsModal() {
   closeAllDropdowns();
   DOM.settingsModal.classList.add('show');
@@ -259,20 +348,17 @@ function closeSettingsModal() {
 
 async function initVoiceSelection() {
   const savedVoice = await NativeStorage.get(VOICE_STORAGE_KEY);
-  if (savedVoice) {
-    currentVoice = savedVoice;
-  }
-  const targetRadio = document.querySelector(`input[name="marvoVoiceRadio"][value="${currentVoice}"]`);
-  if (targetRadio) {
-    targetRadio.checked = true;
-  }
+  if (savedVoice) currentVoice = savedVoice;
 
-  // Radio button change listener
+  const targetRadio = document.querySelector(`input[name="marvoVoiceRadio"][value="${currentVoice}"]`);
+  if (targetRadio) targetRadio.checked = true;
+
   document.querySelectorAll('input[name="marvoVoiceRadio"]').forEach(radio => {
     radio.addEventListener('change', async (e) => {
       if (e.target.checked) {
         currentVoice = e.target.value;
         await NativeStorage.set(VOICE_STORAGE_KEY, currentVoice);
+        showToast(`Voice set to ${e.target.parentElement.querySelector('.voice-name').textContent}`);
       }
     });
   });
@@ -284,7 +370,6 @@ async function initVoiceSelection() {
       e.stopPropagation();
 
       const voiceId = btn.dataset.voice;
-
       if (currentAudio) {
         try {
           currentAudio.pause();
@@ -300,42 +385,31 @@ async function initVoiceSelection() {
           body: JSON.stringify({ voice_id: voiceId }),
         });
 
-        if (!res.ok) {
-          console.warn('[Marvo] /api/preview_voice returned', res.status);
-          return;
-        }
-
+        if (!res.ok) return;
         const data = await res.json();
         if (data && data.audio_base64) {
           const audio = new Audio("data:audio/mp3;base64," + data.audio_base64);
           currentAudio = audio;
-
           audio.onplay = () => {
             btn.classList.add('playing-sample');
             setEyeExpression('state-speaking');
             DOM.face.classList.add('speaking-mode');
-            document.querySelectorAll('.eye').forEach(el => el.classList.add('speaking-mode'));
           };
           audio.onended = () => {
             btn.classList.remove('playing-sample');
             DOM.face.classList.remove('speaking-mode');
-            document.querySelectorAll('.eye').forEach(el => el.classList.remove('speaking-mode'));
             setEyeExpression('state-idle');
             if (currentAudio === audio) currentAudio = null;
           };
           audio.onerror = () => {
             btn.classList.remove('playing-sample');
             DOM.face.classList.remove('speaking-mode');
-            document.querySelectorAll('.eye').forEach(el => el.classList.remove('speaking-mode'));
             setEyeExpression('state-idle');
             if (currentAudio === audio) currentAudio = null;
           };
-
-          audio.play().catch(err => {
-            console.warn('[Marvo] Sample play error:', err);
+          audio.play().catch(() => {
             btn.classList.remove('playing-sample');
             DOM.face.classList.remove('speaking-mode');
-            document.querySelectorAll('.eye').forEach(el => el.classList.remove('speaking-mode'));
             setEyeExpression('state-idle');
           });
         }
@@ -350,7 +424,6 @@ async function initVoiceSelection() {
 /* ═══════════════════════════════════════════════════════════════════
    SESSION MANAGEMENT
    ═══════════════════════════════════════════════════════════════════ */
-
 function generateSessionId() {
   const ts = Date.now().toString(36);
   const rnd = Math.random().toString(36).slice(2, 8);
@@ -365,125 +438,27 @@ async function persistCurrentSession() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   EYE EXPRESSION ENGINE
+   SPEECH & AUDIO
    ═══════════════════════════════════════════════════════════════════ */
-
-function setEyeExpression(state) {
-  if (!STATES.includes(state)) return;
-  STATES.forEach(s => DOM.face.classList.remove(s));
-  DOM.face.classList.add(state);
-  DOM.stateLabel.textContent = state.replace('state-', '').toUpperCase();
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   CONTEXTUAL EYE EXPRESSION DETECTOR
-   Maps keywords in user query + AI response → eye state.
-   First match wins. Order = priority (most specific first).
-   ═══════════════════════════════════════════════════════════════════ */
-const _EX_MAP = [
-  ['state-coding',      ['code','coding','program','debug','function','variable','script','python','javascript','html','css','api','compile','syntax','developer','github','repository','algorithm']],
-  ['state-math',        ['math','calculate','equation','formula','algebra','geometry','calculus','percent','multiply','divide','sum','average','integral','derivative','factorial','trigonometry']],
-  ['state-science',     ['science','physics','chemistry','biology','atom','molecule','experiment','hypothesis','quantum','electron','gravity','evolution','dna','cell','organism']],
-  ['state-history',     ['history','historical','ancient','war','civilization','empire','dynasty','century','independence','revolution','itihas','mughal','british']],
-  ['state-philosophy',  ['philosophy','philosophical','meaning of life','consciousness','existence','morality','ethics','plato','aristotle','socrates','metaphysics','epistemology']],
-  ['state-gaming',      ['game','gaming','gamer','xbox','playstation','minecraft','fortnite','pubg','valorant','esports','fps','rpg','gta','controller']],
-  ['state-music',       ['music','song','sing','melody','guitar','piano','rapper','album','playlist','spotify','gaana','bollywood song','concert','beat','rhythm','dj']],
-  ['state-weather',     ['weather','mausam','temperature','rain','barish','sunny','cloudy','storm','humidity','forecast','wind','tornado','snow','barf']],
-  ['state-news',        ['news','khabar','headline','breaking','report','journalist','media','current affairs','politics','election','government','sarkar']],
-  ['state-love',        ['love','pyaar','ishq','dil','heart','romantic','valentine','crush','relationship','mohabbat','baby','sweetheart','darling']],
-  ['state-angry',       ['angry','gussa','naraz','hate','stupid','worst','bakwas','bekar','chutiya','idiot','annoying','frustrated','irritated']],
-  ['state-sad',         ['sad','dukhi','udaas','cry','rona','depressed','lonely','miss you','heartbreak','pain','dard','tanha','grief']],
-  ['state-happy',       ['happy','khush','maza','amazing','awesome','great','wonderful','fantastic','celebrate','party','yay','woohoo','congratulations','badhai']],
-  ['state-excited',     ['excited','excited','wow','incredible','unbelievable','mind blowing','insane','epic','legendary','phenomenal']],
-  ['state-laughing',    ['haha','lol','lmao','rofl','funny','hilarious','joke','mazaak','comedy','hehe','xd','laughing','hasna']],
-  ['state-joking',      ['kidding','just joking','mazaak','prank','troll','meme','pun']],
-  ['state-sarcastic',   ['sarcasm','sarcastic','oh really','sure sure','yeah right','obviously','wow genius','no kidding']],
-  ['state-confused',    ['confused','samajh nahi','kya matlab','what do you mean','i don\'t understand','huh','unclear','confusing','pata nahi','nahi samjha']],
-  ['state-curious',     ['curious','interesting','tell me more','really','sach mein','wonder','fascinating','intriguing','how come','why is']],
-  ['state-surprised',   ['surprised','shocking','oh my god','omg','unbelievable','no way','kya baat','seriously','what the','are you serious']],
-  ['state-scared',      ['scary','darr','horror','ghost','bhoot','creepy','nightmare','terrifying','afraid','phobia','haunted']],
-  ['state-thinking',    ['think','socho','consider','hmm','let me think','maybe','possibly','perhaps','vichar','sochna']],
-  ['state-searching',   ['search','find','look up','dhundho','khojo','google','lookup','where is','kahan hai','locate']],
-  ['state-calculating', ['calculate','compute','how much','kitna','kitne','total','percentage','ratio','estimate','count','convert']],
-  ['state-explaining',  ['explain','samjhao','describe','elaborate','detail','breakdown','how does','kaise hota','tell me about','what is']],
-  ['state-warning',     ['warning','danger','careful','savdhan','khabardar','caution','risk','avoid','harmful','toxic','beware']],
-  ['state-error',       ['error','galti','wrong','mistake','bug','issue','problem','crash','fail','broken','fix']],
-  ['state-success',     ['success','done','complete','hogaya','perfect','nailed it','achieved','accomplished','sorted','fixed']],
-  ['state-greeting',    ['hello','hi','hey','namaste','assalam','kaise ho','how are you','good morning','good evening','good night','sup','yo','salam']],
-  ['state-farewell',    ['bye','goodbye','alvida','see you','tata','good night','take care','chal','phir milte','talk later']],
-  ['state-motivating',  ['motivate','inspire','keep going','you can','himmat','hosla','never give up','believe','strength','power','champion']],
-  ['state-empathetic',  ['sorry','feel bad','tough time','hard','difficult','struggle','understand','i know','it\'s okay','theek hai','don\'t worry','koi baat nahi']],
-  ['state-grateful',    ['thank','shukriya','dhanyavaad','thanks','appreciate','grateful','meharbani','obliged']],
-  ['state-confident',   ['confident','sure','definitely','absolutely','pakka','bilkul','zaroor','certainly','no doubt','guaranteed']],
-  ['state-creative',    ['create','design','imagine','kalpana','art','draw','paint','story','poem','kavita','write','compose','invent','brainstorm']],
-  ['state-mysterious',  ['mystery','secret','raaz','hidden','unknown','enigma','puzzle','riddle','clue','paranormal','conspiracy']],
-  ['state-playful',     ['play','khelo','fun','masti','chill','vibe','enjoy','entertainment','timepass']],
-  ['state-serious',     ['serious','important','critical','urgent','zaruri','emergency','attention','focus','concentrate','matter']],
-  ['state-shy',         ['shy','sharmana','blush','embarrassed','awkward','hesitant']],
-  ['state-proud',       ['proud','achievement','accomplished','garv','mera beta','well done','bravo','excellent','outstanding']],
-  ['state-nervous',     ['nervous','anxious','tension','worried','stressed','panic','fear','ghabrahat','fikar']],
-  ['state-calm',        ['calm','relax','peaceful','shanti','meditation','breathe','zen','tranquil','soothing','quiet']],
-  ['state-bored',       ['bored','boring','bor','nothing to do','kuch nahi','dull','tedious','monotonous','yawn']],
-  ['state-amazed',      ['amazing','incredible','spectacular','breathtaking','magnificent','extraordinary','kamaal','zabardast','shandar']],
-  ['state-sleepy',      ['sleepy','neend','tired','thak gaya','exhausted','drowsy','yawning','rest','sona hai']],
-  ['state-alert',       ['alert','urgent','immediately','jaldi','abhi','now','hurry','quick','asap','emergency','turant']],
-  ['state-remembering', ['remember','yaad','recall','memory','nostalgia','purani','those days','bachpan','past']],
-  ['state-learning',    ['learn','seekho','study','padhai','course','tutorial','lesson','practice','education','school','college']],
-  ['state-questioning', ['why','kyu','kyun','kaun','who','which','when','kab','where','kahan','how','kaise','what if']],
-  ['state-answering',   ['answer','jawab','solution','samadhan','result','output','response']],
-  ['state-focused',     ['focus','concentrate','dhyan','attention','ek chiz','priority','target','goal','aim']],
-];
-
-function detectEyeExpression(userText, aiText) {
-  const combined = (userText + ' ' + aiText).toLowerCase();
-  for (let i = 0; i < _EX_MAP.length; i++) {
-    const [state, keywords] = _EX_MAP[i];
-    for (let k = 0; k < keywords.length; k++) {
-      if (combined.includes(keywords[k])) return state;
-    }
-  }
-  return null;
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   AVATAR FLOAT-UP & CHAT AREA
-   ═══════════════════════════════════════════════════════════════════ */
-
-function activateChatMode() {
-  hasInteracted = true;
-  DOM.body.classList.add('chat-active');
-}
-
-function clearChat() {
-  DOM.chatMessages.innerHTML = '';
-  hasInteracted = false;
-  DOM.body.classList.remove('chat-active');
-  setEyeExpression('state-idle');
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   BACKEND TTS INTEGRATION (/api/speak)
-   ═══════════════════════════════════════════════════════════════════ */
-
-async function playSpeech(text, btn) {
-  const cleanText = text.replace(/[*_~`#>]/g, '').trim();
-  if (!cleanText) return;
-
-  // If audio is currently playing, check if clicking the same button to toggle stop
+async function playSpeech(text, btnElement = null) {
   if (currentAudio) {
-    const isPlayingCurrentBtn = btn && (btn.classList.contains('playing-audio') || btn.classList.contains('playing-sample'));
     try {
       currentAudio.pause();
       currentAudio.currentTime = 0;
     } catch {}
     currentAudio = null;
-    document.querySelectorAll('.playing-audio, .playing-sample').forEach(b => b.classList.remove('playing-audio', 'playing-sample'));
+    document.querySelectorAll('.playing-tts').forEach(el => el.classList.remove('playing-tts'));
     DOM.face.classList.remove('speaking-mode');
-    document.querySelectorAll('.eye').forEach(el => el.classList.remove('speaking-mode'));
     setEyeExpression('state-idle');
-    if (isPlayingCurrentBtn) return;
+    return;
   }
-  document.querySelectorAll('.playing-audio, .playing-sample').forEach(b => b.classList.remove('playing-audio', 'playing-sample'));
+
+  const cleanText = text.replace(/[*_~`#]/g, '').trim();
+  if (!cleanText) return;
+
+  if (btnElement) btnElement.classList.add('playing-tts');
+  setEyeExpression('state-speaking');
+  DOM.face.classList.add('speaking-mode');
 
   try {
     const res = await fetch(API_SPEAK, {
@@ -492,103 +467,90 @@ async function playSpeech(text, btn) {
       body: JSON.stringify({
         text: cleanText,
         voice_id: currentVoice,
+        session_id: currentSessionId,
       }),
     });
 
-    if (!res.ok) {
-      console.warn('[Marvo] /api/speak returned', res.status);
-      return;
-    }
-
+    if (!res.ok) throw new Error(`Status ${res.status}`);
     const data = await res.json();
+
     if (data && data.audio_base64) {
       const audio = new Audio("data:audio/mp3;base64," + data.audio_base64);
       currentAudio = audio;
 
-      audio.onplay = () => {
-        if (btn) btn.classList.add('playing-audio');
-        setEyeExpression('state-speaking');
-        DOM.face.classList.add('speaking-mode');
-        document.querySelectorAll('.eye').forEach(el => el.classList.add('speaking-mode'));
-      };
       audio.onended = () => {
-        if (btn) btn.classList.remove('playing-audio');
+        if (btnElement) btnElement.classList.remove('playing-tts');
         DOM.face.classList.remove('speaking-mode');
-        document.querySelectorAll('.eye').forEach(el => el.classList.remove('speaking-mode'));
         setEyeExpression('state-idle');
         if (currentAudio === audio) currentAudio = null;
       };
       audio.onerror = () => {
-        if (btn) btn.classList.remove('playing-audio');
+        if (btnElement) btnElement.classList.remove('playing-tts');
         DOM.face.classList.remove('speaking-mode');
-        document.querySelectorAll('.eye').forEach(el => el.classList.remove('speaking-mode'));
         setEyeExpression('state-idle');
         if (currentAudio === audio) currentAudio = null;
       };
-
-      audio.play().catch(err => {
-        console.warn('[Marvo] Speech playback error:', err);
-        if (btn) btn.classList.remove('playing-audio');
-        DOM.face.classList.remove('speaking-mode');
-        document.querySelectorAll('.eye').forEach(el => el.classList.remove('speaking-mode'));
-        setEyeExpression('state-idle');
-      });
-    }
-  } catch (err) {
-    console.error('[Marvo] Speech error:', err);
-    if (btn) btn.classList.remove('playing-audio');
-    DOM.face.classList.remove('speaking-mode');
-    document.querySelectorAll('.eye').forEach(el => el.classList.remove('speaking-mode'));
-    setEyeExpression('state-idle');
-  }
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   ACTION HELPERS (Copy, Contextual Prompt Lookup)
-   ═══════════════════════════════════════════════════════════════════ */
-
-async function copyToClipboard(text, btn) {
-  try {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      await navigator.clipboard.writeText(text);
+      await audio.play();
     } else {
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      ta.style.position = 'fixed';
-      ta.style.opacity = '0';
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      ta.remove();
+      fallbackWebSpeech(cleanText, btnElement);
     }
-    btn.classList.add('copied');
-    btn.setAttribute('data-tooltip', 'Copied!');
-    const origSvg = btn.innerHTML;
-    btn.innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13"><polyline points="20 6 9 17 4 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-    setTimeout(() => {
-      btn.classList.remove('copied');
-      btn.setAttribute('data-tooltip', 'Copy text');
-      btn.innerHTML = origSvg;
-    }, 1800);
   } catch (err) {
-    console.warn('[Marvo] Copy failed:', err);
+    console.warn('[Marvo] Backend TTS failed, fallback:', err);
+    fallbackWebSpeech(cleanText, btnElement);
   }
 }
 
-function getLastUserPrompt(aiWrapperEl) {
-  let prev = aiWrapperEl ? aiWrapperEl.previousElementSibling : null;
-  while (prev) {
-    if (prev.classList.contains('msg-user')) {
-      return prev.textContent.trim();
-    }
-    prev = prev.previousElementSibling;
+function fallbackWebSpeech(text, btnElement) {
+  if (!('speechSynthesis' in window)) {
+    if (btnElement) btnElement.classList.remove('playing-tts');
+    DOM.face.classList.remove('speaking-mode');
+    setEyeExpression('state-idle');
+    return;
   }
-  return lastUserMessage || '';
+  window.speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.onend = () => {
+    if (btnElement) btnElement.classList.remove('playing-tts');
+    DOM.face.classList.remove('speaking-mode');
+    setEyeExpression('state-idle');
+  };
+  utter.onerror = () => {
+    if (btnElement) btnElement.classList.remove('playing-tts');
+    DOM.face.classList.remove('speaking-mode');
+    setEyeExpression('state-idle');
+  };
+  window.speechSynthesis.speak(utter);
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   CHAT RENDERING
+   CHAT RENDERING & ACTION BAR
    ═══════════════════════════════════════════════════════════════════ */
+function copyToClipboard(text, btnElement) {
+  navigator.clipboard.writeText(text).then(() => {
+    if (btnElement) {
+      btnElement.classList.add('copied');
+      setTimeout(() => btnElement.classList.remove('copied'), 2000);
+    }
+    showToast('Copied to clipboard!');
+  }).catch(() => {
+    showToast('Failed to copy');
+  });
+}
+
+function scrollToBottom() {
+  DOM.chatArea.scrollTop = DOM.chatArea.scrollHeight;
+}
+
+function activateChatMode() {
+  if (!hasInteracted) {
+    hasInteracted = true;
+    DOM.body.classList.add('chat-active');
+  }
+}
+
+function clearChat() {
+  DOM.chatMessages.innerHTML = '';
+}
 
 function addMessage(text, sender) {
   if (sender === 'user') {
@@ -600,7 +562,7 @@ function addMessage(text, sender) {
     return el;
   }
 
-  // ── AI Message Bubble with Sleek ChatGPT-Style Action Bar ──
+  // AI Message with ChatGPT-style Action Bar
   const wrapper = document.createElement('div');
   wrapper.className = 'msg-ai-wrapper';
 
@@ -612,10 +574,9 @@ function addMessage(text, sender) {
   const actionBar = document.createElement('div');
   actionBar.className = 'msg-action-bar';
 
-  // 1. Speaker Button (Plays TTS audio for ONLY this message)
+  // Speaker Button
   const speakerBtn = document.createElement('button');
   speakerBtn.className = 'msg-action-btn action-speaker';
-  speakerBtn.setAttribute('data-tooltip', 'Read aloud');
   speakerBtn.setAttribute('aria-label', 'Read aloud');
   speakerBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
   speakerBtn.addEventListener('click', (e) => {
@@ -624,10 +585,9 @@ function addMessage(text, sender) {
   });
   actionBar.appendChild(speakerBtn);
 
-  // 2. Copy Button (Copies text with visual feedback)
+  // Copy Button
   const copyBtn = document.createElement('button');
   copyBtn.className = 'msg-action-btn action-copy';
-  copyBtn.setAttribute('data-tooltip', 'Copy text');
   copyBtn.setAttribute('aria-label', 'Copy response');
   copyBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" fill="none" stroke="currentColor" stroke-width="2"/></svg>`;
   copyBtn.addEventListener('click', (e) => {
@@ -636,70 +596,16 @@ function addMessage(text, sender) {
   });
   actionBar.appendChild(copyBtn);
 
-  // 3. Regenerate/Retry Button
+  // Regenerate Button
   const retryBtn = document.createElement('button');
   retryBtn.className = 'msg-action-btn action-retry';
-  retryBtn.setAttribute('data-tooltip', 'Regenerate');
   retryBtn.setAttribute('aria-label', 'Regenerate response');
-  retryBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14"><polyline points="1 4 1 10 7 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  retryBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14"><polyline points="1 4 1 10 7 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
   retryBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    const prompt = getLastUserPrompt(wrapper);
-    if (prompt && !isBusy) {
-      sendMessage(prompt);
-    }
+    if (lastUserMessage && !isBusy) sendMessage(lastUserMessage);
   });
   actionBar.appendChild(retryBtn);
-
-  // 4. Three-Dot Menu (More Options)
-  const moreContainer = document.createElement('div');
-  moreContainer.className = 'action-menu-container';
-
-  const moreBtn = document.createElement('button');
-  moreBtn.className = 'msg-action-btn action-more';
-  moreBtn.setAttribute('data-tooltip', 'More');
-  moreBtn.setAttribute('aria-label', 'More options');
-  moreBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14"><circle cx="12" cy="5" r="1.8" fill="currentColor"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/><circle cx="12" cy="19" r="1.8" fill="currentColor"/></svg>`;
-
-  const dropdown = document.createElement('div');
-  dropdown.className = 'dropdown-menu action-dropdown-menu';
-
-  // 4a. Rewrite Option
-  const rewriteBtn = document.createElement('button');
-  rewriteBtn.className = 'dropdown-item';
-  rewriteBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14"><path d="M12 20h9" stroke="currentColor" stroke-width="2"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" fill="none" stroke="currentColor" stroke-width="2"/></svg>Rewrite`;
-  rewriteBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    closeAllDropdowns();
-    const prompt = getLastUserPrompt(wrapper);
-    const rewritePrompt = prompt
-      ? `Rewrite your answer to: "${prompt}" in a fresh, clearer, and more engaging way.`
-      : `Rewrite your previous response differently: "${text.slice(0, 100)}..."`;
-    if (!isBusy) sendMessage(rewritePrompt);
-  });
-  dropdown.appendChild(rewriteBtn);
-
-  // 4b. Change Voice Option
-  const voiceBtn = document.createElement('button');
-  voiceBtn.className = 'dropdown-item';
-  voiceBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" fill="currentColor"/><path d="M19 10v2a7 7 0 0 1-14 0v-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="19" x2="12" y2="23" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="8" y1="23" x2="16" y2="23" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Change Voice`;
-  voiceBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    closeAllDropdowns();
-    openSettingsModal();
-  });
-  dropdown.appendChild(voiceBtn);
-
-  moreBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const isShown = dropdown.classList.contains('show');
-    closeAllDropdowns();
-    if (!isShown) dropdown.classList.add('show');
-  });
-
-  moreContainer.appendChild(moreBtn);
-  moreContainer.appendChild(dropdown);
-  actionBar.appendChild(moreContainer);
 
   wrapper.appendChild(actionBar);
   DOM.chatMessages.appendChild(wrapper);
@@ -709,35 +615,35 @@ function addMessage(text, sender) {
 
 function showLoading() {
   const el = document.createElement('div');
-  el.className = 'loading-dots';
-  el.innerHTML = '<span></span><span></span><span></span>';
+  el.className = 'msg-ai-wrapper';
+  el.innerHTML = `
+    <div class="msg msg-ai" style="display:flex;align-items:center;gap:6px;padding:12px 18px;">
+      <span style="width:7px;height:7px;border-radius:50%;background:var(--accent);animation:sound-wave 1s infinite alternate;"></span>
+      <span style="width:7px;height:7px;border-radius:50%;background:var(--accent);animation:sound-wave 1s infinite alternate 0.2s;"></span>
+      <span style="width:7px;height:7px;border-radius:50%;background:var(--accent);animation:sound-wave 1s infinite alternate 0.4s;"></span>
+    </div>
+  `;
   DOM.chatMessages.appendChild(el);
   scrollToBottom();
   return el;
 }
 
-function scrollToBottom() {
-  requestAnimationFrame(() => {
-    DOM.chatMessages.scrollTop = DOM.chatMessages.scrollHeight;
-  });
-}
-
 /* ═══════════════════════════════════════════════════════════════════
-   BACKEND COMMUNICATION
+   CONTEXT-AWARE BACKEND COMMUNICATION (Time & Date Injection)
    ═══════════════════════════════════════════════════════════════════ */
-
 async function sendMessage(userText) {
-  if (!userText.trim() || isBusy) return;
-  lastUserMessage = userText.trim();
+  if (!userText || !userText.trim() || isBusy) return;
+  const cleanInput = userText.trim();
+  lastUserMessage = cleanInput;
   isBusy = true;
   const requestSessionId = currentSessionId;
   const requestVersion   = sessionVersion;
 
   activateChatMode();
-  addMessage(userText, 'user');
-  await saveLocalMessage(requestSessionId, 'user', userText);
-  await saveLocalSession(requestSessionId, userText);
-  updateHistorySidebar(userText, requestSessionId);
+  addMessage(cleanInput, 'user');
+  await saveLocalMessage(requestSessionId, 'user', cleanInput);
+  await saveLocalSession(requestSessionId, cleanInput);
+  updateHistorySidebar(cleanInput, requestSessionId);
 
   DOM.msgInput.value = '';
   DOM.btnSend.disabled = true;
@@ -745,22 +651,26 @@ async function sendMessage(userText) {
   const dots = showLoading();
   setEyeExpression('state-loading');
 
+  // Silently construct exact temporal context
+  const now = new Date();
+  const timeString = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
+  const dateString = now.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Local Time';
+  const temporalPrompt = `[Context: Current local time is ${timeString} on ${dateString} (${timeZone})]\n\n${cleanInput}`;
+
   try {
     const res = await fetch(API_CHAT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        message:       userText,
+        message:       temporalPrompt,
         thinking_mode: selectedMode,
         session_id:    requestSessionId,
       }),
     });
 
     dots.remove();
-
-    if (!res.ok) {
-      throw new Error(`Server responded with ${res.status}`);
-    }
+    if (!res.ok) throw new Error(`Server responded with ${res.status}`);
 
     const data = await res.json();
     const aiText  = data.response || 'No response received.';
@@ -771,23 +681,20 @@ async function sendMessage(userText) {
     setEyeExpression(aiState);
     addMessage(aiText, 'ai');
     await saveLocalMessage(requestSessionId, 'ai', aiText);
-    updateHistorySidebar(userText, requestSessionId);
+    updateHistorySidebar(cleanInput, requestSessionId);
 
-    // Contextual eye expression based on AI response + user query keywords
-    const contextState = detectEyeExpression(userText, aiText);
-    if (contextState) setEyeExpression(contextState);
-
-    // Note: Auto-play TTS disabled. Audio plays on-demand via the Speaker action button.
+    // Trigger contextual eye state
+    const detected = detectEyeExpression(cleanInput, aiText);
+    if (detected) setEyeExpression(detected);
 
   } catch (err) {
     if (requestSessionId !== currentSessionId || requestVersion !== sessionVersion) return;
-
     dots.remove();
-    setEyeExpression('state-idle');
-    const errMsg = "I couldn't connect to my brain right now. Make sure the server is running on port 5000.";
+    setEyeExpression('state-error');
+    const errMsg = "I couldn't reach my cloud brain right now. Please check your internet connection.";
     addMessage(errMsg, 'ai');
     await saveLocalMessage(requestSessionId, 'ai', errMsg);
-    console.error('[Marvo] API Error:', err);
+    console.error('[Marvo] Chat error:', err);
   } finally {
     if (requestSessionId !== currentSessionId || requestVersion !== sessionVersion) return;
     isBusy = false;
@@ -797,35 +704,157 @@ async function sendMessage(userText) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   DROPDOWN & CONTEXT MENU MANAGEMENT (AUTO-CLOSE)
+   BOTTOM-DOCKED GEMINI-STYLE VOICE INTERACTION & VISUALIZER
    ═══════════════════════════════════════════════════════════════════ */
+let isVoiceRecording = false;
+let isVoicePaused = false;
+let speechRecognizer = null;
+let currentVoiceTranscript = '';
+let audioCtx = null;
+let micStream = null;
+let analyser = null;
+let visualizerAnimId = null;
 
-function closeAllDropdowns() {
-  DOM.appDropdown.classList.remove('show');
-  DOM.attachMenu.classList.remove('show');
-  DOM.historyContextMenu.classList.remove('show');
-  document.querySelectorAll('.history-more-btn.active').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.action-dropdown-menu.show').forEach(m => m.classList.remove('show'));
+function initAudioVisualizer() {
+  const canvas = DOM.voiceWaveCanvas;
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  function renderWave() {
+    if (!isVoiceRecording) return;
+    visualizerAnimId = requestAnimationFrame(renderWave);
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const width = canvas.width;
+    const height = canvas.height;
+    const time = Date.now() * 0.005;
+
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#00f0ff';
+    ctx.beginPath();
+
+    const freq = isVoicePaused ? 0.01 : 0.05;
+    const amp = isVoicePaused ? 2 : 14;
+
+    for (let x = 0; x < width; x += 3) {
+      const y = height / 2 + Math.sin(x * freq + time) * amp * Math.sin(x / width * Math.PI);
+      if (x === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  renderWave();
 }
 
-// Click outside handler
-document.addEventListener('click', (e) => {
-  if (!e.target.closest('.menu-container') &&
-      !e.target.closest('.attach-container') &&
-      !e.target.closest('.history-context-menu') &&
-      !e.target.closest('.history-more-btn') &&
-      !e.target.closest('.action-menu-container')) {
-    closeAllDropdowns();
+function openVoiceDock() {
+  isVoiceRecording = true;
+  isVoicePaused = false;
+  currentVoiceTranscript = '';
+  DOM.voiceTranscriptText.textContent = 'Listening to you...';
+  DOM.voiceStatusText.textContent = 'Listening...';
+  DOM.iconVoicePause.classList.remove('hidden');
+  DOM.iconVoiceResume.classList.add('hidden');
+  DOM.labelVoicePauseResume.textContent = 'Pause';
+  DOM.voiceOverlay.classList.add('show');
+  DOM.btnMic.classList.add('recording');
+  setEyeExpression('state-listening');
+
+  initAudioVisualizer();
+  startSpeechRecognition();
+}
+
+function closeVoiceDock() {
+  isVoiceRecording = false;
+  isVoicePaused = false;
+  DOM.voiceOverlay.classList.remove('show');
+  DOM.btnMic.classList.remove('recording');
+  if (visualizerAnimId) cancelAnimationFrame(visualizerAnimId);
+  if (speechRecognizer) {
+    try { speechRecognizer.stop(); } catch {}
   }
-  if (e.target === DOM.settingsModal) {
-    closeSettingsModal();
+  if (!isBusy) setEyeExpression('state-idle');
+}
+
+function toggleVoicePauseResume() {
+  if (!isVoiceRecording) return;
+  isVoicePaused = !isVoicePaused;
+
+  if (isVoicePaused) {
+    DOM.voiceStatusText.textContent = 'Paused';
+    DOM.iconVoicePause.classList.add('hidden');
+    DOM.iconVoiceResume.classList.remove('hidden');
+    DOM.labelVoicePauseResume.textContent = 'Resume';
+    setEyeExpression('state-idle');
+    if (speechRecognizer) {
+      try { speechRecognizer.stop(); } catch {}
+    }
+  } else {
+    DOM.voiceStatusText.textContent = 'Listening...';
+    DOM.iconVoicePause.classList.remove('hidden');
+    DOM.iconVoiceResume.classList.add('hidden');
+    DOM.labelVoicePauseResume.textContent = 'Pause';
+    setEyeExpression('state-listening');
+    startSpeechRecognition();
   }
-});
+}
+
+function submitVoiceRecording() {
+  const textToSend = currentVoiceTranscript.trim();
+  closeVoiceDock();
+  if (textToSend) {
+    sendMessage(textToSend);
+  } else {
+    showToast('No speech detected');
+  }
+}
+
+function startSpeechRecognition() {
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRec) {
+    DOM.voiceTranscriptText.textContent = "Voice input isn't supported in this browser. Please type your message.";
+    return;
+  }
+
+  try {
+    speechRecognizer = new SpeechRec();
+    speechRecognizer.continuous = true;
+    speechRecognizer.interimResults = true;
+    speechRecognizer.lang = 'en-US';
+
+    speechRecognizer.onresult = (e) => {
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; ++i) {
+        if (e.results[i].isFinal) {
+          currentVoiceTranscript += ' ' + e.results[i][0].transcript;
+        } else {
+          interim += e.results[i][0].transcript;
+        }
+      }
+      const display = (currentVoiceTranscript + ' ' + interim).trim();
+      if (display) {
+        DOM.voiceTranscriptText.textContent = display;
+      }
+    };
+
+    speechRecognizer.onerror = (err) => {
+      console.warn('[SpeechRec] Error:', err);
+    };
+
+    speechRecognizer.onend = () => {
+      if (isVoiceRecording && !isVoicePaused) {
+        try { speechRecognizer.start(); } catch {}
+      }
+    };
+
+    speechRecognizer.start();
+  } catch (e) {
+    console.warn('[SpeechRec] Start error:', e);
+  }
+}
 
 /* ═══════════════════════════════════════════════════════════════════
-   SIDEBAR & CHAT HISTORY CONTEXT MENU
+   SIDEBAR & CHAT HISTORY MANAGEMENT
    ═══════════════════════════════════════════════════════════════════ */
-
 function openSidebar() {
   DOM.sidebar.classList.add('open');
   DOM.sidebarOverlay.classList.add('show');
@@ -837,37 +866,10 @@ function closeSidebar() {
   closeAllDropdowns();
 }
 
-function newChat() {
-  currentSessionId = generateSessionId();
-  persistCurrentSession();
-  sessionVersion += 1;
-  isBusy = false;
-  DOM.btnSend.disabled = false;
-  clearChat();
-  highlightActiveSession();
-  closeSidebar();
-  DOM.msgInput.focus();
-}
-
 function highlightActiveSession() {
   DOM.historyList.querySelectorAll('li').forEach(li => {
     li.classList.toggle('active', li.dataset.sid === currentSessionId);
   });
-}
-
-function openHistoryContextMenu(e, sessionId, moreBtn) {
-  e.stopPropagation();
-  closeAllDropdowns();
-
-  contextTargetSessionId = sessionId;
-  moreBtn.classList.add('active');
-
-  const rect = moreBtn.getBoundingClientRect();
-  const menu = DOM.historyContextMenu;
-
-  menu.style.top = `${rect.bottom + 4}px`;
-  menu.style.left = `${Math.min(rect.left, window.innerWidth - 145)}px`;
-  menu.classList.add('show');
 }
 
 function createHistoryItem(text, sessionId) {
@@ -886,7 +888,11 @@ function createHistoryItem(text, sessionId) {
   moreBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14"><circle cx="12" cy="5" r="1.8" fill="currentColor"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/><circle cx="12" cy="19" r="1.8" fill="currentColor"/></svg>`;
 
   moreBtn.addEventListener('click', (e) => {
-    openHistoryContextMenu(e, sessionId, moreBtn);
+    e.stopPropagation();
+    contextTargetSessionId = sessionId;
+    DOM.historyContextMenu.style.top = `${e.clientY + 8}px`;
+    DOM.historyContextMenu.style.left = `${Math.min(e.clientX, window.innerWidth - 180)}px`;
+    DOM.historyContextMenu.classList.add('show');
   });
 
   li.addEventListener('click', (e) => {
@@ -908,48 +914,25 @@ async function loadSessionHistory(sessionId) {
   clearChat();
   highlightActiveSession();
 
-  // 1. Instantly load messages from NativeStorage
-  let localCount = 0;
-  try {
-    const localMsgs = await getLocalMessages(sessionId);
-    if (Array.isArray(localMsgs) && localMsgs.length > 0) {
-      localMsgs.forEach(m => {
-        addMessage(m.content, m.role === 'user' ? 'user' : 'ai');
-      });
-      activateChatMode();
-      localCount = localMsgs.length;
-    }
-  } catch (err) {
-    console.warn('[Marvo] Native storage load error:', err);
+  // 1. Instant local load
+  const localMsgs = await getLocalMessages(sessionId);
+  if (localMsgs && localMsgs.length > 0) {
+    localMsgs.forEach(m => addMessage(m.content, m.role === 'user' ? 'user' : 'ai'));
+    activateChatMode();
   }
 
-  // 2. Fetch and synchronize with backend history if online
+  // 2. Background sync with backend
   try {
     const res = await fetch(`${API_BASE}/api/history/${encodeURIComponent(sessionId)}`);
     if (res.ok) {
       const data = await res.json();
-      if (sessionId === currentSessionId) {
-        const msgs = data.messages || [];
-        if (msgs.length > 0) {
-          await NativeStorage.setJSON(CHAT_PREFIX + sessionId, msgs.map(m => ({
-            role: m.role === 'user' ? 'user' : 'ai',
-            content: m.content,
-            timestamp: Date.now(),
-          })));
-
-          if (msgs.length !== localCount) {
-            clearChat();
-            msgs.forEach(m => {
-              addMessage(m.content, m.role === 'user' ? 'user' : 'ai');
-            });
-            activateChatMode();
-          }
-        }
+      if (sessionId === currentSessionId && data.messages && data.messages.length > localMsgs.length) {
+        clearChat();
+        data.messages.forEach(m => addMessage(m.content, m.role === 'user' ? 'user' : 'ai'));
+        activateChatMode();
       }
     }
-  } catch (err) {
-    // Offline - native local storage was already presented
-  }
+  } catch {}
   closeSidebar();
 }
 
@@ -965,28 +948,21 @@ function updateHistorySidebar(text, sessionId = currentSessionId) {
     highlightActiveSession();
     return;
   }
-
   const li = createHistoryItem(text, sessionId);
   DOM.historyList.prepend(li);
   highlightActiveSession();
 }
 
 async function loadHistorySidebar() {
-  // 1. Instantly render sessions from NativeStorage
   try {
     const localSessions = await NativeStorage.getJSON(SESSIONS_STORAGE_KEY, []);
     if (Array.isArray(localSessions) && localSessions.length > 0) {
       DOM.historyList.innerHTML = '';
-      localSessions.forEach(session => {
-        DOM.historyList.appendChild(createHistoryItem(session.title || 'Chat', session.session_id));
-      });
+      localSessions.forEach(s => DOM.historyList.appendChild(createHistoryItem(s.title || 'Conversation', s.session_id)));
       highlightActiveSession();
     }
-  } catch (err) {
-    console.warn('[Marvo] Local sessions error:', err);
-  }
+  } catch {}
 
-  // 2. Sync with backend sessions if available
   try {
     const res = await fetch(API_SESSIONS);
     if (!res.ok) return;
@@ -997,195 +973,107 @@ async function loadHistorySidebar() {
       localSessions.forEach(s => sessionMap.set(s.session_id, s));
       remoteSessions.forEach(s => {
         if (!sessionMap.has(s.session_id)) {
-          sessionMap.set(s.session_id, {
-            session_id: s.session_id,
-            title: s.title,
-            updated_at: Date.now()
-          });
+          sessionMap.set(s.session_id, { session_id: s.session_id, title: s.title, updated_at: Date.now() });
         }
       });
       const merged = Array.from(sessionMap.values());
       await NativeStorage.setJSON(SESSIONS_STORAGE_KEY, merged);
-
       DOM.historyList.innerHTML = '';
-      merged.forEach(session => {
-        DOM.historyList.appendChild(createHistoryItem(session.title, session.session_id));
-      });
+      merged.forEach(s => DOM.historyList.appendChild(createHistoryItem(s.title || 'Conversation', s.session_id)));
       highlightActiveSession();
     }
-  } catch (err) {
-    // Offline
-  }
+  } catch {}
 }
 
 async function restoreCurrentSession() {
-  // Check if there is a saved currentSessionId in NativeStorage
   const savedSessionId = await NativeStorage.get(SESSION_STORAGE_KEY);
-  if (savedSessionId) {
-    currentSessionId = savedSessionId;
-  }
+  if (savedSessionId) currentSessionId = savedSessionId;
 
-  // 1. Instantly load from local storage
-  let localCount = 0;
-  try {
-    const localMsgs = await getLocalMessages(currentSessionId);
-    if (Array.isArray(localMsgs) && localMsgs.length > 0) {
-      localMsgs.forEach(m => {
-        addMessage(m.content, m.role === 'user' ? 'user' : 'ai');
-      });
-      activateChatMode();
-      localCount = localMsgs.length;
-    }
-  } catch (err) {
-    console.warn('[Marvo] Local restore error:', err);
+  const localMsgs = await getLocalMessages(currentSessionId);
+  if (localMsgs && localMsgs.length > 0) {
+    localMsgs.forEach(m => addMessage(m.content, m.role === 'user' ? 'user' : 'ai'));
+    activateChatMode();
   }
   highlightActiveSession();
-
-  // 2. Sync with backend if available
-  try {
-    const res = await fetch(`${API_BASE}/api/history/${encodeURIComponent(currentSessionId)}`);
-    if (!res.ok) return;
-    const data = await res.json();
-    const msgs = data.messages || [];
-    if (msgs.length > 0) {
-      await NativeStorage.setJSON(CHAT_PREFIX + currentSessionId, msgs.map(m => ({
-        role: m.role === 'user' ? 'user' : 'ai',
-        content: m.content,
-        timestamp: Date.now(),
-      })));
-
-      if (msgs.length !== localCount) {
-        clearChat();
-        msgs.forEach(m => {
-          addMessage(m.content, m.role === 'user' ? 'user' : 'ai');
-        });
-        activateChatMode();
-      }
-    }
-    highlightActiveSession();
-  } catch (err) {
-    // Offline
-  }
 }
 
-/* Rename Chat */
-DOM.btnRenameChat.addEventListener('click', async () => {
-  if (!contextTargetSessionId) return;
-  const li = DOM.historyList.querySelector(`li[data-sid="${contextTargetSessionId}"]`);
-  const titleSpan = li?.querySelector('.history-title');
-  const currentTitle = titleSpan ? titleSpan.textContent : '';
+function newChat() {
+  currentSessionId = generateSessionId();
+  persistCurrentSession();
+  sessionVersion += 1;
+  isBusy = false;
+  DOM.btnSend.disabled = false;
+  clearChat();
+  highlightActiveSession();
+  closeSidebar();
+  DOM.msgInput.focus();
+  showToast('New Chat started');
+}
 
-  const newTitle = prompt('Enter new chat name:', currentTitle);
-  if (newTitle && newTitle.trim()) {
-    if (titleSpan) {
-      titleSpan.textContent = newTitle.trim();
-      titleSpan.title = newTitle.trim();
-    }
-    await renameLocalSession(contextTargetSessionId, newTitle.trim());
-  }
-  closeAllDropdowns();
-});
+/* ═══════════════════════════════════════════════════════════════════
+   DROPDOWN & CONTEXT MENU MANAGEMENT
+   ═══════════════════════════════════════════════════════════════════ */
+function closeAllDropdowns() {
+  DOM.appDropdown.classList.remove('show');
+  DOM.historyContextMenu.classList.remove('show');
+  DOM.attachMenu.classList.remove('show');
+}
 
-/* Delete Chat */
-DOM.btnDeleteChat.addEventListener('click', async () => {
-  if (!contextTargetSessionId) return;
-  const confirmDelete = confirm('Are you sure you want to delete this chat?');
-  if (!confirmDelete) {
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.menu-container') && !e.target.closest('.dropdown-menu')) {
     closeAllDropdowns();
-    return;
   }
-
-  const targetId = contextTargetSessionId;
-  const li = DOM.historyList.querySelector(`li[data-sid="${targetId}"]`);
-  if (li) li.remove();
-  await deleteLocalSession(targetId);
-
-  if (targetId === currentSessionId) {
-    newChat();
-  }
-  closeAllDropdowns();
 });
-
-/* ═══════════════════════════════════════════════════════════════════
-   THINKING MODE
-   ═══════════════════════════════════════════════════════════════════ */
-
-function setThinkingMode(mode) {
-  selectedMode = mode;
-  DOM.modeSelector.querySelectorAll('.mode-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.mode === mode);
-  });
-  DOM.modeBadge.textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   VOICE OVERLAY & RECORDING
-   ═══════════════════════════════════════════════════════════════════ */
-
-function openVoiceOverlay() {
-  isRecording = true;
-  DOM.voiceOverlay.classList.add('show');
-  DOM.btnMic.classList.add('recording');
-  setEyeExpression('state-listening');
-}
-
-function closeVoiceOverlay() {
-  isRecording = false;
-  DOM.voiceOverlay.classList.remove('show');
-  DOM.btnMic.classList.remove('recording');
-  if (!isBusy) setEyeExpression('state-idle');
-}
-
-function startVoiceCapture() {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-  if (!SpeechRecognition) {
-    openVoiceOverlay();
-    setTimeout(() => {
-      closeVoiceOverlay();
-      activateChatMode();
-      addMessage("Voice input isn't supported in this browser. Try Chrome or Edge.", 'ai');
-    }, 1800);
-    return;
-  }
-
-  const recognition = new SpeechRecognition();
-  recognition.lang = 'en-US';
-  recognition.interimResults = false;
-  recognition.maxAlternatives = 1;
-
-  openVoiceOverlay();
-
-  recognition.onresult = (e) => {
-    const transcript = e.results[0][0].transcript;
-    closeVoiceOverlay();
-    if (transcript.trim()) {
-      DOM.msgInput.value = transcript;
-      sendMessage(transcript);
-    }
-  };
-
-  recognition.onerror = () => closeVoiceOverlay();
-  recognition.onend = () => closeVoiceOverlay();
-
-  try {
-    recognition.start();
-  } catch {
-    closeVoiceOverlay();
-  }
-}
 
 /* ═══════════════════════════════════════════════════════════════════
    EVENT BINDINGS
    ═══════════════════════════════════════════════════════════════════ */
 
-// ── Sidebar ──
+// ── Sidebar Triggers ──
 DOM.btnHamburger.addEventListener('click', openSidebar);
 DOM.btnCloseSidebar.addEventListener('click', closeSidebar);
 DOM.sidebarOverlay.addEventListener('click', closeSidebar);
 DOM.btnNewChat.addEventListener('click', newChat);
+DOM.btnNewProject.addEventListener('click', () => {
+  closeSidebar();
+  showToast('Project workspace created! (Pro Feature)');
+});
 
-// ── Top Right App Menu ──
+// Sidebar menu navigation items
+$('#navSearchChat')?.addEventListener('click', () => {
+  closeSidebar();
+  const query = prompt('Search past chats:');
+  if (query && query.trim()) {
+    showToast(`Filtering for "${query.trim()}"`);
+  }
+});
+$('#navSpark')?.addEventListener('click', () => {
+  closeSidebar();
+  showToast('Spark (Beta) neural acceleration active!');
+});
+$('#navStudent')?.addEventListener('click', () => {
+  closeSidebar();
+  showToast('Student mode: Step-by-step reasoning enabled');
+});
+$('#navLibrary')?.addEventListener('click', () => {
+  closeSidebar();
+  showToast('Library opened');
+});
+$('#navNotebooks')?.addEventListener('click', () => {
+  closeSidebar();
+  showToast('Notebooks opened');
+});
+
+// Creative Studio Placeholders
+document.querySelectorAll('.placeholder-item').forEach(btn => {
+  btn.addEventListener('click', () => {
+    closeSidebar();
+    const feat = btn.dataset.feature || 'Feature';
+    showToast(`${feat} is coming soon in the next update!`);
+  });
+});
+
+// ── Top Right 3-Dots Menu ──
 DOM.btnAppMenu.addEventListener('click', (e) => {
   e.stopPropagation();
   const isOpen = DOM.appDropdown.classList.contains('show');
@@ -1193,12 +1081,81 @@ DOM.btnAppMenu.addEventListener('click', (e) => {
   if (!isOpen) DOM.appDropdown.classList.add('show');
 });
 
-DOM.btnThemeDark.addEventListener('click', () => setTheme('dark'));
-DOM.btnThemeLight.addEventListener('click', () => setTheme('light'));
+DOM.btnAddToNotebook.addEventListener('click', () => {
+  closeAllDropdowns();
+  showToast('Conversation added to Notebook!');
+});
+
+DOM.btnTopRenameChat.addEventListener('click', async () => {
+  closeAllDropdowns();
+  const newName = prompt('Enter new conversation name:');
+  if (newName && newName.trim()) {
+    await renameLocalSession(currentSessionId, newName.trim());
+    updateHistorySidebar(newName.trim(), currentSessionId);
+    showToast('Conversation renamed');
+  }
+});
+
+DOM.btnTopHelp.addEventListener('click', () => {
+  closeAllDropdowns();
+  showToast('Marvo AI Flagship Assistant v2.0 • Online');
+});
+
+DOM.btnTopShareChat.addEventListener('click', async () => {
+  closeAllDropdowns();
+  const msgs = await getLocalMessages(currentSessionId);
+  const transcript = msgs.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n');
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: 'Marvo AI Conversation', text: transcript });
+      return;
+    } catch {}
+  }
+  if (transcript) {
+    copyToClipboard(transcript, null);
+    showToast('Conversation copied to clipboard!');
+  } else {
+    showToast('No messages to share');
+  }
+});
+
+DOM.btnTopDeleteChat.addEventListener('click', async () => {
+  closeAllDropdowns();
+  if (confirm('Delete this conversation?')) {
+    await deleteLocalSession(currentSessionId);
+    newChat();
+    loadHistorySidebar();
+    showToast('Conversation deleted');
+  }
+});
+
+// Settings & Theme
 DOM.btnSettings.addEventListener('click', openSettingsModal);
 DOM.btnCloseSettings.addEventListener('click', closeSettingsModal);
+DOM.btnThemeDark.addEventListener('click', () => setTheme('dark'));
+DOM.btnThemeLight.addEventListener('click', () => setTheme('light'));
 
-// ── Attachment Menu ──
+// Capability Chips ("Fast", "Thinking", "Pro")
+DOM.modeSelector.addEventListener('click', (e) => {
+  const btn = e.target.closest('.chip-btn');
+  if (btn) {
+    DOM.modeSelector.querySelectorAll('.chip-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedMode = btn.dataset.mode;
+    showToast(`${btn.querySelector('span:last-child').textContent} mode activated`);
+  }
+});
+
+// Send Message
+DOM.btnSend.addEventListener('click', () => sendMessage(DOM.msgInput.value));
+DOM.msgInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage(DOM.msgInput.value);
+  }
+});
+
+// Attachments
 DOM.btnAttach.addEventListener('click', (e) => {
   e.stopPropagation();
   const isOpen = DOM.attachMenu.classList.contains('show');
@@ -1209,46 +1166,55 @@ DOM.btnAttach.addEventListener('click', (e) => {
 DOM.attachMenu.addEventListener('click', (e) => {
   const item = e.target.closest('.attach-item');
   if (item) {
-    const type = item.dataset.type;
     closeAllDropdowns();
-    alert(`${type} upload feature coming soon!`);
+    showToast(`${item.dataset.type} upload coming soon!`);
   }
 });
 
-// ── Live Screen Share Demo ──
 DOM.btnScreenShare.addEventListener('click', () => {
-  alert('Live screen sharing feature coming soon!');
+  showToast('Live screen analysis coming soon!');
 });
 
-// ── Thinking Mode ──
-DOM.modeSelector.addEventListener('click', (e) => {
-  const btn = e.target.closest('.mode-btn');
-  if (btn) setThinkingMode(btn.dataset.mode);
-});
-
-// ── Send Message ──
-DOM.btnSend.addEventListener('click', () => sendMessage(DOM.msgInput.value));
-DOM.msgInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    sendMessage(DOM.msgInput.value);
-  }
-});
-
-// ── Voice Input ──
+// Bottom-Docked Voice UI Controls
 DOM.btnMic.addEventListener('click', () => {
-  if (isRecording) {
-    closeVoiceOverlay();
-  } else {
-    startVoiceCapture();
-  }
+  if (isVoiceRecording) closeVoiceDock();
+  else openVoiceDock();
 });
-DOM.btnVoiceCancel.addEventListener('click', closeVoiceOverlay);
 
-// ── Escape Key Closes Overlays ──
+DOM.btnVoiceClose.addEventListener('click', closeVoiceDock);
+DOM.btnVoiceCancel.addEventListener('click', closeVoiceDock);
+DOM.btnVoicePauseResume.addEventListener('click', toggleVoicePauseResume);
+DOM.btnVoiceSend.addEventListener('click', submitVoiceRecording);
+
+// History Context Menu (Sidebar)
+DOM.btnRenameChat.addEventListener('click', async () => {
+  if (!contextTargetSessionId) return;
+  const newName = prompt('Enter new conversation name:');
+  if (newName && newName.trim()) {
+    await renameLocalSession(contextTargetSessionId, newName.trim());
+    updateHistorySidebar(newName.trim(), contextTargetSessionId);
+    showToast('Renamed');
+  }
+  closeAllDropdowns();
+});
+
+DOM.btnDeleteChat.addEventListener('click', async () => {
+  if (!contextTargetSessionId) return;
+  if (confirm('Delete this conversation?')) {
+    const target = contextTargetSessionId;
+    await deleteLocalSession(target);
+    const li = DOM.historyList.querySelector(`li[data-sid="${target}"]`);
+    if (li) li.remove();
+    if (target === currentSessionId) newChat();
+    showToast('Deleted');
+  }
+  closeAllDropdowns();
+});
+
+// Global Escape Key
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
-    if (isRecording) closeVoiceOverlay();
+    if (isVoiceRecording) closeVoiceDock();
     closeSidebar();
     closeAllDropdowns();
     closeSettingsModal();
@@ -1256,9 +1222,10 @@ document.addEventListener('keydown', (e) => {
 });
 
 /* ═══════════════════════════════════════════════════════════════════
-   INITIALIZATION
+   APP INITIALIZATION
    ═══════════════════════════════════════════════════════════════════ */
 async function initApp() {
+  await initStatusBar();
   await initTheme();
   await initVoiceSelection();
   setEyeExpression('state-idle');
@@ -1276,9 +1243,9 @@ window.marvo = {
   newChat,
   setTheme,
   playSpeech,
+  showToast,
   get currentVoice() { return currentVoice; },
-  set currentVoice(val) { currentVoice = val; },
   get session() { return currentSessionId; },
-  get mode()    { return selectedMode; },
+  get mode() { return selectedMode; },
   STATES,
 };

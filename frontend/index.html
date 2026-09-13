@@ -2,12 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
 <title>Marvo — AI Assistant</title>
 
 <!-- PWA & Mobile Native App Standalone Configuration -->
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#000000">
+<meta name="theme-color" content="#08090d">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -20,31 +20,79 @@
 </head>
 <body>
 
-<!-- ═══════════ SIDEBAR ═══════════ -->
+<!-- ═══════════ ADVANCED SIDEBAR DRAWER ═══════════ -->
 <aside id="sidebar" class="sidebar">
   <div class="sidebar-header">
-    <span class="sidebar-brand">MARVO</span>
+    <div class="sidebar-brand-group">
+      <span class="sidebar-brand">MARVO</span>
+      <span class="sidebar-brand-badge">PRO</span>
+    </div>
     <button id="btnCloseSidebar" class="sidebar-close" aria-label="Close">&times;</button>
   </div>
 
-  <button id="btnNewChat" class="sidebar-btn new-chat-btn">
-    <svg viewBox="0 0 24 24" width="16" height="16"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" fill="currentColor"/></svg>
-    New Chat
-  </button>
-
-  <div class="sidebar-section">
-    <span class="sidebar-section-title">THINKING MODE</span>
-    <div class="mode-selector" id="modeSelector">
-      <button class="mode-btn" data-mode="fast">Fast</button>
-      <button class="mode-btn active" data-mode="medium">Medium</button>
-      <button class="mode-btn" data-mode="high">High</button>
-    </div>
+  <!-- Top Action Section -->
+  <div class="sidebar-top-actions">
+    <button id="btnNewChat" class="sidebar-action-btn primary">
+      <svg viewBox="0 0 24 24" width="18" height="18"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" fill="currentColor"/></svg>
+      <span>New Chat</span>
+    </button>
+    <button id="btnNewProject" class="sidebar-action-btn secondary">
+      <svg viewBox="0 0 24 24" width="18" height="18"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2" fill="none"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2" fill="none"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2" fill="none"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+      <span>Create New Project</span>
+    </button>
   </div>
 
+  <!-- Core Menu Items -->
+  <div class="sidebar-nav-group">
+    <button class="sidebar-nav-item" id="navSearchChat">
+      <svg viewBox="0 0 24 24" width="18" height="18"><circle cx="11" cy="11" r="8" fill="none" stroke="currentColor" stroke-width="2"/><line x1="21" y1="21" x2="16.65" y2="16.65" stroke="currentColor" stroke-width="2"/></svg>
+      <span>Search Chat</span>
+    </button>
+    <button class="sidebar-nav-item" id="navSpark">
+      <svg viewBox="0 0 24 24" width="18" height="18"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" fill="currentColor"/></svg>
+      <span>Spark <span class="badge-beta">Beta</span></span>
+    </button>
+    <button class="sidebar-nav-item" id="navStudent">
+      <svg viewBox="0 0 24 24" width="18" height="18"><path d="M22 10v6M2 10l10-5 10 5-10 5z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6 12v5c0 2 3 3 6 3s6-1 6-3v-5" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+      <span>Student</span>
+    </button>
+  </div>
+
+  <!-- Placeholders: Creative Studio -->
+  <div class="sidebar-nav-group">
+    <div class="sidebar-section-title">CREATIVE STUDIO</div>
+    <button class="sidebar-nav-item placeholder-item" data-feature="Image Generation">
+      <svg viewBox="0 0 24 24" width="18" height="18"><rect x="3" y="3" width="18" height="18" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/><path d="M21 15l-5-5L5 21" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+      <span>Image</span>
+      <span class="badge-coming">Soon</span>
+    </button>
+    <button class="sidebar-nav-item placeholder-item" data-feature="Video Generation">
+      <svg viewBox="0 0 24 24" width="18" height="18"><rect x="2" y="4" width="14" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><polygon points="22 8 16 12 22 16 22 8" fill="currentColor"/></svg>
+      <span>Video</span>
+      <span class="badge-coming">Soon</span>
+    </button>
+  </div>
+
+  <!-- Bottom Workspace Section -->
+  <div class="sidebar-nav-group">
+    <div class="sidebar-section-title">WORKSPACE</div>
+    <button class="sidebar-nav-item" id="navLibrary">
+      <svg viewBox="0 0 24 24" width="18" height="18"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+      <span>Library</span>
+    </button>
+    <button class="sidebar-nav-item" id="navNotebooks">
+      <svg viewBox="0 0 24 24" width="18" height="18"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+      <span>Notebooks</span>
+    </button>
+  </div>
+
+  <!-- Scrollable Chat History -->
   <div class="sidebar-section sidebar-history">
-    <span class="sidebar-section-title">HISTORY</span>
+    <div class="sidebar-history-header">
+      <span class="sidebar-section-title">CHAT HISTORY</span>
+    </div>
     <ul id="chatHistoryList" class="history-list">
-      <!-- Dynamically populated -->
+      <!-- Dynamically populated from native storage -->
     </ul>
   </div>
 </aside>
@@ -52,11 +100,11 @@
 <!-- ═══════════ CHAT HISTORY CONTEXT MENU ═══════════ -->
 <div id="historyContextMenu" class="dropdown-menu history-context-menu">
   <button class="dropdown-item" id="btnRenameChat">
-    <svg viewBox="0 0 24 24" width="14" height="14"><path d="M12 20h9" stroke="currentColor" stroke-width="2"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+    <svg viewBox="0 0 24 24" width="15" height="15"><path d="M12 20h9" stroke="currentColor" stroke-width="2"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
     Rename
   </button>
   <button class="dropdown-item danger" id="btnDeleteChat">
-    <svg viewBox="0 0 24 24" width="14" height="14"><polyline points="3 6 5 6 21 6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+    <svg viewBox="0 0 24 24" width="15" height="15"><polyline points="3 6 5 6 21 6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" fill="none" stroke="currentColor" stroke-width="2"/></svg>
     Delete
   </button>
 </div>
@@ -69,40 +117,82 @@
 
   <!-- Top Bar -->
   <header class="topbar">
-    <button id="btnHamburger" class="hamburger" aria-label="Menu">
-      <span></span><span></span><span></span>
-    </button>
-    <span class="topbar-title" id="topbarTitle">Marvo</span>
-    <div class="topbar-mode-badge" id="modeBadge">Medium</div>
+    <div class="topbar-left">
+      <button id="btnHamburger" class="hamburger" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="brand-title-wrap">
+        <span class="topbar-title" id="topbarTitle">Marvo</span>
+        <span class="topbar-status-dot"></span>
+      </div>
+    </div>
+
+    <!-- Gemini-Style Capability Toggles -->
+    <div class="capability-chips" id="modeSelector">
+      <button class="chip-btn" data-mode="fast">
+        <span class="chip-dot"></span>
+        <span>Fast</span>
+      </button>
+      <button class="chip-btn active" data-mode="medium">
+        <span class="chip-dot"></span>
+        <span>Thinking</span>
+      </button>
+      <button class="chip-btn" data-mode="high">
+        <span class="chip-dot"></span>
+        <span>Pro</span>
+      </button>
+    </div>
 
     <!-- Main App Menu (Top Right 3-Dots) -->
     <div class="menu-container topbar-menu-container">
       <button id="btnAppMenu" class="btn-icon" aria-label="More Options">
-        <svg viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="5" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="19" r="2" fill="currentColor"/></svg>
+        <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="5" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="19" r="2" fill="currentColor"/></svg>
       </button>
       <div id="appDropdown" class="dropdown-menu app-dropdown">
-        <button class="dropdown-item" id="btnThemeDark">
-          <svg viewBox="0 0 24 24" width="14" height="14"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-          Dark Theme
+        <button class="dropdown-item" id="btnAddToNotebook">
+          <svg viewBox="0 0 24 24" width="16" height="16"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+          Add to notebook
         </button>
-        <button class="dropdown-item" id="btnThemeLight">
-          <svg viewBox="0 0 24 24" width="14" height="14"><circle cx="12" cy="12" r="5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="2"/></svg>
-          Light Theme
+        <button class="dropdown-item" id="btnTopRenameChat">
+          <svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 20h9" stroke="currentColor" stroke-width="2"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+          Rename
+        </button>
+        <button class="dropdown-item" id="btnTopHelp">
+          <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" stroke="currentColor" stroke-width="2" fill="none"/><circle cx="12" cy="17" r="1" fill="currentColor"/></svg>
+          Help
+        </button>
+        <button class="dropdown-item" id="btnTopShareChat">
+          <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="18" cy="5" r="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="6" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="19" r="3" fill="none" stroke="currentColor" stroke-width="2"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" stroke="currentColor" stroke-width="2"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" stroke="currentColor" stroke-width="2"/></svg>
+          Share conversation
         </button>
         <div class="dropdown-divider"></div>
         <button class="dropdown-item" id="btnSettings">
-          <svg viewBox="0 0 24 24" width="14" height="14"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" fill="currentColor"/></svg>
-          Settings
+          <svg viewBox="0 0 24 24" width="16" height="16"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" fill="currentColor"/></svg>
+          Voice & Audio
+        </button>
+        <button class="dropdown-item" id="btnThemeDark">
+          <svg viewBox="0 0 24 24" width="16" height="16"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+          Dark Theme
+        </button>
+        <button class="dropdown-item" id="btnThemeLight">
+          <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="2"/></svg>
+          Light Theme
+        </button>
+        <div class="dropdown-divider"></div>
+        <button class="dropdown-item danger" id="btnTopDeleteChat">
+          <svg viewBox="0 0 24 24" width="16" height="16"><polyline points="3 6 5 6 21 6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+          Delete
         </button>
       </div>
     </div>
   </header>
 
-  <!-- ═══════════ AVATAR ZONE ═══════════ -->
+  <!-- ═══════════ AVATAR ZONE (3D Advanced Eyes) ═══════════ -->
   <div id="avatarZone" class="avatar-zone">
     <div id="face" class="face state-idle">
+      <div class="eye-ambient-glow"></div>
       <div class="eye-row">
-        <!-- Left Eye -->
+        <!-- Left Eye Socket -->
         <div class="eye-socket">
           <div class="eye">
             <div class="eye-outer-ring"></div>
@@ -116,8 +206,9 @@
             <div class="eyelid eyelid-bottom"></div>
             <div class="scan-line"></div>
           </div>
+          <div class="eye-tear"></div>
         </div>
-        <!-- Right Eye -->
+        <!-- Right Eye Socket -->
         <div class="eye-socket">
           <div class="eye">
             <div class="eye-outer-ring"></div>
@@ -131,6 +222,7 @@
             <div class="eyelid eyelid-bottom"></div>
             <div class="scan-line"></div>
           </div>
+          <div class="eye-tear"></div>
         </div>
       </div>
       <div class="state-label" id="stateLabel">IDLE</div>
@@ -140,18 +232,18 @@
   <!-- ═══════════ CHAT AREA ═══════════ -->
   <div id="chatArea" class="chat-area">
     <div id="chatMessages" class="chat-messages">
-      <!-- Messages rendered here -->
+      <!-- Dynamic Messages rendered here -->
     </div>
   </div>
 
-  <!-- ═══════════ INPUT BAR ═══════════ -->
+  <!-- ═══════════ INPUT BAR (Glassmorphism Dock) ═══════════ -->
   <div class="input-bar">
     <div class="input-glass">
 
       <!-- Attachment Menu (Far Left) -->
       <div class="attach-container">
         <button id="btnAttach" class="btn btn-attach" aria-label="Attachment">
-          <svg viewBox="0 0 24 24" width="18" height="18"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" fill="currentColor"/></svg>
+          <svg viewBox="0 0 24 24" width="20" height="20"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" fill="currentColor"/></svg>
         </button>
         <div id="attachMenu" class="dropdown-menu attach-menu">
           <button class="dropdown-item attach-item" data-type="Photo">
@@ -187,7 +279,7 @@
         <svg viewBox="0 0 24 24" width="18" height="18"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5z" fill="currentColor"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" fill="currentColor"/></svg>
       </button>
 
-      <!-- Live Screen Share (Right next to Mic) -->
+      <!-- Live Screen Share -->
       <button id="btnScreenShare" class="btn btn-screen" aria-label="Live Screen Share" title="Live Screen Share">
         <svg viewBox="0 0 24 24" width="18" height="18"><rect x="2" y="3" width="20" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><line x1="8" y1="21" x2="16" y2="21" stroke="currentColor" stroke-width="2"/><line x1="12" y1="17" x2="12" y2="21" stroke="currentColor" stroke-width="2"/></svg>
       </button>
@@ -199,7 +291,7 @@
 <div id="settingsModal" class="settings-modal-overlay">
   <div class="settings-modal">
     <div class="settings-header">
-      <h3 class="settings-title">Settings</h3>
+      <h3 class="settings-title">Voice & Audio</h3>
       <button id="btnCloseSettings" class="btn-icon" aria-label="Close Settings">&times;</button>
     </div>
     <div class="settings-body">
@@ -269,21 +361,60 @@
   </div>
 </div>
 
-<!-- ═══════════ VOICE OVERLAY ═══════════ -->
-<div id="voiceOverlay" class="voice-overlay">
-  <div class="voice-modal">
-    <div class="voice-rings">
-      <div class="voice-ring r1"></div>
-      <div class="voice-ring r2"></div>
-      <div class="voice-ring r3"></div>
-      <div class="voice-mic-icon">
-        <svg viewBox="0 0 24 24" width="36" height="36"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5z" fill="currentColor"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" fill="currentColor"/></svg>
+<!-- ═══════════ BOTTOM-DOCKED GEMINI-STYLE VOICE UI ═══════════ -->
+<div id="voiceOverlay" class="voice-overlay voice-bottom-dock">
+  <div class="voice-dock-container">
+    <div class="voice-dock-handle"></div>
+    
+    <div class="voice-dock-header">
+      <div class="voice-status-indicator">
+        <span class="voice-pulse-dot"></span>
+        <span class="voice-status-text" id="voiceStatusText">Listening to you...</span>
+      </div>
+      <button id="btnVoiceClose" class="btn-voice-close" aria-label="Close">&times;</button>
+    </div>
+
+    <!-- Audio Waveform Visualizer -->
+    <div class="voice-visualizer-container">
+      <canvas id="voiceWaveCanvas" class="voice-wave-canvas" width="340" height="54"></canvas>
+      <div class="voice-bars" id="voiceBars">
+        <span class="bar b1"></span><span class="bar b2"></span><span class="bar b3"></span>
+        <span class="bar b4"></span><span class="bar b5"></span><span class="bar b6"></span>
+        <span class="bar b7"></span><span class="bar b8"></span><span class="bar b9"></span>
+        <span class="bar b10"></span><span class="bar b11"></span><span class="bar b12"></span>
+        <span class="bar b13"></span><span class="bar b14"></span><span class="bar b15"></span>
+        <span class="bar b16"></span>
       </div>
     </div>
-    <span class="voice-label">Listening...</span>
-    <button id="btnVoiceCancel" class="voice-cancel">Cancel</button>
+
+    <!-- Live Transcript Box -->
+    <div class="voice-transcript-box" id="voiceTranscriptBox">
+      <p id="voiceTranscriptText" class="voice-transcript-text">Say something...</p>
+    </div>
+
+    <!-- Modern Gemini-Style Control Pills -->
+    <div class="voice-controls-dock">
+      <button id="btnVoiceCancel" class="btn-dock-action dock-cancel" aria-label="Cancel">
+        <svg viewBox="0 0 24 24" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <span>Cancel</span>
+      </button>
+
+      <button id="btnVoicePauseResume" class="btn-dock-action dock-pause-resume" aria-label="Pause or Resume">
+        <svg id="iconVoicePause" viewBox="0 0 24 24" width="18" height="18"><rect x="6" y="4" width="4" height="16" fill="currentColor"/><rect x="14" y="4" width="4" height="16" fill="currentColor"/></svg>
+        <svg id="iconVoiceResume" class="hidden" viewBox="0 0 24 24" width="18" height="18"><polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/></svg>
+        <span id="labelVoicePauseResume">Pause</span>
+      </button>
+
+      <button id="btnVoiceSend" class="btn-dock-action dock-send" aria-label="Send Recording">
+        <svg viewBox="0 0 24 24" width="18" height="18"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"/></svg>
+        <span>Send</span>
+      </button>
+    </div>
   </div>
 </div>
+
+<!-- Toast notification helper -->
+<div id="appToast" class="app-toast"></div>
 
 <script src="app.js"></script>
 <script>
