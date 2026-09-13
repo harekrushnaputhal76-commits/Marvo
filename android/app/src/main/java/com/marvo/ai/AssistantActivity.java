@@ -46,6 +46,7 @@ public class AssistantActivity extends AppCompatActivity {
     private SpeechRecognizer speechRecognizer;
     private Intent speechRecognizerIntent;
     private TextView statusTextView;
+    private TextView subtitleTextView;
     private ImageView orbImageView;
 
     // State Management for Confirmation Protocol (Step 6 Part 5)
@@ -60,12 +61,14 @@ public class AssistantActivity extends AppCompatActivity {
         Log.d(TAG, "Marvo Assistant Triggered via Hardware Button!");
 
         statusTextView = findViewById(R.id.statusTextView);
+        subtitleTextView = findViewById(R.id.subtitleTextView);
         orbImageView = findViewById(R.id.orbImageView);
 
         // Start pulsating Siri-style glowing orb animation
         if (orbImageView != null) {
             Animation pulse = AnimationUtils.loadAnimation(this, R.anim.pulse_orb);
             orbImageView.startAnimation(pulse);
+            orbImageView.setColorFilter(android.graphics.Color.parseColor("#00E5FF"), android.graphics.PorterDuff.Mode.MULTIPLY);
         }
 
         // Tap outside bottom sheet to dismiss
@@ -112,16 +115,7 @@ public class AssistantActivity extends AppCompatActivity {
             @Override
             public void onReadyForSpeech(Bundle params) {
                 Log.d(TAG, "SpeechRecognizer onReadyForSpeech");
-                if (statusTextView != null) {
-                    statusTextView.setText("Listening...");
-                }
-                if (orbImageView != null) {
-                    orbImageView.animate().alpha(1.0f).setDuration(200).start();
-                    if (orbImageView.getAnimation() == null) {
-                        Animation pulse = AnimationUtils.loadAnimation(AssistantActivity.this, R.anim.pulse_orb);
-                        orbImageView.startAnimation(pulse);
-                    }
-                }
+                setVisualState("LISTENING");
             }
 
             @Override
@@ -138,31 +132,13 @@ public class AssistantActivity extends AppCompatActivity {
             @Override
             public void onEndOfSpeech() {
                 Log.d(TAG, "SpeechRecognizer onEndOfSpeech: Silence detected");
-                if (statusTextView != null) {
-                    statusTextView.setText("Processing...");
-                }
-                // Transition orb into thinking mode
-                if (orbImageView != null) {
-                    orbImageView.clearAnimation();
-                    orbImageView.animate()
-                        .alpha(0.65f)
-                        .scaleX(1.15f)
-                        .scaleY(1.15f)
-                        .setDuration(250)
-                        .start();
-                }
+                setVisualState("PROCESSING");
             }
 
             @Override
             public void onError(int error) {
                 Log.w(TAG, "SpeechRecognizer onError code: " + error);
-                if (statusTextView != null) {
-                    statusTextView.setText("Didn't catch that...");
-                }
-                if (orbImageView != null) {
-                    orbImageView.clearAnimation();
-                    orbImageView.animate().alpha(0.4f).scaleX(0.9f).scaleY(0.9f).setDuration(200).start();
-                }
+                setVisualState("ERROR");
                 // Auto dismiss on error after 2 seconds
                 new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
                     @Override
@@ -219,8 +195,11 @@ public class AssistantActivity extends AppCompatActivity {
             public void onPartialResults(Bundle partialResults) {
                 ArrayList<String> partialMatches = partialResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
                 if (partialMatches != null && !partialMatches.isEmpty()) {
-                    if (statusTextView != null) {
-                        statusTextView.setText(partialMatches.get(0));
+                    String partial = partialMatches.get(0);
+                    // Show live transcription in the secondary cyan subtitle
+                    if (subtitleTextView != null) {
+                        subtitleTextView.setText("\"" + partial + "\"");
+                        subtitleTextView.setVisibility(View.VISIBLE);
                     }
                 }
             }
@@ -899,9 +878,98 @@ public class AssistantActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Step 6 Part 9: Centralized Visual State Engine.
+     * Controls orb animation, color filter, status/subtitle text, and alpha
+     * based on the current assistant lifecycle state.
+     */
+    private void setVisualState(String state) {
+        switch (state) {
+            case "LISTENING":
+                if (statusTextView != null) {
+                    statusTextView.setText("Listening...");
+                    statusTextView.setTextColor(android.graphics.Color.WHITE);
+                }
+                if (subtitleTextView != null) {
+                    subtitleTextView.setText("Speak now...");
+                    subtitleTextView.setVisibility(View.VISIBLE);
+                }
+                if (orbImageView != null) {
+                    orbImageView.clearAnimation();
+                    orbImageView.setColorFilter(android.graphics.Color.parseColor("#00E5FF"), android.graphics.PorterDuff.Mode.MULTIPLY);
+                    orbImageView.animate().alpha(1.0f).scaleX(1.0f).scaleY(1.0f).setDuration(200).start();
+                    Animation pulse = AnimationUtils.loadAnimation(this, R.anim.pulse_orb);
+                    orbImageView.startAnimation(pulse);
+                }
+                break;
+
+            case "PROCESSING":
+                if (statusTextView != null) {
+                    statusTextView.setText("Processing...");
+                    statusTextView.setTextColor(android.graphics.Color.parseColor("#B0B0B0"));
+                }
+                if (subtitleTextView != null) {
+                    subtitleTextView.setText("Analyzing command...");
+                    subtitleTextView.setVisibility(View.VISIBLE);
+                }
+                if (orbImageView != null) {
+                    orbImageView.clearAnimation();
+                    orbImageView.setColorFilter(android.graphics.Color.parseColor("#7C4DFF"), android.graphics.PorterDuff.Mode.MULTIPLY);
+                    Animation fastPulse = AnimationUtils.loadAnimation(this, R.anim.pulse_orb_fast);
+                    orbImageView.startAnimation(fastPulse);
+                }
+                break;
+
+            case "SUCCESS":
+                if (statusTextView != null) {
+                    statusTextView.setTextColor(android.graphics.Color.parseColor("#00E676"));
+                }
+                if (subtitleTextView != null) {
+                    subtitleTextView.setVisibility(View.GONE);
+                }
+                if (orbImageView != null) {
+                    orbImageView.clearAnimation();
+                    orbImageView.setColorFilter(android.graphics.Color.parseColor("#00E676"), android.graphics.PorterDuff.Mode.MULTIPLY);
+                    Animation successBurst = AnimationUtils.loadAnimation(this, R.anim.pulse_orb_success);
+                    orbImageView.startAnimation(successBurst);
+                }
+                break;
+
+            case "ERROR":
+                if (statusTextView != null) {
+                    statusTextView.setText("Didn't catch that...");
+                    statusTextView.setTextColor(android.graphics.Color.parseColor("#FF5252"));
+                }
+                if (subtitleTextView != null) {
+                    subtitleTextView.setText("Tap to try again");
+                    subtitleTextView.setVisibility(View.VISIBLE);
+                }
+                if (orbImageView != null) {
+                    orbImageView.clearAnimation();
+                    orbImageView.setColorFilter(android.graphics.Color.parseColor("#FF5252"), android.graphics.PorterDuff.Mode.MULTIPLY);
+                    orbImageView.animate().alpha(0.4f).scaleX(0.85f).scaleY(0.85f).setDuration(250).start();
+                }
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    /**
+     * Premium updateUI: Sets the main status text and triggers a SUCCESS visual
+     * state for action-related messages, keeping PROCESSING for others.
+     */
     private void updateUI(String text) {
         if (statusTextView != null) {
             statusTextView.setText(text);
+        }
+        // Detect action-execution messages and trigger success glow
+        String lower = text.toLowerCase();
+        if (lower.contains("confirmed") || lower.contains("sent") || lower.contains("calling") ||
+            lower.contains("turned on") || lower.contains("turned off") || lower.contains("saved") ||
+            lower.contains("opened") || lower.contains("alright")) {
+            setVisualState("SUCCESS");
         }
     }
 
