@@ -5,6 +5,9 @@ import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
+import android.hardware.camera2.CameraCharacteristics;
+import android.hardware.camera2.CameraManager;
+import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -13,6 +16,7 @@ import android.provider.AlarmClock;
 import android.provider.CalendarContract;
 import android.provider.ContactsContract;
 import android.provider.MediaStore;
+import android.provider.Settings;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
@@ -181,7 +185,14 @@ public class AssistantActivity extends AppCompatActivity {
                     boolean isHandledDirectly = lower.startsWith("call") || lower.startsWith("sms") || lower.startsWith("message") ||
                             lower.startsWith("text") || lower.startsWith("whatsapp") || lower.contains("timer") ||
                             lower.contains("alarm") || lower.contains("remind me") || lower.contains("calendar") ||
-                            lower.contains("save contact") || lower.contains("add contact") || lower.contains("selfie");
+                            lower.contains("save contact") || lower.contains("add contact") || lower.contains("selfie") ||
+                            lower.contains("flashlight") || lower.contains("torch") || lower.contains("volume") ||
+                            lower.contains("awaaz") || lower.contains("sound") || lower.contains("install") ||
+                            lower.contains("download") || lower.contains("uninstall") || lower.contains("delete") ||
+                            lower.contains("wifi") || lower.contains("bluetooth") || lower.contains("data") ||
+                            lower.contains("internet") || lower.contains("airplane") || lower.contains("flight") ||
+                            lower.contains("dark") || lower.contains("brightness") || lower.contains("display") ||
+                            lower.contains("calculator") || lower.contains("calculate");
                     if (!isHandledDirectly) {
                         new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
                             @Override
@@ -659,6 +670,216 @@ public class AssistantActivity extends AppCompatActivity {
     }
 
     /**
+     * Toggles the device's hardware rear flashlight on or off.
+     */
+    private void toggleFlashlight(boolean state) {
+        try {
+            CameraManager cameraManager = (CameraManager) getSystemService(CAMERA_SERVICE);
+            if (cameraManager != null) {
+                String cameraId = null;
+                for (String id : cameraManager.getCameraIdList()) {
+                    CameraCharacteristics characteristics = cameraManager.getCameraCharacteristics(id);
+                    Boolean hasFlash = characteristics.get(CameraCharacteristics.FLASH_INFO_AVAILABLE);
+                    Integer facing = characteristics.get(CameraCharacteristics.LENS_FACING);
+                    if (hasFlash != null && hasFlash && facing != null && facing == CameraCharacteristics.LENS_FACING_BACK) {
+                        cameraId = id;
+                        break;
+                    }
+                }
+                if (cameraId == null && cameraManager.getCameraIdList().length > 0) {
+                    cameraId = cameraManager.getCameraIdList()[0];
+                }
+                if (cameraId != null) {
+                    cameraManager.setTorchMode(cameraId, state);
+                    Log.d(TAG, "Flashlight torch set to: " + state);
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error toggling flashlight: " + e.getMessage(), e);
+            if (statusTextView != null) {
+                statusTextView.setText("Flashlight unavailable.");
+            }
+        }
+    }
+
+    /**
+     * Adjusts the music stream volume or mutes it.
+     */
+    private void changeVolume(String action) {
+        try {
+            AudioManager audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
+            if (audioManager != null) {
+                if ("up".equalsIgnoreCase(action)) {
+                    audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_RAISE, AudioManager.FLAG_SHOW_UI);
+                } else if ("down".equalsIgnoreCase(action)) {
+                    audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_LOWER, AudioManager.FLAG_SHOW_UI);
+                } else if ("mute".equalsIgnoreCase(action)) {
+                    audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_MUTE, AudioManager.FLAG_SHOW_UI);
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error adjusting volume: " + e.getMessage(), e);
+            if (statusTextView != null) {
+                statusTextView.setText("Volume control error.");
+            }
+        }
+    }
+
+    /**
+     * Opens the app store search for a requested app name.
+     */
+    private void openAppStore(String appName) {
+        if (appName == null || appName.trim().isEmpty()) return;
+        try {
+            String query = URLEncoder.encode(appName.trim(), "UTF-8");
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("market://search?q=" + query));
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+            if (!isFinishing()) {
+                finish();
+            }
+        } catch (ActivityNotFoundException e) {
+            try {
+                String query = URLEncoder.encode(appName.trim(), "UTF-8");
+                Intent webIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/search?q=" + query + "&c=apps"));
+                webIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(webIntent);
+                if (!isFinishing()) finish();
+            } catch (Exception ex) {
+                Log.e(TAG, "Error opening web store: " + ex.getMessage(), ex);
+                if (statusTextView != null) statusTextView.setText("Play Store not available.");
+                new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                    @Override
+                    public void run() { if (!isFinishing()) finish(); }
+                }, 2000);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error opening app store: " + e.getMessage(), e);
+            if (statusTextView != null) statusTextView.setText("Store unavailable.");
+            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                @Override
+                public void run() { if (!isFinishing()) finish(); }
+            }, 2000);
+        }
+    }
+
+    /**
+     * Opens the system Application Settings screen to manage/uninstall apps.
+     */
+    private void openUninstallSettings() {
+        try {
+            Intent intent = new Intent(Settings.ACTION_APPLICATION_SETTINGS);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+            if (!isFinishing()) {
+                finish();
+            }
+        } catch (ActivityNotFoundException e) {
+            try {
+                Intent manageIntent = new Intent(Settings.ACTION_MANAGE_APPLICATIONS_SETTINGS);
+                manageIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(manageIntent);
+                if (!isFinishing()) finish();
+            } catch (Exception ex) {
+                if (statusTextView != null) statusTextView.setText("App settings not found.");
+                new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                    @Override
+                    public void run() { if (!isFinishing()) finish(); }
+                }, 2000);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error opening app settings: " + e.getMessage(), e);
+            if (statusTextView != null) statusTextView.setText("Settings unavailable.");
+            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                @Override
+                public void run() { if (!isFinishing()) finish(); }
+            }, 2000);
+        }
+    }
+
+    /**
+     * Opens a specific system Settings screen (WiFi, Bluetooth, etc.).
+     */
+    private void openSetting(String settingAction) {
+        try {
+            Intent intent = new Intent(settingAction);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+            if (!isFinishing()) {
+                finish();
+            }
+        } catch (ActivityNotFoundException e) {
+            Log.w(TAG, "Setting action not supported: " + settingAction);
+            try {
+                Intent fallback = new Intent(Settings.ACTION_SETTINGS);
+                fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(fallback);
+                if (!isFinishing()) finish();
+            } catch (Exception ex) {
+                if (statusTextView != null) statusTextView.setText("Settings not available.");
+                new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                    @Override
+                    public void run() { if (!isFinishing()) finish(); }
+                }, 2000);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error opening setting: " + e.getMessage(), e);
+            if (statusTextView != null) statusTextView.setText("Failed to open setting.");
+            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                @Override
+                public void run() { if (!isFinishing()) finish(); }
+            }, 2000);
+        }
+    }
+
+    /**
+     * Launches the system Calculator app.
+     */
+    private void openCalculator() {
+        try {
+            Intent intent = new Intent(Intent.ACTION_MAIN);
+            intent.addCategory(Intent.CATEGORY_APP_CALCULATOR);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+            if (!isFinishing()) finish();
+        } catch (ActivityNotFoundException e) {
+            String[] calcPackages = new String[]{
+                "com.google.android.calculator",
+                "com.android.calculator2",
+                "com.sec.android.app.popupcalculator",
+                "com.miui.calculator"
+            };
+            boolean launched = false;
+            for (String pkg : calcPackages) {
+                try {
+                    Intent launchIntent = getPackageManager().getLaunchIntentForPackage(pkg);
+                    if (launchIntent != null) {
+                        launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        startActivity(launchIntent);
+                        launched = true;
+                        if (!isFinishing()) finish();
+                        break;
+                    }
+                } catch (Exception ignored) {}
+            }
+            if (!launched) {
+                if (statusTextView != null) statusTextView.setText("Calculator not found.");
+                new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                    @Override
+                    public void run() { if (!isFinishing()) finish(); }
+                }, 2000);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error opening calculator: " + e.getMessage(), e);
+            if (statusTextView != null) statusTextView.setText("Calculator unavailable.");
+            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                @Override
+                public void run() { if (!isFinishing()) finish(); }
+            }, 2000);
+        }
+    }
+
+    /**
      * Local Intent Router:
      * Separates offline hardware / system commands (calls, sms, flashlight) from online AI queries.
      */
@@ -906,9 +1127,81 @@ public class AssistantActivity extends AppCompatActivity {
             return;
         }
 
-        // Other offline & online intents
-        if (lower.contains("flashlight")) {
-            statusTextView.setText("Action: Toggle Flashlight");
+        // Step 6 Part 4: Bilingual Master System Controller (Flashlight, Volume, Settings, Apps)
+        else if (lower.contains("flashlight") || lower.contains("torch")) {
+            if (lower.contains("off") || lower.contains("band") || lower.contains("bujhao") || lower.contains("close")) {
+                statusTextView.setText("Flashlight Turned OFF");
+                toggleFlashlight(false);
+            } else {
+                statusTextView.setText("Flashlight Turned ON");
+                toggleFlashlight(true);
+            }
+            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                @Override
+                public void run() { if (!isFinishing()) finish(); }
+            }, 1500);
+            return;
+        } else if (lower.contains("volume") || lower.contains("awaaz") || lower.contains("sound")) {
+            if (lower.contains("down") || lower.contains("decrease") || lower.contains("kam") || lower.contains("ghata") || lower.contains("dheere")) {
+                statusTextView.setText("Decreasing Volume...");
+                changeVolume("down");
+            } else if (lower.contains("mute") || lower.contains("silent") || lower.contains("off") || lower.contains("band") || lower.contains("chup")) {
+                statusTextView.setText("Volume Muted");
+                changeVolume("mute");
+            } else {
+                statusTextView.setText("Increasing Volume...");
+                changeVolume("up");
+            }
+            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                @Override
+                public void run() { if (!isFinishing()) finish(); }
+            }, 1500);
+            return;
+        } else if (lower.contains("uninstall") || (lower.contains("delete") && lower.contains("app")) || (lower.contains("remove") && lower.contains("app"))) {
+            statusTextView.setText("Opening App Settings...");
+            openUninstallSettings();
+            return;
+        } else if (lower.contains("install") || lower.contains("download")) {
+            String appName = command;
+            String[] prefixes = new String[]{"install app ", "download app ", "install ", "download ", "app "};
+            for (String p : prefixes) {
+                int idx = appName.toLowerCase().indexOf(p);
+                if (idx != -1) {
+                    appName = appName.substring(idx + p.length()).trim();
+                    break;
+                }
+            }
+            appName = appName.replaceAll("(?i)\\b(karo|karna hai|please|chahiye)\\b", "").trim();
+            if (appName.isEmpty()) {
+                appName = "Apps";
+            }
+            statusTextView.setText("Searching " + appName + " on Play Store...");
+            openAppStore(appName);
+            return;
+        } else if (lower.contains("wifi") || lower.contains("wi-fi")) {
+            statusTextView.setText("Opening WiFi Settings...");
+            openSetting(Settings.ACTION_WIFI_SETTINGS);
+            return;
+        } else if (lower.contains("bluetooth")) {
+            statusTextView.setText("Opening Bluetooth Settings...");
+            openSetting(Settings.ACTION_BLUETOOTH_SETTINGS);
+            return;
+        } else if (lower.contains("data") || lower.contains("internet") || lower.contains("roaming")) {
+            statusTextView.setText("Opening Mobile Data Settings...");
+            openSetting(Settings.ACTION_DATA_ROAMING_SETTINGS);
+            return;
+        } else if (lower.contains("airplane") || lower.contains("flight")) {
+            statusTextView.setText("Opening Airplane Mode...");
+            openSetting(Settings.ACTION_AIRPLANE_MODE_SETTINGS);
+            return;
+        } else if (lower.contains("dark") || lower.contains("brightness") || lower.contains("display")) {
+            statusTextView.setText("Opening Display Settings...");
+            openSetting(Settings.ACTION_DISPLAY_SETTINGS);
+            return;
+        } else if (lower.contains("calculator") || lower.contains("calculate") || lower.contains("hisab")) {
+            statusTextView.setText("Opening Calculator...");
+            openCalculator();
+            return;
         } else {
             statusTextView.setText("Action: Online AI Query");
         }
@@ -924,7 +1217,8 @@ public class AssistantActivity extends AppCompatActivity {
                     Manifest.permission.RECORD_AUDIO,
                     Manifest.permission.READ_CONTACTS,
                     Manifest.permission.CALL_PHONE,
-                    Manifest.permission.SEND_SMS
+                    Manifest.permission.SEND_SMS,
+                    Manifest.permission.CAMERA
                 },
                 PERMISSION_REQUEST_RECORD_AUDIO
             );
