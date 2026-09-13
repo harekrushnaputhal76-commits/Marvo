@@ -1,12 +1,29 @@
 package com.marvo.ai;
 
+import android.Manifest;
+import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.speech.RecognitionListener;
+import android.speech.RecognizerIntent;
+import android.speech.SpeechRecognizer;
 import android.util.Log;
 import android.view.View;
+import android.widget.TextView;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+import java.util.ArrayList;
+import java.util.Locale;
 
 public class AssistantActivity extends AppCompatActivity {
     private static final String TAG = "MarvoAssistant";
+    private static final int PERMISSION_REQUEST_RECORD_AUDIO = 101;
+
+    private SpeechRecognizer speechRecognizer;
+    private Intent speechRecognizerIntent;
+    private TextView statusTextView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -14,6 +31,8 @@ public class AssistantActivity extends AppCompatActivity {
         overridePendingTransition(R.anim.slide_up_assistant, 0);
         setContentView(R.layout.activity_assistant);
         Log.d(TAG, "Marvo Assistant Triggered via Hardware Button!");
+
+        statusTextView = findViewById(R.id.statusTextView);
 
         // Tap outside bottom sheet to dismiss
         View rootLayout = findViewById(R.id.assistantRootLayout);
@@ -35,11 +54,138 @@ public class AssistantActivity extends AppCompatActivity {
                 }
             });
         }
+
+        initSpeechRecognizer();
+        checkPermissionAndStart();
+    }
+
+    private void initSpeechRecognizer() {
+        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+            Log.w(TAG, "Speech recognition is not available on this device");
+            if (statusTextView != null) {
+                statusTextView.setText("Speech service unavailable");
+            }
+            return;
+        }
+
+        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
+        speechRecognizerIntent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        speechRecognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        speechRecognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault());
+        speechRecognizerIntent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
+
+        speechRecognizer.setRecognitionListener(new RecognitionListener() {
+            @Override
+            public void onReadyForSpeech(Bundle params) {
+                Log.d(TAG, "SpeechRecognizer onReadyForSpeech");
+                if (statusTextView != null) {
+                    statusTextView.setText("Listening...");
+                }
+            }
+
+            @Override
+            public void onBeginningOfSpeech() {
+                Log.d(TAG, "SpeechRecognizer onBeginningOfSpeech");
+            }
+
+            @Override
+            public void onRmsChanged(float rmsdB) {}
+
+            @Override
+            public void onBufferReceived(byte[] buffer) {}
+
+            @Override
+            public void onEndOfSpeech() {
+                Log.d(TAG, "SpeechRecognizer onEndOfSpeech");
+                if (statusTextView != null) {
+                    statusTextView.setText("Processing...");
+                }
+            }
+
+            @Override
+            public void onError(int error) {
+                Log.w(TAG, "SpeechRecognizer onError code: " + error);
+                if (statusTextView != null) {
+                    statusTextView.setText("Didn't catch that...");
+                }
+            }
+
+            @Override
+            public void onResults(Bundle results) {
+                ArrayList<String> matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+                if (matches != null && !matches.isEmpty()) {
+                    String transcribed = matches.get(0);
+                    Log.d(TAG, "Speech transcribed: " + transcribed);
+                    if (statusTextView != null) {
+                        statusTextView.setText(transcribed);
+                    }
+                }
+            }
+
+            @Override
+            public void onPartialResults(Bundle partialResults) {
+                ArrayList<String> partialMatches = partialResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+                if (partialMatches != null && !partialMatches.isEmpty()) {
+                    if (statusTextView != null) {
+                        statusTextView.setText(partialMatches.get(0));
+                    }
+                }
+            }
+
+            @Override
+            public void onEvent(int eventType, Bundle params) {}
+        });
+    }
+
+    private void checkPermissionAndStart() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            startListening();
+        } else {
+            ActivityCompat.requestPermissions(
+                this,
+                new String[]{Manifest.permission.RECORD_AUDIO},
+                PERMISSION_REQUEST_RECORD_AUDIO
+            );
+        }
+    }
+
+    private void startListening() {
+        if (speechRecognizer != null && speechRecognizerIntent != null) {
+            try {
+                speechRecognizer.startListening(speechRecognizerIntent);
+            } catch (Exception e) {
+                Log.e(TAG, "Error starting speech recognition: " + e.getMessage(), e);
+            }
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == PERMISSION_REQUEST_RECORD_AUDIO) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                startListening();
+            } else {
+                Log.w(TAG, "RECORD_AUDIO permission was denied by user");
+                if (statusTextView != null) {
+                    statusTextView.setText("Microphone permission needed");
+                }
+            }
+        }
     }
 
     @Override
     public void finish() {
         super.finish();
         overridePendingTransition(0, R.anim.slide_down_assistant);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (speechRecognizer != null) {
+            speechRecognizer.destroy();
+            speechRecognizer = null;
+        }
     }
 }
