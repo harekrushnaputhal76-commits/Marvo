@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Outer Soft Glow -->
+    <item>
+        <shape android:shape="oval">
+            <gradient
+                android:type="radial"
+                android:gradientRadius="48dp"
+                android:startColor="#6600E5FF"
+                android:endColor="#0000E5FF" />
+        </shape>
+    </item>
+    <!-- Inner Core -->
+    <item android:bottom="12dp" android:left="12dp" android:right="12dp" android:top="12dp">
+        <shape android:shape="oval">
+            <gradient
+                android:type="radial"
+                android:gradientRadius="24dp"
+                android:startColor="#FFFFFFFF"
+                android:endColor="#FF00E5FF" />
+        </shape>
+    </item>
+</layer-list>

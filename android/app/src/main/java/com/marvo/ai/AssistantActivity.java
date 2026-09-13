@@ -11,6 +11,8 @@ import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
 import android.util.Log;
 import android.view.View;
+import android.view.animation.Animation;
+import android.view.animation.AnimationUtils;
 import android.widget.ImageView;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
@@ -38,6 +40,12 @@ public class AssistantActivity extends AppCompatActivity {
 
         statusTextView = findViewById(R.id.statusTextView);
         orbImageView = findViewById(R.id.orbImageView);
+
+        // Start pulsating Siri-style glowing orb animation
+        if (orbImageView != null) {
+            Animation pulse = AnimationUtils.loadAnimation(this, R.anim.pulse_orb);
+            orbImageView.startAnimation(pulse);
+        }
 
         // Tap outside bottom sheet to dismiss
         View rootLayout = findViewById(R.id.assistantRootLayout);
@@ -87,7 +95,11 @@ public class AssistantActivity extends AppCompatActivity {
                     statusTextView.setText("Listening...");
                 }
                 if (orbImageView != null) {
-                    orbImageView.animate().alpha(1.0f).scaleX(1.0f).scaleY(1.0f).setDuration(200).start();
+                    orbImageView.animate().alpha(1.0f).setDuration(200).start();
+                    if (orbImageView.getAnimation() == null) {
+                        Animation pulse = AnimationUtils.loadAnimation(AssistantActivity.this, R.anim.pulse_orb);
+                        orbImageView.startAnimation(pulse);
+                    }
                 }
             }
 
@@ -108,8 +120,9 @@ public class AssistantActivity extends AppCompatActivity {
                 if (statusTextView != null) {
                     statusTextView.setText("Processing...");
                 }
-                // Visual feedback: animate glowing orb into thinking mode
+                // Transition orb into thinking mode
                 if (orbImageView != null) {
+                    orbImageView.clearAnimation();
                     orbImageView.animate()
                         .alpha(0.65f)
                         .scaleX(1.15f)
@@ -126,6 +139,7 @@ public class AssistantActivity extends AppCompatActivity {
                     statusTextView.setText("Didn't catch that...");
                 }
                 if (orbImageView != null) {
+                    orbImageView.clearAnimation();
                     orbImageView.animate().alpha(0.4f).scaleX(0.9f).scaleY(0.9f).setDuration(200).start();
                 }
                 // Auto dismiss on error after 2 seconds
@@ -146,7 +160,7 @@ public class AssistantActivity extends AppCompatActivity {
                     String transcribed = matches.get(0);
                     Log.d(TAG, "Speech transcribed: " + transcribed);
 
-                    // Route through intent router
+                    // Route through local intent router
                     routeCommand(transcribed);
 
                     // Wait 2.5s to display the action, then slide-down and finish
@@ -242,6 +256,9 @@ public class AssistantActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        if (orbImageView != null) {
+            orbImageView.clearAnimation();
+        }
         if (speechRecognizer != null) {
             speechRecognizer.destroy();
             speechRecognizer = null;
