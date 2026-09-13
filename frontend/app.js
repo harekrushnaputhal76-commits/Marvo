@@ -1025,6 +1025,21 @@ loadHistorySidebar();
 restoreCurrentSession();
 DOM.msgInput.focus();
 
+/* ═══════════════════════════════════════════════════════════════════
+   PWA SERVICE WORKER REGISTRATION
+   ═══════════════════════════════════════════════════════════════════ */
+if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js')
+      .then((reg) => {
+        console.log('[Marvo PWA] Service Worker registered:', reg.scope);
+      })
+      .catch((err) => {
+        console.warn('[Marvo PWA] Service Worker registration failed:', err);
+      });
+  });
+}
+
 window.marvo = {
   setEyeExpression,
   sendMessage,
