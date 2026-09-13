@@ -198,7 +198,10 @@ public class AssistantActivity extends AppCompatActivity {
                             lower.contains("dark") || lower.contains("brightness") || lower.contains("display") ||
                             lower.contains("calculator") || lower.contains("calculate") || lower.contains("email") ||
                             lower.contains("mail") || lower.contains("search") || lower.contains("google") ||
-                            lower.contains("news") || lower.contains("weather") || lower.contains("mausam");
+                            lower.contains("news") || lower.contains("weather") || lower.contains("mausam") ||
+                            lower.contains("amazon") || lower.contains("flipkart") || lower.contains("myntra") ||
+                            lower.contains("buy") || lower.contains("shop") || lower.contains("kharid") ||
+                            lower.contains("review") || lower.contains("rating");
                     if (!isHandledDirectly) {
                         new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
                             @Override
@@ -999,6 +1002,39 @@ public class AssistantActivity extends AppCompatActivity {
     }
 
     /**
+     * Constructs an Amazon search URL.
+     */
+    private String getAmazonSearchUrl(String query) {
+        try {
+            return "https://www.amazon.in/s?k=" + URLEncoder.encode(query != null ? query.trim() : "", "UTF-8");
+        } catch (Exception e) {
+            return "https://www.amazon.in/s?k=" + (query != null ? query.trim() : "");
+        }
+    }
+
+    /**
+     * Constructs a Flipkart search URL.
+     */
+    private String getFlipkartSearchUrl(String query) {
+        try {
+            return "https://www.flipkart.com/search?q=" + URLEncoder.encode(query != null ? query.trim() : "", "UTF-8");
+        } catch (Exception e) {
+            return "https://www.flipkart.com/search?q=" + (query != null ? query.trim() : "");
+        }
+    }
+
+    /**
+     * Constructs a Myntra search URL.
+     */
+    private String getMyntraSearchUrl(String query) {
+        try {
+            return "https://www.myntra.com/" + URLEncoder.encode(query != null ? query.trim() : "", "UTF-8");
+        } catch (Exception e) {
+            return "https://www.myntra.com/" + (query != null ? query.trim() : "");
+        }
+    }
+
+    /**
      * Local Intent Router:
      * Separates offline hardware / system commands (calls, sms, flashlight) from online AI queries.
      */
@@ -1006,8 +1042,32 @@ public class AssistantActivity extends AppCompatActivity {
         if (statusTextView == null) return;
         String lower = (command == null ? "" : command.trim().toLowerCase());
 
-        // Step 6 Part 5: Confirmation Protocol (State Management)
+        // Step 6 Part 5 & 6: State Management (Confirmation Protocol & Checkout Flow)
         if (pendingActionType != null) {
+            if ("CHECKOUT_FLOW".equals(pendingActionType)) {
+                if (lower.contains("cash") || lower.contains("cod") || lower.contains("delivery")) {
+                    updateUI("Alright! Selected Cash on Delivery. Please complete the final order placement on your screen.");
+                    pendingActionType = null;
+                    pendingIntent = null;
+                    finishDelayed(2000);
+                } else if (lower.contains("online") || lower.contains("card") || lower.contains("upi") || lower.contains("net banking") || lower.contains("gpay") || lower.contains("paytm") || lower.contains("phonepe")) {
+                    updateUI("Opening secure online payment gateway steps...");
+                    pendingActionType = null;
+                    pendingIntent = null;
+                    finishDelayed(2000);
+                } else if (lower.contains("cancel") || lower.contains("nahi") || lower.contains("no") || lower.contains("mat")) {
+                    updateUI("Shopping cancelled.");
+                    pendingActionType = null;
+                    pendingIntent = null;
+                    finishDelayed(1500);
+                } else {
+                    updateUI("Please say Cash on Delivery or Online Payment.");
+                    startListeningDelayed(1500);
+                }
+                return;
+            }
+
+            // General Confirmation Loop (Yes/No)
             if (lower.contains("yes") || lower.contains("haan") || lower.contains("confirm") || lower.contains("ok") || lower.contains("karo") || lower.contains("sure")) {
                 updateUI("Action Confirmed. Executing...");
                 if (pendingIntent != null) {
@@ -1422,6 +1482,69 @@ public class AssistantActivity extends AppCompatActivity {
             }
             updateUI("Searching for \"" + query + "\"...");
             searchWeb(query);
+            return;
+        } else if (lower.contains("is this product safe") || lower.contains("is it safe") || lower.contains("how is the quality") ||
+                 lower.contains("review") || lower.contains("rating") || lower.contains("kaisa hai") || lower.contains("quality kaisi hai")) {
+            String product = command.replaceAll("(?i)^(is this product safe|is it safe to buy|is it safe|how is the quality of|how is the quality|review of|rating of|review|rating)\\s*", "").trim();
+            if (product.isEmpty()) {
+                product = "Product";
+            }
+            updateUI("Checking reviews and rating for " + product + "...");
+            searchWeb(product + " review and rating");
+            return;
+        } else if (lower.contains("amazon") || lower.contains("flipkart") || lower.contains("myntra") || lower.contains("buy") || lower.contains("shop") || lower.contains("kharid")) {
+            String platform = "Amazon";
+            String searchUrl;
+            if (lower.contains("flipkart")) {
+                platform = "Flipkart";
+            } else if (lower.contains("myntra")) {
+                platform = "Myntra";
+            }
+
+            // Extract the product query
+            String product = command;
+            String[] prefixes = new String[]{
+                "search on amazon for ", "search on flipkart for ", "search on myntra for ",
+                "search amazon for ", "search flipkart for ", "search myntra for ",
+                "buy on amazon ", "buy on flipkart ", "buy on myntra ",
+                "buy from amazon ", "buy from flipkart ", "buy from myntra ",
+                "shop on amazon for ", "shop on flipkart for ", "shop on myntra for ",
+                "shop for ", "amazon pe ", "flipkart pe ", "myntra pe ",
+                "amazon par ", "flipkart par ", "myntra par ",
+                "buy ", "shop ", "amazon ", "flipkart ", "myntra "
+            };
+            for (String p : prefixes) {
+                int idx = product.toLowerCase().indexOf(p);
+                if (idx != -1) {
+                    product = product.substring(idx + p.length()).trim();
+                    break;
+                }
+            }
+            product = product.replaceAll("(?i)\\b(karo|please|chahiye|dekhna hai|kharidna hai|kharidna|dikhao)\\b", "").trim();
+            if (product.isEmpty()) {
+                product = "trending deals";
+            }
+
+            if ("Flipkart".equals(platform)) {
+                searchUrl = getFlipkartSearchUrl(product);
+            } else if ("Myntra".equals(platform)) {
+                searchUrl = getMyntraSearchUrl(product);
+            } else {
+                searchUrl = getAmazonSearchUrl(product);
+            }
+
+            try {
+                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(searchUrl));
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(intent);
+            } catch (Exception e) {
+                Log.e(TAG, "Error opening shopping app: " + e.getMessage(), e);
+            }
+
+            // Trigger the Checkout Protocol
+            pendingActionType = "CHECKOUT_FLOW";
+            updateUI("Opening " + platform + " for " + product + ".\nWould you like to proceed with Cash on Delivery or Online Payment?");
+            startListeningDelayed(2000);
             return;
         } else {
             statusTextView.setText("Action: Online AI Query");
