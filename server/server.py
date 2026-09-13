@@ -172,13 +172,15 @@ def chat_endpoint():
         logging.info(f"Chat request - Session: {session_id} | Mode: {thinking_mode} | Msg: {user_message[:60]}")
 
         local_time = data.get('local_time')
+        agent_persona = data.get('agent')
 
         # Process the message through the Agent Manager
         result = handle_request(
             message=user_message,
             thinking_mode=thinking_mode,
             session_id=session_id,
-            local_time=local_time
+            local_time=local_time,
+            agent=agent_persona
         )
 
         resp_type = result.get("type", "text")

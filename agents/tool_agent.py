@@ -19,3 +19,4 @@ def handle_tool_call(tool_name: str, parameters: dict) -> Dict[str, Any]:
         "tool": tool_name,
         "result": {}
     }
+

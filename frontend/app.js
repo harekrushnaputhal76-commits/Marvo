@@ -25,6 +25,9 @@ const THEME_STORAGE_KEY   = 'marvo.theme';
 const VOICE_STORAGE_KEY   = 'marvo.voice';
 const SESSIONS_STORAGE_KEY = 'marvo.sessions';
 const CHAT_PREFIX          = 'marvo.chat.';
+const AGENT_STORAGE_KEY    = 'marvo.activeAgent';
+const MODE_STORAGE_KEY     = 'marvo.selectedMode';
+const NOTEBOOK_STORAGE_KEY = 'marvo.notebook';
 
 /* ═══════ DOM CACHE ═══════ */
 const $ = (sel) => document.querySelector(sel);
@@ -42,6 +45,9 @@ const DOM = {
   btnRenameChat:      $('#btnRenameChat'),
   btnDeleteChat:      $('#btnDeleteChat'),
 
+  // Creative Agents
+  sidebarAgentsGrid:  $('#sidebarAgentsGrid'),
+
   // Top Bar & Menus
   btnAppMenu:         $('#btnAppMenu'),
   appDropdown:        $('#appDropdown'),
@@ -56,6 +62,23 @@ const DOM = {
   settingsModal:      $('#settingsModal'),
   btnCloseSettings:   $('#btnCloseSettings'),
   topbarTitle:        $('#topbarTitle'),
+
+  // Phase 5 Modals
+  helpModal:            $('#helpModal'),
+  btnCloseHelpModal:    $('#btnCloseHelpModal'),
+  notebookModal:        $('#notebookModal'),
+  btnCloseNotebookModal:$('#btnCloseNotebookModal'),
+  btnSaveChatToNotebook:$('#btnSaveChatToNotebook'),
+  notebookNotesList:    $('#notebookNotesList'),
+  shareModal:           $('#shareModal'),
+  btnCloseShareModal:   $('#btnCloseShareModal'),
+  btnSharePDF:          $('#btnSharePDF'),
+  btnShareText:         $('#btnShareText'),
+  shareSummaryText:     $('#shareSummaryText'),
+  sparkModal:           $('#sparkModal'),
+  btnCloseSparkModal:   $('#btnCloseSparkModal'),
+  btnAcknowledgeSpark:  $('#btnAcknowledgeSpark'),
+  navSpark:             $('#navSpark'),
 
   // Projects System & Creative Studio
   activeProjectBadge:   $('#activeProjectBadge'),
@@ -266,11 +289,19 @@ let currentSessionId = sessionStorage.getItem(SESSION_STORAGE_KEY) || generateSe
 let currentVoice     = localStorage.getItem(VOICE_STORAGE_KEY) || 'voice_3';
 let sessionVersion   = 0;
 let selectedMode     = 'medium'; // 'fast', 'medium' (Thinking), 'high' (Pro)
+let activeAgent      = 'aura';   // 'lumina', 'nexus', 'orion', 'aura'
 let isBusy           = false;
 let hasInteracted    = false;
 let contextTargetSessionId = null;
 let currentAudio     = null;
 let lastUserMessage  = '';
+
+const AGENT_PLACEHOLDERS = {
+  lumina: 'Ask Lumina anything...',
+  nexus:  'Ask Nexus anything...',
+  orion:  'Ask Orion anything...',
+  aura:   'Ask Aura anything...',
+};
 
 /* Eye Expression Trigger */
 function setEyeExpression(state) {
@@ -709,14 +740,18 @@ function renderImageMessageCard(promptText, imageUrl) {
       <img class="msg-image-img" src="${imageUrl}" alt="${promptText}" loading="lazy" />
     </div>
     <p class="msg-image-prompt-text">"${promptText}"</p>
+    <button class="msg-image-download-btn action-download-img" type="button" title="Download Image">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      <span>Download Image</span>
+    </button>
     <div class="msg-image-footer">
       <button class="msg-image-action-btn action-copy-prompt" type="button" title="Copy Prompt">
         <svg viewBox="0 0 24 24" width="12" height="12"><rect x="9" y="9" width="13" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" fill="none" stroke="currentColor" stroke-width="2"/></svg>
         <span>Copy Prompt</span>
       </button>
-      <a href="${imageUrl}" ${isBase64 ? 'download="marvo-art.jpg"' : 'target="_blank" rel="noopener noreferrer"'} class="msg-image-action-btn action-view-full" title="${isBase64 ? 'Download Image' : 'Open Full Size'}">
+      <a href="${imageUrl}" target="_blank" rel="noopener noreferrer" class="msg-image-action-btn action-view-full" title="Open Full Size">
         <svg viewBox="0 0 24 24" width="12" height="12"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" fill="none" stroke="currentColor" stroke-width="2"/><polyline points="15 3 21 3 21 9" fill="none" stroke="currentColor" stroke-width="2"/><line x1="10" y1="14" x2="21" y2="3" stroke="currentColor" stroke-width="2"/></svg>
-        <span>${isBase64 ? 'Save HD' : 'Full Size'}</span>
+        <span>Full Size</span>
       </a>
     </div>
   `;
@@ -724,6 +759,7 @@ function renderImageMessageCard(promptText, imageUrl) {
   const img = card.querySelector('.msg-image-img');
   const skeleton = card.querySelector('.msg-image-skeleton');
   const copyBtn = card.querySelector('.action-copy-prompt');
+  const downloadBtn = card.querySelector('.action-download-img');
 
   img.onload = () => {
     if (skeleton) skeleton.style.display = 'none';
@@ -745,6 +781,37 @@ function renderImageMessageCard(promptText, imageUrl) {
   copyBtn?.addEventListener('click', (e) => {
     e.stopPropagation();
     copyToClipboard(promptText, copyBtn);
+  });
+
+  downloadBtn?.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    try {
+      showToast('Downloading image...');
+      if (imageUrl.startsWith('data:')) {
+        const a = document.createElement('a');
+        a.href = imageUrl;
+        a.download = `marvo-art-${Date.now()}.jpg`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        showToast('Image downloaded!');
+      } else {
+        const resp = await fetch(imageUrl);
+        const blob = await resp.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = `marvo-art-${Date.now()}.jpg`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+        showToast('Image downloaded!');
+      }
+    } catch (err) {
+      console.warn('Direct download failed, opening in new tab', err);
+      window.open(imageUrl, '_blank');
+    }
   });
 
   return card;
@@ -895,6 +962,7 @@ async function sendMessage(userText) {
         message:       payloadMessage,
         local_time:    deviceTime,
         thinking_mode: selectedMode,
+        agent:         activeAgent,
         session_id:    requestSessionId,
       }),
     });
@@ -1362,10 +1430,12 @@ DOM.btnAppMenu.addEventListener('click', (e) => {
   if (!isOpen) DOM.appDropdown.classList.add('show');
 });
 
-DOM.btnAddToNotebook.addEventListener('click', () => {
-  closeAllDropdowns();
-  showToast('Conversation added to Notebook!');
+DOM.btnAddToNotebook.addEventListener('click', openNotebookModal);
+$('#navNotebooks')?.addEventListener('click', () => {
+  closeSidebar();
+  openNotebookModal();
 });
+DOM.btnSaveChatToNotebook?.addEventListener('click', saveChatToNotebook);
 
 DOM.btnTopRenameChat.addEventListener('click', async () => {
   closeAllDropdowns();
@@ -1379,25 +1449,20 @@ DOM.btnTopRenameChat.addEventListener('click', async () => {
 
 DOM.btnTopHelp.addEventListener('click', () => {
   closeAllDropdowns();
-  showToast('Marvo AI Flagship Assistant v2.0 • Online');
+  openModal(DOM.helpModal);
 });
 
-DOM.btnTopShareChat.addEventListener('click', async () => {
-  closeAllDropdowns();
-  const msgs = await getLocalMessages(currentSessionId);
-  const transcript = msgs.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n');
-  if (navigator.share) {
-    try {
-      await navigator.share({ title: 'Marvo AI Conversation', text: transcript });
-      return;
-    } catch {}
-  }
-  if (transcript) {
-    copyToClipboard(transcript, null);
-    showToast('Conversation copied to clipboard!');
-  } else {
-    showToast('No messages to share');
-  }
+DOM.btnTopShareChat.addEventListener('click', openShareModal);
+DOM.btnSharePDF?.addEventListener('click', handleSharePDF);
+DOM.btnShareText?.addEventListener('click', handleShareText);
+
+// Spark Beta Modal
+DOM.navSpark?.addEventListener('click', () => {
+  closeSidebar();
+  openModal(DOM.sparkModal);
+});
+DOM.btnAcknowledgeSpark?.addEventListener('click', () => {
+  closeModal(DOM.sparkModal);
 });
 
 DOM.btnTopDeleteChat.addEventListener('click', async () => {
@@ -1407,6 +1472,30 @@ DOM.btnTopDeleteChat.addEventListener('click', async () => {
     newChat();
     loadHistorySidebar();
     showToast('Conversation deleted');
+  }
+});
+
+// Universal Close Button Handler for all modals
+document.querySelectorAll('.modal-close-btn').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const overlay = btn.closest('.settings-modal-overlay');
+    if (overlay) closeModal(overlay);
+  });
+});
+
+// Universal Backdrop Click Handler
+document.querySelectorAll('.settings-modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closeModal(overlay);
+  });
+});
+
+// Universal Escape Key Handler
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.settings-modal-overlay.show').forEach(closeModal);
+    closeAllDropdowns();
   }
 });
 
@@ -1423,6 +1512,7 @@ DOM.modeSelector.addEventListener('click', (e) => {
     DOM.modeSelector.querySelectorAll('.chip-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     selectedMode = btn.dataset.mode;
+    NativeStorage.set(MODE_STORAGE_KEY, selectedMode);
     showToast(`${btn.querySelector('span:last-child').textContent} mode activated`);
   }
 });
@@ -1693,6 +1783,197 @@ async function initEyeCustomization() {
   });
 }
 
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   MODAL CONTROLLERS & CLOSERS
+   ═══════════════════════════════════════════════════════════════════ */
+function openModal(modalEl) {
+  if (!modalEl) return;
+  modalEl.classList.add('show');
+}
+
+function closeModal(modalEl) {
+  if (!modalEl) return;
+  modalEl.classList.remove('show');
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CREATIVE AGENTS PERSONAS CONTROLLER
+   ═══════════════════════════════════════════════════════════════════ */
+function setActiveAgent(agentName, persist = true) {
+  const key = (agentName || 'aura').toLowerCase();
+  activeAgent = key;
+  if (DOM.sidebarAgentsGrid) {
+    DOM.sidebarAgentsGrid.querySelectorAll('.agent-chip-btn').forEach(btn => {
+      if (btn.dataset.agent === key) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+  }
+  const placeholder = AGENT_PLACEHOLDERS[key] || 'Ask Marvo anything...';
+  if (DOM.msgInput) {
+    DOM.msgInput.placeholder = placeholder;
+  }
+  if (persist) {
+    NativeStorage.set(AGENT_STORAGE_KEY, key);
+  }
+}
+
+async function initAgents() {
+  const saved = (await NativeStorage.get(AGENT_STORAGE_KEY)) || 'aura';
+  setActiveAgent(saved, false);
+
+  if (DOM.sidebarAgentsGrid) {
+    DOM.sidebarAgentsGrid.addEventListener('click', (e) => {
+      const btn = e.target.closest('.agent-chip-btn');
+      if (btn && btn.dataset.agent) {
+        const agent = btn.dataset.agent;
+        setActiveAgent(agent, true);
+        const name = btn.querySelector('.agent-chip-name')?.textContent || agent;
+        showToast(`${name} persona active`);
+        closeSidebar();
+        DOM.msgInput.focus();
+      }
+    });
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   MODE SELECTION CONTROLLER
+   ═══════════════════════════════════════════════════════════════════ */
+async function initModeSelection() {
+  const saved = (await NativeStorage.get(MODE_STORAGE_KEY)) || 'medium';
+  selectedMode = saved;
+  if (DOM.modeSelector) {
+    DOM.modeSelector.querySelectorAll('.chip-btn').forEach(b => {
+      if (b.dataset.mode === selectedMode) {
+        b.classList.add('active');
+      } else {
+        b.classList.remove('active');
+      }
+    });
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   NOTEBOOK & SHARE MODAL ACTIONS
+   ═══════════════════════════════════════════════════════════════════ */
+async function openNotebookModal() {
+  closeAllDropdowns();
+  openModal(DOM.notebookModal);
+  await renderNotebookNotes();
+}
+
+async function renderNotebookNotes() {
+  if (!DOM.notebookNotesList) return;
+  const raw = await NativeStorage.get(NOTEBOOK_STORAGE_KEY);
+  let notes = [];
+  try {
+    notes = raw ? JSON.parse(raw) : [];
+  } catch {
+    notes = [];
+  }
+
+  if (!notes || notes.length === 0) {
+    DOM.notebookNotesList.innerHTML = `
+      <p style="text-align:center;color:var(--text-dim);font-size:13px;padding:24px 0;">
+        No saved notes yet. Click the button above to save the current conversation!
+      </p>
+    `;
+    return;
+  }
+
+  DOM.notebookNotesList.innerHTML = notes.map((n) => `
+    <div class="notebook-note-item">
+      <div class="notebook-note-header">
+        <span class="notebook-note-title">${escapeHtml(n.title || 'Saved Note')}</span>
+        <span class="notebook-note-date">${escapeHtml(n.date || '')}</span>
+      </div>
+      <div class="notebook-note-snippet">${escapeHtml(n.content || '')}</div>
+    </div>
+  `).join('');
+}
+
+async function saveChatToNotebook() {
+  const msgs = await getLocalMessages(currentSessionId);
+  if (!msgs || msgs.length === 0) {
+    showToast('No messages to save in this conversation');
+    return;
+  }
+
+  const raw = await NativeStorage.get(NOTEBOOK_STORAGE_KEY);
+  let notes = [];
+  try { notes = raw ? JSON.parse(raw) : []; } catch { notes = []; }
+
+  const sessions = await getLocalSessions();
+  const curr = sessions.find(s => s.id === currentSessionId);
+  const title = curr?.title || 'Chat Note';
+  const transcript = msgs.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n');
+
+  notes.unshift({
+    title,
+    date: new Date().toLocaleDateString(),
+    content: transcript.length > 300 ? transcript.slice(0, 300) + '...' : transcript,
+    fullText: transcript,
+  });
+
+  if (notes.length > 50) notes = notes.slice(0, 50);
+  await NativeStorage.set(NOTEBOOK_STORAGE_KEY, JSON.stringify(notes));
+  await renderNotebookNotes();
+  showToast('Saved to Notebook!');
+}
+
+async function openShareModal() {
+  closeAllDropdowns();
+  const msgs = await getLocalMessages(currentSessionId);
+  const sessions = await getLocalSessions();
+  const curr = sessions.find(s => s.id === currentSessionId);
+  const title = curr?.title || 'Current Chat';
+  if (DOM.shareSummaryText) {
+    DOM.shareSummaryText.textContent = `Share "${title}" (${msgs.length} message${msgs.length === 1 ? '' : 's'}).`;
+  }
+  openModal(DOM.shareModal);
+}
+
+async function handleSharePDF() {
+  closeModal(DOM.shareModal);
+  window.print();
+}
+
+async function handleShareText() {
+  closeModal(DOM.shareModal);
+  const msgs = await getLocalMessages(currentSessionId);
+  if (!msgs || msgs.length === 0) {
+    showToast('No messages in this chat to share');
+    return;
+  }
+  const transcript = msgs.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n');
+
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: 'Marvo AI Conversation',
+        text: transcript,
+      });
+      return;
+    } catch {}
+  }
+
+  copyToClipboard(transcript, null);
+  showToast('Conversation copied to clipboard!');
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    APP INITIALIZATION
    ═══════════════════════════════════════════════════════════════════ */
@@ -1700,6 +1981,8 @@ async function initApp() {
   await initStatusBar();
   await initTheme();
   await initEyeCustomization();
+  await initAgents();
+  await initModeSelection();
   initInteractiveEyes();
   await initVoiceSelection();
   await loadActiveProject();
@@ -1722,7 +2005,11 @@ window.marvo = {
   openProjectModal,
   saveActiveProject,
   clearActiveProject,
+  setActiveAgent,
+  openNotebookModal,
+  openShareModal,
   get activeProject() { return activeProject; },
+  get activeAgent() { return activeAgent; },
   get currentVoice() { return currentVoice; },
   get session() { return currentSessionId; },
   get mode() { return selectedMode; },

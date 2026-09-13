@@ -1497,3 +1497,399 @@ body.chat-active .face{
   background:rgba(0,240,255,0.15);border-color:var(--accent);color:#fff;
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   PHASE 5: CREATIVE AGENTS SIDEBAR SECTION
+   ═══════════════════════════════════════════════════════════════════ */
+.sidebar-agents-section {
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  margin-bottom: 10px;
+}
+.sidebar-agents-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-top: 6px;
+}
+.agent-chip-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  text-align: left;
+  min-height: 44px; /* Touch-friendly */
+}
+.agent-chip-btn:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+}
+.agent-chip-btn:active {
+  transform: scale(0.97);
+}
+.agent-chip-btn.active {
+  background: rgba(0, 240, 255, 0.1);
+  border-color: rgba(0, 240, 255, 0.4);
+  box-shadow: 0 0 14px rgba(0, 240, 255, 0.15);
+}
+.agent-chip-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.agent-chip-icon.lumina {
+  background: rgba(181, 23, 158, 0.2);
+  color: #f72585;
+}
+.agent-chip-icon.nexus {
+  background: rgba(0, 255, 136, 0.2);
+  color: #00ff88;
+}
+.agent-chip-icon.orion {
+  background: rgba(0, 240, 255, 0.2);
+  color: #00f0ff;
+}
+.agent-chip-icon.aura {
+  background: rgba(255, 187, 0, 0.2);
+  color: #ffbb00;
+}
+.agent-chip-btn.active .agent-chip-icon {
+  box-shadow: 0 0 8px currentColor;
+}
+.agent-chip-info {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.agent-chip-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+.agent-chip-role {
+  font-size: 9.5px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+.agent-chip-btn.active .agent-chip-name {
+  color: var(--accent);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SPARK BETA INTERACTIVE ELEMENT
+   ═══════════════════════════════════════════════════════════════════ */
+#navSpark {
+  position: relative;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  border: 1px solid transparent;
+}
+#navSpark:hover {
+  background: rgba(255, 187, 0, 0.08);
+  border-color: rgba(255, 187, 0, 0.25);
+}
+#navSpark:active {
+  transform: scale(0.98);
+}
+#navSpark .badge-beta {
+  background: linear-gradient(135deg, rgba(255, 187, 0, 0.25), rgba(255, 110, 0, 0.25));
+  color: #ffbb00;
+  border: 1px solid rgba(255, 187, 0, 0.35);
+  animation: spark-pulse 2s infinite alternate;
+}
+@keyframes spark-pulse {
+  0% { box-shadow: 0 0 4px rgba(255, 187, 0, 0.2); }
+  100% { box-shadow: 0 0 10px rgba(255, 187, 0, 0.6); }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   UNIVERSAL MOBILE-FRIENDLY MODALS WITH VISIBLE CLOSE BUTTON
+   ═══════════════════════════════════════════════════════════════════ */
+.modal-close-btn {
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  min-height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  line-height: 1;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.modal-close-btn:hover {
+  color: #fff;
+  background: rgba(255, 0, 85, 0.2);
+  border-color: rgba(255, 0, 85, 0.4);
+}
+.modal-close-btn:active {
+  transform: scale(0.92);
+}
+
+.help-dialog, .notebook-dialog, .share-dialog, .spark-dialog {
+  max-width: 440px;
+  width: calc(100% - 28px);
+  margin: auto;
+}
+
+.help-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+.help-card h4 {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+.help-card p {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Notebook Modal */
+.notebook-action-bar {
+  margin-bottom: 14px;
+}
+.notebook-action-bar .btn-project-primary {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+}
+.notebook-notes-list {
+  max-height: 280px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.notebook-note-item {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.notebook-note-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.notebook-note-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.notebook-note-date {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+.notebook-note-snippet {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 100px;
+  overflow-y: auto;
+}
+
+/* Share Modal */
+.share-options-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-top: 14px;
+}
+.share-choice-btn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  min-height: 54px;
+  text-align: left;
+}
+.share-choice-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+.share-choice-btn:active {
+  transform: scale(0.98);
+}
+.share-choice-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.share-choice-btn.pdf .share-choice-icon {
+  background: rgba(255, 0, 85, 0.15);
+  color: #ff0055;
+}
+.share-choice-btn.text .share-choice-icon {
+  background: rgba(0, 240, 255, 0.15);
+  color: var(--accent);
+}
+.share-choice-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.share-choice-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.share-choice-desc {
+  font-size: 11.5px;
+  color: var(--text-dim);
+}
+
+/* Spark Beta Modal */
+.spark-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  background: rgba(255, 187, 0, 0.12);
+  border: 1px solid rgba(255, 187, 0, 0.3);
+  color: #ffbb00;
+  font-size: 11.5px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+.spark-glow-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ffbb00;
+  box-shadow: 0 0 8px #ffbb00;
+}
+.spark-intro-text {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+.spark-features-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 18px;
+}
+.spark-feature-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+.spark-feature-row svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.spark-primary-btn {
+  width: 100%;
+  min-height: 44px;
+  background: linear-gradient(135deg, #ffbb00, #ff8800) !important;
+  color: #08090d !important;
+  font-weight: 700 !important;
+  border: none !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   ENHANCED CHAT BUBBLE IMAGE & DOWNLOAD BUTTON
+   ═══════════════════════════════════════════════════════════════════ */
+.msg-image-download-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 9px 14px;
+  border-radius: 10px;
+  background: rgba(0, 240, 255, 0.12);
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 42px;
+  text-decoration: none;
+  margin-top: 4px;
+}
+.msg-image-download-btn:hover {
+  background: rgba(0, 240, 255, 0.25);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 0 14px rgba(0, 240, 255, 0.2);
+}
+.msg-image-download-btn:active {
+  transform: scale(0.98);
+}
+
+/* Print CSS for Clean PDF Export */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #chatMessages, #chatMessages * {
+    visibility: visible;
+  }
+  #chatMessages {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    color: #000;
+    background: #fff;
+  }
+  .msg-action-bar, .topbar, .input-bar, .sidebar, .sidebar-overlay, .avatar-zone {
+    display: none !important;
+  }
+}
+
+

@@ -21,3 +21,4 @@ def handle_chart_request(prompt: str, session_id: str = "default") -> Dict[str, 
         "response": "Chart rendering module ready.",
         "state": "state-calculating"
     }
+
