@@ -9,7 +9,10 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.provider.AlarmClock;
+import android.provider.CalendarContract;
 import android.provider.ContactsContract;
+import android.provider.MediaStore;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
@@ -27,6 +30,8 @@ import androidx.core.content.ContextCompat;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class AssistantActivity extends AppCompatActivity {
     private static final String TAG = "MarvoAssistant";
@@ -171,9 +176,12 @@ public class AssistantActivity extends AppCompatActivity {
                     // Route through local intent router
                     routeCommand(transcribed);
 
-                    // If not an offline direct action (call/sms/message/text/whatsapp handle their own finish timers), wait 2.5s and finish
+                    // If not an offline direct action (which handle their own UI and finish lifecycle), wait 2.5s and finish
                     String lower = transcribed.trim().toLowerCase();
-                    boolean isHandledDirectly = lower.startsWith("call") || lower.startsWith("sms") || lower.startsWith("message") || lower.startsWith("text") || lower.startsWith("whatsapp");
+                    boolean isHandledDirectly = lower.startsWith("call") || lower.startsWith("sms") || lower.startsWith("message") ||
+                            lower.startsWith("text") || lower.startsWith("whatsapp") || lower.contains("timer") ||
+                            lower.contains("alarm") || lower.contains("remind me") || lower.contains("calendar") ||
+                            lower.contains("save contact") || lower.contains("add contact") || lower.contains("selfie");
                     if (!isHandledDirectly) {
                         new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
                             @Override
@@ -456,6 +464,201 @@ public class AssistantActivity extends AppCompatActivity {
     }
 
     /**
+     * Sets a countdown timer in the system Clock app.
+     */
+    private void setTimer(int seconds) {
+        try {
+            Intent intent = new Intent(AlarmClock.ACTION_SET_TIMER);
+            intent.putExtra(AlarmClock.EXTRA_LENGTH, seconds);
+            intent.putExtra(AlarmClock.EXTRA_SKIP_UI, true);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+            if (!isFinishing()) {
+                finish();
+            }
+        } catch (ActivityNotFoundException e) {
+            Log.w(TAG, "Clock/Timer app not found: " + e.getMessage());
+            if (statusTextView != null) {
+                statusTextView.setText("Timer app not found.");
+            }
+            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    if (!isFinishing()) finish();
+                }
+            }, 2000);
+        } catch (Exception e) {
+            Log.e(TAG, "Error setting timer: " + e.getMessage(), e);
+            if (statusTextView != null) {
+                statusTextView.setText("Failed to set timer.");
+            }
+            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    if (!isFinishing()) finish();
+                }
+            }, 2000);
+        }
+    }
+
+    /**
+     * Sets an alarm in the system Clock app.
+     */
+    private void setAlarm(int hour, int minute, String message) {
+        try {
+            Intent intent = new Intent(AlarmClock.ACTION_SET_ALARM);
+            intent.putExtra(AlarmClock.EXTRA_HOUR, hour);
+            intent.putExtra(AlarmClock.EXTRA_MINUTES, minute);
+            intent.putExtra(AlarmClock.EXTRA_MESSAGE, message != null ? message : "Marvo Alarm");
+            intent.putExtra(AlarmClock.EXTRA_SKIP_UI, true);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+            if (!isFinishing()) {
+                finish();
+            }
+        } catch (ActivityNotFoundException e) {
+            Log.w(TAG, "Clock/Alarm app not found: " + e.getMessage());
+            if (statusTextView != null) {
+                statusTextView.setText("Alarm app not found.");
+            }
+            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    if (!isFinishing()) finish();
+                }
+            }, 2000);
+        } catch (Exception e) {
+            Log.e(TAG, "Error setting alarm: " + e.getMessage(), e);
+            if (statusTextView != null) {
+                statusTextView.setText("Failed to set alarm.");
+            }
+            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    if (!isFinishing()) finish();
+                }
+            }, 2000);
+        }
+    }
+
+    /**
+     * Opens the system Contacts app to insert a new contact.
+     */
+    private void addContact(String name, String phone) {
+        try {
+            Intent intent = new Intent(Intent.ACTION_INSERT);
+            intent.setType(ContactsContract.Contacts.CONTENT_TYPE);
+            intent.putExtra(ContactsContract.Intents.Insert.NAME, name != null ? name : "");
+            if (phone != null && !phone.trim().isEmpty()) {
+                intent.putExtra(ContactsContract.Intents.Insert.PHONE, phone.trim());
+            }
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+            if (!isFinishing()) {
+                finish();
+            }
+        } catch (ActivityNotFoundException e) {
+            Log.w(TAG, "Contacts app not found: " + e.getMessage());
+            if (statusTextView != null) {
+                statusTextView.setText("Contacts app not found.");
+            }
+            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    if (!isFinishing()) finish();
+                }
+            }, 2000);
+        } catch (Exception e) {
+            Log.e(TAG, "Error adding contact: " + e.getMessage(), e);
+            if (statusTextView != null) {
+                statusTextView.setText("Failed to open contacts.");
+            }
+            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    if (!isFinishing()) finish();
+                }
+            }, 2000);
+        }
+    }
+
+    /**
+     * Opens the system Calendar app to insert a new event or reminder.
+     */
+    private void addCalendarEvent(String title) {
+        try {
+            Intent intent = new Intent(Intent.ACTION_INSERT);
+            intent.setData(CalendarContract.Events.CONTENT_URI);
+            intent.putExtra(CalendarContract.Events.TITLE, title != null ? title : "Reminder");
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+            if (!isFinishing()) {
+                finish();
+            }
+        } catch (ActivityNotFoundException e) {
+            Log.w(TAG, "Calendar app not found: " + e.getMessage());
+            if (statusTextView != null) {
+                statusTextView.setText("Calendar app not found.");
+            }
+            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    if (!isFinishing()) finish();
+                }
+            }, 2000);
+        } catch (Exception e) {
+            Log.e(TAG, "Error adding calendar event: " + e.getMessage(), e);
+            if (statusTextView != null) {
+                statusTextView.setText("Failed to open calendar.");
+            }
+            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    if (!isFinishing()) finish();
+                }
+            }, 2000);
+        }
+    }
+
+    /**
+     * Opens the camera app facing the front (selfie) camera.
+     */
+    private void openSelfieCamera() {
+        try {
+            Intent intent = new Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA);
+            intent.putExtra("android.intent.extras.CAMERA_FACING", 1); // Front camera
+            intent.putExtra("android.intent.extra.USE_FRONT_CAMERA", true);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+            if (!isFinishing()) {
+                finish();
+            }
+        } catch (ActivityNotFoundException e) {
+            Log.w(TAG, "Camera app not found: " + e.getMessage());
+            if (statusTextView != null) {
+                statusTextView.setText("Camera app not found.");
+            }
+            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    if (!isFinishing()) finish();
+                }
+            }, 2000);
+        } catch (Exception e) {
+            Log.e(TAG, "Error opening selfie camera: " + e.getMessage(), e);
+            if (statusTextView != null) {
+                statusTextView.setText("Failed to open camera.");
+            }
+            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    if (!isFinishing()) finish();
+                }
+            }, 2000);
+        }
+    }
+
+    /**
      * Local Intent Router:
      * Separates offline hardware / system commands (calls, sms, flashlight) from online AI queries.
      */
@@ -613,6 +816,93 @@ public class AssistantActivity extends AppCompatActivity {
                     }
                 }, 2000);
             }
+            return;
+        }
+
+        // Step 6 Part 3: Advanced Offline System Controls (Alarms, Timers, Calendar, Contacts, Camera)
+        else if (lower.contains("timer")) {
+            int seconds = 300; // default 5 minutes
+            Matcher m = Pattern.compile("(\\d+)").matcher(lower);
+            if (m.find()) {
+                try {
+                    int val = Integer.parseInt(m.group(1));
+                    if (lower.contains("hour")) {
+                        seconds = val * 3600;
+                    } else if (lower.contains("second") || lower.contains("sec")) {
+                        seconds = val;
+                    } else {
+                        seconds = val * 60;
+                    }
+                } catch (Exception ignored) {}
+            }
+            String displayTime = seconds >= 60 ? (seconds / 60) + " min" : seconds + " sec";
+            statusTextView.setText("Setting timer for " + displayTime + "...");
+            setTimer(seconds);
+            return;
+        } else if (lower.contains("alarm")) {
+            int hour = 7;
+            int minute = 0;
+            Matcher m = Pattern.compile("(\\d{1,2})(?:[:.](\\d{2}))?").matcher(lower);
+            if (m.find()) {
+                try {
+                    hour = Integer.parseInt(m.group(1));
+                    if (m.group(2) != null) {
+                        minute = Integer.parseInt(m.group(2));
+                    }
+                } catch (Exception ignored) {}
+            }
+            if (lower.contains("pm") && hour < 12) {
+                hour += 12;
+            } else if (lower.contains("am") && hour == 12) {
+                hour = 0;
+            }
+            statusTextView.setText(String.format(Locale.getDefault(), "Setting alarm for %02d:%02d...", hour, minute));
+            setAlarm(hour, minute, "Marvo Alarm");
+            return;
+        } else if (lower.contains("remind me") || lower.contains("calendar")) {
+            String title = "";
+            String[] prefixes = new String[]{
+                "add to my calendar ", "add to calendar ", "add event to calendar ",
+                "remind me to ", "remind me that ", "remind me ", "calendar "
+            };
+            for (String p : prefixes) {
+                int idx = lower.indexOf(p);
+                if (idx != -1) {
+                    title = command.substring(idx + p.length()).trim();
+                    break;
+                }
+            }
+            if (title.isEmpty()) {
+                title = "Reminder";
+            }
+            statusTextView.setText("Adding event: " + title + "...");
+            addCalendarEvent(title);
+            return;
+        } else if (lower.contains("save contact") || lower.contains("add contact")) {
+            String name = "";
+            String phone = "";
+            String[] prefixes = new String[]{"save contact ", "add contact ", "save contact", "add contact"};
+            for (String p : prefixes) {
+                int idx = lower.indexOf(p);
+                if (idx != -1) {
+                    name = command.substring(idx + p.length()).trim();
+                    break;
+                }
+            }
+            Matcher phoneMatcher = Pattern.compile("(\\+?\\d[\\d\\s-]{6,}\\d)").matcher(name);
+            if (phoneMatcher.find()) {
+                phone = phoneMatcher.group(1).trim();
+                name = name.replace(phone, "").trim();
+            }
+            if (name.isEmpty()) {
+                name = "New Contact";
+            }
+            statusTextView.setText("Saving contact: " + name + "...");
+            addContact(name, phone);
+            return;
+        } else if (lower.contains("selfie")) {
+            statusTextView.setText("Opening Selfie Camera...");
+            openSelfieCamera();
             return;
         }
 
