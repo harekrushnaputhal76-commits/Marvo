@@ -32,14 +32,16 @@ except Exception:
 # 1. Direct connection to your AI's core logic
 try:
     from core.brain import think_and_respond
-except ImportError:
+except Exception as _brain_err:
+    logging.error(f"Failed to import core.brain: {_brain_err}", exc_info=True)
     def think_and_respond(text, thinking_mode='medium', session_id='default'):
         return "Brain module is offline.", "state-idle"
 
 # 2. Voice Module Integration
 try:
     from core.voice import marvo_voice
-except ImportError:
+except Exception as _voice_err:
+    logging.error(f"Failed to import core.voice: {_voice_err}", exc_info=True)
     class DummyVoice:
         @staticmethod
         def speak(text, voice_id='voice_3'):
@@ -81,6 +83,17 @@ CORS(app)  # Allows cross-origin requests securely
 @app.route('/index.html')
 def serve_index():
     """Serves the frontend single-page interface."""
+    return send_from_directory(_frontend_dir, 'index.html')
+
+
+@app.route('/<path:filename>')
+def serve_static(filename):
+    """Serves frontend static assets (style.css, app.js, etc.)."""
+    if filename.startswith('api/'):
+        return jsonify({"error": "Endpoint not found"}), 404
+    file_path = os.path.join(_frontend_dir, filename)
+    if os.path.isfile(file_path):
+        return send_from_directory(_frontend_dir, filename)
     return send_from_directory(_frontend_dir, 'index.html')
 
 
@@ -293,5 +306,4 @@ def history_endpoint(session_id):
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    host = '0.0.0.0' if os.environ.get('PORT') or os.environ.get('RENDER') else '127.0.0.1'
-    app.run(host=host, port=port, debug=False)
+    app.run(host='0.0.0.0', port=port, debug=False)

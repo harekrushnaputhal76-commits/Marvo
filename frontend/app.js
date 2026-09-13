@@ -12,7 +12,9 @@
    ================================================================ */
 
 /* ═══════ CONFIGURATION ═══════ */
-const API_BASE = (window.location.protocol === 'file:') ? 'http://127.0.0.1:5000' : '';
+const API_BASE = (window.location.origin && window.location.origin !== 'null')
+  ? window.location.origin.replace(/\/$/, '')
+  : 'http://127.0.0.1:5000';
 const API_CHAT = `${API_BASE}/api/chat`;
 const API_SPEAK = `${API_BASE}/api/speak`;
 const API_PREVIEW_VOICE = `${API_BASE}/api/preview_voice`;

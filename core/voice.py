@@ -67,7 +67,17 @@ def generate_audio_base64(text: str, voice_id: str = "voice_3") -> str:
     temp_file = os.path.join(temp_dir, f"marvo_tts_{os.getpid()}_{threading.get_ident()}.mp3")
 
     try:
-        asyncio.run(_synthesize_edge_tts(text.strip(), voice_name, temp_file))
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop and loop.is_running():
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                pool.submit(lambda: asyncio.run(_synthesize_edge_tts(text.strip(), voice_name, temp_file))).result()
+        else:
+            asyncio.run(_synthesize_edge_tts(text.strip(), voice_name, temp_file))
 
         if os.path.isfile(temp_file) and os.path.getsize(temp_file) > 0:
             with open(temp_file, "rb") as f:
