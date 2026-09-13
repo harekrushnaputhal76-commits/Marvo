@@ -1,0 +1,20 @@
+"""
+WSGI entrypoint for Gunicorn deployment on Render, Railway, or VPS.
+Commands:
+    gunicorn wsgi:app
+    gunicorn server.server:app
+"""
+import os
+import sys
+
+# Ensure root directory is on sys.path so modules and packages resolve cleanly
+_root_dir = os.path.dirname(os.path.abspath(__file__))
+if _root_dir not in sys.path:
+    sys.path.insert(0, _root_dir)
+
+from server.server import app
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    host = "0.0.0.0" if os.environ.get("PORT") or os.environ.get("RENDER") else "127.0.0.1"
+    app.run(host=host, port=port)

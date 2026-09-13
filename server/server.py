@@ -4,7 +4,7 @@ import json
 import logging
 import threading
 from datetime import datetime, timezone
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 
 # Ensure the project root (marvo/) is on sys.path so 'core' package is importable
@@ -15,6 +15,8 @@ if _project_root not in sys.path:
 
 _sessions_dir = os.path.join(_project_root, 'sessions')
 os.makedirs(_sessions_dir, exist_ok=True)
+
+_frontend_dir = os.path.join(_project_root, 'frontend')
 
 # Safe loading for .env using python-dotenv
 try:
@@ -53,17 +55,40 @@ except ImportError:
             return ""
     marvo_voice = DummyVoice()
 
-# 3. Logging Setup
+# 3. Logging Setup (Dual: file logging + stdout for Render/Gunicorn console)
 log_path = os.path.join(_project_root, 'logs', 'apperror.log')
 os.makedirs(os.path.dirname(log_path), exist_ok=True)
 logging.basicConfig(
-    filename=log_path,
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(log_path, encoding='utf-8'),
+        logging.StreamHandler(sys.stdout)
+    ]
 )
 
-app = Flask(__name__)
-CORS(app)  # Allows the frontend (app.js) to communicate with this backend securely
+# Initialize Flask with explicit frontend static & template folders
+app = Flask(
+    __name__,
+    static_folder=_frontend_dir,
+    static_url_path='',
+    template_folder=_frontend_dir
+)
+CORS(app)  # Allows cross-origin requests securely
+
+
+@app.route('/')
+@app.route('/index.html')
+def serve_index():
+    """Serves the frontend single-page interface."""
+    return send_from_directory(_frontend_dir, 'index.html')
+
+
+@app.route('/health')
+@app.route('/healthz')
+def health_check():
+    """Health check endpoint for Render zero-downtime deployment & uptime monitors."""
+    return jsonify({"status": "healthy", "service": "marvo-ai"}), 200
 
 
 def _session_path(session_id):
@@ -267,5 +292,6 @@ def history_endpoint(session_id):
 
 
 if __name__ == '__main__':
-    # OPTIMIZATION: threaded=False keeps it lightweight for Core 2 Duo
-    app.run(host='127.0.0.1', port=5000, debug=True, threaded=False)
+    port = int(os.environ.get('PORT', 5000))
+    host = '0.0.0.0' if os.environ.get('PORT') or os.environ.get('RENDER') else '127.0.0.1'
+    app.run(host=host, port=port, debug=False)
