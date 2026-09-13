@@ -3,9 +3,12 @@ package com.marvo.ai;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.provider.ContactsContract;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
@@ -25,6 +28,7 @@ import java.util.Locale;
 public class AssistantActivity extends AppCompatActivity {
     private static final String TAG = "MarvoAssistant";
     private static final int PERMISSION_REQUEST_RECORD_AUDIO = 101;
+    private static final int PERMISSION_REQUEST_CONTACTS_CALL = 102;
 
     private SpeechRecognizer speechRecognizer;
     private Intent speechRecognizerIntent;
@@ -163,15 +167,18 @@ public class AssistantActivity extends AppCompatActivity {
                     // Route through local intent router
                     routeCommand(transcribed);
 
-                    // Wait 2.5s to display the action, then slide-down and finish
-                    new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-                        @Override
-                        public void run() {
-                            if (!isFinishing()) {
-                                finish();
+                    // If not a call command (which handles its own finish timer), wait 2.5s and finish
+                    String lower = transcribed.trim().toLowerCase();
+                    if (!lower.startsWith("call")) {
+                        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                            @Override
+                            public void run() {
+                                if (!isFinishing()) {
+                                    finish();
+                                }
                             }
-                        }
-                    }, 2500);
+                        }, 2500);
+                    }
                 }
             }
 
@@ -191,17 +198,130 @@ public class AssistantActivity extends AppCompatActivity {
     }
 
     /**
+     * Resolves a contact's phone number by name from the device's Contacts Provider.
+     */
+    private String getPhoneNumber(String contactName) {
+        if (contactName == null || contactName.trim().isEmpty()) return null;
+
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+            Log.w(TAG, "READ_CONTACTS permission not granted, requesting now");
+            ActivityCompat.requestPermissions(
+                this,
+                new String[]{Manifest.permission.READ_CONTACTS, Manifest.permission.CALL_PHONE},
+                PERMISSION_REQUEST_CONTACTS_CALL
+            );
+            return null;
+        }
+
+        String number = null;
+        String selection = ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " LIKE ?";
+        String[] selectionArgs = new String[]{"%" + contactName.trim() + "%"};
+        Cursor cursor = null;
+
+        try {
+            cursor = getContentResolver().query(
+                ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                new String[]{ContactsContract.CommonDataKinds.Phone.NUMBER, ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME},
+                selection,
+                selectionArgs,
+                null
+            );
+
+            if (cursor != null && cursor.moveToFirst()) {
+                int numberIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER);
+                if (numberIndex != -1) {
+                    number = cursor.getString(numberIndex);
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error querying contacts: " + e.getMessage(), e);
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+
+        return number;
+    }
+
+    /**
+     * Initiates a native phone call to the given phone number.
+     */
+    private void makeCall(String phoneNumber) {
+        if (phoneNumber == null || phoneNumber.trim().isEmpty()) return;
+
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
+            Intent callIntent = new Intent(Intent.ACTION_CALL);
+            callIntent.setData(Uri.parse("tel:" + phoneNumber.trim()));
+            callIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(callIntent);
+        } else {
+            Log.w(TAG, "CALL_PHONE permission not granted, opening dialer");
+            Intent dialIntent = new Intent(Intent.ACTION_DIAL);
+            dialIntent.setData(Uri.parse("tel:" + phoneNumber.trim()));
+            dialIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(dialIntent);
+        }
+    }
+
+    /**
      * Local Intent Router:
-     * Separates offline hardware / system commands from online AI queries.
+     * Separates offline hardware / system commands (calls, sms, flashlight) from online AI queries.
      */
     private void routeCommand(String command) {
         if (statusTextView == null) return;
         String lower = (command == null ? "" : command.trim().toLowerCase());
 
+        // Step 5: Native Offline Contact Calling
         if (lower.startsWith("call")) {
-            String target = command.length() > 4 ? command.substring(4).trim() : "";
-            statusTextView.setText(target.isEmpty() ? "Action: Offline Call" : "Action: Offline Call " + target);
-        } else if (lower.startsWith("sms") || lower.startsWith("message")) {
+            String name = "";
+            if (lower.startsWith("call ")) {
+                name = command.substring(5).trim();
+            } else if (command.length() > 4) {
+                name = command.substring(4).trim();
+            }
+
+            if (name.isEmpty()) {
+                statusTextView.setText("Who would you like to call?");
+                new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (!isFinishing()) finish();
+                    }
+                }, 2000);
+                return;
+            }
+
+            statusTextView.setText("Looking for " + name + "...");
+            String number = getPhoneNumber(name);
+
+            if (number != null && !number.trim().isEmpty()) {
+                statusTextView.setText("Calling " + name + "...");
+                makeCall(number);
+                new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (!isFinishing()) {
+                            finish();
+                        }
+                    }
+                }, 1000);
+            } else {
+                statusTextView.setText("Contact not found.");
+                new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (!isFinishing()) {
+                            finish();
+                        }
+                    }
+                }, 2000);
+            }
+            return;
+        }
+
+        // Other offline & online intents
+        if (lower.startsWith("sms") || lower.startsWith("message")) {
             statusTextView.setText("Action: Offline SMS");
         } else if (lower.contains("flashlight")) {
             statusTextView.setText("Action: Toggle Flashlight");
@@ -216,7 +336,11 @@ public class AssistantActivity extends AppCompatActivity {
         } else {
             ActivityCompat.requestPermissions(
                 this,
-                new String[]{Manifest.permission.RECORD_AUDIO},
+                new String[]{
+                    Manifest.permission.RECORD_AUDIO,
+                    Manifest.permission.READ_CONTACTS,
+                    Manifest.permission.CALL_PHONE
+                },
                 PERMISSION_REQUEST_RECORD_AUDIO
             );
         }
@@ -235,8 +359,8 @@ public class AssistantActivity extends AppCompatActivity {
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == PERMISSION_REQUEST_RECORD_AUDIO) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+        if (requestCode == PERMISSION_REQUEST_RECORD_AUDIO || requestCode == PERMISSION_REQUEST_CONTACTS_CALL) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
                 startListening();
             } else {
                 Log.w(TAG, "RECORD_AUDIO permission was denied by user");
