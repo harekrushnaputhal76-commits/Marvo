@@ -286,5 +286,18 @@
 </div>
 
 <script src="app.js"></script>
+<script>
+  window.addEventListener('load', function() {
+    if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
+      navigator.serviceWorker.register('service-worker.js')
+        .then(function(reg) {
+          console.log('[Marvo PWA] Service Worker registered, scope:', reg.scope);
+        })
+        .catch(function(err) {
+          console.warn('[Marvo PWA] Service Worker registration failed:', err);
+        });
+    }
+  });
+</script>
 </body>
 </html>

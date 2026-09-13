@@ -48,16 +48,44 @@ body.theme-light {
 
 /* ═══════ RESET ═══════ */
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
-html{height:100%;-webkit-font-smoothing:antialiased}
+html{height:100%;-webkit-font-smoothing:antialiased;overscroll-behavior-y:contain}
 body{
   height:100%;overflow:hidden;
   font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
   background:var(--bg-primary);
   color:var(--text-primary);
   transition:background .3s,color .3s;
+  overscroll-behavior-y:contain;
+  -webkit-tap-highlight-color:transparent;
 }
-button{font-family:inherit;cursor:pointer}
+button{
+  font-family:inherit;cursor:pointer;
+  user-select:none;-webkit-user-select:none;
+  -webkit-touch-callout:none;
+}
 ul{list-style:none}
+
+/* Native App Polish: Prevent accidental UI text highlighting while preserving message text copy */
+.topbar,
+.sidebar,
+.input-bar,
+.avatar-zone,
+.mode-selector,
+.msg-action-bar,
+.dropdown-menu,
+.voice-overlay,
+.settings-modal,
+.state-label,
+.action-dropdown-menu{
+  user-select:none;
+  -webkit-user-select:none;
+  -webkit-touch-callout:none;
+}
+
+.msg{
+  user-select:text;
+  -webkit-user-select:text;
+}
 
 /* ═══════════════════════════════════════════════════════════════════
    SIDEBAR
