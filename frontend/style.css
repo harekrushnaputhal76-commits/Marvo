@@ -1609,6 +1609,22 @@ body.chat-active .face{
   justify-content: center;
   flex-shrink: 0;
 }
+.agent-chip-icon.gemini {
+  background: rgba(0, 114, 255, 0.2);
+  color: #00d2ff;
+}
+.agent-chip-icon.huggingface {
+  background: rgba(255, 210, 30, 0.2);
+  color: #ffd21e;
+}
+.agent-chip-icon.pollinations {
+  background: rgba(247, 37, 133, 0.2);
+  color: #f72585;
+}
+.agent-chip-icon.claude {
+  background: rgba(217, 119, 6, 0.2);
+  color: #fb923c;
+}
 .agent-chip-icon.lumina {
   background: rgba(181, 23, 158, 0.2);
   color: #f72585;

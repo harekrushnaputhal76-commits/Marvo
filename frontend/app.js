@@ -296,7 +296,7 @@ let currentSessionId = sessionStorage.getItem(SESSION_STORAGE_KEY) || generateSe
 let currentVoice     = localStorage.getItem(VOICE_STORAGE_KEY) || 'voice_3';
 let sessionVersion   = 0;
 let selectedMode     = 'medium'; // 'fast', 'medium' (Thinking), 'high' (Pro)
-let activeAgent      = 'aura';   // 'lumina', 'nexus', 'orion', 'aura'
+let activeAgent      = 'gemini'; // 'gemini', 'huggingface', 'pollinations', 'claude'
 let isBusy           = false;
 let hasInteracted    = false;
 let contextTargetSessionId = null;
@@ -304,11 +304,38 @@ let currentAudio     = null;
 let lastUserMessage  = '';
 
 const AGENT_PLACEHOLDERS = {
-  lumina: 'Ask Lumina anything...',
-  nexus:  'Ask Nexus anything...',
-  orion:  'Ask Orion anything...',
-  aura:   'Ask Aura anything...',
+  gemini:       'Ask Gemini anything...',
+  huggingface:  'Describe visual to generate with Hugging Face (Pro)...',
+  pollinations: 'Describe visual to generate instantly with Pollinations (Fast)...',
+  claude:       'Ask Claude to code, debug, or solve complex logic...',
+  // Backward compatibility aliases
+  aura:         'Ask Gemini anything...',
+  nexus:        'Ask Claude to code, debug, or analyze...',
+  lumina:       'Describe visual to generate with Hugging Face (Pro)...',
+  orion:        'Ask Gemini anything...',
 };
+
+const AGENT_DISPLAY_NAMES = {
+  gemini:       'Gemini',
+  huggingface:  'Hugging Face',
+  pollinations: 'Pollinations',
+  claude:       'Claude',
+  aura:         'Gemini',
+  nexus:        'Claude',
+  lumina:       'Hugging Face',
+  orion:        'Gemini',
+};
+
+function getActiveModeName() {
+  const activeBtn = DOM.modeSelector?.querySelector('.chip-btn.active');
+  if (activeBtn) {
+    const text = activeBtn.querySelector('span:last-child')?.textContent?.trim();
+    if (text) return text;
+  }
+  if (selectedMode === 'fast') return 'Fast';
+  if (selectedMode === 'high' || selectedMode === 'Pro') return 'Pro';
+  return 'Thinking';
+}
 
 /* Eye Expression Trigger */
 function setEyeExpression(state) {
@@ -982,14 +1009,20 @@ async function sendMessage(userText) {
 
   const dots = showLoading();
   const isImageRequest = parseImageGenerationPrompt(cleanInput);
+  const activeModeName = getActiveModeName();
+  const isHighQualityMode = activeModeName === 'Thinking' || activeModeName === 'Pro';
 
   if (isImageRequest) {
+    const loadingLabel = isHighQualityMode
+      ? 'Orchestrating high-quality generation... This may take up to 60 seconds.'
+      : 'Generating instant visual with Pollinations...';
+
     dots.innerHTML = `
       <div class="msg-image-loading-card">
         <div class="msg-image-shimmer-preview">
           <div class="image-shimmer-inner">
             <span class="image-loading-spinner"></span>
-            <span class="image-loading-label">Crafting visual masterpiece...</span>
+            <span class="image-loading-label">${loadingLabel}</span>
             <span class="image-loading-prompt">"${escapeHtml(cleanPromptForDisplay(isImageRequest))}"</span>
           </div>
         </div>
@@ -997,6 +1030,17 @@ async function sendMessage(userText) {
     `;
     setEyeExpression('state-creative');
   } else {
+    if (isHighQualityMode) {
+      const loadingMsgEl = dots.querySelector('.msg-ai');
+      if (loadingMsgEl) {
+        loadingMsgEl.innerHTML = `
+          <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary);">
+            <span style="width:8px;height:8px;border-radius:50%;background:var(--accent);animation:sound-wave 1s infinite alternate;"></span>
+            <span>Thinking deeply with ${activeModeName} reasoning...</span>
+          </div>
+        `;
+      }
+    }
     setEyeExpression('state-loading');
   }
 
@@ -1014,8 +1058,9 @@ async function sendMessage(userText) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         message:       payloadMessage,
-        local_time:    deviceTime,
+        mode:          activeModeName,
         thinking_mode: selectedMode,
+        local_time:    deviceTime,
         agent:         activeAgent,
         session_id:    requestSessionId,
       }),
@@ -1562,12 +1607,10 @@ DOM.btnThemeLight.addEventListener('click', () => setTheme('light'));
 // Capability Chips ("Fast", "Thinking", "Pro")
 DOM.modeSelector.addEventListener('click', (e) => {
   const btn = e.target.closest('.chip-btn');
-  if (btn) {
-    DOM.modeSelector.querySelectorAll('.chip-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    selectedMode = btn.dataset.mode;
-    NativeStorage.set(MODE_STORAGE_KEY, selectedMode);
-    showToast(`${btn.querySelector('span:last-child').textContent} mode activated`);
+  if (btn && btn.dataset.mode) {
+    setMode(btn.dataset.mode);
+    const modeTitle = btn.querySelector('span:last-child')?.textContent?.trim() || 'Mode';
+    showToast(`${modeTitle} mode activated`);
   }
 });
 
@@ -1863,8 +1906,27 @@ function closeModal(modalEl) {
 /* ═══════════════════════════════════════════════════════════════════
    CREATIVE AGENTS PERSONAS CONTROLLER
    ═══════════════════════════════════════════════════════════════════ */
+function setMode(modeKey) {
+  let normalized = modeKey;
+  if (normalized === 'Fast') normalized = 'fast';
+  if (normalized === 'Thinking') normalized = 'medium';
+  if (normalized === 'Pro') normalized = 'high';
+
+  selectedMode = normalized;
+  NativeStorage.set(MODE_STORAGE_KEY, selectedMode);
+  if (DOM.modeSelector) {
+    DOM.modeSelector.querySelectorAll('.chip-btn').forEach(b => {
+      if (b.dataset.mode === normalized) {
+        b.classList.add('active');
+      } else {
+        b.classList.remove('active');
+      }
+    });
+  }
+}
+
 function setActiveAgent(agentName, persist = true) {
-  const key = (agentName || 'aura').toLowerCase();
+  const key = (agentName || 'gemini').toLowerCase();
   activeAgent = key;
   if (DOM.sidebarAgentsGrid) {
     DOM.sidebarAgentsGrid.querySelectorAll('.agent-chip-btn').forEach(btn => {
@@ -1876,7 +1938,7 @@ function setActiveAgent(agentName, persist = true) {
     });
   }
   if (DOM.agentsActiveIndicator) {
-    DOM.agentsActiveIndicator.textContent = key.charAt(0).toUpperCase() + key.slice(1);
+    DOM.agentsActiveIndicator.textContent = AGENT_DISPLAY_NAMES[key] || (key.charAt(0).toUpperCase() + key.slice(1));
   }
   const placeholder = AGENT_PLACEHOLDERS[key] || 'Ask Marvo anything...';
   if (DOM.msgInput) {
@@ -1888,7 +1950,7 @@ function setActiveAgent(agentName, persist = true) {
 }
 
 async function initAgents() {
-  const saved = (await NativeStorage.get(AGENT_STORAGE_KEY)) || 'aura';
+  const saved = (await NativeStorage.get(AGENT_STORAGE_KEY)) || 'gemini';
   setActiveAgent(saved, false);
 
   // Accordion Toggle for De-clutter UX (Collapsed by default)
@@ -1913,6 +1975,16 @@ async function initAgents() {
         const agent = btn.dataset.agent;
         setActiveAgent(agent, true);
         const name = btn.querySelector('.agent-chip-name')?.textContent || agent;
+
+        // Synchronize mode toggle with the authentic agent
+        if (agent === 'huggingface') {
+          setMode('high');
+        } else if (agent === 'pollinations') {
+          setMode('fast');
+        } else if (agent === 'claude') {
+          setMode('medium');
+        }
+
         showToast(`${name} persona active`);
         closeSidebar();
         DOM.msgInput.focus();
@@ -1926,16 +1998,7 @@ async function initAgents() {
    ═══════════════════════════════════════════════════════════════════ */
 async function initModeSelection() {
   const saved = (await NativeStorage.get(MODE_STORAGE_KEY)) || 'medium';
-  selectedMode = saved;
-  if (DOM.modeSelector) {
-    DOM.modeSelector.querySelectorAll('.chip-btn').forEach(b => {
-      if (b.dataset.mode === selectedMode) {
-        b.classList.add('active');
-      } else {
-        b.classList.remove('active');
-      }
-    });
-  }
+  setMode(saved);
 }
 
 /* ═══════════════════════════════════════════════════════════════════

@@ -18,27 +18,37 @@ from .image_agent import generate_image
 
 logger = logging.getLogger("marvo.agents.manager")
 
-# Agent Persona System Directives
+# Agent Persona System Directives (Authentic AI Powerhouses)
 PERSONA_INSTRUCTIONS = {
-    "lumina": (
-        "You are Lumina, Marvo's Vision & Art Specialist. "
-        "You embody high visual creativity, artistic flair, and aesthetic mastery. "
-        "Focus on visual aesthetics, composition, lighting, color palettes, and creative imagery."
+    "gemini": (
+        "You are Gemini, Google's flagship multimodal intelligence integrated into Marvo AI. "
+        "You are insightful, eloquent, versatile, and highly capable across broad reasoning, writing, and analysis."
+    ),
+    "claude": (
+        "You are Claude, Anthropic's state-of-the-art coding and logic assistant. "
+        "You excel at software engineering, complex system architecture, meticulous logic, and clean, robust code."
+    ),
+    "huggingface": (
+        "You are Hugging Face Pro Visual Specialist. "
+        "You craft professional photography prompts, high-resolution aesthetic styling, and hyper-detailed SDXL / Flux visuals."
+    ),
+    "pollinations": (
+        "You are Pollinations Fast Image Specialist. "
+        "You provide instant image generation, rapid concept sketching, and dynamic visual ideation."
+    ),
+    # Backward compatibility aliases
+    "aura": (
+        "You are Gemini, Google's flagship multimodal intelligence integrated into Marvo AI."
     ),
     "nexus": (
-        "You are Nexus, Marvo's Code & Logic Specialist. "
-        "You write concise, production-grade, highly optimized code. "
-        "Prioritize modern patterns, strict typing, error handling, and architectural clarity."
+        "You are Claude, Anthropic's state-of-the-art coding and logic specialist."
+    ),
+    "lumina": (
+        "You are Hugging Face Pro Visual Specialist."
     ),
     "orion": (
-        "You are Orion, Marvo's Deep Research Specialist. "
-        "You provide rigorous, deeply researched, and analytical answers. "
-        "Structure your reasoning systematically with facts and comprehensive domain depth."
+        "You are Gemini Deep Research Specialist."
     ),
-    "aura": (
-        "You are Aura, Marvo's Flagship General Assistant. "
-        "You are charismatic, witty, articulate, empathetic, and exceptionally versatile across all tasks."
-    )
 }
 
 # Explicit user-required trigger words (including typos/stems like 'creat' and 'pic')
@@ -92,6 +102,7 @@ def is_image_intent(prompt: str) -> bool:
 def handle_request(
     message: str,
     thinking_mode: str = "medium",
+    mode: str = None,
     session_id: str = "default",
     local_time: str = None,
     agent: str = None
@@ -99,23 +110,39 @@ def handle_request(
     """
     Master entry point for processing incoming messages.
     Inspects user intent and routes to the appropriate specialized agent.
+    Accepts mode ('Fast', 'Thinking', 'Pro') and passes to image_agent.
     """
     clean_message = (message or "").strip()
+    agent_key = (agent or "").strip().lower()
+
+    # Determine effective mode (Fast, Thinking, Pro)
+    raw_mode = (mode or thinking_mode or "Thinking").strip()
+    if raw_mode.lower() == "fast":
+        effective_mode = "Fast"
+    elif raw_mode.lower() in ["pro", "high"]:
+        effective_mode = "Pro"
+    else:
+        effective_mode = "Thinking"
+
+    # If the user specifically targeted an image persona, force matching mode
+    if agent_key == "pollinations":
+        effective_mode = "Fast"
+    elif agent_key == "huggingface":
+        effective_mode = "Pro"
 
     # 1. Aggressive Intent Detection: Image Generation
-    if is_image_intent(clean_message):
-        logger.info(f"[AgentManager] Routing prompt to ImageAgent: {clean_message[:60]}")
-        image_result = generate_image(clean_message)
+    if is_image_intent(clean_message) or agent_key in ["huggingface", "pollinations"]:
+        logger.info(f"[AgentManager] Routing prompt to ImageAgent: {clean_message[:60]} (Mode: {effective_mode})")
+        image_result = generate_image(clean_message, mode=effective_mode)
         image_result["session_id"] = session_id
         return image_result
 
     # 2. Intent Detection: Conversational / Reasoning Query
-    logger.info(f"[AgentManager] Routing prompt to ChatAgent: {clean_message[:60]} (Agent: {agent})")
+    logger.info(f"[AgentManager] Routing prompt to ChatAgent: {clean_message[:60]} (Agent: {agent_key}, Mode: {effective_mode})")
     prompt_for_chat = clean_message
 
     # Inject Persona context if provided and not already overridden by Project
-    persona_key = (agent or "").strip().lower()
-    persona_text = PERSONA_INSTRUCTIONS.get(persona_key, "")
+    persona_text = PERSONA_INSTRUCTIONS.get(agent_key, "")
 
     prefix_parts = []
     if persona_text and "[System Instructions / Persona" not in prompt_for_chat:
@@ -129,7 +156,7 @@ def handle_request(
 
     chat_result = generate_chat_response(
         prompt=prompt_for_chat,
-        thinking_mode=thinking_mode,
+        thinking_mode=effective_mode.lower(),
         session_id=session_id
     )
     return chat_result

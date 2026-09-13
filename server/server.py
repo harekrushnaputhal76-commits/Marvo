@@ -168,8 +168,10 @@ def chat_endpoint():
         if not user_message:
             return jsonify({"error": "Empty message"}), 400
 
+        mode_param = data.get('mode') or data.get('thinking_mode', 'Thinking')
+
         # Log session context
-        logging.info(f"Chat request - Session: {session_id} | Mode: {thinking_mode} | Msg: {user_message[:60]}")
+        logging.info(f"Chat request - Session: {session_id} | Mode: {mode_param} | Msg: {user_message[:60]}")
 
         local_time = data.get('local_time')
         agent_persona = data.get('agent')
@@ -178,6 +180,7 @@ def chat_endpoint():
         result = handle_request(
             message=user_message,
             thinking_mode=thinking_mode,
+            mode=mode_param,
             session_id=session_id,
             local_time=local_time,
             agent=agent_persona
