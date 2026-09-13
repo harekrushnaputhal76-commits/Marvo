@@ -1,0 +1,271 @@
+import os
+import sys
+import json
+import logging
+import threading
+from datetime import datetime, timezone
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+
+# Ensure the project root (marvo/) is on sys.path so 'core' package is importable
+# regardless of which directory the server is launched from.
+_project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
+
+_sessions_dir = os.path.join(_project_root, 'sessions')
+os.makedirs(_sessions_dir, exist_ok=True)
+
+# Safe loading for .env using python-dotenv
+try:
+    from dotenv import load_dotenv
+    _env_path = os.path.join(_project_root, '.env')
+    if os.path.isfile(_env_path):
+        load_dotenv(_env_path, override=True)
+    else:
+        load_dotenv()
+except Exception:
+    pass
+
+# 1. Direct connection to your AI's core logic
+try:
+    from core.brain import think_and_respond
+except ImportError:
+    def think_and_respond(text, thinking_mode='medium', session_id='default'):
+        return "Brain module is offline.", "state-idle"
+
+# 2. Voice Module Integration
+try:
+    from core.voice import marvo_voice
+except ImportError:
+    class DummyVoice:
+        @staticmethod
+        def speak(text, voice_id='voice_3'):
+            return ""
+        @staticmethod
+        def generate_audio_base64(text, voice_id='voice_3'):
+            return ""
+        @staticmethod
+        def play_sample(voice_id='voice_3'):
+            return ""
+        @staticmethod
+        def get_sample_audio_base64(voice_id='voice_3'):
+            return ""
+    marvo_voice = DummyVoice()
+
+# 3. Logging Setup
+log_path = os.path.join(_project_root, 'logs', 'apperror.log')
+os.makedirs(os.path.dirname(log_path), exist_ok=True)
+logging.basicConfig(
+    filename=log_path,
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+
+app = Flask(__name__)
+CORS(app)  # Allows the frontend (app.js) to communicate with this backend securely
+
+
+def _session_path(session_id):
+    if not isinstance(session_id, str) or not session_id or os.path.basename(session_id) != session_id:
+        return None
+    return os.path.join(_sessions_dir, f'{session_id}.json')
+
+
+def _read_session(session_id):
+    path = _session_path(session_id)
+    if path is None or not os.path.isfile(path):
+        return None
+    try:
+        with open(path, 'r', encoding='utf-8') as session_file:
+            session = json.load(session_file)
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(session, dict) or not isinstance(session.get('messages'), list):
+        return {'session_id': session_id, 'messages': []}
+    return session
+
+
+def _save_session(session_id, messages):
+    path = _session_path(session_id)
+    if path is None:
+        raise ValueError('Invalid session ID')
+    session = {
+        'session_id': session_id,
+        'messages': messages,
+        'updated_at': datetime.now(timezone.utc).isoformat()
+    }
+    with open(path, 'w', encoding='utf-8') as session_file:
+        json.dump(session, session_file, ensure_ascii=False, indent=2)
+
+
+@app.route('/api/chat', methods=['POST'])
+def chat_endpoint():
+    """
+    Receives user message and session metadata from frontend.
+    Handles dynamic date/time queries locally to save API tokens,
+    otherwise queries the AI brain, saves history, and returns response.
+    """
+    try:
+        data = request.json or {}
+        user_message = data.get('message', '').strip()
+
+        # Parse extended payload from frontend
+        thinking_mode = data.get('thinking_mode', 'medium')  # fast | medium | high
+        session_id = data.get('session_id')
+
+        # Fallback to auto-generated session ID if invalid
+        if not session_id or _session_path(session_id) is None:
+            session_id = f"s_{int(datetime.now(timezone.utc).timestamp())}"
+
+        # Security Check: Ignore empty messages to save CPU cycles
+        if not user_message:
+            return jsonify({"error": "Empty message"}), 400
+
+        # Log session context
+        logging.info(f"Chat request - Session: {session_id} | Mode: {thinking_mode} | Msg: {user_message[:60]}")
+
+        # Real-time Date / Time keyword check
+        lower_msg = user_message.lower()
+        date_time_keywords = [
+            "time", "samay", "waqt", "date", "tarikh", "tareekh",
+            "aaj kya hai", "aaj kitni tarikh", "kya samay hai", "aaj kaun sa din"
+        ]
+        is_date_time_query = any(kw in lower_msg for kw in date_time_keywords)
+
+        if is_date_time_query:
+            now = datetime.now()
+            formatted_date = now.strftime("%d %B %Y")
+            formatted_time = now.strftime("%I:%M %p").lstrip('0')
+            ai_response = f"Aaj ki tarikh {formatted_date} hai, aur abhi samay {formatted_time} ho raha hai."
+            animation_state = 'state-speaking'
+        else:
+            # Process the message through the AI Brain
+            ai_response, animation_state = think_and_respond(
+                user_message,
+                thinking_mode=thinking_mode,
+                session_id=session_id
+            )
+
+        # Save conversation history
+        session = _read_session(session_id) or {
+            'session_id': session_id,
+            'messages': []
+        }
+        session['messages'].extend([
+            {'role': 'user', 'content': user_message},
+            {'role': 'assistant', 'content': ai_response}
+        ])
+        _save_session(session_id, session['messages'])
+
+        # Send data back to frontend
+        return jsonify({
+            "response": ai_response,
+            "state": animation_state,
+            "session_id": session_id
+        }), 200
+
+    except Exception as e:
+        logging.error(f"Server Error during chat processing: {str(e)}", exc_info=True)
+        return jsonify({
+            "response": "I encountered an internal error. Please check the logs.",
+            "state": "state-idle"
+        }), 500
+
+
+@app.route('/api/speak', methods=['POST'])
+def speak_endpoint():
+    """
+    Accepts { "text": "...", "voice_id": "..." }, calls marvo_voice.generate_audio_base64(text, voice_id),
+    and returns a JSON response: { "status": "success", "audio_base64": "<base64_string>" }.
+    """
+    try:
+        data = request.json or {}
+        text = data.get('text', '').strip()
+        voice_id = data.get('voice_id', 'voice_3')
+
+        if not text:
+            return jsonify({"status": "error", "error": "Empty text"}), 400
+
+        audio_base64 = marvo_voice.generate_audio_base64(text, voice_id)
+        if not audio_base64:
+            return jsonify({"status": "error", "error": "Audio generation failed"}), 500
+
+        return jsonify({
+            "status": "success",
+            "audio_base64": audio_base64,
+            "voice_id": voice_id
+        }), 200
+
+    except Exception as e:
+        logging.error(f"Error in /api/speak: {str(e)}", exc_info=True)
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
+@app.route('/api/preview_voice', methods=['POST'])
+def preview_voice_endpoint():
+    """
+    Accepts { "voice_id": "..." }, calls marvo_voice.get_sample_audio_base64(voice_id),
+    and returns a JSON response: { "status": "success", "audio_base64": "<base64_string>" }.
+    """
+    try:
+        data = request.json or {}
+        voice_id = data.get('voice_id', 'voice_3')
+
+        audio_base64 = marvo_voice.get_sample_audio_base64(voice_id)
+        if not audio_base64:
+            return jsonify({"status": "error", "error": "Voice preview generation failed"}), 500
+
+        return jsonify({
+            "status": "success",
+            "audio_base64": audio_base64,
+            "voice_id": voice_id
+        }), 200
+
+    except Exception as e:
+        logging.error(f"Error in /api/preview_voice: {str(e)}", exc_info=True)
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
+@app.route('/api/sessions', methods=['GET'])
+def sessions_endpoint():
+    """Returns a list of saved sessions sorted by last updated."""
+    sessions = []
+    try:
+        for filename in os.listdir(_sessions_dir):
+            if not filename.endswith('.json') or filename == 'userdata.json':
+                continue
+            session_id = filename[:-5]
+            session = _read_session(session_id)
+            if session is None:
+                continue
+            messages = session.get('messages', [])
+            first_message = next(
+                (message.get('content', '') for message in messages
+                 if message.get('role') == 'user'),
+                'New chat'
+            )
+            sessions.append({
+                'session_id': session_id,
+                'title': first_message,
+                'updated_at': session.get('updated_at', '')
+            })
+        sessions.sort(key=lambda s: s.get('updated_at', ''), reverse=True)
+        return jsonify(sessions), 200
+    except Exception as e:
+        logging.error(f"Error listing sessions: {e}")
+        return jsonify([]), 200
+
+
+@app.route('/api/history/<session_id>', methods=['GET'])
+def history_endpoint(session_id):
+    """Returns the message history for a specific session."""
+    session = _read_session(session_id)
+    if session is None:
+        return jsonify({'session_id': session_id, 'messages': []}), 200
+    return jsonify(session), 200
+
+
+if __name__ == '__main__':
+    # OPTIMIZATION: threaded=False keeps it lightweight for Core 2 Duo
+    app.run(host='127.0.0.1', port=5000, debug=True, threaded=False)

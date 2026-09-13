@@ -1,0 +1,1322 @@
+/* ================================================================
+   MARVO — style.css
+   Production-ready. GPU-accelerated. Zero external deps.
+   ================================================================ */
+
+/* ═══════ THEME COLOR VARIABLES ═══════ */
+:root {
+  --bg-primary: #000000;
+  --bg-surface: rgba(10, 25, 50, 0.45);
+  --bg-glass: rgba(8, 18, 36, 0.75);
+  --bg-sidebar: rgba(6, 12, 24, 0.94);
+  --border-color: rgba(0, 170, 255, 0.14);
+  --border-focus: rgba(0, 200, 255, 0.4);
+  --text-primary: #c8e8ff;
+  --text-muted: #5a8aaa;
+  --text-dim: rgba(100, 160, 200, 0.45);
+  --accent: #00aaff;
+  --accent-glow: rgba(0, 170, 255, 0.25);
+  --user-bubble: rgba(0, 120, 200, 0.16);
+  --user-border: rgba(0, 170, 255, 0.14);
+  --ai-bubble: rgba(10, 25, 50, 0.5);
+  --ai-border: rgba(0, 170, 255, 0.1);
+  --dropdown-bg: rgba(7, 16, 32, 0.96);
+  --dropdown-border: rgba(0, 170, 255, 0.2);
+  --dropdown-hover: rgba(0, 170, 255, 0.12);
+}
+
+body.theme-light {
+  --bg-primary: #f0f4f9;
+  --bg-surface: rgba(255, 255, 255, 0.9);
+  --bg-glass: rgba(255, 255, 255, 0.88);
+  --bg-sidebar: rgba(244, 248, 252, 0.96);
+  --border-color: rgba(0, 120, 200, 0.2);
+  --border-focus: rgba(0, 140, 220, 0.5);
+  --text-primary: #0c2136;
+  --text-muted: #4a6d8c;
+  --text-dim: #7a9cb8;
+  --accent: #0088dd;
+  --accent-glow: rgba(0, 136, 221, 0.2);
+  --user-bubble: rgba(0, 140, 230, 0.15);
+  --user-border: rgba(0, 140, 230, 0.25);
+  --ai-bubble: rgba(255, 255, 255, 0.92);
+  --ai-border: rgba(0, 120, 200, 0.15);
+  --dropdown-bg: rgba(255, 255, 255, 0.98);
+  --dropdown-border: rgba(0, 140, 220, 0.25);
+  --dropdown-hover: rgba(0, 140, 220, 0.1);
+}
+
+/* ═══════ RESET ═══════ */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{height:100%;-webkit-font-smoothing:antialiased}
+body{
+  height:100%;overflow:hidden;
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  background:var(--bg-primary);
+  color:var(--text-primary);
+  transition:background .3s,color .3s;
+}
+button{font-family:inherit;cursor:pointer}
+ul{list-style:none}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SIDEBAR
+   ═══════════════════════════════════════════════════════════════════ */
+.sidebar{
+  position:fixed;top:0;left:0;z-index:100;
+  width:260px;height:100%;
+  background:var(--bg-sidebar);
+  border-right:1px solid var(--border-color);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  display:flex;flex-direction:column;
+  transform:translateX(-100%);
+  will-change:transform;
+  transition:transform .3s cubic-bezier(.4,0,.2,1),background .3s;
+}
+.sidebar.open{transform:translateX(0)}
+
+.sidebar-overlay{
+  position:fixed;inset:0;z-index:99;
+  background:rgba(0,0,0,.55);
+  opacity:0;pointer-events:none;
+  transition:opacity .3s;
+}
+.sidebar-overlay.show{opacity:1;pointer-events:auto}
+
+.sidebar-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:20px 16px 12px;
+  border-bottom:1px solid var(--border-color);
+}
+.sidebar-brand{
+  font-size:13px;font-weight:700;letter-spacing:4px;
+  color:var(--accent);
+}
+.sidebar-close{
+  width:28px;height:28px;border:none;background:transparent;
+  color:var(--text-muted);font-size:20px;line-height:1;
+  border-radius:6px;transition:color .2s,background .2s;
+}
+.sidebar-close:hover{color:var(--accent);background:rgba(0,170,255,.1)}
+
+.sidebar-btn{
+  display:flex;align-items:center;gap:8px;
+  margin:12px 12px 0;padding:10px 14px;
+  border:1px dashed var(--border-color);
+  border-radius:10px;background:transparent;
+  color:var(--text-muted);font-size:13px;
+  transition:background .2s,border-color .2s,color .2s;
+}
+.sidebar-btn:hover{
+  background:rgba(0,170,255,.08);
+  border-color:var(--accent);color:var(--accent);
+}
+
+.sidebar-section{padding:16px 12px 0}
+.sidebar-section-title{
+  display:block;font-size:10px;letter-spacing:2.5px;
+  color:var(--text-dim);margin-bottom:10px;
+  text-transform:uppercase;
+}
+
+/* Thinking Mode Selector */
+.mode-selector{
+  display:flex;gap:4px;
+  background:rgba(0,40,80,.25);
+  border-radius:8px;padding:3px;
+}
+.mode-btn{
+  flex:1;padding:7px 0;border:none;border-radius:6px;
+  font-size:11px;letter-spacing:.5px;
+  background:transparent;color:var(--text-muted);
+  transition:background .2s,color .2s,box-shadow .2s;
+}
+.mode-btn:hover{color:var(--text-primary)}
+.mode-btn.active{
+  background:rgba(0,170,255,.16);color:var(--accent);
+  box-shadow:0 0 12px var(--accent-glow);
+}
+
+/* Chat History List with Context Menu */
+.sidebar-history{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.history-list{
+  flex:1;overflow-y:auto;padding-bottom:16px;
+  scrollbar-width:thin;scrollbar-color:var(--border-color) transparent;
+}
+.history-list li{
+  position:relative;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 10px 8px 12px;margin:2px 0;
+  border-radius:8px;font-size:12.5px;color:var(--text-muted);
+  cursor:pointer;transition:background .15s,color .15s;
+}
+.history-list li:hover{background:rgba(0,170,255,.08);color:var(--text-primary)}
+.history-list li.active{background:rgba(0,170,255,.14);color:var(--accent);font-weight:500}
+
+.history-title{
+  flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  margin-right:6px;
+}
+.history-more-btn{
+  width:24px;height:24px;border:none;background:transparent;
+  color:var(--text-muted);border-radius:4px;
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;transition:opacity .15s,background .15s,color .15s;
+  flex-shrink:0;
+}
+.history-list li:hover .history-more-btn,
+.history-more-btn.active{opacity:1}
+.history-more-btn:hover{background:rgba(0,170,255,.15);color:var(--accent)}
+
+/* ═══════════════════════════════════════════════════════════════════
+   DROPDOWN MENUS (Shared)
+   ═══════════════════════════════════════════════════════════════════ */
+.dropdown-menu{
+  position:absolute;z-index:250;
+  background:var(--dropdown-bg);
+  border:1px solid var(--dropdown-border);
+  border-radius:12px;padding:6px;
+  box-shadow:0 8px 30px rgba(0,0,0,.5),0 0 20px var(--accent-glow);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  display:flex;flex-direction:column;gap:2px;
+  opacity:0;pointer-events:none;transform:scale(.95);
+  will-change:opacity,transform;
+  transition:opacity .18s ease-out,transform .18s ease-out;
+}
+.dropdown-menu.show{opacity:1;pointer-events:auto;transform:scale(1)}
+
+.dropdown-item{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 12px;border:none;background:transparent;
+  border-radius:8px;font-size:12.5px;color:var(--text-primary);
+  text-align:left;width:100%;white-space:nowrap;
+  transition:background .15s,color .15s;
+}
+.dropdown-item:hover{background:var(--dropdown-hover);color:var(--accent)}
+.dropdown-item.danger{color:#ff5566}
+.dropdown-item.danger:hover{background:rgba(255,85,102,.12);color:#ff7788}
+.dropdown-divider{height:1px;background:var(--border-color);margin:4px 0}
+
+/* Chat History Context Menu */
+.history-context-menu{position:fixed;width:130px}
+
+/* Topbar App Menu */
+.menu-container{position:relative}
+.app-dropdown{top:110%;right:0;width:150px}
+
+/* Attach Menu (Expands upwards from input bar) */
+.attach-container{position:relative}
+.attach-menu{
+  bottom:calc(100% + 12px);left:0;width:145px;
+  transform-origin:bottom left;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SETTINGS MODAL & VOICE SELECTION
+   ═══════════════════════════════════════════════════════════════════ */
+.settings-modal-overlay{
+  position:fixed;inset:0;z-index:300;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.65);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  opacity:0;pointer-events:none;
+  transition:opacity .25s ease-out;
+}
+.settings-modal-overlay.show{opacity:1;pointer-events:auto}
+
+.settings-modal{
+  width:92%;max-width:440px;max-height:85vh;
+  background:var(--bg-glass);
+  border:1px solid var(--border-focus);
+  border-radius:18px;
+  box-shadow:0 14px 45px rgba(0,0,0,.55),0 0 28px var(--accent-glow);
+  display:flex;flex-direction:column;
+  transform:scale(.94);
+  will-change:transform;
+  transition:transform .25s cubic-bezier(.4,0,.2,1);
+}
+.settings-modal-overlay.show .settings-modal{transform:scale(1)}
+
+.settings-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 20px;
+  border-bottom:1px solid var(--border-color);
+}
+.settings-title{
+  font-size:15px;font-weight:600;letter-spacing:.5px;
+  color:var(--text-primary);
+}
+
+.settings-body{
+  padding:18px 20px;overflow-y:auto;
+  scrollbar-width:thin;scrollbar-color:var(--border-color) transparent;
+}
+.settings-section-title{
+  font-size:11px;letter-spacing:2px;color:var(--text-dim);
+  text-transform:uppercase;margin-bottom:12px;
+}
+
+.voice-options-list{display:flex;flex-direction:column;gap:8px}
+
+.voice-option-item{
+  display:flex;align-items:center;gap:12px;
+  padding:10px 14px;border-radius:12px;
+  border:1px solid var(--border-color);
+  background:rgba(0,100,200,.04);
+  cursor:pointer;
+  transition:background .2s,border-color .2s,box-shadow .2s;
+}
+.voice-option-item:hover{
+  background:rgba(0,170,255,.08);
+  border-color:var(--border-focus);
+}
+.voice-option-item:has(input:checked){
+  background:rgba(0,170,255,.14);
+  border-color:var(--accent);
+  box-shadow:0 0 14px var(--accent-glow);
+}
+
+.voice-option-item input[type="radio"]{
+  appearance:none;-webkit-appearance:none;
+  width:18px;height:18px;border-radius:50%;
+  border:1.5px solid var(--text-muted);
+  display:grid;place-content:center;
+  cursor:pointer;flex-shrink:0;
+  transition:border-color .2s;
+}
+.voice-option-item input[type="radio"]::before{
+  content:"";width:8px;height:8px;border-radius:50%;
+  background:var(--accent);transform:scale(0);
+  transition:transform .15s ease-out;
+  box-shadow:0 0 6px var(--accent);
+}
+.voice-option-item input[type="radio"]:checked{
+  border-color:var(--accent);
+}
+.voice-option-item input[type="radio"]:checked::before{
+  transform:scale(1);
+}
+
+.voice-info{
+  flex:1;display:flex;flex-direction:column;gap:2px;
+}
+.voice-name{
+  font-size:13.5px;font-weight:600;color:var(--text-primary);
+}
+.voice-desc{
+  font-size:11px;color:var(--text-muted);
+}
+
+.btn-voice-sample{
+  width:32px;height:32px;border-radius:50%;
+  border:1px solid var(--border-color);
+  background:rgba(0,170,255,.08);
+  color:var(--accent);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;flex-shrink:0;
+  transition:background .2s,transform .15s,box-shadow .2s,color .2s;
+}
+.btn-voice-sample:hover{
+  background:rgba(0,170,255,.22);
+  transform:scale(1.1);
+  box-shadow:0 0 12px var(--accent-glow);
+}
+.btn-voice-sample.playing-sample{
+  background:var(--accent);color:#fff;
+  border-color:var(--accent);
+  animation:sample-pulse .7s ease-in-out infinite alternate;
+}
+@keyframes sample-pulse{
+  from{transform:scale(1);box-shadow:0 0 4px var(--accent)}
+  to  {transform:scale(1.18);box-shadow:0 0 16px var(--accent)}
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   MAIN LAYOUT
+   ═══════════════════════════════════════════════════════════════════ */
+.main{
+  height:100%;display:flex;flex-direction:column;
+  position:relative;
+}
+
+.topbar{
+  display:flex;align-items:center;gap:12px;
+  padding:12px 16px;
+  border-bottom:1px solid var(--border-color);
+  flex-shrink:0;
+}
+.hamburger{
+  width:36px;height:36px;border:none;background:transparent;
+  display:flex;flex-direction:column;justify-content:center;
+  align-items:center;gap:4px;border-radius:8px;
+  transition:background .2s;
+}
+.hamburger:hover{background:rgba(0,170,255,.08)}
+.hamburger span{
+  display:block;width:18px;height:2px;
+  background:var(--text-muted);border-radius:2px;
+  transition:background .2s;
+}
+.hamburger:hover span{background:var(--accent)}
+
+.topbar-title{
+  flex:1;font-size:14px;font-weight:600;
+  letter-spacing:1px;color:var(--text-muted);
+}
+.topbar-mode-badge{
+  font-size:10px;letter-spacing:1px;text-transform:uppercase;
+  padding:4px 10px;border-radius:20px;
+  background:rgba(0,170,255,.08);
+  border:1px solid var(--border-color);
+  color:var(--text-muted);
+}
+.btn-icon{
+  width:36px;height:36px;border:none;background:transparent;
+  color:var(--text-muted);border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .2s,color .2s;
+}
+.btn-icon:hover{background:rgba(0,170,255,.08);color:var(--accent)}
+
+/* ═══════════════════════════════════════════════════════════════════
+   AVATAR ZONE & EYES
+   ═══════════════════════════════════════════════════════════════════ */
+.avatar-zone{
+  display:flex;align-items:center;justify-content:center;
+  flex:1;
+  will-change:transform,flex;
+  transition:flex .6s cubic-bezier(.4,0,.2,1),
+             transform .6s cubic-bezier(.4,0,.2,1);
+}
+body.chat-active .avatar-zone{
+  flex:0 0 auto;
+  padding:18px 0 6px;
+}
+
+.face{
+  position:relative;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  will-change:transform;
+  transition:transform .5s cubic-bezier(.4,0,.2,1);
+}
+body.chat-active .face{transform:scale(.72)}
+
+.eye-row{display:flex;gap:70px;align-items:center;justify-content:center}
+.state-label{
+  margin-top:28px;font-size:10px;letter-spacing:3.5px;
+  color:var(--accent);opacity:.35;text-transform:uppercase;
+  transition:opacity .3s;
+}
+
+.eye-socket{
+  width:130px;height:130px;position:relative;
+  display:flex;align-items:center;justify-content:center;
+}
+.eye{
+  position:relative;width:112px;height:112px;border-radius:50%;
+  background:radial-gradient(ellipse at 40% 35%,#0d1f3c,#050d1a 60%,#000);
+  box-shadow:
+    0 0 28px rgba(0,170,255,.22),
+    0 0 56px rgba(0,170,255,.08),
+    inset 0 0 28px rgba(0,100,200,.13),
+    inset 0 0 56px rgba(0,40,80,.18);
+  overflow:hidden;
+  will-change:transform,box-shadow;
+  transition:transform .4s cubic-bezier(.4,0,.2,1),box-shadow .4s;
+}
+.eye-outer-ring{
+  position:absolute;inset:-2px;border-radius:50%;
+  border:2px solid rgba(0,170,255,.28);
+  box-shadow:0 0 10px rgba(0,170,255,.18),inset 0 0 10px rgba(0,170,255,.08);
+  will-change:opacity;transition:opacity .3s,border-color .3s;
+}
+
+.eye-iris{
+  position:absolute;top:50%;left:50%;
+  width:58px;height:58px;transform:translate(-50%,-50%);
+  border-radius:50%;
+  background:radial-gradient(circle at 45% 40%,#00cfff,#007acc 35%,#003d66 70%,#001a33);
+  box-shadow:
+    0 0 18px rgba(0,200,255,.48),
+    0 0 36px rgba(0,140,255,.22),
+    inset 0 -4px 10px rgba(0,0,0,.55),
+    inset 0 4px 7px rgba(100,220,255,.22);
+  will-change:transform,box-shadow;
+  transition:transform .35s cubic-bezier(.4,0,.2,1),box-shadow .35s;
+}
+.eye-iris-pattern{
+  position:absolute;inset:4px;border-radius:50%;
+  border:1.5px solid rgba(0,200,255,.18);
+  background:repeating-conic-gradient(rgba(0,180,255,.05) 0deg,transparent 12deg,rgba(0,180,255,.03) 24deg);
+  will-change:transform;animation:iris-spin 12s linear infinite;
+}
+@keyframes iris-spin{to{transform:rotate(360deg)}}
+
+.eye-pupil{
+  position:absolute;top:50%;left:50%;
+  width:20px;height:20px;transform:translate(-50%,-50%);
+  border-radius:50%;
+  background:radial-gradient(circle,#000 55%,#001a33);
+  box-shadow:0 0 8px rgba(0,0,0,.75),inset 0 0 5px rgba(0,100,200,.25);
+  will-change:transform;transition:transform .3s;
+}
+.eye-pupil-core{
+  position:absolute;top:50%;left:50%;
+  width:7px;height:7px;transform:translate(-50%,-50%);
+  border-radius:50%;
+  background:radial-gradient(circle,#0af,transparent 70%);
+  opacity:.45;transition:opacity .3s;
+}
+
+.eye-highlight{position:absolute;border-radius:50%;background:#fff;opacity:.65;will-change:opacity;transition:opacity .3s}
+.h1{width:9px;height:9px;top:22%;left:58%;filter:blur(1px)}
+.h2{width:4px;height:4px;top:32%;left:64%;opacity:.35;filter:blur(.5px)}
+
+.eyelid{
+  position:absolute;left:-2px;right:-2px;height:55%;
+  background:#000;will-change:transform;
+  transition:transform .15s cubic-bezier(.4,0,.2,1);z-index:5;
+}
+.eyelid-top{top:-2px;transform-origin:center top;transform:scaleY(0)}
+.eyelid-bottom{bottom:-2px;transform-origin:center bottom;transform:scaleY(0)}
+
+.scan-line{
+  position:absolute;top:0;left:0;width:100%;height:3px;
+  background:linear-gradient(90deg,transparent,#0af,transparent);
+  opacity:0;will-change:transform,opacity;z-index:4;
+}
+
+/* Eye States */
+.state-idle .eyelid-top{animation:blink-t 4.5s ease-in-out infinite}
+.state-idle .eyelid-bottom{animation:blink-b 4.5s ease-in-out infinite}
+@keyframes blink-t{0%,92%,100%{transform:scaleY(0)}95%,97%{transform:scaleY(1)}}
+@keyframes blink-b{0%,92%,100%{transform:scaleY(0)}95%,97%{transform:scaleY(.65)}}
+.state-idle .eye{animation:idle-glow 3s ease-in-out infinite alternate}
+@keyframes idle-glow{
+  from{box-shadow:0 0 28px rgba(0,170,255,.2),0 0 56px rgba(0,170,255,.07),inset 0 0 28px rgba(0,100,200,.11),inset 0 0 56px rgba(0,40,80,.16)}
+  to  {box-shadow:0 0 34px rgba(0,170,255,.32),0 0 68px rgba(0,170,255,.13),inset 0 0 34px rgba(0,100,200,.18),inset 0 0 56px rgba(0,40,80,.2)}
+}
+
+.state-listening .eye{
+  transform:scale(1.12);
+  box-shadow:0 0 48px rgba(0,200,255,.52),0 0 96px rgba(0,170,255,.28),0 0 140px rgba(0,120,255,.12),inset 0 0 38px rgba(0,150,255,.28),inset 0 0 66px rgba(0,60,120,.22);
+}
+.state-listening .eye-iris{
+  transform:translate(-50%,-50%) scale(1.14);
+  box-shadow:0 0 28px rgba(0,220,255,.68),0 0 56px rgba(0,170,255,.38),inset 0 -4px 10px rgba(0,0,0,.48),inset 0 4px 9px rgba(100,230,255,.32);
+}
+.state-listening .eye-outer-ring{animation:ring-listen 1.2s ease-in-out infinite alternate}
+@keyframes ring-listen{to{box-shadow:0 0 28px rgba(0,220,255,.6),inset 0 0 22px rgba(0,220,255,.3);border-color:rgba(0,240,255,.8)}}
+.state-listening .eye-pupil{transform:translate(-50%,-50%) scale(.82)}
+.state-listening .eye-pupil-core{opacity:.9}
+.state-listening .eyelid-top,.state-listening .eyelid-bottom{transform:scaleY(0)!important;animation:none!important}
+
+.state-loading .eye{animation:load-pulse 1.4s ease-in-out infinite}
+@keyframes load-pulse{
+  0%,100%{box-shadow:0 0 28px rgba(0,170,255,.2),0 0 56px rgba(0,170,255,.08),inset 0 0 28px rgba(0,100,200,.12),inset 0 0 56px rgba(0,40,80,.16)}
+  50%    {box-shadow:0 0 40px rgba(0,190,255,.38),0 0 78px rgba(0,170,255,.18),inset 0 0 36px rgba(0,120,220,.22),inset 0 0 60px rgba(0,50,90,.22)}
+}
+.state-loading .eye-iris-pattern{animation:iris-spin 3s linear infinite}
+.state-loading .eye-outer-ring{animation:ring-load 1.4s ease-in-out infinite}
+@keyframes ring-load{0%,100%{border-color:rgba(0,170,255,.25)}50%{border-color:rgba(0,220,255,.55)}}
+.state-loading .eyelid-top{transform:scaleY(.15)!important;animation:none!important}
+.state-loading .eyelid-bottom{transform:scaleY(.1)!important;animation:none!important}
+
+.state-processing .eyelid-top{transform:scaleY(.28)!important;animation:none!important}
+.state-processing .eyelid-bottom{transform:scaleY(.18)!important;animation:none!important}
+.state-processing .eye-iris{animation:dart 1.6s ease-in-out infinite}
+.state-processing .eye-pupil{animation:dart 1.6s ease-in-out infinite}
+@keyframes dart{
+  0%,100%{transform:translate(-50%,-50%) translateX(0)}
+  25%{transform:translate(-50%,-50%) translateX(9px)}
+  75%{transform:translate(-50%,-50%) translateX(-9px)}
+}
+.state-processing .scan-line{opacity:1;animation:scan 1.1s ease-in-out infinite}
+@keyframes scan{0%{transform:translateY(0);opacity:.25}50%{opacity:1}100%{transform:translateY(109px);opacity:.25}}
+
+.state-speaking .eye, .speaking-mode .eye, .face.speaking-mode .eye, .eye.speaking-mode{animation:speak-glow .38s ease-in-out infinite alternate}
+@keyframes speak-glow{
+  from{box-shadow:0 0 28px rgba(0,170,255,.22),0 0 56px rgba(0,170,255,.08),inset 0 0 28px rgba(0,100,200,.13),inset 0 0 56px rgba(0,40,80,.18);transform:scale(1)}
+  to  {box-shadow:0 0 42px rgba(0,200,255,.48),0 0 84px rgba(0,170,255,.22),inset 0 0 38px rgba(0,130,220,.28),inset 0 0 66px rgba(0,60,100,.26);transform:scale(1.035)}
+}
+.state-speaking .eye-iris, .speaking-mode .eye-iris, .face.speaking-mode .eye-iris, .eye.speaking-mode .eye-iris{animation:speak-iris .38s ease-in-out infinite alternate}
+@keyframes speak-iris{
+  from{transform:translate(-50%,-50%) scale(1)}
+  to  {transform:translate(-50%,-50%) scale(1.07)}
+}
+.state-speaking .eye-outer-ring, .speaking-mode .eye-outer-ring, .face.speaking-mode .eye-outer-ring, .eye.speaking-mode .eye-outer-ring{animation:speak-ring .38s ease-in-out infinite alternate}
+@keyframes speak-ring{
+  from{border-color:rgba(0,170,255,.28)}
+  to  {border-color:rgba(0,220,255,.6);box-shadow:0 0 20px rgba(0,220,255,.35),inset 0 0 16px rgba(0,220,255,.18)}
+}
+.state-speaking .eyelid-top, .speaking-mode .eyelid-top, .face.speaking-mode .eyelid-top,
+.state-speaking .eyelid-bottom, .speaking-mode .eyelid-bottom, .face.speaking-mode .eyelid-bottom{transform:scaleY(0)!important;animation:none!important}
+
+/* ═══════════════════════════════════════════════════════════════════
+   50+ CONTEXTUAL EYE EXPRESSIONS — Parametric System
+   10 reusable @keyframes × varied CSS = 50+ distinct visual states
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Base Keyframes (shared across many states) */
+@keyframes ex-glow-pulse{
+  from{box-shadow:0 0 28px var(--ex-c1,.2),0 0 56px var(--ex-c2,.08),inset 0 0 28px var(--ex-c3,.12);transform:scale(var(--ex-s1,1))}
+  to  {box-shadow:0 0 42px var(--ex-c1,.35),0 0 78px var(--ex-c2,.16),inset 0 0 38px var(--ex-c3,.22);transform:scale(var(--ex-s2,1.03))}
+}
+@keyframes ex-iris-breathe{
+  from{transform:translate(-50%,-50%) scale(var(--ex-is1,1))}
+  to  {transform:translate(-50%,-50%) scale(var(--ex-is2,1.08))}
+}
+@keyframes ex-iris-shift{
+  0%,100%{transform:translate(-50%,-50%) translateX(0) translateY(0)}
+  25%{transform:translate(-50%,-50%) translateX(var(--ex-dx,6px)) translateY(var(--ex-dy,-3px))}
+  50%{transform:translate(-50%,-50%) translateX(calc(var(--ex-dx,6px)*-0.5)) translateY(calc(var(--ex-dy,-3px)*1.2))}
+  75%{transform:translate(-50%,-50%) translateX(calc(var(--ex-dx,6px)*-1)) translateY(calc(var(--ex-dy,-3px)*-0.8))}
+}
+@keyframes ex-pupil-pulse{
+  from{transform:translate(-50%,-50%) scale(var(--ex-ps1,.85))}
+  to  {transform:translate(-50%,-50%) scale(var(--ex-ps2,1.1))}
+}
+@keyframes ex-ring-glow{
+  from{border-color:var(--ex-rc1,rgba(0,170,255,.28));box-shadow:0 0 8px var(--ex-rc1,rgba(0,170,255,.18))}
+  to  {border-color:var(--ex-rc2,rgba(0,220,255,.6));box-shadow:0 0 20px var(--ex-rc2,rgba(0,220,255,.35))}
+}
+@keyframes ex-squint{
+  0%,100%{transform:scaleY(var(--ex-lt,.2))}
+  50%{transform:scaleY(var(--ex-lt2,.28))}
+}
+@keyframes ex-widen{
+  from{transform:scaleY(0)}to{transform:scaleY(0)}
+}
+@keyframes ex-droop{
+  0%,100%{transform:scaleY(var(--ex-dr1,.32))}
+  50%{transform:scaleY(var(--ex-dr2,.38))}
+}
+@keyframes ex-flutter{
+  0%,20%,40%,60%,80%,100%{transform:scaleY(0)}
+  10%,30%,50%,70%,90%{transform:scaleY(.6)}
+}
+@keyframes ex-bounce{
+  0%,100%{transform:translate(-50%,-50%) translateY(0)}
+  50%{transform:translate(-50%,-50%) translateY(var(--ex-by,-5px))}
+}
+
+/* ── state-thinking: slow iris shift, squinted, golden glow ── */
+.state-thinking{--ex-c1:rgba(255,180,0,.3);--ex-c2:rgba(255,160,0,.12);--ex-c3:rgba(200,140,0,.18);--ex-s1:1;--ex-s2:1.02;--ex-dx:5px;--ex-dy:-2px;--ex-lt:.22;--ex-lt2:.26;--ex-rc1:rgba(255,180,0,.25);--ex-rc2:rgba(255,200,50,.5)}
+.state-thinking .eye{animation:ex-glow-pulse 2.5s ease-in-out infinite alternate}
+.state-thinking .eye-iris{animation:ex-iris-shift 3.5s ease-in-out infinite}
+.state-thinking .eyelid-top{animation:ex-squint 3s ease-in-out infinite!important}
+.state-thinking .eyelid-bottom{transform:scaleY(.12)!important;animation:none!important}
+.state-thinking .eye-outer-ring{animation:ex-ring-glow 2.5s ease-in-out infinite alternate}
+
+/* ── state-confused: rapid small iris shifts, uneven squint, purple glow ── */
+.state-confused{--ex-c1:rgba(180,100,255,.3);--ex-c2:rgba(160,80,255,.12);--ex-c3:rgba(140,60,220,.18);--ex-s1:1;--ex-s2:1.01;--ex-dx:8px;--ex-dy:5px;--ex-rc1:rgba(180,100,255,.25);--ex-rc2:rgba(200,130,255,.5)}
+.state-confused .eye{animation:ex-glow-pulse 1.8s ease-in-out infinite alternate}
+.state-confused .eye-iris{animation:ex-iris-shift 1.5s ease-in-out infinite}
+.state-confused .eyelid-top{transform:scaleY(.1)!important;animation:none!important}
+.state-confused .eyelid-bottom{transform:scaleY(.05)!important;animation:none!important}
+.state-confused .eye-outer-ring{animation:ex-ring-glow 1.8s ease-in-out infinite alternate}
+
+/* ── state-happy: wide eyes, bright cyan, slight bounce ── */
+.state-happy{--ex-c1:rgba(0,255,200,.35);--ex-c2:rgba(0,220,180,.15);--ex-c3:rgba(0,180,150,.2);--ex-s1:1.02;--ex-s2:1.06;--ex-is1:1.05;--ex-is2:1.12;--ex-rc1:rgba(0,255,200,.3);--ex-rc2:rgba(0,255,220,.6)}
+.state-happy .eye{animation:ex-glow-pulse 1.2s ease-in-out infinite alternate}
+.state-happy .eye-iris{animation:ex-iris-breathe 1.2s ease-in-out infinite alternate}
+.state-happy .eyelid-top,.state-happy .eyelid-bottom{transform:scaleY(0)!important;animation:none!important}
+.state-happy .eye-outer-ring{animation:ex-ring-glow 1.2s ease-in-out infinite alternate}
+.state-happy .eye-pupil-core{opacity:.85}
+
+/* ── state-excited: fast pulsing, large iris, vibrant blue-cyan ── */
+.state-excited{--ex-c1:rgba(0,200,255,.45);--ex-c2:rgba(0,180,255,.2);--ex-c3:rgba(0,150,220,.25);--ex-s1:1.03;--ex-s2:1.08;--ex-is1:1.08;--ex-is2:1.18;--ex-rc1:rgba(0,200,255,.35);--ex-rc2:rgba(0,240,255,.7)}
+.state-excited .eye{animation:ex-glow-pulse .8s ease-in-out infinite alternate}
+.state-excited .eye-iris{animation:ex-iris-breathe .8s ease-in-out infinite alternate}
+.state-excited .eyelid-top,.state-excited .eyelid-bottom{transform:scaleY(0)!important;animation:none!important}
+.state-excited .eye-outer-ring{animation:ex-ring-glow .8s ease-in-out infinite alternate}
+.state-excited .eye-pupil{animation:ex-pupil-pulse .8s ease-in-out infinite alternate}
+.state-excited .eye-pupil-core{opacity:1}
+
+/* ── state-searching: scanning iris left-right, focused squint ── */
+.state-searching{--ex-c1:rgba(0,170,255,.28);--ex-c2:rgba(0,150,255,.1);--ex-c3:rgba(0,120,200,.15);--ex-dx:12px;--ex-dy:0px;--ex-lt:.18;--ex-lt2:.22;--ex-rc1:rgba(0,170,255,.2);--ex-rc2:rgba(0,200,255,.45)}
+.state-searching .eye{animation:ex-glow-pulse 2s ease-in-out infinite alternate}
+.state-searching .eye-iris{animation:ex-iris-shift 2s ease-in-out infinite}
+.state-searching .eye-pupil{animation:ex-iris-shift 2s ease-in-out infinite}
+.state-searching .eyelid-top{animation:ex-squint 2.5s ease-in-out infinite!important}
+.state-searching .eyelid-bottom{transform:scaleY(.08)!important;animation:none!important}
+.state-searching .scan-line{opacity:1;animation:scan 1.4s ease-in-out infinite}
+.state-searching .eye-outer-ring{animation:ex-ring-glow 2s ease-in-out infinite alternate}
+
+/* ── state-angry: red glow, tight squint, intense ── */
+.state-angry{--ex-c1:rgba(255,50,30,.4);--ex-c2:rgba(255,30,10,.15);--ex-c3:rgba(200,20,0,.2);--ex-s1:1.01;--ex-s2:1.04;--ex-lt:.3;--ex-lt2:.35;--ex-rc1:rgba(255,50,30,.3);--ex-rc2:rgba(255,80,50,.6)}
+.state-angry .eye{animation:ex-glow-pulse 1s ease-in-out infinite alternate}
+.state-angry .eye-iris{transform:translate(-50%,-50%) scale(1.1)}
+.state-angry .eyelid-top{animation:ex-squint 1.5s ease-in-out infinite!important}
+.state-angry .eyelid-bottom{transform:scaleY(.15)!important;animation:none!important}
+.state-angry .eye-outer-ring{animation:ex-ring-glow 1s ease-in-out infinite alternate}
+.state-angry .eye-pupil{transform:translate(-50%,-50%) scale(.75)}
+
+/* ── state-sad: blue-gray glow, droopy eyelids, small iris ── */
+.state-sad{--ex-c1:rgba(80,120,180,.25);--ex-c2:rgba(60,100,160,.1);--ex-c3:rgba(50,80,140,.15);--ex-s1:.98;--ex-s2:1;--ex-dr1:.28;--ex-dr2:.33;--ex-rc1:rgba(80,120,180,.2);--ex-rc2:rgba(100,140,200,.4)}
+.state-sad .eye{animation:ex-glow-pulse 3.5s ease-in-out infinite alternate}
+.state-sad .eye-iris{transform:translate(-50%,-50%) scale(.9) translateY(3px)}
+.state-sad .eyelid-top{animation:ex-droop 4s ease-in-out infinite!important}
+.state-sad .eyelid-bottom{transform:scaleY(.05)!important;animation:none!important}
+.state-sad .eye-outer-ring{animation:ex-ring-glow 3.5s ease-in-out infinite alternate}
+.state-sad .eye-pupil-core{opacity:.25}
+
+/* ── state-surprised: very wide eyes, large iris+pupil, bright flash ── */
+.state-surprised{--ex-c1:rgba(0,255,255,.5);--ex-c2:rgba(0,220,255,.22);--ex-c3:rgba(0,180,220,.28);--ex-s1:1.06;--ex-s2:1.12;--ex-is1:1.15;--ex-is2:1.2;--ex-ps1:1.2;--ex-ps2:1.35;--ex-rc1:rgba(0,255,255,.4);--ex-rc2:rgba(0,255,255,.8)}
+.state-surprised .eye{animation:ex-glow-pulse .6s ease-out 1}
+.state-surprised .eye-iris{animation:ex-iris-breathe .6s ease-out 1 both}
+.state-surprised .eye-pupil{animation:ex-pupil-pulse .6s ease-out 1 both}
+.state-surprised .eyelid-top,.state-surprised .eyelid-bottom{transform:scaleY(0)!important;animation:none!important}
+.state-surprised .eye-outer-ring{animation:ex-ring-glow .6s ease-out 1}
+.state-surprised .eye-pupil-core{opacity:1}
+
+/* ── state-curious: head tilt feel via asymmetric iris offset ── */
+.state-curious{--ex-c1:rgba(0,200,180,.3);--ex-c2:rgba(0,180,160,.12);--ex-c3:rgba(0,150,130,.18);--ex-dx:4px;--ex-dy:-6px;--ex-lt:.08;--ex-lt2:.12;--ex-rc1:rgba(0,200,180,.25);--ex-rc2:rgba(0,230,200,.5)}
+.state-curious .eye{animation:ex-glow-pulse 2s ease-in-out infinite alternate}
+.state-curious .eye-iris{animation:ex-iris-shift 4s ease-in-out infinite}
+.state-curious .eyelid-top{animation:ex-squint 3s ease-in-out infinite!important}
+.state-curious .eyelid-bottom{transform:scaleY(0)!important;animation:none!important}
+.state-curious .eye-outer-ring{animation:ex-ring-glow 2s ease-in-out infinite alternate}
+
+/* ── state-focused: tight squint, steady, no movement ── */
+.state-focused{--ex-c1:rgba(0,150,255,.3);--ex-c2:rgba(0,130,230,.12);--ex-c3:rgba(0,100,200,.18);--ex-lt:.28;--ex-lt2:.3;--ex-rc1:rgba(0,150,255,.25);--ex-rc2:rgba(0,180,255,.5)}
+.state-focused .eye{animation:ex-glow-pulse 3s ease-in-out infinite alternate}
+.state-focused .eye-iris{transform:translate(-50%,-50%) scale(1.05)}
+.state-focused .eyelid-top{animation:ex-squint 4s ease-in-out infinite!important}
+.state-focused .eyelid-bottom{transform:scaleY(.12)!important;animation:none!important}
+.state-focused .eye-outer-ring{animation:ex-ring-glow 3s ease-in-out infinite alternate}
+.state-focused .eye-pupil{transform:translate(-50%,-50%) scale(.8)}
+
+/* ── state-laughing: bouncy iris, wide open, green-cyan ── */
+.state-laughing{--ex-c1:rgba(0,255,150,.35);--ex-c2:rgba(0,220,130,.15);--ex-c3:rgba(0,180,100,.2);--ex-s1:1.02;--ex-s2:1.06;--ex-by:-6px;--ex-rc1:rgba(0,255,150,.3);--ex-rc2:rgba(50,255,180,.6)}
+.state-laughing .eye{animation:ex-glow-pulse .9s ease-in-out infinite alternate}
+.state-laughing .eye-iris{animation:ex-bounce .5s ease-in-out infinite}
+.state-laughing .eyelid-top{transform:scaleY(0)!important;animation:none!important}
+.state-laughing .eyelid-bottom{transform:scaleY(.15)!important;animation:none!important}
+.state-laughing .eye-outer-ring{animation:ex-ring-glow .9s ease-in-out infinite alternate}
+
+/* ── state-sleepy: heavy droopy lids, dim glow, small pupil ── */
+.state-sleepy{--ex-c1:rgba(60,80,120,.2);--ex-c2:rgba(40,60,100,.08);--ex-c3:rgba(30,50,80,.12);--ex-s1:.97;--ex-s2:.99;--ex-dr1:.45;--ex-dr2:.52;--ex-rc1:rgba(60,80,120,.15);--ex-rc2:rgba(80,100,140,.3)}
+.state-sleepy .eye{animation:ex-glow-pulse 4s ease-in-out infinite alternate}
+.state-sleepy .eye-iris{transform:translate(-50%,-50%) scale(.85)}
+.state-sleepy .eyelid-top{animation:ex-droop 5s ease-in-out infinite!important}
+.state-sleepy .eyelid-bottom{transform:scaleY(.18)!important;animation:none!important}
+.state-sleepy .eye-pupil-core{opacity:.2}
+
+/* ── state-alert: bright red-orange, wide, rapid ring pulse ── */
+.state-alert{--ex-c1:rgba(255,120,0,.4);--ex-c2:rgba(255,100,0,.18);--ex-c3:rgba(220,80,0,.22);--ex-s1:1.04;--ex-s2:1.08;--ex-rc1:rgba(255,120,0,.35);--ex-rc2:rgba(255,150,30,.7)}
+.state-alert .eye{animation:ex-glow-pulse .7s ease-in-out infinite alternate}
+.state-alert .eye-iris{transform:translate(-50%,-50%) scale(1.12)}
+.state-alert .eyelid-top,.state-alert .eyelid-bottom{transform:scaleY(0)!important;animation:none!important}
+.state-alert .eye-outer-ring{animation:ex-ring-glow .5s ease-in-out infinite alternate}
+.state-alert .eye-pupil{transform:translate(-50%,-50%) scale(.7)}
+.state-alert .eye-pupil-core{opacity:1}
+
+/* ── state-scared: rapid flutter, dim, shrunk iris ── */
+.state-scared{--ex-c1:rgba(180,180,220,.25);--ex-c2:rgba(150,150,200,.1);--ex-c3:rgba(120,120,180,.15);--ex-s1:.96;--ex-s2:1.02;--ex-rc1:rgba(180,180,220,.2);--ex-rc2:rgba(200,200,240,.45)}
+.state-scared .eye{animation:ex-glow-pulse .6s ease-in-out infinite alternate}
+.state-scared .eye-iris{transform:translate(-50%,-50%) scale(.82)}
+.state-scared .eyelid-top{animation:ex-flutter 2s linear infinite!important}
+.state-scared .eyelid-bottom{transform:scaleY(0)!important;animation:none!important}
+.state-scared .eye-pupil{transform:translate(-50%,-50%) scale(.65)}
+
+/* ── state-love: pink/magenta glow, large soft iris ── */
+.state-love{--ex-c1:rgba(255,50,150,.35);--ex-c2:rgba(255,30,130,.14);--ex-c3:rgba(220,20,110,.2);--ex-s1:1.02;--ex-s2:1.05;--ex-is1:1.06;--ex-is2:1.14;--ex-rc1:rgba(255,50,150,.3);--ex-rc2:rgba(255,100,180,.6)}
+.state-love .eye{animation:ex-glow-pulse 1.5s ease-in-out infinite alternate}
+.state-love .eye-iris{animation:ex-iris-breathe 1.5s ease-in-out infinite alternate}
+.state-love .eyelid-top,.state-love .eyelid-bottom{transform:scaleY(0)!important;animation:none!important}
+.state-love .eye-outer-ring{animation:ex-ring-glow 1.5s ease-in-out infinite alternate}
+.state-love .eye-pupil-core{opacity:.9}
+
+/* ── state-proud: steady bright, slightly enlarged, gold accent ── */
+.state-proud{--ex-c1:rgba(255,200,0,.3);--ex-c2:rgba(255,180,0,.12);--ex-c3:rgba(220,160,0,.18);--ex-s1:1.03;--ex-s2:1.05;--ex-rc1:rgba(255,200,0,.25);--ex-rc2:rgba(255,220,50,.55)}
+.state-proud .eye{animation:ex-glow-pulse 2s ease-in-out infinite alternate}
+.state-proud .eye-iris{transform:translate(-50%,-50%) scale(1.08)}
+.state-proud .eyelid-top{transform:scaleY(.05)!important;animation:none!important}
+.state-proud .eyelid-bottom{transform:scaleY(.05)!important;animation:none!important}
+.state-proud .eye-outer-ring{animation:ex-ring-glow 2s ease-in-out infinite alternate}
+
+/* ── state-nervous: jittery iris, flickering glow ── */
+.state-nervous{--ex-c1:rgba(200,180,0,.25);--ex-c2:rgba(180,160,0,.1);--ex-c3:rgba(160,140,0,.15);--ex-dx:3px;--ex-dy:3px;--ex-rc1:rgba(200,180,0,.2);--ex-rc2:rgba(220,200,30,.45)}
+.state-nervous .eye{animation:ex-glow-pulse 1s ease-in-out infinite alternate}
+.state-nervous .eye-iris{animation:ex-iris-shift .8s ease-in-out infinite}
+.state-nervous .eye-pupil{animation:ex-iris-shift .8s ease-in-out infinite}
+.state-nervous .eyelid-top{animation:ex-flutter 3s linear infinite!important}
+.state-nervous .eyelid-bottom{transform:scaleY(.05)!important;animation:none!important}
+
+/* ── state-calm: slow gentle pulse, soft blue, relaxed ── */
+.state-calm{--ex-c1:rgba(80,160,220,.22);--ex-c2:rgba(60,140,200,.08);--ex-c3:rgba(50,120,180,.12);--ex-s1:1;--ex-s2:1.015;--ex-rc1:rgba(80,160,220,.18);--ex-rc2:rgba(100,180,240,.35)}
+.state-calm .eye{animation:ex-glow-pulse 4s ease-in-out infinite alternate}
+.state-calm .eye-iris{animation:ex-iris-breathe 4s ease-in-out infinite alternate}
+.state-calm .eyelid-top{transform:scaleY(.08)!important;animation:none!important}
+.state-calm .eyelid-bottom{transform:scaleY(.04)!important;animation:none!important}
+.state-calm .eye-outer-ring{animation:ex-ring-glow 4s ease-in-out infinite alternate}
+
+/* ── state-bored: heavy lids, barely moving, dim ── */
+.state-bored{--ex-c1:rgba(80,100,130,.18);--ex-c2:rgba(60,80,110,.07);--ex-c3:rgba(50,70,100,.1);--ex-s1:.98;--ex-s2:1;--ex-dr1:.35;--ex-dr2:.4;--ex-rc1:rgba(80,100,130,.12);--ex-rc2:rgba(100,120,150,.25)}
+.state-bored .eye{animation:ex-glow-pulse 5s ease-in-out infinite alternate}
+.state-bored .eye-iris{transform:translate(-50%,-50%) scale(.92) translateY(2px)}
+.state-bored .eyelid-top{animation:ex-droop 6s ease-in-out infinite!important}
+.state-bored .eyelid-bottom{transform:scaleY(.1)!important;animation:none!important}
+.state-bored .eye-pupil-core{opacity:.2}
+
+/* ── state-amazed: ultra wide, bright white-cyan, large everything ── */
+.state-amazed{--ex-c1:rgba(100,240,255,.45);--ex-c2:rgba(80,220,255,.2);--ex-c3:rgba(60,200,240,.25);--ex-s1:1.06;--ex-s2:1.12;--ex-is1:1.12;--ex-is2:1.2;--ex-ps1:1.15;--ex-ps2:1.3;--ex-rc1:rgba(100,240,255,.4);--ex-rc2:rgba(150,255,255,.8)}
+.state-amazed .eye{animation:ex-glow-pulse .7s ease-in-out infinite alternate}
+.state-amazed .eye-iris{animation:ex-iris-breathe .7s ease-in-out infinite alternate}
+.state-amazed .eye-pupil{animation:ex-pupil-pulse .7s ease-in-out infinite alternate}
+.state-amazed .eyelid-top,.state-amazed .eyelid-bottom{transform:scaleY(0)!important;animation:none!important}
+.state-amazed .eye-outer-ring{animation:ex-ring-glow .7s ease-in-out infinite alternate}
+.state-amazed .eye-pupil-core{opacity:1}
+
+/* ── state-grateful: warm amber, soft pulse ── */
+.state-grateful{--ex-c1:rgba(255,180,80,.3);--ex-c2:rgba(255,160,60,.12);--ex-c3:rgba(220,140,40,.18);--ex-s1:1.01;--ex-s2:1.04;--ex-is1:1.02;--ex-is2:1.08;--ex-rc1:rgba(255,180,80,.25);--ex-rc2:rgba(255,200,100,.5)}
+.state-grateful .eye{animation:ex-glow-pulse 2s ease-in-out infinite alternate}
+.state-grateful .eye-iris{animation:ex-iris-breathe 2s ease-in-out infinite alternate}
+.state-grateful .eyelid-top{transform:scaleY(.06)!important;animation:none!important}
+.state-grateful .eyelid-bottom{transform:scaleY(.04)!important;animation:none!important}
+.state-grateful .eye-outer-ring{animation:ex-ring-glow 2s ease-in-out infinite alternate}
+
+/* ── state-mysterious: deep purple, slow shift, half-lidded ── */
+.state-mysterious{--ex-c1:rgba(120,0,200,.3);--ex-c2:rgba(100,0,180,.12);--ex-c3:rgba(80,0,150,.18);--ex-s1:1;--ex-s2:1.02;--ex-dx:3px;--ex-dy:-4px;--ex-lt:.25;--ex-lt2:.3;--ex-rc1:rgba(120,0,200,.22);--ex-rc2:rgba(150,30,230,.48)}
+.state-mysterious .eye{animation:ex-glow-pulse 3s ease-in-out infinite alternate}
+.state-mysterious .eye-iris{animation:ex-iris-shift 5s ease-in-out infinite}
+.state-mysterious .eyelid-top{animation:ex-squint 4s ease-in-out infinite!important}
+.state-mysterious .eyelid-bottom{transform:scaleY(.1)!important;animation:none!important}
+.state-mysterious .eye-outer-ring{animation:ex-ring-glow 3s ease-in-out infinite alternate}
+
+/* ── state-playful: bouncy, green-cyan, wide ── */
+.state-playful{--ex-c1:rgba(0,220,120,.32);--ex-c2:rgba(0,200,100,.14);--ex-c3:rgba(0,170,80,.18);--ex-s1:1.02;--ex-s2:1.06;--ex-by:-7px;--ex-rc1:rgba(0,220,120,.28);--ex-rc2:rgba(30,250,150,.55)}
+.state-playful .eye{animation:ex-glow-pulse 1s ease-in-out infinite alternate}
+.state-playful .eye-iris{animation:ex-bounce .6s ease-in-out infinite}
+.state-playful .eyelid-top,.state-playful .eyelid-bottom{transform:scaleY(0)!important;animation:none!important}
+.state-playful .eye-outer-ring{animation:ex-ring-glow 1s ease-in-out infinite alternate}
+
+/* ── state-serious: deep blue, steady, tight squint ── */
+.state-serious{--ex-c1:rgba(20,60,140,.28);--ex-c2:rgba(10,50,120,.1);--ex-c3:rgba(5,40,100,.15);--ex-lt:.3;--ex-lt2:.32;--ex-rc1:rgba(20,60,140,.2);--ex-rc2:rgba(40,80,160,.4)}
+.state-serious .eye{animation:ex-glow-pulse 3.5s ease-in-out infinite alternate}
+.state-serious .eye-iris{transform:translate(-50%,-50%) scale(1.02)}
+.state-serious .eyelid-top{animation:ex-squint 5s ease-in-out infinite!important}
+.state-serious .eyelid-bottom{transform:scaleY(.14)!important;animation:none!important}
+.state-serious .eye-outer-ring{animation:ex-ring-glow 3.5s ease-in-out infinite alternate}
+.state-serious .eye-pupil{transform:translate(-50%,-50%) scale(.82)}
+
+/* ── state-shy: small iris, dim, slightly averted ── */
+.state-shy{--ex-c1:rgba(200,150,220,.22);--ex-c2:rgba(180,130,200,.08);--ex-c3:rgba(160,110,180,.12);--ex-s1:.98;--ex-s2:1;--ex-rc1:rgba(200,150,220,.18);--ex-rc2:rgba(220,170,240,.35)}
+.state-shy .eye{animation:ex-glow-pulse 3s ease-in-out infinite alternate}
+.state-shy .eye-iris{transform:translate(-50%,-50%) scale(.88) translateX(-4px)}
+.state-shy .eyelid-top{transform:scaleY(.12)!important;animation:none!important}
+.state-shy .eyelid-bottom{transform:scaleY(.06)!important;animation:none!important}
+.state-shy .eye-pupil-core{opacity:.3}
+
+/* ── state-confident: bright, steady, slightly enlarged ── */
+.state-confident{--ex-c1:rgba(0,180,255,.35);--ex-c2:rgba(0,160,240,.15);--ex-c3:rgba(0,140,220,.2);--ex-s1:1.03;--ex-s2:1.06;--ex-rc1:rgba(0,180,255,.3);--ex-rc2:rgba(0,210,255,.6)}
+.state-confident .eye{animation:ex-glow-pulse 2s ease-in-out infinite alternate}
+.state-confident .eye-iris{transform:translate(-50%,-50%) scale(1.1)}
+.state-confident .eyelid-top{transform:scaleY(.04)!important;animation:none!important}
+.state-confident .eyelid-bottom{transform:scaleY(.03)!important;animation:none!important}
+.state-confident .eye-outer-ring{animation:ex-ring-glow 2s ease-in-out infinite alternate}
+.state-confident .eye-pupil-core{opacity:.8}
+
+/* ── state-creative: rainbow-ish shifting, medium pace ── */
+.state-creative{--ex-c1:rgba(180,0,255,.3);--ex-c2:rgba(255,100,0,.12);--ex-c3:rgba(0,200,150,.18);--ex-s1:1.01;--ex-s2:1.05;--ex-dx:6px;--ex-dy:-4px;--ex-rc1:rgba(180,0,255,.25);--ex-rc2:rgba(255,100,200,.5)}
+.state-creative .eye{animation:ex-glow-pulse 1.8s ease-in-out infinite alternate}
+.state-creative .eye-iris{animation:ex-iris-shift 3s ease-in-out infinite}
+.state-creative .eye-iris-pattern{animation:iris-spin 2s linear infinite}
+.state-creative .eyelid-top{transform:scaleY(.05)!important;animation:none!important}
+.state-creative .eyelid-bottom{transform:scaleY(0)!important;animation:none!important}
+.state-creative .eye-outer-ring{animation:ex-ring-glow 1.8s ease-in-out infinite alternate}
+
+/* ── state-calculating: fast iris-pattern spin, tight focus, cyan ── */
+.state-calculating{--ex-c1:rgba(0,200,255,.3);--ex-c2:rgba(0,180,240,.12);--ex-c3:rgba(0,150,210,.18);--ex-lt:.22;--ex-lt2:.26;--ex-rc1:rgba(0,200,255,.25);--ex-rc2:rgba(0,230,255,.55)}
+.state-calculating .eye{animation:ex-glow-pulse 1.5s ease-in-out infinite alternate}
+.state-calculating .eye-iris-pattern{animation:iris-spin 1s linear infinite}
+.state-calculating .eye-iris{transform:translate(-50%,-50%) scale(1.04)}
+.state-calculating .eyelid-top{animation:ex-squint 2s ease-in-out infinite!important}
+.state-calculating .eyelid-bottom{transform:scaleY(.1)!important;animation:none!important}
+.state-calculating .eye-outer-ring{animation:ex-ring-glow 1.5s ease-in-out infinite alternate}
+.state-calculating .scan-line{opacity:.6;animation:scan 1.8s ease-in-out infinite}
+
+/* ── state-remembering: soft amber shift, half-lidded, looking up ── */
+.state-remembering{--ex-c1:rgba(220,180,100,.25);--ex-c2:rgba(200,160,80,.1);--ex-c3:rgba(180,140,60,.15);--ex-dx:2px;--ex-dy:-8px;--ex-rc1:rgba(220,180,100,.2);--ex-rc2:rgba(240,200,120,.4)}
+.state-remembering .eye{animation:ex-glow-pulse 3s ease-in-out infinite alternate}
+.state-remembering .eye-iris{animation:ex-iris-shift 4s ease-in-out infinite}
+.state-remembering .eyelid-top{transform:scaleY(.15)!important;animation:none!important}
+.state-remembering .eyelid-bottom{transform:scaleY(.08)!important;animation:none!important}
+.state-remembering .eye-outer-ring{animation:ex-ring-glow 3s ease-in-out infinite alternate}
+
+/* ── state-learning: iris pattern spins fast, bright, absorbing ── */
+.state-learning{--ex-c1:rgba(0,255,200,.3);--ex-c2:rgba(0,230,180,.12);--ex-c3:rgba(0,200,160,.18);--ex-s1:1.02;--ex-s2:1.05;--ex-rc1:rgba(0,255,200,.25);--ex-rc2:rgba(50,255,220,.55)}
+.state-learning .eye{animation:ex-glow-pulse 1.8s ease-in-out infinite alternate}
+.state-learning .eye-iris-pattern{animation:iris-spin 1.5s linear infinite}
+.state-learning .eye-iris{animation:ex-iris-breathe 2s ease-in-out infinite alternate}
+.state-learning .eyelid-top,.state-learning .eyelid-bottom{transform:scaleY(0)!important;animation:none!important}
+.state-learning .eye-outer-ring{animation:ex-ring-glow 1.8s ease-in-out infinite alternate}
+.state-learning .eye-pupil-core{opacity:.8}
+
+/* ── state-explaining: steady bright, gentle iris breathe ── */
+.state-explaining{--ex-c1:rgba(0,170,255,.3);--ex-c2:rgba(0,150,240,.12);--ex-c3:rgba(0,130,220,.18);--ex-s1:1.01;--ex-s2:1.04;--ex-is1:1;--ex-is2:1.06;--ex-rc1:rgba(0,170,255,.25);--ex-rc2:rgba(0,200,255,.5)}
+.state-explaining .eye{animation:ex-glow-pulse 2s ease-in-out infinite alternate}
+.state-explaining .eye-iris{animation:ex-iris-breathe 2s ease-in-out infinite alternate}
+.state-explaining .eyelid-top{transform:scaleY(.04)!important;animation:none!important}
+.state-explaining .eyelid-bottom{transform:scaleY(.02)!important;animation:none!important}
+.state-explaining .eye-outer-ring{animation:ex-ring-glow 2s ease-in-out infinite alternate}
+
+/* ── state-warning: orange-red pulse, squinted ── */
+.state-warning{--ex-c1:rgba(255,160,0,.38);--ex-c2:rgba(255,140,0,.16);--ex-c3:rgba(220,120,0,.22);--ex-s1:1.02;--ex-s2:1.06;--ex-lt:.24;--ex-lt2:.3;--ex-rc1:rgba(255,160,0,.3);--ex-rc2:rgba(255,180,30,.65)}
+.state-warning .eye{animation:ex-glow-pulse .9s ease-in-out infinite alternate}
+.state-warning .eye-iris{transform:translate(-50%,-50%) scale(1.06)}
+.state-warning .eyelid-top{animation:ex-squint 1.5s ease-in-out infinite!important}
+.state-warning .eyelid-bottom{transform:scaleY(.1)!important;animation:none!important}
+.state-warning .eye-outer-ring{animation:ex-ring-glow .9s ease-in-out infinite alternate}
+
+/* ── state-error: red flash, rapid pulse ── */
+.state-error{--ex-c1:rgba(255,30,30,.42);--ex-c2:rgba(255,10,10,.18);--ex-c3:rgba(200,0,0,.22);--ex-s1:1;--ex-s2:1.04;--ex-rc1:rgba(255,30,30,.35);--ex-rc2:rgba(255,60,60,.7)}
+.state-error .eye{animation:ex-glow-pulse .5s ease-in-out infinite alternate}
+.state-error .eye-iris{transform:translate(-50%,-50%) scale(.9)}
+.state-error .eyelid-top{transform:scaleY(.15)!important;animation:none!important}
+.state-error .eyelid-bottom{transform:scaleY(.1)!important;animation:none!important}
+.state-error .eye-outer-ring{animation:ex-ring-glow .5s ease-in-out infinite alternate}
+.state-error .eye-pupil{transform:translate(-50%,-50%) scale(.7)}
+
+/* ── state-success: green glow, wide, happy-ish ── */
+.state-success{--ex-c1:rgba(0,220,80,.35);--ex-c2:rgba(0,200,60,.14);--ex-c3:rgba(0,180,50,.2);--ex-s1:1.02;--ex-s2:1.06;--ex-is1:1.04;--ex-is2:1.1;--ex-rc1:rgba(0,220,80,.3);--ex-rc2:rgba(50,255,100,.6)}
+.state-success .eye{animation:ex-glow-pulse 1.2s ease-in-out infinite alternate}
+.state-success .eye-iris{animation:ex-iris-breathe 1.2s ease-in-out infinite alternate}
+.state-success .eyelid-top,.state-success .eyelid-bottom{transform:scaleY(0)!important;animation:none!important}
+.state-success .eye-outer-ring{animation:ex-ring-glow 1.2s ease-in-out infinite alternate}
+.state-success .eye-pupil-core{opacity:.85}
+
+/* ── state-greeting: warm cyan pulse, open, welcoming ── */
+.state-greeting{--ex-c1:rgba(0,200,220,.32);--ex-c2:rgba(0,180,200,.14);--ex-c3:rgba(0,160,180,.18);--ex-s1:1.03;--ex-s2:1.07;--ex-is1:1.05;--ex-is2:1.12;--ex-rc1:rgba(0,200,220,.28);--ex-rc2:rgba(0,230,240,.58)}
+.state-greeting .eye{animation:ex-glow-pulse 1.4s ease-in-out infinite alternate}
+.state-greeting .eye-iris{animation:ex-iris-breathe 1.4s ease-in-out infinite alternate}
+.state-greeting .eyelid-top,.state-greeting .eyelid-bottom{transform:scaleY(0)!important;animation:none!important}
+.state-greeting .eye-outer-ring{animation:ex-ring-glow 1.4s ease-in-out infinite alternate}
+.state-greeting .eye-pupil-core{opacity:.8}
+
+/* ── state-farewell: fading blue, slowly closing ── */
+.state-farewell{--ex-c1:rgba(60,120,200,.25);--ex-c2:rgba(40,100,180,.1);--ex-c3:rgba(30,80,160,.14);--ex-s1:1;--ex-s2:.98;--ex-dr1:.2;--ex-dr2:.35;--ex-rc1:rgba(60,120,200,.18);--ex-rc2:rgba(80,140,220,.35)}
+.state-farewell .eye{animation:ex-glow-pulse 3s ease-in-out infinite alternate}
+.state-farewell .eye-iris{transform:translate(-50%,-50%) scale(.92)}
+.state-farewell .eyelid-top{animation:ex-droop 4s ease-in-out 1 both!important}
+.state-farewell .eyelid-bottom{transform:scaleY(.05)!important;animation:none!important}
+.state-farewell .eye-outer-ring{animation:ex-ring-glow 3s ease-in-out infinite alternate}
+
+/* ── state-joking: playful bounce, warm green ── */
+.state-joking{--ex-c1:rgba(80,220,100,.3);--ex-c2:rgba(60,200,80,.12);--ex-c3:rgba(40,180,60,.18);--ex-s1:1.01;--ex-s2:1.05;--ex-by:-5px;--ex-rc1:rgba(80,220,100,.25);--ex-rc2:rgba(100,240,120,.5)}
+.state-joking .eye{animation:ex-glow-pulse 1.2s ease-in-out infinite alternate}
+.state-joking .eye-iris{animation:ex-bounce .7s ease-in-out infinite}
+.state-joking .eyelid-top{transform:scaleY(0)!important;animation:none!important}
+.state-joking .eyelid-bottom{transform:scaleY(.12)!important;animation:none!important}
+.state-joking .eye-outer-ring{animation:ex-ring-glow 1.2s ease-in-out infinite alternate}
+
+/* ── state-sarcastic: one-sided squint feel, amber ── */
+.state-sarcastic{--ex-c1:rgba(200,180,0,.25);--ex-c2:rgba(180,160,0,.1);--ex-c3:rgba(160,140,0,.15);--ex-lt:.3;--ex-lt2:.35;--ex-rc1:rgba(200,180,0,.2);--ex-rc2:rgba(220,200,30,.45)}
+.state-sarcastic .eye{animation:ex-glow-pulse 2.5s ease-in-out infinite alternate}
+.state-sarcastic .eye-iris{transform:translate(-50%,-50%) translateX(3px) scale(1.02)}
+.state-sarcastic .eyelid-top{animation:ex-squint 3s ease-in-out infinite!important}
+.state-sarcastic .eyelid-bottom{transform:scaleY(.1)!important;animation:none!important}
+.state-sarcastic .eye-outer-ring{animation:ex-ring-glow 2.5s ease-in-out infinite alternate}
+
+/* ── state-empathetic: warm soft pink-blue, gentle ── */
+.state-empathetic{--ex-c1:rgba(180,120,220,.25);--ex-c2:rgba(160,100,200,.1);--ex-c3:rgba(140,80,180,.15);--ex-s1:1;--ex-s2:1.03;--ex-is1:1;--ex-is2:1.05;--ex-rc1:rgba(180,120,220,.2);--ex-rc2:rgba(200,150,240,.42)}
+.state-empathetic .eye{animation:ex-glow-pulse 2.5s ease-in-out infinite alternate}
+.state-empathetic .eye-iris{animation:ex-iris-breathe 2.5s ease-in-out infinite alternate}
+.state-empathetic .eyelid-top{transform:scaleY(.06)!important;animation:none!important}
+.state-empathetic .eyelid-bottom{transform:scaleY(.04)!important;animation:none!important}
+.state-empathetic .eye-outer-ring{animation:ex-ring-glow 2.5s ease-in-out infinite alternate}
+
+/* ── state-motivating: bright gold-orange, strong pulse ── */
+.state-motivating{--ex-c1:rgba(255,180,0,.38);--ex-c2:rgba(255,160,0,.16);--ex-c3:rgba(220,140,0,.22);--ex-s1:1.03;--ex-s2:1.08;--ex-is1:1.06;--ex-is2:1.14;--ex-rc1:rgba(255,180,0,.32);--ex-rc2:rgba(255,210,50,.65)}
+.state-motivating .eye{animation:ex-glow-pulse 1s ease-in-out infinite alternate}
+.state-motivating .eye-iris{animation:ex-iris-breathe 1s ease-in-out infinite alternate}
+.state-motivating .eyelid-top,.state-motivating .eyelid-bottom{transform:scaleY(0)!important;animation:none!important}
+.state-motivating .eye-outer-ring{animation:ex-ring-glow 1s ease-in-out infinite alternate}
+.state-motivating .eye-pupil-core{opacity:.9}
+
+/* ── state-questioning: tilted iris, one brow raised feel ── */
+.state-questioning{--ex-c1:rgba(0,180,200,.28);--ex-c2:rgba(0,160,180,.1);--ex-c3:rgba(0,140,160,.15);--ex-dx:5px;--ex-dy:-5px;--ex-lt:.1;--ex-lt2:.15;--ex-rc1:rgba(0,180,200,.22);--ex-rc2:rgba(0,210,220,.48)}
+.state-questioning .eye{animation:ex-glow-pulse 2s ease-in-out infinite alternate}
+.state-questioning .eye-iris{animation:ex-iris-shift 3s ease-in-out infinite}
+.state-questioning .eyelid-top{animation:ex-squint 3s ease-in-out infinite!important}
+.state-questioning .eyelid-bottom{transform:scaleY(0)!important;animation:none!important}
+.state-questioning .eye-outer-ring{animation:ex-ring-glow 2s ease-in-out infinite alternate}
+
+/* ── state-answering: steady confident glow ── */
+.state-answering{--ex-c1:rgba(0,180,255,.32);--ex-c2:rgba(0,160,240,.14);--ex-c3:rgba(0,140,220,.18);--ex-s1:1.02;--ex-s2:1.05;--ex-rc1:rgba(0,180,255,.28);--ex-rc2:rgba(0,210,255,.55)}
+.state-answering .eye{animation:ex-glow-pulse 1.8s ease-in-out infinite alternate}
+.state-answering .eye-iris{transform:translate(-50%,-50%) scale(1.06)}
+.state-answering .eyelid-top{transform:scaleY(.03)!important;animation:none!important}
+.state-answering .eyelid-bottom{transform:scaleY(.02)!important;animation:none!important}
+.state-answering .eye-outer-ring{animation:ex-ring-glow 1.8s ease-in-out infinite alternate}
+
+/* ── state-coding: green matrix, scanning, focused ── */
+.state-coding{--ex-c1:rgba(0,255,65,.3);--ex-c2:rgba(0,230,50,.12);--ex-c3:rgba(0,200,40,.18);--ex-lt:.2;--ex-lt2:.24;--ex-rc1:rgba(0,255,65,.25);--ex-rc2:rgba(50,255,100,.55)}
+.state-coding .eye{animation:ex-glow-pulse 1.5s ease-in-out infinite alternate}
+.state-coding .eye-iris-pattern{animation:iris-spin 1.2s linear infinite}
+.state-coding .eyelid-top{animation:ex-squint 2.5s ease-in-out infinite!important}
+.state-coding .eyelid-bottom{transform:scaleY(.08)!important;animation:none!important}
+.state-coding .scan-line{opacity:.8;animation:scan 1.2s ease-in-out infinite}
+.state-coding .eye-outer-ring{animation:ex-ring-glow 1.5s ease-in-out infinite alternate}
+
+/* ── state-music: rhythmic pulse, purple-pink ── */
+.state-music{--ex-c1:rgba(200,50,255,.32);--ex-c2:rgba(180,30,240,.14);--ex-c3:rgba(160,10,220,.18);--ex-s1:1.01;--ex-s2:1.05;--ex-by:-4px;--ex-rc1:rgba(200,50,255,.28);--ex-rc2:rgba(230,80,255,.55)}
+.state-music .eye{animation:ex-glow-pulse .8s ease-in-out infinite alternate}
+.state-music .eye-iris{animation:ex-bounce .6s ease-in-out infinite}
+.state-music .eyelid-top{transform:scaleY(.05)!important;animation:none!important}
+.state-music .eyelid-bottom{transform:scaleY(.03)!important;animation:none!important}
+.state-music .eye-outer-ring{animation:ex-ring-glow .8s ease-in-out infinite alternate}
+
+/* ── state-weather: sky-blue gentle sway ── */
+.state-weather{--ex-c1:rgba(100,180,255,.28);--ex-c2:rgba(80,160,240,.1);--ex-c3:rgba(60,140,220,.15);--ex-s1:1;--ex-s2:1.03;--ex-dx:4px;--ex-dy:2px;--ex-rc1:rgba(100,180,255,.22);--ex-rc2:rgba(130,200,255,.48)}
+.state-weather .eye{animation:ex-glow-pulse 2.5s ease-in-out infinite alternate}
+.state-weather .eye-iris{animation:ex-iris-shift 5s ease-in-out infinite}
+.state-weather .eyelid-top{transform:scaleY(.05)!important;animation:none!important}
+.state-weather .eyelid-bottom{transform:scaleY(.03)!important;animation:none!important}
+.state-weather .eye-outer-ring{animation:ex-ring-glow 2.5s ease-in-out infinite alternate}
+
+/* ── state-news: alert orange, steady wide ── */
+.state-news{--ex-c1:rgba(255,140,30,.32);--ex-c2:rgba(255,120,10,.14);--ex-c3:rgba(220,100,0,.18);--ex-s1:1.02;--ex-s2:1.05;--ex-rc1:rgba(255,140,30,.28);--ex-rc2:rgba(255,170,60,.55)}
+.state-news .eye{animation:ex-glow-pulse 1.5s ease-in-out infinite alternate}
+.state-news .eye-iris{transform:translate(-50%,-50%) scale(1.06)}
+.state-news .eyelid-top,.state-news .eyelid-bottom{transform:scaleY(0)!important;animation:none!important}
+.state-news .eye-outer-ring{animation:ex-ring-glow 1.5s ease-in-out infinite alternate}
+
+/* ── state-math: computing cyan, pattern spin ── */
+.state-math{--ex-c1:rgba(0,220,255,.3);--ex-c2:rgba(0,200,240,.12);--ex-c3:rgba(0,180,220,.18);--ex-lt:.2;--ex-lt2:.24;--ex-rc1:rgba(0,220,255,.25);--ex-rc2:rgba(0,250,255,.55)}
+.state-math .eye{animation:ex-glow-pulse 1.5s ease-in-out infinite alternate}
+.state-math .eye-iris-pattern{animation:iris-spin .8s linear infinite}
+.state-math .eyelid-top{animation:ex-squint 2s ease-in-out infinite!important}
+.state-math .eyelid-bottom{transform:scaleY(.08)!important;animation:none!important}
+.state-math .eye-outer-ring{animation:ex-ring-glow 1.5s ease-in-out infinite alternate}
+
+/* ── state-science: green-teal, analytical ── */
+.state-science{--ex-c1:rgba(0,200,160,.3);--ex-c2:rgba(0,180,140,.12);--ex-c3:rgba(0,160,120,.18);--ex-lt:.18;--ex-lt2:.22;--ex-rc1:rgba(0,200,160,.25);--ex-rc2:rgba(0,230,180,.52)}
+.state-science .eye{animation:ex-glow-pulse 2s ease-in-out infinite alternate}
+.state-science .eye-iris-pattern{animation:iris-spin 1.5s linear infinite}
+.state-science .eyelid-top{animation:ex-squint 3s ease-in-out infinite!important}
+.state-science .eyelid-bottom{transform:scaleY(.06)!important;animation:none!important}
+.state-science .eye-outer-ring{animation:ex-ring-glow 2s ease-in-out infinite alternate}
+.state-science .scan-line{opacity:.4;animation:scan 2s ease-in-out infinite}
+
+/* ── state-history: warm sepia/amber, remembering feel ── */
+.state-history{--ex-c1:rgba(200,160,80,.28);--ex-c2:rgba(180,140,60,.1);--ex-c3:rgba(160,120,40,.15);--ex-dx:2px;--ex-dy:-6px;--ex-rc1:rgba(200,160,80,.22);--ex-rc2:rgba(220,180,100,.45)}
+.state-history .eye{animation:ex-glow-pulse 3s ease-in-out infinite alternate}
+.state-history .eye-iris{animation:ex-iris-shift 5s ease-in-out infinite}
+.state-history .eyelid-top{transform:scaleY(.12)!important;animation:none!important}
+.state-history .eyelid-bottom{transform:scaleY(.06)!important;animation:none!important}
+.state-history .eye-outer-ring{animation:ex-ring-glow 3s ease-in-out infinite alternate}
+
+/* ── state-philosophy: deep indigo, contemplative ── */
+.state-philosophy{--ex-c1:rgba(80,40,180,.28);--ex-c2:rgba(60,20,160,.1);--ex-c3:rgba(50,10,140,.15);--ex-s1:1;--ex-s2:1.02;--ex-dx:3px;--ex-dy:-5px;--ex-lt:.2;--ex-lt2:.25;--ex-rc1:rgba(80,40,180,.22);--ex-rc2:rgba(110,60,210,.45)}
+.state-philosophy .eye{animation:ex-glow-pulse 3.5s ease-in-out infinite alternate}
+.state-philosophy .eye-iris{animation:ex-iris-shift 6s ease-in-out infinite}
+.state-philosophy .eyelid-top{animation:ex-squint 4s ease-in-out infinite!important}
+.state-philosophy .eyelid-bottom{transform:scaleY(.1)!important;animation:none!important}
+.state-philosophy .eye-outer-ring{animation:ex-ring-glow 3.5s ease-in-out infinite alternate}
+
+/* ── state-gaming: neon green rapid, excited ── */
+.state-gaming{--ex-c1:rgba(0,255,50,.38);--ex-c2:rgba(0,230,40,.16);--ex-c3:rgba(0,200,30,.22);--ex-s1:1.03;--ex-s2:1.08;--ex-dx:8px;--ex-dy:4px;--ex-rc1:rgba(0,255,50,.32);--ex-rc2:rgba(50,255,80,.65)}
+.state-gaming .eye{animation:ex-glow-pulse .7s ease-in-out infinite alternate}
+.state-gaming .eye-iris{animation:ex-iris-shift 1.2s ease-in-out infinite}
+.state-gaming .eyelid-top,.state-gaming .eyelid-bottom{transform:scaleY(0)!important;animation:none!important}
+.state-gaming .eye-outer-ring{animation:ex-ring-glow .7s ease-in-out infinite alternate}
+.state-gaming .eye-pupil-core{opacity:1}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CHAT AREA & BUBBLES
+   ═══════════════════════════════════════════════════════════════════ */
+.chat-area{
+  flex:1;overflow:hidden;
+  opacity:0;transform:translateY(20px);
+  pointer-events:none;
+  transition:opacity .5s .1s,transform .5s .1s;
+}
+body.chat-active .chat-area{
+  opacity:1;transform:translateY(0);pointer-events:auto;
+}
+
+.chat-messages{
+  height:100%;overflow-y:auto;
+  padding:8px 20px 12px;
+  display:flex;flex-direction:column;gap:10px;
+  scrollbar-width:thin;scrollbar-color:var(--border-color) transparent;
+}
+
+.msg{
+  max-width:78%;padding:12px 16px;
+  border-radius:14px;font-size:13.5px;line-height:1.55;
+  word-wrap:break-word;position:relative;
+  will-change:opacity,transform;
+  animation:msg-in .3s ease-out both;
+}
+@keyframes msg-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+.msg-user{
+  align-self:flex-end;
+  background:var(--user-bubble);
+  border:1px solid var(--user-border);
+  color:var(--text-primary);
+}
+
+.msg-ai{
+  align-self:flex-start;
+  background:var(--ai-bubble);
+  border:1px solid var(--ai-border);
+  color:var(--text-primary);
+  padding-bottom:28px;
+}
+
+/* Inline TTS Speaker Button on AI messages */
+.msg-speaker{
+  position:absolute;bottom:6px;right:8px;
+  width:22px;height:22px;border:none;background:transparent;
+  color:var(--text-muted);border-radius:4px;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;opacity:.65;
+  transition:opacity .2s,color .2s,transform .2s;
+}
+.msg-speaker:hover{opacity:1;color:var(--accent);transform:scale(1.1)}
+
+.msg-speaker.playing-audio{
+  opacity:1;color:var(--accent);
+  animation:speaker-pulse .8s ease-in-out infinite alternate;
+}
+@keyframes speaker-pulse{
+  from{transform:scale(1);filter:drop-shadow(0 0 2px var(--accent))}
+  to  {transform:scale(1.22);filter:drop-shadow(0 0 8px var(--accent))}
+}
+
+.loading-dots{
+  display:flex;gap:5px;align-self:flex-start;
+  padding:14px 20px;
+}
+.loading-dots span{
+  width:8px;height:8px;border-radius:50%;
+  background:var(--accent);opacity:.35;
+  will-change:opacity,transform;
+  animation:dot-bounce .9s ease-in-out infinite;
+}
+.loading-dots span:nth-child(2){animation-delay:.15s}
+.loading-dots span:nth-child(3){animation-delay:.3s}
+@keyframes dot-bounce{
+  0%,80%,100%{opacity:.3;transform:translateY(0)}
+  40%{opacity:1;transform:translateY(-8px)}
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   INPUT BAR
+   ═══════════════════════════════════════════════════════════════════ */
+.input-bar{
+  padding:10px 16px 18px;flex-shrink:0;
+}
+.input-glass{
+  display:flex;align-items:center;gap:6px;
+  padding:6px 10px;border-radius:14px;
+  background:var(--bg-glass);
+  border:1px solid var(--border-color);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  box-shadow:0 3px 24px rgba(0,0,0,.15);
+  transition:box-shadow .3s,border-color .3s,background .3s;
+}
+.input-glass:focus-within{
+  border-color:var(--border-focus);
+  box-shadow:0 3px 36px var(--accent-glow);
+}
+
+#msgInput{
+  flex:1;background:transparent;border:none;outline:none;
+  color:var(--text-primary);font-size:13.5px;padding:9px 6px;
+  caret-color:var(--accent);letter-spacing:.2px;
+}
+#msgInput::placeholder{color:var(--text-dim)}
+
+.btn{
+  display:flex;align-items:center;justify-content:center;
+  width:36px;height:36px;border-radius:10px;flex-shrink:0;
+  border:1px solid var(--border-color);
+  background:rgba(0,100,180,.08);color:var(--accent);
+  will-change:transform,box-shadow;
+  transition:transform .15s,background .2s,box-shadow .2s,color .2s;
+}
+.btn:hover{background:rgba(0,140,240,.18);transform:scale(1.06);box-shadow:0 0 14px var(--accent-glow)}
+.btn:active{transform:scale(.94)}
+.btn:disabled{opacity:.3;pointer-events:none}
+
+.btn-attach{font-size:18px}
+.btn-screen{color:var(--text-muted)}
+.btn-screen:hover{color:var(--accent)}
+
+.btn-mic.recording{
+  background:rgba(0,180,255,.22);
+  border-color:var(--accent);
+  box-shadow:0 0 18px var(--accent-glow);
+  animation:mic-pulse .9s ease-in-out infinite alternate;
+}
+@keyframes mic-pulse{to{box-shadow:0 0 26px var(--accent-glow);border-color:var(--accent)}}
+
+/* ═══════════════════════════════════════════════════════════════════
+   VOICE OVERLAY
+   ═══════════════════════════════════════════════════════════════════ */
+.voice-overlay{
+  position:fixed;inset:0;z-index:200;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.75);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  opacity:0;pointer-events:none;
+  transition:opacity .3s;
+}
+.voice-overlay.show{opacity:1;pointer-events:auto}
+
+.voice-modal{
+  display:flex;flex-direction:column;align-items:center;gap:24px;
+}
+.voice-rings{
+  position:relative;width:120px;height:120px;
+  display:flex;align-items:center;justify-content:center;
+}
+.voice-ring{
+  position:absolute;border-radius:50%;
+  border:1.5px solid var(--accent);
+  will-change:transform,opacity;
+}
+.r1{width:120px;height:120px;animation:vring 2s ease-in-out infinite}
+.r2{width:90px;height:90px;animation:vring 2s .3s ease-in-out infinite}
+.r3{width:60px;height:60px;animation:vring 2s .6s ease-in-out infinite}
+@keyframes vring{
+  0%,100%{transform:scale(1);opacity:.4}
+  50%{transform:scale(1.15);opacity:1;border-color:var(--accent)}
+}
+.voice-mic-icon{
+  position:relative;z-index:1;color:var(--accent);
+  filter:drop-shadow(0 0 12px var(--accent-glow));
+}
+.voice-label{
+  font-size:13px;letter-spacing:2px;color:var(--text-muted);text-transform:uppercase;
+}
+.voice-cancel{
+  padding:8px 24px;border:1px solid var(--border-color);
+  border-radius:20px;background:rgba(0,100,180,.1);
+  color:var(--text-muted);font-size:12px;letter-spacing:1px;
+  transition:background .2s,color .2s;
+}
+.voice-cancel:hover{background:rgba(0,140,240,.18);color:var(--accent)}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SETTINGS MODAL & VOICE SELECTION
+   ═══════════════════════════════════════════════════════════════════ */
+.settings-modal-overlay{
+  position:fixed;inset:0;z-index:250;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.68);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  opacity:0;pointer-events:none;
+  transition:opacity .25s ease;
+}
+.settings-modal-overlay.show{
+  opacity:1;pointer-events:auto;
+}
+
+.settings-modal{
+  width:90%;max-width:440px;
+  background:var(--dropdown-bg);
+  border:1px solid var(--border-focus);
+  border-radius:16px;
+  box-shadow:0 12px 48px rgba(0,0,0,.6), 0 0 24px var(--accent-glow);
+  overflow:hidden;
+  transform:scale(.94);
+  transition:transform .25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.settings-modal-overlay.show .settings-modal{
+  transform:scale(1);
+}
+
+.settings-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 18px;
+  border-bottom:1px solid var(--border-color);
+}
+.settings-title{
+  font-size:15px;font-weight:600;
+  color:var(--text-primary);letter-spacing:.3px;
+}
+.btn-icon{
+  background:transparent;border:none;
+  color:var(--text-muted);font-size:22px;line-height:1;
+  width:30px;height:30px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;
+  transition:color .2s,background .2s;
+}
+.btn-icon:hover{
+  color:var(--accent);background:var(--dropdown-hover);
+}
+
+.settings-body{
+  padding:16px 18px 20px;
+  max-height:70vh;overflow-y:auto;
+  scrollbar-width:thin;scrollbar-color:var(--border-color) transparent;
+}
+
+.settings-section-title{
+  font-size:11px;font-weight:700;letter-spacing:1.2px;
+  color:var(--text-muted);margin-bottom:12px;
+}
+
+.voice-options-list{
+  display:flex;flex-direction:column;gap:9px;
+}
+
+.voice-option-item{
+  display:flex;align-items:center;gap:12px;
+  padding:10px 14px;border-radius:12px;
+  background:var(--bg-surface);
+  border:1px solid var(--border-color);
+  cursor:pointer;
+  transition:background .2s,border-color .2s,transform .15s;
+}
+.voice-option-item:hover{
+  background:var(--dropdown-hover);
+  border-color:var(--border-focus);
+}
+.voice-option-item input[type="radio"]{
+  accent-color:var(--accent);
+  width:16px;height:16px;
+  cursor:pointer;
+}
+
+.voice-info{
+  flex:1;display:flex;flex-direction:column;gap:2px;
+}
+.voice-name{
+  font-size:13.5px;font-weight:600;
+  color:var(--text-primary);
+}
+.voice-desc{
+  font-size:11.5px;color:var(--text-muted);
+}
+
+.btn-voice-sample{
+  display:flex;align-items:center;justify-content:center;
+  width:32px;height:32px;border-radius:8px;
+  border:1px solid var(--border-color);
+  background:rgba(0,170,255,.08);color:var(--accent);
+  cursor:pointer;
+  transition:transform .15s,background .2s,box-shadow .2s;
+}
+.btn-voice-sample:hover{
+  background:rgba(0,170,255,.22);
+  transform:scale(1.08);
+  box-shadow:0 0 12px var(--accent-glow);
+}
+.btn-voice-sample.playing-sample{
+  background:rgba(0,170,255,.35);
+  border-color:var(--accent);
+  animation:voice-sample-pulse .7s ease-in-out infinite alternate;
+}
+@keyframes voice-sample-pulse{
+  from{transform:scale(1);box-shadow:0 0 6px var(--accent)}
+  to  {transform:scale(1.2);box-shadow:0 0 16px var(--accent-glow)}
+}

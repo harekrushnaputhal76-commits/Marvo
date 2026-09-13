@@ -1,0 +1,51 @@
+# ================================================================
+# MARVO AI — .gitignore
+# Prevents sensitive credentials, caches, and local data from leaks
+# ================================================================
+
+# Environment & Secrets (NEVER COMMIT REAL CREDENTIALS)
+.env
+.env.*
+*.env
+ai.env
+!.env.example
+
+# Python Bytecode & Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Logs & Temporary Files
+logs/
+*.log
+temp/
+cache/
+
+# Sessions & User Data (local conversation history)
+sessions/*.json
+!sessions/userdata.json
+
+# IDE / Editor configuration
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS Generated Files
+.DS_Store
+Thumbs.db
+desktop.ini
