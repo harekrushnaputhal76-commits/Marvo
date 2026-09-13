@@ -1,6 +1,7 @@
 package com.marvo.ai;
 
 import android.Manifest;
+import android.app.SearchManager;
 import android.content.ActivityNotFoundException;
 import android.content.ClipData;
 import android.content.ClipboardManager;
@@ -28,6 +29,7 @@ import android.provider.Settings;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
+import android.speech.tts.TextToSpeech;
 import android.telephony.SmsManager;
 import android.util.Log;
 import android.view.View;
@@ -63,9 +65,16 @@ public class AssistantActivity extends AppCompatActivity {
 
     private SpeechRecognizer speechRecognizer;
     private Intent speechRecognizerIntent;
+    private TextToSpeech tts;
+    private boolean isTtsReady = false;
     private TextView statusTextView;
     private TextView subtitleTextView;
     private ImageView orbImageView;
+    private View flashlightCard;
+    private View wifiCard;
+    private View bluetoothCard;
+    private View airplaneCard;
+    private boolean flashlightEnabled;
 
     // State Management for Confirmation Protocol (Step 6 Part 5)
     private String pendingActionType = null;
@@ -81,6 +90,11 @@ public class AssistantActivity extends AppCompatActivity {
         statusTextView = findViewById(R.id.statusTextView);
         subtitleTextView = findViewById(R.id.subtitleTextView);
         orbImageView = findViewById(R.id.orbImageView);
+        flashlightCard = findViewById(R.id.flashlightCard);
+        wifiCard = findViewById(R.id.wifiCard);
+        bluetoothCard = findViewById(R.id.bluetoothCard);
+        airplaneCard = findViewById(R.id.airplaneCard);
+        initQuickControls();
 
         // Start pulsating Siri-style glowing orb animation
         if (orbImageView != null) {
@@ -110,8 +124,31 @@ public class AssistantActivity extends AppCompatActivity {
             });
         }
 
+        initTTS();
         initSpeechRecognizer();
         checkPermissionAndStart();
+    }
+
+    private void initTTS() {
+        try {
+            tts = new TextToSpeech(this, new TextToSpeech.OnInitListener() {
+                @Override
+                public void onInit(int status) {
+                    if (status == TextToSpeech.SUCCESS) {
+                        int result = tts.setLanguage(Locale.getDefault());
+                        if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                            tts.setLanguage(Locale.US);
+                        }
+                        isTtsReady = true;
+                        Log.d(TAG, "TTS initialized successfully");
+                    } else {
+                        Log.e(TAG, "TTS initialization failed: " + status);
+                    }
+                }
+            });
+        } catch (Exception e) {
+            Log.e(TAG, "Error initializing TTS: " + e.getMessage(), e);
+        }
     }
 
     private void initSpeechRecognizer() {
@@ -175,51 +212,8 @@ public class AssistantActivity extends AppCompatActivity {
                     String transcribed = matches.get(0);
                     Log.d(TAG, "Speech transcribed: " + transcribed);
 
-                    // Route through local intent router
+                    // Route through local intent router with persistent feedback
                     routeCommand(transcribed);
-
-                    // If not an offline direct action or pending confirmation (which handle their own UI and finish lifecycle), wait 2.5s and finish
-                    String lower = transcribed.trim().toLowerCase();
-                    boolean isHandledDirectly = (pendingActionType != null) || lower.startsWith("call") || lower.startsWith("sms") || lower.startsWith("message") ||
-                            lower.startsWith("text") || lower.startsWith("whatsapp") || lower.contains("timer") ||
-                            lower.contains("alarm") || lower.contains("remind me") || lower.contains("calendar") ||
-                            lower.contains("save contact") || lower.contains("add contact") || lower.contains("selfie") ||
-                            lower.contains("flashlight") || lower.contains("torch") || lower.contains("volume") ||
-                            lower.contains("awaaz") || lower.contains("sound") || lower.contains("install") ||
-                            lower.contains("download") || lower.contains("uninstall") || lower.contains("delete") ||
-                            lower.contains("wifi") || lower.contains("bluetooth") || lower.contains("data") ||
-                            lower.contains("internet") || lower.contains("airplane") || lower.contains("flight") ||
-                            lower.contains("dark") || lower.contains("brightness") || lower.contains("display") ||
-                            lower.contains("calculator") || lower.contains("calculate") || lower.contains("email") ||
-                            lower.contains("mail") || lower.contains("search") || lower.contains("google") ||
-                            lower.contains("news") || lower.contains("weather") || lower.contains("mausam") ||
-                            lower.contains("amazon") || lower.contains("flipkart") || lower.contains("myntra") ||
-                            lower.contains("buy") || lower.contains("shop") || lower.contains("kharid") ||
-                            lower.contains("review") || lower.contains("rating") ||
-                            lower.contains("order") || lower.contains("stock") || lower.contains("khata") ||
-                            lower.contains("bill") || lower.contains("client") || lower.contains("bulk rate") ||
-                            lower.contains("calculate rate") || lower.contains("hisab") ||
-                            lower.contains("business reminder") || lower.contains("delivery reminder") ||
-                            lower.contains("payment reminder") || lower.contains("pickup reminder") ||
-                            lower.contains("find file") || lower.contains("search document") ||
-                            lower.contains("search file") || lower.contains("note down") ||
-                            lower.startsWith("remember this") || lower.contains("save note") ||
-                            lower.contains("read notes") || lower.contains("show notes") || lower.contains("my notes") ||
-                            lower.startsWith("copy ") || lower.contains("clipboard") || lower.contains("paste") ||
-                            lower.contains("count words") || lower.contains("word count") ||
-                            lower.contains("uppercase") || lower.contains("lowercase") ||
-                            lower.startsWith("open ") || lower.startsWith("launch ") || lower.startsWith("kholo ") ||
-                            lower.contains("battery") || lower.contains("charge") || lower.contains("phone status");
-                    if (!isHandledDirectly) {
-                        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-                            @Override
-                            public void run() {
-                                if (!isFinishing()) {
-                                    finish();
-                                }
-                            }
-                        }, 2500);
-                    }
                 }
             }
 
@@ -238,6 +232,35 @@ public class AssistantActivity extends AppCompatActivity {
 
             @Override
             public void onEvent(int eventType, Bundle params) {}
+        });
+    }
+
+    private void initQuickControls() {
+        if (flashlightCard != null) {
+            flashlightCard.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    flashlightEnabled = !flashlightEnabled;
+                    toggleFlashlight(flashlightEnabled);
+                    v.setSelected(flashlightEnabled);
+                    showResponse(flashlightEnabled ? "Flashlight turned on" : "Flashlight turned off", true);
+                }
+            });
+        }
+        configureSettingsCard(wifiCard, "Wi-Fi controls", Settings.ACTION_WIFI_SETTINGS);
+        configureSettingsCard(bluetoothCard, "Bluetooth controls", Settings.ACTION_BLUETOOTH_SETTINGS);
+        configureSettingsCard(airplaneCard, "Airplane mode controls", Settings.ACTION_AIRPLANE_MODE_SETTINGS);
+    }
+
+    private void configureSettingsCard(final View card, final String label, final String settingAction) {
+        if (card == null) return;
+        card.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                v.setSelected(true);
+                showResponse("Opening " + label + "...");
+                openSetting(settingAction);
+            }
         });
     }
 
@@ -989,20 +1012,51 @@ public class AssistantActivity extends AppCompatActivity {
     }
 
     /**
-     * Premium updateUI: Sets the main status text and triggers a SUCCESS visual
-     * state for action-related messages, keeping PROCESSING for others.
+     * Thread-Safe Output & TTS Engine (Step 8 Part 1):
+     * Updates the UI TextView instantly on the main thread via runOnUiThread(),
+     * and speaks out the response text via TextToSpeech if shouldSpeak is true.
      */
+    private void showResponse(final String message, final boolean shouldSpeak) {
+        if (message == null) return;
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if (statusTextView != null) {
+                    statusTextView.setText(message);
+                }
+                if (subtitleTextView != null) {
+                    subtitleTextView.setVisibility(View.GONE);
+                }
+                String lower = message.toLowerCase();
+                if (lower.contains("confirmed") || lower.contains("sent") || lower.contains("calling") ||
+                    lower.contains("turned on") || lower.contains("turned off") || lower.contains("saved") ||
+                    lower.contains("opened") || lower.contains("alright") || lower.contains("adjusting") ||
+                    lower.contains("toggling") || lower.contains("launching") || lower.contains("battery") ||
+                    lower.contains("order saved") || lower.contains("note saved") || lower.contains("stock updated") ||
+                    lower.contains("success")) {
+                    setVisualState("SUCCESS");
+                }
+                if (shouldSpeak && tts != null && isTtsReady) {
+                    try {
+                        Bundle params = new Bundle();
+                        params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "MarvoTTS");
+                        tts.speak(message.replace('\n', ' '), TextToSpeech.QUEUE_FLUSH, params, "MarvoTTS");
+                    } catch (Exception e) {
+                        try {
+                            tts.speak(message.replace('\n', ' '), TextToSpeech.QUEUE_FLUSH, null);
+                        } catch (Exception ignored) {}
+                    }
+                }
+            }
+        });
+    }
+
+    private void showResponse(String message) {
+        showResponse(message, true);
+    }
+
     private void updateUI(String text) {
-        if (statusTextView != null) {
-            statusTextView.setText(text);
-        }
-        // Detect action-execution messages and trigger success glow
-        String lower = text.toLowerCase();
-        if (lower.contains("confirmed") || lower.contains("sent") || lower.contains("calling") ||
-            lower.contains("turned on") || lower.contains("turned off") || lower.contains("saved") ||
-            lower.contains("opened") || lower.contains("alright")) {
-            setVisualState("SUCCESS");
-        }
+        showResponse(text, true);
     }
 
     private void finishDelayed(long delayMillis) {
@@ -1063,20 +1117,25 @@ public class AssistantActivity extends AppCompatActivity {
     }
 
     /**
-     * Performs a web search on Google.
+     * Performs a web search on Google using ACTION_WEB_SEARCH or browser fallback.
      */
     private void searchWeb(String query) {
         if (query == null || query.trim().isEmpty()) return;
         try {
-            String encoded = URLEncoder.encode(query.trim(), "UTF-8");
-            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/search?q=" + encoded));
+            Intent intent = new Intent(Intent.ACTION_WEB_SEARCH);
+            intent.putExtra(SearchManager.QUERY, query.trim());
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(intent);
-            if (!isFinishing()) finish();
         } catch (Exception e) {
-            Log.e(TAG, "Error searching web: " + e.getMessage(), e);
-            updateUI("Web search unavailable.");
-            finishDelayed(2000);
+            try {
+                String encoded = URLEncoder.encode(query.trim(), "UTF-8");
+                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/search?q=" + encoded));
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(intent);
+            } catch (Exception ex) {
+                Log.e(TAG, "Error searching web: " + ex.getMessage(), ex);
+                showResponse("Web search unavailable.", true);
+            }
         }
     }
 
@@ -1084,32 +1143,14 @@ public class AssistantActivity extends AppCompatActivity {
      * Opens Google News.
      */
     private void openNews() {
-        try {
-            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://news.google.com"));
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            startActivity(intent);
-            if (!isFinishing()) finish();
-        } catch (Exception e) {
-            Log.e(TAG, "Error opening news: " + e.getMessage(), e);
-            updateUI("News unavailable.");
-            finishDelayed(2000);
-        }
+        searchWeb("today's latest news");
     }
 
     /**
      * Opens weather forecast on Google.
      */
     private void openWeather() {
-        try {
-            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/search?q=weather"));
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            startActivity(intent);
-            if (!isFinishing()) finish();
-        } catch (Exception e) {
-            Log.e(TAG, "Error opening weather: " + e.getMessage(), e);
-            updateUI("Weather unavailable.");
-            finishDelayed(2000);
-        }
+        searchWeb("today's weather forecast");
     }
 
     /**
@@ -1139,9 +1180,9 @@ public class AssistantActivity extends AppCompatActivity {
      */
     private String getMyntraSearchUrl(String query) {
         try {
-            return "https://www.myntra.com/" + URLEncoder.encode(query != null ? query.trim() : "", "UTF-8");
+            return "https://www.myntra.com/search?p=" + URLEncoder.encode(query != null ? query.trim() : "", "UTF-8");
         } catch (Exception e) {
-            return "https://www.myntra.com/" + (query != null ? query.trim() : "");
+            return "https://www.myntra.com/search?p=" + (query != null ? query.trim() : "");
         }
     }
 
@@ -2237,6 +2278,16 @@ public class AssistantActivity extends AppCompatActivity {
         if (speechRecognizer != null) {
             speechRecognizer.destroy();
             speechRecognizer = null;
+        }
+        if (tts != null) {
+            try {
+                tts.stop();
+                tts.shutdown();
+            } catch (Exception e) {
+                Log.e(TAG, "Error shutting down TTS: " + e.getMessage(), e);
+            }
+            tts = null;
+            isTtsReady = false;
         }
     }
 }

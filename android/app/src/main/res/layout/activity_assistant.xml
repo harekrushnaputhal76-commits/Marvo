@@ -83,6 +83,54 @@
             android:textSize="14sp"
             android:visibility="gone" />
 
+        <LinearLayout
+            android:id="@+id/quickControlsLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="22dp"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/flashlightCard"
+                    style="@style/QuickControlCard"
+                    android:layout_marginEnd="6dp"
+                    android:text="Flashlight" />
+
+                <TextView
+                    android:id="@+id/wifiCard"
+                    style="@style/QuickControlCard"
+                    android:layout_marginStart="6dp"
+                    android:text="Wi-Fi" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:gravity="center"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/bluetoothCard"
+                    style="@style/QuickControlCard"
+                    android:layout_marginEnd="6dp"
+                    android:text="Bluetooth" />
+
+                <TextView
+                    android:id="@+id/airplaneCard"
+                    style="@style/QuickControlCard"
+                    android:layout_marginStart="6dp"
+                    android:text="Airplane mode" />
+            </LinearLayout>
+        </LinearLayout>
+
     </LinearLayout>
 
 </RelativeLayout>

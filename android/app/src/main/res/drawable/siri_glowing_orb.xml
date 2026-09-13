@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Layer 1: Wide ambient outer aura (soft electric blue diffusion) -->
+    <!-- Layer 1: Wide electric blue outer aura (#800078FF) -->
     <item>
         <shape android:shape="oval">
             <gradient
                 android:type="radial"
                 android:gradientRadius="64dp"
-                android:startColor="#500078FF"
-                android:centerColor="#2800B4FF"
+                android:startColor="#800078FF"
+                android:centerColor="#4000B4FF"
                 android:endColor="#00000000" />
         </shape>
     </item>
@@ -19,21 +19,21 @@
             <gradient
                 android:type="radial"
                 android:gradientRadius="48dp"
-                android:startColor="#8000E5FF"
-                android:centerColor="#4000D4FF"
+                android:startColor="#9000E5FF"
+                android:centerColor="#5000D4FF"
                 android:endColor="#0000E5FF" />
         </shape>
     </item>
 
-    <!-- Layer 3: Deep neon cyan core -->
+    <!-- Layer 3: Deep neon cyan core (#FF00E5FF) -->
     <item android:left="16dp" android:right="16dp" android:top="16dp" android:bottom="16dp">
         <shape android:shape="oval">
             <gradient
                 android:type="radial"
                 android:gradientRadius="28dp"
-                android:startColor="#FFFFFFFF"
+                android:startColor="#FF00E5FF"
                 android:centerColor="#FF00E5FF"
-                android:endColor="#CC0088FF" />
+                android:endColor="#CC0078FF" />
         </shape>
     </item>
 

@@ -3,22 +3,22 @@
      android:fillAfter="true"
      android:interpolator="@android:anim/accelerate_decelerate_interpolator">
 
-    <!-- Smooth breathing scale: 0.8x -> 1.25x -->
+    <!-- Smooth breathing scale without shifting the orb's layout bounds. -->
     <scale
-        android:duration="1000"
-        android:fromXScale="0.8"
-        android:fromYScale="0.8"
+        android:duration="1800"
+        android:fromXScale="0.94"
+        android:fromYScale="0.94"
         android:pivotX="50%"
         android:pivotY="50%"
         android:repeatCount="infinite"
         android:repeatMode="reverse"
-        android:toXScale="1.25"
-        android:toYScale="1.25" />
+        android:toXScale="1.08"
+        android:toYScale="1.08" />
 
     <!-- Subtle alpha breathing to simulate light intensity change -->
     <alpha
-        android:duration="1000"
-        android:fromAlpha="0.75"
+        android:duration="1800"
+        android:fromAlpha="0.82"
         android:toAlpha="1.0"
         android:repeatCount="infinite"
         android:repeatMode="reverse" />
