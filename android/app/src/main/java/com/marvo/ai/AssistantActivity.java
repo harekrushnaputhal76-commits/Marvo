@@ -66,6 +66,7 @@ import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -116,6 +117,170 @@ public class AssistantActivity extends AppCompatActivity {
     private Intent pendingIntent = null;
     private String pendingRecipientName = null;
     private String pendingDraftContent = null;
+
+    // =========================================================================
+    // STEP 7 - PART 1: PERSISTENT CONVERSATION MEMORY & SIRI ULTRA URL DIGEST
+    // =========================================================================
+
+    public static class ConversationMessage {
+        public final String role; // "user" or "model"
+        public final String text;
+
+        public ConversationMessage(String role, String text) {
+            this.role = role;
+            this.text = text;
+        }
+    }
+
+    private static final int MAX_HISTORY_TURNS = 10;
+    private static final List<ConversationMessage> conversationHistory = Collections.synchronizedList(new ArrayList<ConversationMessage>());
+
+    public static synchronized void addConversationTurn(String role, String text) {
+        if (text == null || text.trim().isEmpty()) return;
+        conversationHistory.add(new ConversationMessage(role, text.trim()));
+        while (conversationHistory.size() > MAX_HISTORY_TURNS) {
+            conversationHistory.remove(0);
+        }
+    }
+
+    public static synchronized void clearConversationHistory() {
+        conversationHistory.clear();
+    }
+
+    private static final Pattern URL_DETECTION_PATTERN = Pattern.compile("(https?://[\\w\\-._~:/?#\\[\\]@!$&'()*+,;=%]+)", Pattern.CASE_INSENSITIVE);
+
+    /**
+     * Extracts first valid URL or domain pattern from user input string.
+     */
+    private String extractUrlFromText(String text) {
+        if (text == null || text.trim().isEmpty()) return null;
+        Matcher matcher = URL_DETECTION_PATTERN.matcher(text);
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+        Matcher domainMatcher = Pattern.compile("(?i)\\b((?:www\\.)[a-z0-9\\-]+\\.[a-z]{2,}(?:/[^\\s]*)?)").matcher(text);
+        if (domainMatcher.find()) {
+            return "https://" + domainMatcher.group(1);
+        }
+        return null;
+    }
+
+    /**
+     * Step 7 - Part 1: Siri Ultra URL Content Digest Engine.
+     * Fetches raw webpage HTML via asynchronous HttpURLConnection, follows redirects,
+     * strips tags/scripts, and decodes HTML entities.
+     */
+    private String fetchUrlContent(String targetUrl) {
+        if (targetUrl == null || targetUrl.trim().isEmpty()) return null;
+        HttpURLConnection conn = null;
+        BufferedReader reader = null;
+        try {
+            URL url = new URL(targetUrl.trim());
+            conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setInstanceFollowRedirects(true);
+            conn.setConnectTimeout(8000);
+            conn.setReadTimeout(10000);
+            conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14; Mobile; MarvoAssistant/2.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36");
+            conn.setRequestProperty("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,text/plain;q=0.8,*/*;q=0.5");
+            conn.setRequestProperty("Accept-Language", "en-US,en;q=0.9");
+
+            int responseCode = conn.getResponseCode();
+            // Handle redirects (301, 302, 307, 308)
+            if (responseCode == HttpURLConnection.HTTP_MOVED_PERM || 
+                responseCode == HttpURLConnection.HTTP_MOVED_TEMP || 
+                responseCode == 307 || responseCode == 308) {
+                String newUrl = conn.getHeaderField("Location");
+                if (newUrl != null && !newUrl.isEmpty()) {
+                    conn.disconnect();
+                    url = new URL(newUrl);
+                    conn = (HttpURLConnection) url.openConnection();
+                    conn.setRequestMethod("GET");
+                    conn.setConnectTimeout(8000);
+                    conn.setReadTimeout(10000);
+                    conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14; Mobile; MarvoAssistant/2.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36");
+                    responseCode = conn.getResponseCode();
+                }
+            }
+
+            if (responseCode >= 200 && responseCode < 300) {
+                reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
+                StringBuilder rawHtml = new StringBuilder();
+                String line;
+                int totalChars = 0;
+                while ((line = reader.readLine()) != null && totalChars < 250000) {
+                    rawHtml.append(line).append("\n");
+                    totalChars += line.length() + 1;
+                }
+                reader.close();
+
+                return sanitizeHtmlToText(rawHtml.toString());
+            } else {
+                Log.w(TAG, "Webpage fetch returned HTTP " + responseCode);
+                return "[Error: Web server responded with HTTP status " + responseCode + "]";
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error fetching URL content: " + e.getMessage(), e);
+            return "[Error retrieving webpage content: " + e.getMessage() + "]";
+        } finally {
+            if (reader != null) {
+                try { reader.close(); } catch (Exception ignored) {}
+            }
+            if (conn != null) {
+                conn.disconnect();
+            }
+        }
+    }
+
+    /**
+     * Strips scripts, styles, navigations, and HTML tags, decoding entities and collapsing whitespace.
+     */
+    private String sanitizeHtmlToText(String html) {
+        if (html == null || html.isEmpty()) return "";
+        try {
+            // Remove <script>, <style>, <head>, <nav>, <footer>, <svg> tags and contents
+            String clean = html.replaceAll("(?is)<script[^>]*>.*?</script>", " ");
+            clean = clean.replaceAll("(?is)<style[^>]*>.*?</style>", " ");
+            clean = clean.replaceAll("(?is)<head[^>]*>.*?</head>", " ");
+            clean = clean.replaceAll("(?is)<nav[^>]*>.*?</nav>", " ");
+            clean = clean.replaceAll("(?is)<footer[^>]*>.*?</footer>", " ");
+            clean = clean.replaceAll("(?is)<svg[^>]*>.*?</svg>", " ");
+
+            // Structural breaks to newlines
+            clean = clean.replaceAll("(?i)<br\\s*/?>", "\n")
+                         .replaceAll("(?i)</p>", "\n\n")
+                         .replaceAll("(?i)</li>", "\n")
+                         .replaceAll("(?i)</h1>|</h2>|</h3>|</h4>|</h5>|</h6>", "\n\n");
+
+            // Strip remaining HTML tags
+            clean = clean.replaceAll("<[^>]+>", " ");
+
+            // Decode common HTML entities
+            clean = clean.replaceAll("&nbsp;", " ")
+                         .replaceAll("&amp;", "&")
+                         .replaceAll("&quot;", "\"")
+                         .replaceAll("&#39;|&apos;", "'")
+                         .replaceAll("&lt;", "<")
+                         .replaceAll("&gt;", ">")
+                         .replaceAll("&bull;", "•")
+                         .replaceAll("&mdash;", "—")
+                         .replaceAll("&ndash;", "–");
+
+            // Normalize whitespace
+            clean = clean.replaceAll("[ \\t]+", " ");
+            clean = clean.replaceAll("(?m)^\\s+$", "");
+            clean = clean.replaceAll("\n{3,}", "\n\n").trim();
+
+            // Cap at 6,000 chars for optimal Gemini context
+            if (clean.length() > 6000) {
+                clean = clean.substring(0, 6000) + "\n... [Webpage content truncated for brevity]";
+            }
+            return clean;
+        } catch (Exception e) {
+            Log.w(TAG, "Error sanitizing HTML: " + e.getMessage());
+            return html.length() > 3000 ? html.substring(0, 3000) : html;
+        }
+    }
 
     // =========================================================================
     // STEP 5: PERSONAL CONTEXT ENGINE & ENTITY INJECTION (Apple 'Device State')
@@ -2867,6 +3032,20 @@ public class AssistantActivity extends AppCompatActivity {
             return; // Exit the router since we handled the confirmation
         }
 
+        // Step 7 - Part 1: Clear Memory / Forget Everything Command
+        if (lower.equals("clear memory") || lower.equals("forget everything") ||
+            lower.equals("reset memory") || lower.equals("erase memory") ||
+            lower.equals("clear history") || lower.equals("forget conversation") ||
+            lower.contains("clear memory") || lower.contains("forget everything") ||
+            lower.contains("reset memory") || lower.contains("memory clear") ||
+            lower.contains("bhool jao") || lower.contains("memory saaf karo")) {
+            clearConversationHistory();
+            showDynamicPill("Memory Cleared", android.R.drawable.ic_menu_delete);
+            showResponse("Memory cleared.", true);
+            setOrbState("IDLE");
+            return;
+        }
+
         // Step 5 - Part 2: Toolbox Catalog Router (Offline Native Execution)
         if (handleLocalCommand(command)) {
             return;
@@ -3703,6 +3882,11 @@ public class AssistantActivity extends AppCompatActivity {
             return;
         }
 
+        final String detectedUrl = extractUrlFromText(userQuery);
+        if (detectedUrl != null) {
+            showDynamicPill("Reading Webpage...", android.R.drawable.ic_menu_search);
+        }
+
         // State 1: Processing state with subtle pulse & Siri orb THINKING
         setOrbState("THINKING");
         runOnUiThread(new Runnable() {
@@ -3710,7 +3894,7 @@ public class AssistantActivity extends AppCompatActivity {
             public void run() {
                 if (statusTextView != null) {
                     statusTextView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20.0f);
-                    statusTextView.setText("Processing...");
+                    statusTextView.setText(detectedUrl != null ? "Fetching webpage..." : "Processing...");
                     statusTextView.setTextColor(android.graphics.Color.parseColor("#E0E0E0"));
                     Animation pulse = AnimationUtils.loadAnimation(AssistantActivity.this, R.anim.pulse_orb);
                     statusTextView.startAnimation(pulse);
@@ -3726,6 +3910,24 @@ public class AssistantActivity extends AppCompatActivity {
             public void run() {
                 HttpURLConnection connection = null;
                 try {
+                    // Step 7 - Part 1: Siri Ultra URL Content Digest Pre-Processing
+                    String processedPrompt = userQuery;
+                    if (detectedUrl != null) {
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                if (statusTextView != null) {
+                                    statusTextView.setText("Analyzing webpage content...");
+                                }
+                            }
+                        });
+                        String pageContent = fetchUrlContent(detectedUrl);
+                        if (pageContent != null && !pageContent.trim().isEmpty()) {
+                            processedPrompt = "[WEBPAGE CONTENT RETRIEVED: \n" + pageContent + "\n] \n\n User asked: " + userQuery;
+                            Log.d(TAG, "Webpage content retrieved and injected into prompt (" + pageContent.length() + " chars)");
+                        }
+                    }
+
                     String cleanKey = geminiApiKey.trim();
                     String endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + cleanKey;
                     URL url = new URL(endpoint);
@@ -3740,7 +3942,7 @@ public class AssistantActivity extends AppCompatActivity {
                     // Build request body
                     JSONObject requestBody = new JSONObject();
 
-                    // Step 1, 2, 5 & Step 6 Part 2: Core Persona, Zero-Hallucination, XML Structure, Visual Richness, Entity-First Reasoning, Real-time Web Knowledge & URL Content Digest
+                    // Step 1, 2, 5 & Step 7 Part 1: Core Persona, Zero-Hallucination, XML Structure, Visual Richness, Entity-First Reasoning, Persistent Conversation Memory & Live URL Digest
                     String systemInstructionText = "You are Marvo, an intelligent assistant. You craft beautiful, visually rich, and highly accurate responses. \n" +
                         "IDENTITY: You are software; you do not experience emotions or have a physical body, gender, nationality, or personal history. \n" +
                         "BEHAVIOR: You handle user requests by thinking then acting. Accept user corrections about their situation, but do not go along with factual errors; correct them plainly. Be honest when something isn't found, doesn't work, or isn't available. \n" +
@@ -3748,7 +3950,7 @@ public class AssistantActivity extends AppCompatActivity {
                         "RESPONSE FORMAT: You must enclose the essential, spoken part of your response inside a <coreResponse> XML tag. The <coreResponse> is the answer in one breath (roughly 100-250 tokens). Open with the substance directly — no preamble, no 'I found...', no narration. Anything that does not fit in one breath (like structured lists or extra details) must be placed OUTSIDE and AFTER the </coreResponse> tag.\n" +
                         "VISUAL RICHNESS: Your responses should be beautiful, vivid, and visually rich — not flat walls of prose. Every response is an opportunity to make the user feel like they're getting a curated, magazine-quality answer. Compose your text using Markdown (bolding, lists, and headings) to shape the discussion. Use tables only when comparing structured, sortable data. If a request deserves a long, thorough answer, the essential spoken part lands in the <coreResponse> tag, and the deep visual depth lives in the exhale (the text after the tag).\n" +
                         "ENTITY-FIRST REASONING: You possess concrete facts about the user (Entities) provided in the System Context. Treat these entity properties as authoritative data; always prefer them over your own general knowledge. If the user asks about their brother, you know it is Jatin. If the user asks the time or their location, answer immediately from the context block without searching the web.\n" +
-                        "WEB KNOWLEDGE & REAL-TIME URL DIGEST: If the user asks a general knowledge or factual question, provides a URL, or requests live/real-time web search or page digest, synthesize the answer concisely using web knowledge. Ground your facts strictly. If you do not have the data in your training, clearly state 'I need internet access to verify this fact' instead of hallucinating.";
+                        "PERSISTENT CONVERSATION MEMORY & LIVE URL DIGEST: You now have access to conversation history and live webpage content. If the user provides a link, read the [WEBPAGE CONTENT RETRIEVED] block and summarize or answer questions based strictly on it. Maintain context from previous turns naturally without narrating that you are looking at history.";
 
                     JSONObject systemInstructionPart = new JSONObject();
                     systemInstructionPart.put("text", systemInstructionText);
@@ -3761,22 +3963,35 @@ public class AssistantActivity extends AppCompatActivity {
 
                     requestBody.put("system_instruction", systemInstructionObj);
 
-                    // Step 5: Inject System Context preamble with user query
-                    String systemContext = buildSystemContextString();
-                    String fullPrompt = systemContext + "\n\nUser Query: " + userQuery;
-
-                    // User Query Contents
-                    JSONObject textPart = new JSONObject();
-                    textPart.put("text", fullPrompt);
-
-                    JSONArray partsArray = new JSONArray();
-                    partsArray.put(textPart);
-
-                    JSONObject content = new JSONObject();
-                    content.put("parts", partsArray);
-
+                    // Step 7 - Part 1: Build multi-turn conversational history array
                     JSONArray contentsArray = new JSONArray();
-                    contentsArray.put(content);
+
+                    // 1. Append previous conversational turns (user and model) from persistent memory
+                    synchronized (conversationHistory) {
+                        for (ConversationMessage msg : conversationHistory) {
+                            JSONObject turnObj = new JSONObject();
+                            turnObj.put("role", msg.role);
+                            JSONArray turnParts = new JSONArray();
+                            JSONObject partObj = new JSONObject();
+                            partObj.put("text", msg.text);
+                            turnParts.put(partObj);
+                            turnObj.put("parts", turnParts);
+                            contentsArray.put(turnObj);
+                        }
+                    }
+
+                    // 2. Append current turn: System Context + Processed Query (with live URL digest)
+                    String systemContext = buildSystemContextString();
+                    String currentTurnText = systemContext + "\n\nUser Query: " + processedPrompt;
+
+                    JSONObject currentTurn = new JSONObject();
+                    currentTurn.put("role", "user");
+                    JSONArray currentParts = new JSONArray();
+                    JSONObject currentPart = new JSONObject();
+                    currentPart.put("text", currentTurnText);
+                    currentParts.put(currentPart);
+                    currentTurn.put("parts", currentParts);
+                    contentsArray.put(currentTurn);
 
                     requestBody.put("contents", contentsArray);
 
@@ -3825,6 +4040,10 @@ public class AssistantActivity extends AppCompatActivity {
 
                         Log.d(TAG, "Gemini core TTS text: " + ttsText);
                         Log.d(TAG, "Gemini full display text: " + displayText);
+
+                        // Step 7 - Part 1: Record user turn and model turn into Persistent Conversation Memory
+                        addConversationTurn("user", userQuery);
+                        addConversationTurn("model", responseText);
 
                         // State 2: Response Delivery with Synchronized Typewriter (full text) & TTS (<coreResponse> only)
                         deliverGeminiResponse(ttsText, displayText);
