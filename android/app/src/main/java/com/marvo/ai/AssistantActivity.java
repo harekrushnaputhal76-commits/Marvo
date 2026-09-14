@@ -3086,12 +3086,16 @@ public class AssistantActivity extends AppCompatActivity {
                     finishDelayed(2000);
                 } else if (lower.contains("no") || lower.contains("cancel") || lower.contains("nahi") ||
                            lower.contains("na") || lower.contains("mat") || lower.contains("stop") || lower.contains("rok")) {
-                    showResponse("Call cancel kar diya gaya.", true);
-                    showDynamicPill("Call Cancelled", android.R.drawable.ic_menu_close_clear_cancel);
                     pendingActionType = null;
                     pendingCallName = null;
                     pendingCallNumber = null;
-                    finishDelayed(1500);
+                    setOrbState("IDLE");
+                    if (subtitleTextView != null) {
+                        subtitleTextView.setVisibility(View.GONE);
+                    }
+                    if (statusTextView != null) {
+                        statusTextView.setText("");
+                    }
                 } else {
                     showResponse("Say YES to call or NO to cancel.", true);
                     startListeningDelayed(1500);

@@ -51,11 +51,18 @@
   }
 </style>
 </head>
-<body>
+<body onclick="onOrbTap(event)">
 
-<canvas id="siri-canvas"></canvas>
+<canvas id="siri-canvas" onclick="onOrbTap(event)"></canvas>
 
 <script>
+function onOrbTap(e) {
+  if (e && e.stopPropagation) e.stopPropagation();
+  if (window.Android && window.Android.startListening) {
+    window.Android.startListening();
+  }
+}
+window.addEventListener('touchstart', onOrbTap, { passive: true });
 // =======================================================================
 // APPLE SIRI FLUID ORB — 100x BORDERLESS 3D HOLOGRAPHIC WEBGL ENGINE
 // Zero CSS Filters (No Drop-Shadow / No Grey Boxes / Pure Native Transparency)
@@ -408,11 +415,6 @@ requestAnimationFrame(render);
 window.setOrbState('IDLE');
 
 // Step 8: Orb Tap-to-Listen Bridge
-function onOrbTap() {
-  if (window.Android && window.Android.startListening) {
-    window.Android.startListening();
-  }
-}
 canvas.addEventListener('click', onOrbTap);
 document.body.addEventListener('click', onOrbTap);
 </script>

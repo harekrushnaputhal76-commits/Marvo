@@ -36,6 +36,7 @@ public class OfflineIntentRouter {
     // Entity Alias Dictionary (Smart Contacts & Relationships)
     private static final Map<String, String> ALIAS_MAP = new HashMap<>();
     private static final Map<String, String> DEFAULT_PHONE_NUMBERS = new HashMap<>();
+    private static final Map<String, String> CHIT_CHAT_MAP = new HashMap<>();
 
     static {
         // Father Aliases
@@ -114,8 +115,6 @@ public class OfflineIntentRouter {
         CHIT_CHAT_MAP.put("goodbye", "Alvida! Apna khayal rakhiyega.");
         CHIT_CHAT_MAP.put("alvida", "Alvida! Phir milenge.");
     }
-
-    private static final Map<String, String> CHIT_CHAT_MAP = new HashMap<>();
 
     public OfflineIntentRouter(AssistantActivity activity) {
         this.activity = activity;
