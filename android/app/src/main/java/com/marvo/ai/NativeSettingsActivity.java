@@ -238,9 +238,10 @@ public class NativeSettingsActivity extends Activity {
         colorCard.addView(activeColorLabel);
         addSpacer(colorCard, 14);
 
-        colorSwatchesRow = new LinearLayout(this);
+        LinearLayout colorSwatchesRow = new LinearLayout(this);
         colorSwatchesRow.setOrientation(LinearLayout.HORIZONTAL);
         colorSwatchesRow.setGravity(Gravity.CENTER_VERTICAL);
+        colorSwatchesRow.setLayoutParams(createFullWidthParams());
 
         final String[][] colors = {
             {"neon-blue", "#00f0ff", "Neon Blue"},
