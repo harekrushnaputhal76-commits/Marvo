@@ -1168,6 +1168,7 @@ public class AssistantActivity extends AppCompatActivity {
             }, 2000);
         }
     }
+}
 
     /**
      * Sets a countdown timer in the system Clock app.
