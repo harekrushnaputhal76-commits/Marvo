@@ -94,6 +94,7 @@ public class AssistantActivity extends AppCompatActivity {
     private static final int PERMISSION_REQUEST_RECORD_AUDIO = 101;
     public static final int PERMISSION_REQUEST_CONTACTS_CALL = 102;
     private static final int PERMISSION_REQUEST_SMS = 103;
+    public static final int PERMISSION_REQUEST_CAMERA = 104;
     private static final String PREFS_NAME = "MarvoBusinessPrefs";
 
     // Step 9 - Part 5: Apple-Style Structured Error Handling Engine
@@ -120,6 +121,21 @@ public class AssistantActivity extends AppCompatActivity {
                 showResponse(spokenMessage, true);
             }
         });
+    }
+
+    /**
+     * Step 9 - Part 8: Strips conversational AI preamble and filler phrases.
+     * Ensures voice responses are direct, immediate, and free from introductory fluff.
+     */
+    public static String stripAiPreamble(String text) {
+        if (text == null) return "";
+        String s = text.trim();
+        s = s.replaceAll("^(?i)(?:namaste!?|hello!?|hi!?|hey!?|sure!?|certainly!?|definitely!?|of course!?|absolutely!?)\\s*,?\\s*", "");
+        s = s.replaceAll("^(?i)(?:main marvo hoon[,.]?|marvo yahan hai[,.]?|i am marvo[,.]?)\\s*", "");
+        s = s.replaceAll("^(?i)(?:as an ai[,.]?|ek ai assistant ke roop mein[,.]?)\\s*", "");
+        s = s.replaceAll("^(?i)(?:aapki sahayata ke liye yahan hoon[,.]?|i can help you with that[,.]?|here is what you need[,.]?)\\s*", "");
+        s = s.replaceAll("^(?i)(?:mujhe batane mein khushi hogi ki|i'd be happy to tell you that)\\s*", "");
+        return s.trim();
     }
 
     private SpeechRecognizer speechRecognizer;
@@ -1495,31 +1511,20 @@ public class AssistantActivity extends AppCompatActivity {
             intent.putExtra(AlarmClock.EXTRA_SKIP_UI, true);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(intent);
-            if (!isFinishing()) {
-                finish();
-            }
+            String pillMsg = "Timer: " + (seconds >= 60 ? (seconds / 60 + " min") : (seconds + " sec"));
+            String speakMsg = (seconds >= 60 ? (seconds / 60 + " minute") : (seconds + " second")) + " ka timer set kar diya gaya hai.";
+            showDynamicPill(pillMsg, android.R.drawable.ic_lock_idle_alarm);
+            showResponse(speakMsg, true);
+            setOrbState("IDLE");
+            finishDelayed(3000);
         } catch (ActivityNotFoundException e) {
             Log.w(TAG, "Clock/Timer app not found: " + e.getMessage());
-            if (statusTextView != null) {
-                statusTextView.setText("Timer app not found.");
-            }
-            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    if (!isFinishing()) finish();
-                }
-            }, 2000);
+            showResponse("Timer app nahi mila.", true);
+            finishDelayed(2000);
         } catch (Exception e) {
             Log.e(TAG, "Error setting timer: " + e.getMessage(), e);
-            if (statusTextView != null) {
-                statusTextView.setText("Failed to set timer.");
-            }
-            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    if (!isFinishing()) finish();
-                }
-            }, 2000);
+            showResponse("Timer set nahi ho saka.", true);
+            finishDelayed(2000);
         }
     }
 
@@ -1535,29 +1540,19 @@ public class AssistantActivity extends AppCompatActivity {
             intent.putExtra(AlarmClock.EXTRA_SKIP_UI, true);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(intent);
-            finishDelayed(2500);
+            String timeFormatted = String.format(Locale.getDefault(), "%02d:%02d", hour, minute);
+            showDynamicPill("Alarm: " + timeFormatted, android.R.drawable.ic_lock_idle_alarm);
+            showResponse("Alarm " + timeFormatted + " baje ke liye set kar diya gaya hai.", true);
+            setOrbState("IDLE");
+            finishDelayed(3000);
         } catch (ActivityNotFoundException e) {
             Log.w(TAG, "Clock/Alarm app not found: " + e.getMessage());
-            if (statusTextView != null) {
-                statusTextView.setText("Alarm app not found.");
-            }
-            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    if (!isFinishing()) finish();
-                }
-            }, 2000);
+            showResponse("Alarm app nahi mila.", true);
+            finishDelayed(2000);
         } catch (Exception e) {
             Log.e(TAG, "Error setting alarm: " + e.getMessage(), e);
-            if (statusTextView != null) {
-                statusTextView.setText("Failed to set alarm.");
-            }
-            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    if (!isFinishing()) finish();
-                }
-            }, 2000);
+            showResponse("Alarm set nahi ho saka.", true);
+            finishDelayed(2000);
         }
     }
 
@@ -4504,16 +4499,8 @@ public class AssistantActivity extends AppCompatActivity {
                         conn.setConnectTimeout(15000);
                         conn.setReadTimeout(30000);
 
-                        // Step 9 - Part 3: Apple Intelligence Deep Reasoning Engine System Instruction
-                        String baseSystemPrompt = "You are Marvo's Deep Reasoning Engine, operating with Apple Intelligence-level precision. "
-                            + "When presented with deep research, scientific, or analytical questions, break down your response into logical, structured sections: "
-                            + "1. Core Summary, 2. Key Insights/Data Points, and 3. Practical Implications. "
-                            + "When the user asks for News or Wikipedia facts, provide concise, accurate, and up-to-date summaries. "
-                            + "When the user asks for Study/Research material, present structured educational bullet points. "
-                            + "When the user asks for Jokes or Stories, be highly engaging, witty, and creative. "
-                            + "Always maintain a conversational Hindi/Hinglish voice tone suitable for TTS speech output. "
-                            + "Avoid outputting messy raw markdown links, asterisks, bullet marks, or unpronounceable symbols that sound awkward when read aloud by the TTS engine. "
-                            + "Instead, structure the text into clean, digestible summaries and natural spoken references.";
+                        // Step 9 - Part 8: Apple-Style Ultra-Concise Direct System Prompt (Zero Preamble)
+                        String baseSystemPrompt = "You are Marvo, an ultra-concise voice assistant. Answer the user's query directly and immediately in 1-2 short conversational sentences of Hindi/Hinglish. Never introduce yourself, never state what you can do, and never give conversational filler unless explicitly asked 'Who are you?'.";
 
                         String domainDirective = "";
                         if ("DEEP_REASONING".equalsIgnoreCase(activeDomain)) {
@@ -4603,6 +4590,7 @@ public class AssistantActivity extends AppCompatActivity {
                         // Clean raw markdown, symbols, and links that sound awkward via TTS
                         String cleaned = replyText.replaceAll("[*#_`]", "").trim();
                         cleaned = cleaned.replaceAll("https?://\\S+", "").replaceAll("\\s{2,}", " ").trim();
+                        cleaned = stripAiPreamble(cleaned);
                         final String cleanReply = cleaned;
 
                         Log.i(TAG, "[HYBRID ROUTER] Solved ONLINE (Gemini API - " + activeDomain + "): " + cleanReply);
@@ -4733,15 +4721,8 @@ public class AssistantActivity extends AppCompatActivity {
                         conn.setConnectTimeout(15000);
                         conn.setReadTimeout(30000);
 
-                        String baseSystemPrompt = "You are Marvo's Deep Reasoning Engine, operating with Apple Intelligence-level precision. "
-                            + "When presented with deep research, scientific, or analytical questions, break down your response into logical, structured sections: "
-                            + "1. Core Summary, 2. Key Insights/Data Points, and 3. Practical Implications. "
-                            + "When the user asks for News or Wikipedia facts, provide concise, accurate, and up-to-date summaries. "
-                            + "When the user asks for Study/Research material, present structured educational bullet points. "
-                            + "When the user asks for Jokes or Stories, be highly engaging, witty, and creative. "
-                            + "Always maintain a conversational Hindi/Hinglish voice tone suitable for TTS speech output. "
-                            + "Avoid outputting messy raw markdown links, asterisks, bullet marks, or unpronounceable symbols that sound awkward when read aloud by the TTS engine. "
-                            + "Instead, structure the text into clean, digestible summaries and natural spoken references.";
+                        // Step 9 - Part 8: Apple-Style Ultra-Concise Direct System Prompt (Zero Preamble)
+                        String baseSystemPrompt = "You are Marvo, an ultra-concise voice assistant. Answer the user's query directly and immediately in 1-2 short conversational sentences of Hindi/Hinglish. Never introduce yourself, never state what you can do, and never give conversational filler unless explicitly asked 'Who are you?'.";
 
                         String domainDirective = "";
                         if ("DEEP_REASONING".equalsIgnoreCase(activeDomain)) {
@@ -4826,6 +4807,7 @@ public class AssistantActivity extends AppCompatActivity {
 
                         String cleaned = replyText.replaceAll("[*#_`]", "").trim();
                         cleaned = cleaned.replaceAll("https?://\\S+", "").replaceAll("\\s{2,}", " ").trim();
+                        cleaned = stripAiPreamble(cleaned);
 
                         final String finalReply;
                         if (prefixSpeech != null && !prefixSpeech.trim().isEmpty()) {
@@ -5255,7 +5237,7 @@ public class AssistantActivity extends AppCompatActivity {
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == PERMISSION_REQUEST_RECORD_AUDIO || requestCode == PERMISSION_REQUEST_CONTACTS_CALL || requestCode == PERMISSION_REQUEST_SMS) {
+        if (requestCode == PERMISSION_REQUEST_RECORD_AUDIO || requestCode == PERMISSION_REQUEST_CONTACTS_CALL || requestCode == PERMISSION_REQUEST_SMS || requestCode == PERMISSION_REQUEST_CAMERA) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
                 startListening();
             } else {

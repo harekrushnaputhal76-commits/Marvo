@@ -169,6 +169,12 @@ public class OfflineIntentRouter {
         if (handleMusic(subQuery, lower)) return true;
         if (handleApps(subQuery, lower)) return true;
 
+        // Step 9 - Part 8: Strict Routing Wall for Compound sub-queries (Zero Cloud Leakage)
+        if (isStrictDeviceUtilityQuery(lower)) {
+            handleDeviceUtilityFallback(subQuery, lower);
+            return true;
+        }
+
         return false;
     }
 
@@ -534,6 +540,13 @@ public class OfflineIntentRouter {
             return true;
         }
 
+        // Step 9 - Part 8: Strict Routing Wall (Zero Cloud Leakage for Hardware/Device Controls)
+        if (isStrictDeviceUtilityQuery(lower)) {
+            Log.i(TAG, "[STRICT ROUTING WALL] Caught device utility intent, resolving locally: " + command);
+            handleDeviceUtilityFallback(command, lower);
+            return true;
+        }
+
         // CATEGORY B (Route to Online Gemini API):
         // Step 9 - Part 2 & Part 3: Multi-Step Reasoning & Domain Classification
         String domain = detectDomain(command);
@@ -631,7 +644,13 @@ public class OfflineIntentRouter {
         if (lower.equals("open camera") || lower.equals("camera") || lower.equals("camera open") ||
             lower.equals("take a photo") || lower.equals("take photo") || lower.equals("click a photo") ||
             lower.equals("click photo") || lower.equals("capture photo") || lower.equals("take selfie") ||
-            lower.contains("camera kholo") || lower.contains("photo khincho") || lower.contains("selfie lo")) {
+            lower.equals("start camera") || lower.equals("launch camera") || lower.contains("camera on") ||
+            lower.contains("camera kholo") || lower.contains("photo khincho") || lower.contains("selfie lo") ||
+            lower.contains("camera chalu") || lower.contains("picture lo") || lower.contains("click picture")) {
+
+            if (ContextCompat.checkSelfPermission(activity, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(activity, new String[]{Manifest.permission.CAMERA}, AssistantActivity.PERMISSION_REQUEST_CAMERA);
+            }
 
             try {
                 Intent intent = new Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA);
@@ -660,7 +679,7 @@ public class OfflineIntentRouter {
     }
 
     /**
-     * FLASHLIGHT TOOL: "Turn on flashlight" / "Torch on" / "Flashlight off"
+     * FLASHLIGHT TOOL: "Turn on flashlight" / "Torch on" / "Flashlight off" / "Torch jalao" / "Flash light chalu karo"
      */
     private boolean handleFlashlight(String lower) {
         boolean isOnCommand = lower.contains("flashlight on") || lower.contains("torch on") ||
@@ -668,15 +687,18 @@ public class OfflineIntentRouter {
                               lower.contains("torch jalao") || lower.contains("light on") ||
                               lower.contains("flash on") || lower.contains("torch chalu") ||
                               lower.contains("flash chalu") || lower.contains("light jalao") ||
-                              lower.contains("light chalu") || lower.equals("torch") ||
-                              lower.equals("flashlight");
+                              lower.contains("light chalu") || lower.contains("flash light chalu") ||
+                              lower.contains("flashlight chalu") || lower.contains("flash light on") ||
+                              lower.contains("flash light jalao") || lower.contains("torch chalu karo") ||
+                              lower.equals("torch") || lower.equals("flashlight");
 
         boolean isOffCommand = lower.contains("flashlight off") || lower.contains("torch off") ||
                                lower.contains("turn off flashlight") || lower.contains("turn off torch") ||
                                lower.contains("torch band karo") || lower.contains("torch band") ||
                                lower.contains("light off") || lower.contains("light band") ||
                                lower.contains("light band karo") || lower.contains("flash off") ||
-                               lower.contains("flash band");
+                               lower.contains("flash band") || lower.contains("flash light off") ||
+                               lower.contains("flash light band") || lower.contains("flashlight band");
 
         if (isOnCommand) {
             activity.toggleFlashlight(true);
@@ -695,7 +717,7 @@ public class OfflineIntentRouter {
     }
 
     /**
-     * ALARMS & TIMERS: "Wake me up at 7 AM" / "Set alarm for 6:30" / "Set timer for 5 minutes"
+     * ALARMS & TIMERS: "Wake me up at 7 AM" / "Set alarm for 6:30" / "Set timer for 5 minutes" / "Timer lagao"
      */
     private boolean handleAlarmAndTimer(String command, String lower) {
         // 1. Timer Detection
@@ -712,6 +734,11 @@ public class OfflineIntentRouter {
                     totalSeconds = value * 3600;
                 }
                 activity.setTimer(totalSeconds);
+                return true;
+            } else if (lower.contains("lagao") || lower.contains("set") || lower.contains("chalu") || lower.contains("start") || lower.contains("on")) {
+                activity.showResponse("Aap kitne samay ka timer lagana chahte hain?", true);
+                activity.showDynamicPill("Set Timer", android.R.drawable.ic_lock_idle_alarm);
+                activity.setOrbState("IDLE");
                 return true;
             }
         }
@@ -734,6 +761,11 @@ public class OfflineIntentRouter {
                 }
                 activity.setAlarm(hour, minute, "Marvo Alarm");
                 return true;
+            } else if (lower.contains("lagao") || lower.contains("set") || lower.contains("wake me up") || lower.contains("jaga dena")) {
+                activity.showResponse("Aap kitne baje ka alarm lagana chahte hain?", true);
+                activity.showDynamicPill("Set Alarm", android.R.drawable.ic_lock_idle_alarm);
+                activity.setOrbState("IDLE");
+                return true;
             }
         }
 
@@ -741,28 +773,29 @@ public class OfflineIntentRouter {
     }
 
     /**
-     * SETTINGS TOOL: "Open WiFi", "Bluetooth on", "Open settings", "Display settings"
+     * SETTINGS TOOL: "Open WiFi", "Turn on WiFi", "Bluetooth on", "Open settings", "Display settings"
      */
     private boolean handleSettings(String lower) {
         Intent intent = null;
         String actionTitle = null;
 
-        if (lower.contains("wifi") || lower.contains("wi-fi")) {
+        if (lower.contains("wifi") || lower.contains("wi-fi") || lower.contains("turn on wifi") || lower.contains("wifi on") || lower.contains("open wifi") || lower.contains("wifi kholo")) {
             intent = new Intent(Settings.ACTION_WIFI_SETTINGS);
             actionTitle = "Wi-Fi Settings";
-        } else if (lower.contains("bluetooth")) {
+        } else if (lower.contains("bluetooth") || lower.contains("turn on bluetooth") || lower.contains("bluetooth on") || lower.contains("open bluetooth") || lower.contains("bluetooth kholo")) {
             intent = new Intent(Settings.ACTION_BLUETOOTH_SETTINGS);
             actionTitle = "Bluetooth Settings";
         } else if (lower.contains("airplane mode") || lower.contains("flight mode")) {
             intent = new Intent(Settings.ACTION_AIRPLANE_MODE_SETTINGS);
             actionTitle = "Airplane Mode";
-        } else if (lower.contains("display") || lower.contains("brightness")) {
+        } else if (lower.contains("display settings") || lower.contains("brightness settings")) {
             intent = new Intent(Settings.ACTION_DISPLAY_SETTINGS);
             actionTitle = "Display Settings";
-        } else if (lower.contains("sound") || lower.contains("volume") || lower.contains("audio settings")) {
+        } else if (lower.contains("sound settings") || lower.contains("volume settings") || lower.contains("audio settings")) {
             intent = new Intent(Settings.ACTION_SOUND_SETTINGS);
             actionTitle = "Sound Settings";
-        } else if (lower.equals("open settings") || lower.equals("phone settings") || lower.equals("device settings") || lower.contains("settings kholo")) {
+        } else if (lower.equals("open settings") || lower.equals("phone settings") || lower.equals("device settings") ||
+                   lower.equals("settings") || lower.equals("settings open") || lower.contains("settings kholo")) {
             intent = new Intent(Settings.ACTION_SETTINGS);
             actionTitle = "Settings";
         }
@@ -781,6 +814,7 @@ public class OfflineIntentRouter {
         }
         return false;
     }
+
 
     /**
      * ENTITY ALIAS DICTIONARY & SMART CALLING TOOL
@@ -1221,20 +1255,25 @@ public class OfflineIntentRouter {
     private boolean handleDateTime(String lower) {
         boolean isTime = lower.contains("time") || lower.contains("samay") || lower.contains("kitne baje") ||
                          lower.contains("kya baje") || lower.contains("ghadi") || lower.contains("time batao") ||
-                         lower.contains("samay batao");
+                         lower.contains("samay batao") || lower.equals("what time is it") || lower.contains("what time") ||
+                         lower.contains("what is the time") || lower.contains("whats the time") || lower.contains("current time");
         boolean isTomorrow = lower.contains("kal kaun sa din") || lower.contains("kal kya din") ||
                              lower.contains("tomorrow date") || lower.contains("kal ki tarikh") ||
-                             lower.contains("kal ki tareekh") || lower.contains("kal konsa din");
+                             lower.contains("kal ki tareekh") || lower.contains("kal konsa din") ||
+                             lower.contains("tomorrow's date") || lower.contains("kal kya date");
         boolean isYesterday = lower.contains("kal kya date thi") || lower.contains("yesterday date") ||
-                              lower.contains("yesterday's date") || lower.contains("kal kya tarikh thi");
+                              lower.contains("yesterday's date") || lower.contains("kal kya tarikh thi") ||
+                              lower.contains("yesterday");
         boolean isDayAfter = lower.contains("parson") || lower.contains("day after tomorrow");
         boolean isMonth = lower.contains("current month") || lower.contains("kon sa mahina") ||
-                          lower.contains("kaun sa mahina") || lower.contains("mahina kaun sa");
+                          lower.contains("kaun sa mahina") || lower.contains("mahina kaun sa") || lower.contains("which month");
         boolean isYear = lower.contains("current year") || lower.contains("kaun sa saal") ||
-                         lower.contains("kon sa saal") || lower.contains("saal kaun sa");
+                         lower.contains("kon sa saal") || lower.contains("saal kaun sa") || lower.contains("which year");
         boolean isDate = lower.contains("date") || lower.contains("tarikh") || lower.contains("tareekh") ||
                          lower.contains("aaj ka din") || lower.contains("kon sa din") || lower.contains("today date") ||
-                         lower.contains("aaj ki date");
+                         lower.contains("aaj ki date") || lower.contains("what is the date") || lower.contains("what's the date") ||
+                         lower.contains("today's date") || lower.contains("aaj kya date") || lower.contains("aaj kya tarikh") ||
+                         lower.contains("aaj kaun sa din");
 
         String[] daysHindi = {"Ravivar", "Somvar", "Mangalvar", "Budhvar", "Guruvar", "Shukravar", "Shanivar"};
         String[] monthsHindi = {"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"};
@@ -1332,13 +1371,103 @@ public class OfflineIntentRouter {
     }
 
     /**
-     * OFFLINE MATH CALCULATOR ENGINE IN HINDI (Step 7 - Part 4 & Step 9 - Part 4)
+     * Step 9 - Part 8: Normalizes English and Hindi word numbers into numeric digits.
+     * e.g. "five plus five" -> "5 plus 5", "fifty divided by two" -> "50 divided by 2"
+     */
+    private String normalizeWordNumbers(String text) {
+        if (text == null || text.trim().isEmpty()) return "";
+        String s = text.toLowerCase();
+
+        // Hindi number words
+        s = s.replaceAll("\\bshunya\\b", "0");
+        s = s.replaceAll("\\bek\\b", "1");
+        s = s.replaceAll("\\bdo\\b", "2");
+        s = s.replaceAll("\\bteen\\b", "3");
+        s = s.replaceAll("\\bchaar\\b|\\bchar\\b", "4");
+        s = s.replaceAll("\\bpaanch\\b|\\bpanch\\b", "5");
+        s = s.replaceAll("\\bchhe\\b|\\bche\\b", "6");
+        s = s.replaceAll("\\bsaat\\b", "7");
+        s = s.replaceAll("\\baath\\b|\\bath\\b", "8");
+        s = s.replaceAll("\\bnau\\b", "9");
+        s = s.replaceAll("\\bdas\\b", "10");
+        s = s.replaceAll("\\bgyarah\\b", "11");
+        s = s.replaceAll("\\bbaarah\\b|\\bbarah\\b", "12");
+        s = s.replaceAll("\\bterah\\b", "13");
+        s = s.replaceAll("\\bchaudah\\b", "14");
+        s = s.replaceAll("\\bpandrah\\b", "15");
+        s = s.replaceAll("\\bsolah\\b", "16");
+        s = s.replaceAll("\\bsatrah\\b", "17");
+        s = s.replaceAll("\\bathaarah\\b|\\batharah\\b", "18");
+        s = s.replaceAll("\\bunnees\\b|\\bunnis\\b", "19");
+        s = s.replaceAll("\\bbees\\b|\\bbis\\b", "20");
+        s = s.replaceAll("\\btees\\b|\\btis\\b", "30");
+        s = s.replaceAll("\\bchaalees\\b|\\bchalis\\b", "40");
+        s = s.replaceAll("\\bpachaas\\b|\\bpachas\\b", "50");
+        s = s.replaceAll("\\bsaath\\b|\\bsath\\b", "60");
+        s = s.replaceAll("\\bsattar\\b", "70");
+        s = s.replaceAll("\\bassi\\b", "80");
+        s = s.replaceAll("\\bnabbey\\b|\\bnabbe\\b", "90");
+        s = s.replaceAll("\\bsau\\b", "100");
+        s = s.replaceAll("\\bhazaar\\b|\\bhazar\\b", "1000");
+        s = s.replaceAll("\\blakh\\b|\\blac\\b", "100000");
+        s = s.replaceAll("\\bcrore\\b|\\bkrod\\b", "10000000");
+
+        // English number words
+        s = s.replaceAll("\\bzero\\b", "0");
+        s = s.replaceAll("\\bone\\b", "1");
+        s = s.replaceAll("\\btwo\\b", "2");
+        s = s.replaceAll("\\bthree\\b", "3");
+        s = s.replaceAll("\\bfour\\b", "4");
+        s = s.replaceAll("\\bfive\\b", "5");
+        s = s.replaceAll("\\bsix\\b", "6");
+        s = s.replaceAll("\\bseven\\b", "7");
+        s = s.replaceAll("\\beight\\b", "8");
+        s = s.replaceAll("\\bnine\\b", "9");
+        s = s.replaceAll("\\bten\\b", "10");
+        s = s.replaceAll("\\beleven\\b", "11");
+        s = s.replaceAll("\\btwelve\\b", "12");
+        s = s.replaceAll("\\bthirteen\\b", "13");
+        s = s.replaceAll("\\bfourteen\\b", "14");
+        s = s.replaceAll("\\bfifteen\\b", "15");
+        s = s.replaceAll("\\bsixteen\\b", "16");
+        s = s.replaceAll("\\bseventeen\\b", "17");
+        s = s.replaceAll("\\beighteen\\b", "18");
+        s = s.replaceAll("\\bnineteen\\b", "19");
+        s = s.replaceAll("\\btwenty\\b", "20");
+        s = s.replaceAll("\\bthirty\\b", "30");
+        s = s.replaceAll("\\bforty\\b", "40");
+        s = s.replaceAll("\\bfifty\\b", "50");
+        s = s.replaceAll("\\bsixty\\b", "60");
+        s = s.replaceAll("\\bseventy\\b", "70");
+        s = s.replaceAll("\\beighty\\b", "80");
+        s = s.replaceAll("\\bninety\\b", "90");
+        s = s.replaceAll("\\bhundred\\b", "100");
+        s = s.replaceAll("\\bthousand\\b", "1000");
+        s = s.replaceAll("\\bmillion\\b", "1000000");
+
+        // Merge tens and units (e.g., "20 5" -> "25", "50 2" -> "52")
+        Matcher tm = Pattern.compile("\\b(20|30|40|50|60|70|80|90)\\s+([1-9])\\b").matcher(s);
+        StringBuffer sb = new StringBuffer();
+        while (tm.find()) {
+            int tens = Integer.parseInt(tm.group(1));
+            int ones = Integer.parseInt(tm.group(2));
+            tm.appendReplacement(sb, String.valueOf(tens + ones));
+        }
+        tm.appendTail(sb);
+        return sb.toString();
+    }
+
+    /**
+     * OFFLINE MATH CALCULATOR ENGINE IN HINDI & ENGLISH (Step 7 - Part 4 & Step 9 - Part 8)
      * Handles arithmetic, percentages, square roots, squares, powers, and cubes in <5ms.
+     * Integrates word number normalization ("five plus five" -> "5 plus 5").
      */
     private boolean handleMath(String command, String lower) {
+        String normLower = normalizeWordNumbers(lower);
+
         // 1. Percentage: "20 percent of 500" / "500 ka 20 percent" / "15% of 200"
         Pattern pctPattern = Pattern.compile("(\\d+(?:\\.\\d+)?)\\s*(?:%|percent|pratishat)\\s*(?:of|ka)?\\s*(\\d+(?:\\.\\d+)?)", Pattern.CASE_INSENSITIVE);
-        Matcher pctMatcher = pctPattern.matcher(lower);
+        Matcher pctMatcher = pctPattern.matcher(normLower);
         if (pctMatcher.find()) {
             try {
                 double pct = Double.parseDouble(pctMatcher.group(1));
@@ -1353,7 +1482,7 @@ public class OfflineIntentRouter {
             } catch (Exception ignored) {}
         }
         Pattern pctPatternAlt = Pattern.compile("(\\d+(?:\\.\\d+)?)\\s*ka\\s*(\\d+(?:\\.\\d+)?)\\s*(?:%|percent|pratishat)", Pattern.CASE_INSENSITIVE);
-        Matcher pctMatcherAlt = pctPatternAlt.matcher(lower);
+        Matcher pctMatcherAlt = pctPatternAlt.matcher(normLower);
         if (pctMatcherAlt.find()) {
             try {
                 double total = Double.parseDouble(pctMatcherAlt.group(1));
@@ -1370,7 +1499,7 @@ public class OfflineIntentRouter {
 
         // 2. Square Root: "square root of 144" / "root of 144" / "144 ka root" / "144 ka square root"
         Pattern rootPattern = Pattern.compile("(?:square root of|root of|under root of)\\s*(\\d+(?:\\.\\d+)?)", Pattern.CASE_INSENSITIVE);
-        Matcher rootMatcher = rootPattern.matcher(lower);
+        Matcher rootMatcher = rootPattern.matcher(normLower);
         if (rootMatcher.find()) {
             try {
                 double val = Double.parseDouble(rootMatcher.group(1));
@@ -1383,7 +1512,7 @@ public class OfflineIntentRouter {
             } catch (Exception ignored) {}
         }
         Pattern rootPatternHindi = Pattern.compile("(\\d+(?:\\.\\d+)?)\\s*ka\\s*(?:square root|root)", Pattern.CASE_INSENSITIVE);
-        Matcher rootMatcherHindi = rootPatternHindi.matcher(lower);
+        Matcher rootMatcherHindi = rootPatternHindi.matcher(normLower);
         if (rootMatcherHindi.find()) {
             try {
                 double val = Double.parseDouble(rootMatcherHindi.group(1));
@@ -1398,7 +1527,7 @@ public class OfflineIntentRouter {
 
         // 3. Square & Cube: "square of 25" / "25 ka square" / "cube of 5" / "5 ka cube"
         Pattern sqPattern = Pattern.compile("(?:square of)\\s*(\\d+(?:\\.\\d+)?)", Pattern.CASE_INSENSITIVE);
-        Matcher sqMatcher = sqPattern.matcher(lower);
+        Matcher sqMatcher = sqPattern.matcher(normLower);
         if (sqMatcher.find()) {
             try {
                 double val = Double.parseDouble(sqMatcher.group(1));
@@ -1411,7 +1540,7 @@ public class OfflineIntentRouter {
             } catch (Exception ignored) {}
         }
         Pattern sqPatternHindi = Pattern.compile("(\\d+(?:\\.\\d+)?)\\s*ka\\s*square", Pattern.CASE_INSENSITIVE);
-        Matcher sqMatcherHindi = sqPatternHindi.matcher(lower);
+        Matcher sqMatcherHindi = sqPatternHindi.matcher(normLower);
         if (sqMatcherHindi.find()) {
             try {
                 double val = Double.parseDouble(sqMatcherHindi.group(1));
@@ -1424,7 +1553,7 @@ public class OfflineIntentRouter {
             } catch (Exception ignored) {}
         }
         Pattern cubePattern = Pattern.compile("(?:cube of)\\s*(\\d+(?:\\.\\d+)?)", Pattern.CASE_INSENSITIVE);
-        Matcher cubeMatcher = cubePattern.matcher(lower);
+        Matcher cubeMatcher = cubePattern.matcher(normLower);
         if (cubeMatcher.find()) {
             try {
                 double val = Double.parseDouble(cubeMatcher.group(1));
@@ -1437,7 +1566,7 @@ public class OfflineIntentRouter {
             } catch (Exception ignored) {}
         }
         Pattern cubePatternHindi = Pattern.compile("(\\d+(?:\\.\\d+)?)\\s*ka\\s*cube", Pattern.CASE_INSENSITIVE);
-        Matcher cubeMatcherHindi = cubePatternHindi.matcher(lower);
+        Matcher cubeMatcherHindi = cubePatternHindi.matcher(normLower);
         if (cubeMatcherHindi.find()) {
             try {
                 double val = Double.parseDouble(cubeMatcherHindi.group(1));
@@ -1450,9 +1579,26 @@ public class OfflineIntentRouter {
             } catch (Exception ignored) {}
         }
 
-        // 4. Basic Arithmetic Operations (+, -, *, /)
+        // 4. Sum / Difference / Product phrasing
+        Pattern sumPhrase = Pattern.compile("(?:sum of|addition of|add)\\s*(\\d+(?:\\.\\d+)?)\\s*(?:and|aur|plus|\\+)\\s*(\\d+(?:\\.\\d+)?)", Pattern.CASE_INSENSITIVE);
+        Matcher sumM = sumPhrase.matcher(normLower);
+        if (sumM.find()) {
+            try {
+                double num1 = Double.parseDouble(sumM.group(1));
+                double num2 = Double.parseDouble(sumM.group(2));
+                double result = num1 + num2;
+                String resultStr = (result == (long) result) ? String.format(Locale.getDefault(), "%d", (long) result) : String.format(Locale.getDefault(), "%.2f", result);
+                String speech = "Iska jod hai " + resultStr + ".";
+                activity.showDynamicPill("Math: " + resultStr, android.R.drawable.ic_menu_compass);
+                activity.showResponse(speech, true);
+                activity.setOrbState("IDLE");
+                return true;
+            } catch (Exception ignored) {}
+        }
+
+        // 5. Basic Arithmetic Operations (+, -, *, /)
         Pattern p = Pattern.compile("(\\d+(?:\\.\\d+)?)\\s*(?:plus|\\+|jod|minus|\\-|ghatao|ghata|times|multiplied by|\\*|x|into|guna|divided by|\\/|bhag)\\s*(\\d+(?:\\.\\d+)?)", Pattern.CASE_INSENSITIVE);
-        Matcher m = p.matcher(lower);
+        Matcher m = p.matcher(normLower);
         if (m.find()) {
             try {
                 double num1 = Double.parseDouble(m.group(1));
@@ -1576,6 +1722,186 @@ public class OfflineIntentRouter {
             }
         }
         return false;
+    }
+
+    /**
+     * Step 9 - Part 8: Strict Routing Wall.
+     * Evaluates if a query belongs to device hardware/system control domains.
+     * Hardware/system queries must NEVER leak to the Gemini Cloud LLM.
+     */
+    public static boolean isStrictDeviceUtilityQuery(String lower) {
+        if (lower == null || lower.trim().isEmpty()) return false;
+        String s = lower.toLowerCase();
+
+        // Flashlight / Torch
+        if (s.contains("torch") || s.contains("flashlight") || s.contains("flash light")) return true;
+
+        // Camera / Photo capture
+        if (s.contains("camera") || s.contains("selfie") || s.contains("photo lo") || s.contains("photo kheecho") ||
+            s.contains("photo khincho") || s.contains("picture lo") || s.contains("click photo") || s.contains("take photo")) return true;
+
+        // Alarm & Timer
+        if (s.contains("alarm") || s.contains("timer") || s.contains("wake me up") || s.contains("jaga dena") ||
+            s.contains("utha dena") || s.contains("minute ka timer") || s.contains("second ka timer")) return true;
+
+        // Volume / Audio
+        if (s.contains("volume") || s.contains("awaz badhao") || s.contains("awaz kam") || s.contains("awaz full") ||
+            s.contains("awaz tez") || s.contains("awaz dheemi") || s.contains("mute kar") || s.contains("sound badhao") ||
+            s.contains("sound kam")) return true;
+
+        // Brightness / Display
+        if (s.contains("brightness") || s.contains("screen light") || s.contains("roshni badhao") || s.contains("roshni kam")) return true;
+
+        // Settings / Connectivity
+        if (s.contains("wifi") || s.contains("wi-fi") || s.contains("bluetooth") || s.contains("hotspot") ||
+            s.contains("airplane mode") || s.contains("flight mode") || s.contains("open settings") ||
+            s.contains("phone setting") || s.contains("device setting") || s.contains("settings kholo")) return true;
+
+        // Battery
+        if (s.contains("battery") || s.contains("battery percentage") || s.contains("battery kitni") ||
+            s.contains("charge kitna") || s.contains("charging kitni")) return true;
+
+        // Calling / Phone
+        if (s.startsWith("call ") || s.startsWith("phone ") || s.startsWith("dial ") ||
+            s.contains("ko call karo") || s.contains("ko phone lagao") || s.contains("ko call lagao")) return true;
+
+        return false;
+    }
+
+    /**
+     * Step 9 - Part 8: Localized On-Device Fallback for Device Utility Queries.
+     * Prevents hardware/system utility commands from leaking to the online Gemini cloud LLM.
+     */
+    private void handleDeviceUtilityFallback(String command, String lower) {
+        // Flashlight / Torch
+        if (lower.contains("torch") || lower.contains("flashlight") || lower.contains("flash light")) {
+            boolean turnOn = !lower.contains("off") && !lower.contains("band");
+            activity.toggleFlashlight(turnOn);
+            if (turnOn) {
+                activity.showDynamicPill("Torch On", android.R.drawable.ic_menu_camera);
+                activity.showResponse("Torch on kar di gayi hai.", true);
+            } else {
+                activity.showDynamicPill("Torch Off", android.R.drawable.ic_menu_camera);
+                activity.showResponse("Torch band kar di gayi hai.", true);
+            }
+            activity.setOrbState("IDLE");
+            return;
+        }
+
+        // Camera / Selfie / Photos
+        if (lower.contains("camera") || lower.contains("selfie") || lower.contains("photo") || lower.contains("picture")) {
+            if (ContextCompat.checkSelfPermission(activity, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(activity, new String[]{Manifest.permission.CAMERA}, AssistantActivity.PERMISSION_REQUEST_CAMERA);
+            }
+            try {
+                Intent intent = new Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                activity.startActivity(intent);
+                activity.showDynamicPill("Camera Opened", android.R.drawable.ic_menu_camera);
+                activity.showResponse("Opening camera.", true);
+                activity.setOrbState("IDLE");
+            } catch (Exception e) {
+                activity.showDynamicPill("Camera", android.R.drawable.ic_menu_camera);
+                activity.showResponse("Camera open nahi ho saka.", true);
+                activity.setOrbState("IDLE");
+            }
+            return;
+        }
+
+        // Alarm Clock
+        if (lower.contains("alarm") || lower.contains("wake me up") || lower.contains("jaga dena") || lower.contains("utha dena")) {
+            activity.showDynamicPill("Alarm Clock", android.R.drawable.ic_lock_idle_alarm);
+            activity.showResponse("Aap kitne baje ka alarm lagana chahte hain? Kripya samay batayein.", true);
+            activity.setOrbState("IDLE");
+            return;
+        }
+
+        // Timer
+        if (lower.contains("timer")) {
+            activity.showDynamicPill("Timer", android.R.drawable.ic_menu_recent_history);
+            activity.showResponse("Aap kitne minute ka timer lagana chahte hain?", true);
+            activity.setOrbState("IDLE");
+            return;
+        }
+
+        // Volume / Sound / Audio
+        if (lower.contains("volume") || lower.contains("awaz") || lower.contains("sound")) {
+            if (lower.contains("badhao") || lower.contains("tez") || lower.contains("up") || lower.contains("high") || lower.contains("increase")) {
+                activity.adjustDeviceVolume(AudioManager.ADJUST_RAISE);
+            } else if (lower.contains("kam") || lower.contains("dheemi") || lower.contains("down") || lower.contains("low") || lower.contains("decrease")) {
+                activity.adjustDeviceVolume(AudioManager.ADJUST_LOWER);
+            } else if (lower.contains("mute") || lower.contains("silent") || lower.contains("band")) {
+                activity.setDeviceMute(true);
+            } else if (lower.contains("unmute") || lower.contains("kholo")) {
+                activity.setDeviceMute(false);
+            } else {
+                activity.showDynamicPill("Volume", android.R.drawable.ic_lock_silent_mode_off);
+                activity.showResponse("Volume settings open kar raha hoon.", true);
+                activity.setOrbState("IDLE");
+            }
+            return;
+        }
+
+        // Brightness / Display
+        if (lower.contains("brightness") || lower.contains("screen light") || lower.contains("roshni") || lower.contains("screen tej") || lower.contains("screen kam")) {
+            if (lower.contains("badhao") || lower.contains("tez") || lower.contains("up") || lower.contains("full") || lower.contains("max")) {
+                activity.setScreenBrightness(1.0f, "100%");
+            } else if (lower.contains("kam") || lower.contains("dheemi") || lower.contains("down") || lower.contains("dim")) {
+                activity.setScreenBrightness(0.15f, "15%");
+            } else {
+                activity.setScreenBrightness(0.50f, "50%");
+            }
+            return;
+        }
+
+        // Settings / Connectivity (Wi-Fi, Bluetooth)
+        if (lower.contains("wifi") || lower.contains("wi-fi") || lower.contains("bluetooth") || lower.contains("setting") || lower.contains("hotspot") || lower.contains("airplane")) {
+            Intent intent;
+            String title;
+            if (lower.contains("wifi") || lower.contains("wi-fi")) {
+                intent = new Intent(Settings.ACTION_WIFI_SETTINGS);
+                title = "Wi-Fi Settings";
+            } else if (lower.contains("bluetooth")) {
+                intent = new Intent(Settings.ACTION_BLUETOOTH_SETTINGS);
+                title = "Bluetooth Settings";
+            } else if (lower.contains("airplane")) {
+                intent = new Intent(Settings.ACTION_AIRPLANE_MODE_SETTINGS);
+                title = "Airplane Mode";
+            } else {
+                intent = new Intent(Settings.ACTION_SETTINGS);
+                title = "Settings";
+            }
+            try {
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                activity.startActivity(intent);
+                activity.showDynamicPill(title, android.R.drawable.ic_menu_preferences);
+                activity.showResponse("Opening " + title + ".", true);
+                activity.setOrbState("IDLE");
+            } catch (Exception e) {
+                activity.showResponse("Settings kholne mein samasya aayi.", true);
+                activity.setOrbState("IDLE");
+            }
+            return;
+        }
+
+        // Battery
+        if (lower.contains("battery") || lower.contains("charge")) {
+            activity.getDeviceBatteryLevel();
+            return;
+        }
+
+        // Calling / Phone
+        if (lower.contains("call") || lower.contains("phone") || lower.contains("dial")) {
+            activity.showDynamicPill("Call Request", android.R.drawable.ic_menu_call);
+            activity.showResponse("Aap kise call lagana chahte hain? Kripya naam batayein.", true);
+            activity.setOrbState("IDLE");
+            return;
+        }
+
+        // Generic local safety fallback
+        activity.showDynamicPill("Device Utility", android.R.drawable.ic_menu_info_details);
+        activity.showResponse("Mujhe samajh nahi aaya, kripya dobara kahein.", true);
+        activity.setOrbState("IDLE");
     }
 
     public static class ContactResolution {
