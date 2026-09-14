@@ -223,7 +223,6 @@ public class AssistantActivity extends AppCompatActivity {
     /**
      * Extracts first valid URL or domain pattern from user input string.
      */
-    private String extractUrlFromText(String text) {
     String extractUrlFromText(String text) {
         if (text == null || text.trim().isEmpty()) return null;
         Matcher matcher = URL_DETECTION_PATTERN.matcher(text);
@@ -242,7 +241,6 @@ public class AssistantActivity extends AppCompatActivity {
      * Fetches raw webpage HTML via asynchronous HttpURLConnection, follows redirects,
      * strips tags/scripts, and decodes HTML entities.
      */
-    private String fetchUrlContent(String targetUrl) {
     String fetchUrlContent(String targetUrl) {
         if (targetUrl == null || targetUrl.trim().isEmpty()) return null;
         HttpURLConnection conn = null;
@@ -2908,11 +2906,9 @@ public class AssistantActivity extends AppCompatActivity {
     }
 
     /**
-     * Reads and displays current clipboard content.
      * Step 10 Part B: Clipboard Smart Context Resolution & Speech Output.
      * Reads clipboard, determines if it is a link or text, and triggers live voice digest.
      */
-    private void readTextFromClipboard() {
     void handleClipboardSummary() {
         try {
             ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
@@ -2966,26 +2962,18 @@ public class AssistantActivity extends AppCompatActivity {
                 ClipData.Item item = clipboard.getPrimaryClip().getItemAt(0);
                 CharSequence pasteData = item.getText();
                 if (pasteData != null && pasteData.length() > 0) {
-                    updateUI("Clipboard:\n" + pasteData.toString());
-                } else {
-                    updateUI("Clipboard is empty.");
                     String str = pasteData.toString().trim();
                     showDynamicPill("Clipboard Read", android.R.drawable.ic_menu_edit);
                     showResponse("Clipboard par likha hai: " + str, true);
                     setOrbState("IDLE");
                     return;
                 }
-            } else {
-                updateUI("Clipboard is empty.");
             }
-            finishDelayed(3000);
             showDynamicPill("Clipboard Empty", android.R.drawable.ic_menu_info_details);
             showResponse("Clipboard khali hai.", true);
             setOrbState("IDLE");
         } catch (Exception e) {
             Log.e(TAG, "Error reading clipboard: " + e.getMessage(), e);
-            updateUI("Failed to read clipboard.");
-            finishDelayed(2000);
             showResponse("Clipboard read karne mein samasya aayi.", true);
             setOrbState("IDLE");
         }
@@ -2993,7 +2981,7 @@ public class AssistantActivity extends AppCompatActivity {
 
     /**
      * Step 10 Part A & B: Live URL Content Digest & Content Summary Engine.
-     * Fetches webpage if source is a URL, or digests raw text via Gemini API.
+     * Ensures background thread execution for Gemini API summary.
      */
     void summarizeContent(final String sourceText, final String titleOrUrl) {
         if (sourceText == null || sourceText.trim().isEmpty()) {
@@ -3007,42 +2995,62 @@ public class AssistantActivity extends AppCompatActivity {
         showDynamicPill(detectedUrl != null ? "Reading Webpage..." : "Summarizing...", android.R.drawable.ic_menu_search);
         setOrbState("THINKING");
 
+        // Ensure background thread execution for Gemini API summary
         new Thread(new Runnable() {
             @Override
             public void run() {
-                String contentToSummarize = sourceText;
-                if (detectedUrl != null) {
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            if (statusTextView != null) {
-                                statusTextView.setText("Fetching webpage...");
-                            }
-                        }
-                    });
-                    String fetched = fetchUrlContent(detectedUrl);
-                    if (fetched != null && !fetched.trim().isEmpty() && !fetched.startsWith("[Error")) {
-                        contentToSummarize = fetched;
-                    } else {
+                try {
+                    String contentToSummarize = sourceText;
+                    if (detectedUrl != null) {
                         runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
-                                showDynamicPill("Fetch Failed", android.R.drawable.ic_menu_close_clear_cancel);
-                                showResponse("Webpage content access nahi kiya ja saka. Kripya URL check karein.", true);
-                                setOrbState("IDLE");
+                                if (statusTextView != null) {
+                                    statusTextView.setText("Fetching webpage...");
+                                }
                             }
                         });
-                        return;
+                        String fetched = fetchUrlContent(detectedUrl);
+                        if (fetched != null && !fetched.trim().isEmpty() && !fetched.startsWith("[Error")) {
+                            contentToSummarize = fetched;
+                        } else {
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    showDynamicPill("Fetch Failed", android.R.drawable.ic_menu_close_clear_cancel);
+                                    showResponse("Webpage content access nahi kiya ja saka. Kripya URL check karein.", true);
+                                    setOrbState("IDLE");
+                                }
+                            });
+                            return;
+                        }
                     }
-                }
 
-                // Truncate to ~4,000 characters for optimal digest prompt
-                if (contentToSummarize.length() > 4000) {
-                    contentToSummarize = contentToSummarize.substring(0, 4000);
-                }
+                    // Truncate to ~4,000 characters for optimal digest prompt
+                    if (contentToSummarize.length() > 4000) {
+                        contentToSummarize = contentToSummarize.substring(0, 4000);
+                    }
 
-                String digestPrompt = "Content to summarize: " + contentToSummarize;
-                askGeminiOnline(digestPrompt, "CONTENT_DIGEST");
+                    // Safe URL/Clipboard content payload to Gemini API
+                    // Pass result back via runOnUiThread to TTS
+                    final String digestPrompt = "Content to summarize: " + contentToSummarize;
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            askGeminiOnline(digestPrompt, "CONTENT_DIGEST");
+                        }
+                    });
+                } catch (Exception e) {
+                    android.util.Log.e("Summarize", "Error: " + e.getMessage(), e);
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            showDynamicPill("Digest Error", android.R.drawable.ic_menu_close_clear_cancel);
+                            showResponse("Content summarize karne mein samasya aayi.", true);
+                            setOrbState("IDLE");
+                        }
+                    });
+                }
             }
         }).start();
     }
@@ -3180,7 +3188,6 @@ public class AssistantActivity extends AppCompatActivity {
     /**
      * Step 7 - Part 4: Deep Hardware Volume Controller (Raise / Lower).
      */
-    void adjustDeviceVolume(int direction) {
     public void adjustDeviceVolume(int direction) {
         try {
             AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
@@ -3202,7 +3209,6 @@ public class AssistantActivity extends AppCompatActivity {
     /**
      * Step 7 - Part 4: Deep Hardware Ringer / Mute Controller.
      */
-    void setDeviceMute(boolean mute) {
     public void setDeviceMute(boolean mute) {
         try {
             AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
@@ -4793,7 +4799,6 @@ public class AssistantActivity extends AppCompatActivity {
                         String baseSystemPrompt = "You are Marvo, an ultra-concise voice assistant. Answer the user's query directly and immediately in 1-2 short conversational sentences of Hindi/Hinglish. Never introduce yourself, never state what you can do, and never give conversational filler unless explicitly asked 'Who are you?'.";
 
                         String domainDirective = "";
-                        if ("DEEP_REASONING".equalsIgnoreCase(activeDomain)) {
                         if ("CONTENT_DIGEST".equalsIgnoreCase(activeDomain)) {
                             domainDirective = " [System Directive: You are Marvo's Content Digest Engine. Summarize the provided text/article clearly and concisely in 2-3 engaging conversational sentences of Hindi/Hinglish optimized for voice output.]";
                         } else if ("DEEP_REASONING".equalsIgnoreCase(activeDomain)) {
@@ -5018,7 +5023,6 @@ public class AssistantActivity extends AppCompatActivity {
                         String baseSystemPrompt = "You are Marvo, an ultra-concise voice assistant. Answer the user's query directly and immediately in 1-2 short conversational sentences of Hindi/Hinglish. Never introduce yourself, never state what you can do, and never give conversational filler unless explicitly asked 'Who are you?'.";
 
                         String domainDirective = "";
-                        if ("DEEP_REASONING".equalsIgnoreCase(activeDomain)) {
                         if ("CONTENT_DIGEST".equalsIgnoreCase(activeDomain)) {
                             domainDirective = " [System Directive: You are Marvo's Content Digest Engine. Summarize the provided text/article clearly and concisely in 2-3 engaging conversational sentences of Hindi/Hinglish optimized for voice output.]";
                         } else if ("DEEP_REASONING".equalsIgnoreCase(activeDomain)) {
