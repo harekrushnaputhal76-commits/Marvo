@@ -178,6 +178,7 @@ public class OfflineIntentRouter {
         if (handleMusic(subQuery, lower)) return true;
         if (handleApps(subQuery, lower)) return true;
         if (handleVoiceProfile(subQuery, lower)) return true;
+        if (handleUrlAndClipboard(subQuery, lower)) return true;
 
         // Step 9 - Part 8: Strict Routing Wall for Compound sub-queries (Zero Cloud Leakage)
         if (isStrictDeviceUtilityQuery(lower)) {
@@ -572,6 +573,10 @@ public class OfflineIntentRouter {
         }
         if (handleVoiceProfile(command, lower)) {
             Log.i(TAG, "[HYBRID ROUTER] Solved OFFLINE (Fixed Tools - Voice Profile): " + command);
+            return true;
+        }
+        if (handleUrlAndClipboard(command, lower)) {
+            Log.i(TAG, "[HYBRID ROUTER] Handled URL/Clipboard Digest: " + command);
             return true;
         }
 
@@ -1784,27 +1789,6 @@ public class OfflineIntentRouter {
      * Step 9 - Part 11: Native App Launcher & In-App Voice Search Engine.
      */
     private boolean handleApps(String command, String lower) {
-        if (lower.startsWith("open ") || lower.startsWith("launch ") || lower.startsWith("start app ") ||
-            lower.startsWith("kholo ") || lower.startsWith("start ")) {
-            String appName = command.replaceAll("(?i)(open app|launch app|start app|open|launch|start|kholo)\\s*", "").trim();
-            if (!appName.isEmpty()) {
-                String cleanApp = appName.toLowerCase().replaceAll("[^a-z0-9\\s]", "").trim();
-                String targetPkg = FAST_APP_MAP.get(cleanApp);
-                if (targetPkg != null) {
-                    try {
-                        Intent launchIntent = activity.getPackageManager().getLaunchIntentForPackage(targetPkg);
-                        if (launchIntent != null) {
-                            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                            activity.startActivity(launchIntent);
-                            String capName = cleanApp.substring(0, 1).toUpperCase() + cleanApp.substring(1);
-                            activity.showDynamicPill(capName + " Opened", android.R.drawable.ic_menu_compass);
-                            activity.showResponse(capName + " khol raha hoon.", true);
-                            activity.setOrbState("IDLE");
-                            return true;
-                        }
-                    } catch (Exception e) {
-                        Log.w(TAG, "Fast launch error for " + targetPkg + ": " + e.getMessage());
-                    }
         boolean isAppCommand = lower.startsWith("open ") || lower.startsWith("launch ") ||
                                lower.startsWith("start app ") || lower.startsWith("open app ") ||
                                lower.startsWith("kholo ") || lower.startsWith("start ") ||
@@ -1840,8 +1824,6 @@ public class OfflineIntentRouter {
                     activity.setOrbState("IDLE");
                     return true;
                 }
-                activity.launchAppByName(appName);
-                return true;
             } catch (Exception e) {
                 Log.w(TAG, "Fast launch error for " + targetPkg + ": " + e.getMessage());
             }
@@ -1885,6 +1867,40 @@ public class OfflineIntentRouter {
                    lower.contains("awaz badlo")) {
             int nextProfile = (activity.getCurrentVoiceProfile() % 4) + 1;
             activity.setVoiceProfile(nextProfile);
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Step 10: URL Content Digest & Clipboard Intelligence Engine.
+     * Intercepts "summarize this link", "summarize this", "read clipboard", or raw URLs,
+     * routing them directly to the on-device content digest pipeline.
+     */
+    private boolean handleUrlAndClipboard(String command, String lower) {
+        // 1. Explicit Clipboard Commands
+        if (lower.equals("summarize this") || lower.equals("summarize clipboard") ||
+            lower.equals("read clipboard") || lower.contains("clipboard padho") ||
+            lower.contains("clipboard summarize") || lower.contains("is text ko read karo") ||
+            lower.contains("is text ko summarize") || lower.contains("clipboard me kya hai") ||
+            lower.contains("what is in clipboard") || lower.contains("what's on clipboard") ||
+            lower.equals("read this") || lower.equals("summarize this text")) {
+            activity.handleClipboardSummary();
+            return true;
+        }
+
+        // 2. URL Summary Commands or Raw URL Input
+        String extractedUrl = activity.extractUrlFromText(command);
+        if (extractedUrl != null) {
+            activity.summarizeContent(extractedUrl, "Webpage");
+            return true;
+        }
+
+        if (lower.contains("summarize this link") || lower.contains("is link ko summarize") ||
+            lower.contains("link summarize karo") || lower.contains("summarize the link") ||
+            lower.contains("summarize link") || lower.contains("url summarize")) {
+            activity.handleClipboardSummary();
             return true;
         }
 
@@ -2174,6 +2190,13 @@ public class OfflineIntentRouter {
             s.contains("awaaz badlo") || s.contains("awaz badlo") || s.contains("female voice") ||
             s.contains("male voice") || s.contains("ladki ki awaaz") || s.contains("ladke ki awaaz")) return true;
 
+        // Step 10: URL Content Digest & Clipboard Intelligence
+        if (s.contains("read clipboard") || s.contains("clipboard padho") ||
+            s.equals("summarize this") || s.equals("summarize clipboard") ||
+            s.contains("summarize this link") || s.contains("is link ko summarize") ||
+            s.contains("is text ko read karo") || s.contains("is text ko summarize") ||
+            s.contains("what is in clipboard") || s.contains("clipboard me kya hai")) return true;
+
         return false;
     }
 
@@ -2182,6 +2205,13 @@ public class OfflineIntentRouter {
      * Prevents hardware/system utility commands from leaking to the online Gemini cloud LLM.
      */
     private void handleDeviceUtilityFallback(String command, String lower) {
+        // Step 10: Clipboard & URL Content Digest Fallback
+        if (lower.contains("clipboard") || lower.contains("summarize") || lower.contains("http://") || lower.contains("https://")) {
+            if (handleUrlAndClipboard(command, lower)) {
+                return;
+            }
+        }
+
         // App Launcher Fallback
         if (lower.startsWith("open ") || lower.startsWith("launch ") || lower.startsWith("kholo ") ||
             lower.endsWith(" kholo") || lower.endsWith(" open karo") || lower.endsWith(" launch karo") ||

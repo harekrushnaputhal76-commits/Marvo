@@ -224,6 +224,7 @@ public class AssistantActivity extends AppCompatActivity {
      * Extracts first valid URL or domain pattern from user input string.
      */
     private String extractUrlFromText(String text) {
+    String extractUrlFromText(String text) {
         if (text == null || text.trim().isEmpty()) return null;
         Matcher matcher = URL_DETECTION_PATTERN.matcher(text);
         if (matcher.find()) {
@@ -242,6 +243,7 @@ public class AssistantActivity extends AppCompatActivity {
      * strips tags/scripts, and decodes HTML entities.
      */
     private String fetchUrlContent(String targetUrl) {
+    String fetchUrlContent(String targetUrl) {
         if (targetUrl == null || targetUrl.trim().isEmpty()) return null;
         HttpURLConnection conn = null;
         BufferedReader reader = null;
@@ -623,55 +625,7 @@ public class AssistantActivity extends AppCompatActivity {
                 @Override
                 public void onInit(int status) {
                     if (status == TextToSpeech.SUCCESS) {
-                        Locale hindiLocale = new Locale("hi", "IN");
-                        int result = tts.setLanguage(hindiLocale);
-                        if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-                            Log.w(TAG, "Hindi locale hi_IN not supported, falling back to default/US");
-                            result = tts.setLanguage(Locale.getDefault());
-                            if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-                                tts.setLanguage(Locale.US);
-                            }
-                        }
-
-                        // Search for a male Hindi voice in tts.getVoices()
-                        boolean foundMaleVoice = false;
-                        try {
-                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-                                java.util.Set<android.speech.tts.Voice> voices = tts.getVoices();
-                                if (voices != null) {
-                                    for (android.speech.tts.Voice voice : voices) {
-                                        if (voice != null && voice.getLocale() != null) {
-                                            String lang = voice.getLocale().getLanguage();
-                                            String country = voice.getLocale().getCountry();
-                                            String name = voice.getName() != null ? voice.getName().toLowerCase() : "";
-                                            boolean isHindi = "hi".equalsIgnoreCase(lang) ||
-                                                ("hi".equalsIgnoreCase(lang) && "IN".equalsIgnoreCase(country));
-                                            if (isHindi && name.contains("male")) {
-                                                tts.setVoice(voice);
-                                                foundMaleVoice = true;
-                                                Log.d(TAG, "Selected male Hindi TTS voice: " + voice.getName());
-                                                break;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        } catch (Exception e) {
-                            Log.w(TAG, "Could not configure male voice: " + e.getMessage());
-                        }
-
-                        // Voice fallback: lower pitch for deep, calm male voice and adjust cadence
-                        if (foundMaleVoice) {
-                            tts.setPitch(0.90f);
-                            tts.setSpeechRate(0.95f);
-                        } else {
-                            tts.setPitch(0.85f);
-                            tts.setSpeechRate(0.95f);
-                            Log.d(TAG, "Male voice not explicitly found; applied pitch 0.85f and rate 0.95f fallback");
-                        }
-
                         isTtsReady = true;
-                        Log.d(TAG, "TTS initialized successfully with Hindi locale");
                         int savedProfile = MemoryVault.getVoiceProfile(AssistantActivity.this);
                         currentVoiceProfile = savedProfile;
                         applyVoiceProfile(savedProfile, false);
@@ -2955,8 +2909,57 @@ public class AssistantActivity extends AppCompatActivity {
 
     /**
      * Reads and displays current clipboard content.
+     * Step 10 Part B: Clipboard Smart Context Resolution & Speech Output.
+     * Reads clipboard, determines if it is a link or text, and triggers live voice digest.
      */
     private void readTextFromClipboard() {
+    void handleClipboardSummary() {
+        try {
+            ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+            if (clipboard == null || !clipboard.hasPrimaryClip()) {
+                showDynamicPill("Clipboard Empty", android.R.drawable.ic_menu_info_details);
+                showResponse("Clipboard khali hai. Kripya koi text ya link copy karein.", true);
+                setOrbState("IDLE");
+                return;
+            }
+
+            ClipData clip = clipboard.getPrimaryClip();
+            if (clip == null || clip.getItemCount() == 0) {
+                showDynamicPill("Clipboard Empty", android.R.drawable.ic_menu_info_details);
+                showResponse("Clipboard khali hai. Kripya koi text ya link copy karein.", true);
+                setOrbState("IDLE");
+                return;
+            }
+
+            CharSequence text = clip.getItemAt(0).getText();
+            if (text == null || text.toString().trim().isEmpty()) {
+                showDynamicPill("Clipboard Empty", android.R.drawable.ic_menu_info_details);
+                showResponse("Clipboard mein koi readable text nahi hai.", true);
+                setOrbState("IDLE");
+                return;
+            }
+
+            String clipContent = text.toString().trim();
+            String url = extractUrlFromText(clipContent);
+            if (url != null) {
+                showDynamicPill("Summarizing Link", android.R.drawable.ic_menu_compass);
+                summarizeContent(url, "Webpage");
+            } else {
+                showDynamicPill("Summarizing Clipboard", android.R.drawable.ic_menu_edit);
+                summarizeContent(clipContent, "Clipboard Text");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error accessing clipboard: " + e.getMessage(), e);
+            showDynamicPill("Clipboard Error", android.R.drawable.ic_menu_close_clear_cancel);
+            showResponse("Clipboard access karne mein samasya aayi.", true);
+            setOrbState("IDLE");
+        }
+    }
+
+    /**
+     * Reads clipboard content out loud.
+     */
+    void readTextFromClipboard() {
         try {
             ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
             if (clipboard != null && clipboard.hasPrimaryClip()) {
@@ -2966,16 +2969,82 @@ public class AssistantActivity extends AppCompatActivity {
                     updateUI("Clipboard:\n" + pasteData.toString());
                 } else {
                     updateUI("Clipboard is empty.");
+                    String str = pasteData.toString().trim();
+                    showDynamicPill("Clipboard Read", android.R.drawable.ic_menu_edit);
+                    showResponse("Clipboard par likha hai: " + str, true);
+                    setOrbState("IDLE");
+                    return;
                 }
             } else {
                 updateUI("Clipboard is empty.");
             }
             finishDelayed(3000);
+            showDynamicPill("Clipboard Empty", android.R.drawable.ic_menu_info_details);
+            showResponse("Clipboard khali hai.", true);
+            setOrbState("IDLE");
         } catch (Exception e) {
             Log.e(TAG, "Error reading clipboard: " + e.getMessage(), e);
             updateUI("Failed to read clipboard.");
             finishDelayed(2000);
+            showResponse("Clipboard read karne mein samasya aayi.", true);
+            setOrbState("IDLE");
         }
+    }
+
+    /**
+     * Step 10 Part A & B: Live URL Content Digest & Content Summary Engine.
+     * Fetches webpage if source is a URL, or digests raw text via Gemini API.
+     */
+    void summarizeContent(final String sourceText, final String titleOrUrl) {
+        if (sourceText == null || sourceText.trim().isEmpty()) {
+            showDynamicPill("Digest Error", android.R.drawable.ic_menu_info_details);
+            showResponse("Summarize karne ke liye koi content nahi mila.", true);
+            setOrbState("IDLE");
+            return;
+        }
+
+        final String detectedUrl = extractUrlFromText(sourceText);
+        showDynamicPill(detectedUrl != null ? "Reading Webpage..." : "Summarizing...", android.R.drawable.ic_menu_search);
+        setOrbState("THINKING");
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                String contentToSummarize = sourceText;
+                if (detectedUrl != null) {
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (statusTextView != null) {
+                                statusTextView.setText("Fetching webpage...");
+                            }
+                        }
+                    });
+                    String fetched = fetchUrlContent(detectedUrl);
+                    if (fetched != null && !fetched.trim().isEmpty() && !fetched.startsWith("[Error")) {
+                        contentToSummarize = fetched;
+                    } else {
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                showDynamicPill("Fetch Failed", android.R.drawable.ic_menu_close_clear_cancel);
+                                showResponse("Webpage content access nahi kiya ja saka. Kripya URL check karein.", true);
+                                setOrbState("IDLE");
+                            }
+                        });
+                        return;
+                    }
+                }
+
+                // Truncate to ~4,000 characters for optimal digest prompt
+                if (contentToSummarize.length() > 4000) {
+                    contentToSummarize = contentToSummarize.substring(0, 4000);
+                }
+
+                String digestPrompt = "Content to summarize: " + contentToSummarize;
+                askGeminiOnline(digestPrompt, "CONTENT_DIGEST");
+            }
+        }).start();
     }
 
     /**
@@ -2999,23 +3068,18 @@ public class AssistantActivity extends AppCompatActivity {
     // =====================================================================
 
     /**
-     * Launches an installed app by matching the spoken name to package labels.
      * Step 9 - Part 11: Native App Launcher with high-performance fuzzy search across all installed apps.
      */
     void launchAppByName(String appName) {
         if (appName == null || appName.trim().isEmpty()) {
-            updateUI("Which app should I open?");
-            finishDelayed(2000);
             showDynamicPill("App Launcher", android.R.drawable.ic_menu_search);
             showResponse("Aap kaun sa app kholna chahte hain?", true);
             setOrbState("IDLE");
             return;
         }
 
-        String searchName = appName.toLowerCase().trim();
         String searchName = appName.toLowerCase().replaceAll("[^a-z0-9\\s]", "").trim();
         PackageManager pm = getPackageManager();
-        List<ApplicationInfo> apps = pm.getInstalledApplications(PackageManager.GET_META_DATA);
         List<ApplicationInfo> apps = pm.getInstalledApplications(0);
 
         ApplicationInfo bestMatchApp = null;
@@ -3023,9 +3087,6 @@ public class AssistantActivity extends AppCompatActivity {
         double bestScore = 0.0;
 
         for (ApplicationInfo app : apps) {
-            String label = pm.getApplicationLabel(app).toString().toLowerCase().trim();
-            if (label.equals(searchName) || label.contains(searchName)) {
-                Intent launchIntent = pm.getLaunchIntentForPackage(app.packageName);
             Intent launchIntent = pm.getLaunchIntentForPackage(app.packageName);
             if (launchIntent == null) continue;
 
@@ -3073,9 +3134,7 @@ public class AssistantActivity extends AppCompatActivity {
                 Intent launchIntent = pm.getLaunchIntentForPackage(bestMatchApp.packageName);
                 if (launchIntent != null) {
                     launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    updateUI("Opening " + pm.getApplicationLabel(app) + "...");
                     startActivity(launchIntent);
-                    finishDelayed(1000);
                     showDynamicPill(bestMatchLabel + " Opened", android.R.drawable.ic_menu_compass);
                     showResponse(bestMatchLabel + " khol raha hoon.", true);
                     setOrbState("IDLE");
@@ -3086,8 +3145,6 @@ public class AssistantActivity extends AppCompatActivity {
             }
         }
 
-        updateUI("App '" + appName + "' not found.");
-        finishDelayed(2000);
         showDynamicPill("App Not Found", android.R.drawable.ic_menu_close_clear_cancel);
         showResponse("Mujhe yeh app aapke phone mein nahi mila.", true);
         setOrbState("IDLE");
@@ -3124,6 +3181,7 @@ public class AssistantActivity extends AppCompatActivity {
      * Step 7 - Part 4: Deep Hardware Volume Controller (Raise / Lower).
      */
     void adjustDeviceVolume(int direction) {
+    public void adjustDeviceVolume(int direction) {
         try {
             AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
             if (am != null) {
@@ -3145,6 +3203,7 @@ public class AssistantActivity extends AppCompatActivity {
      * Step 7 - Part 4: Deep Hardware Ringer / Mute Controller.
      */
     void setDeviceMute(boolean mute) {
+    public void setDeviceMute(boolean mute) {
         try {
             AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
             if (am != null) {
@@ -4735,6 +4794,9 @@ public class AssistantActivity extends AppCompatActivity {
 
                         String domainDirective = "";
                         if ("DEEP_REASONING".equalsIgnoreCase(activeDomain)) {
+                        if ("CONTENT_DIGEST".equalsIgnoreCase(activeDomain)) {
+                            domainDirective = " [System Directive: You are Marvo's Content Digest Engine. Summarize the provided text/article clearly and concisely in 2-3 engaging conversational sentences of Hindi/Hinglish optimized for voice output.]";
+                        } else if ("DEEP_REASONING".equalsIgnoreCase(activeDomain)) {
                             domainDirective = " [Reasoning Framework: Analytical breakdown - 1. Core Summary, 2. Key Insights/Data Points, 3. Practical Implications in spoken Hindi/Hinglish.]";
                         } else if ("COMEDY_AND_JOKES".equalsIgnoreCase(activeDomain)) {
                             domainDirective = " [Category: Comedy & Jokes - Deliver a genuinely funny, witty, and clean joke in conversational Hindi/Hinglish.]";
@@ -4957,6 +5019,9 @@ public class AssistantActivity extends AppCompatActivity {
 
                         String domainDirective = "";
                         if ("DEEP_REASONING".equalsIgnoreCase(activeDomain)) {
+                        if ("CONTENT_DIGEST".equalsIgnoreCase(activeDomain)) {
+                            domainDirective = " [System Directive: You are Marvo's Content Digest Engine. Summarize the provided text/article clearly and concisely in 2-3 engaging conversational sentences of Hindi/Hinglish optimized for voice output.]";
+                        } else if ("DEEP_REASONING".equalsIgnoreCase(activeDomain)) {
                             domainDirective = " [Reasoning Framework: Analytical breakdown - 1. Core Summary, 2. Key Insights/Data Points, 3. Practical Implications in spoken Hindi/Hinglish.]";
                         } else if ("COMEDY_AND_JOKES".equalsIgnoreCase(activeDomain)) {
                             domainDirective = " [Category: Comedy & Jokes - Deliver a genuinely funny, witty, and clean joke in conversational Hindi/Hinglish.]";
