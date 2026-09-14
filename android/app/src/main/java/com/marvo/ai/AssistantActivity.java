@@ -5,6 +5,7 @@ import android.app.SearchManager;
 import android.content.ActivityNotFoundException;
 import android.content.ClipData;
 import android.content.ClipboardManager;
+import android.content.ContentUris;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -131,7 +132,7 @@ public class AssistantActivity extends AppCompatActivity {
     }
 
     /**
-     * Builds real-time System Context string (Date/Time ISO, Location, Entities, Battery, Network).
+     * Builds real-time System Context string (Date/Time ISO, Location, Entities, Battery, Network, Audio, Messages, Calendar).
      */
     private String buildSystemContextString() {
         SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.getDefault());
@@ -143,6 +144,9 @@ public class AssistantActivity extends AppCompatActivity {
         int battery = getBatteryPercentage();
         String batteryStr = (battery >= 0) ? battery + "%" : "Unknown";
         String network = getNetworkStatusString();
+        String audioStatus = getCurrentAudioStatus();
+        String unreadMsgs = getUnreadMessageCount();
+        String nextEvent = getNextUpcomingCalendarEvent();
 
         StringBuilder rels = new StringBuilder();
         for (Map.Entry<String, String> entry : UserContextProfile.RELATIONSHIPS.entrySet()) {
@@ -156,7 +160,87 @@ public class AssistantActivity extends AppCompatActivity {
                "Device: " + UserContextProfile.DEVICE + ". " +
                "Network: " + network + ". " +
                "Battery: " + batteryStr + ". " +
+               "Audio Mode: " + audioStatus + ". " +
+               "Messages: " + unreadMsgs + ". " +
+               "Calendar: " + nextEvent + ". " +
                "Contacts/Entities: " + rels.toString() + "]";
+    }
+
+    /**
+     * Step 5 Part 2: Retrieves current audio ringer mode and media volume percentage.
+     */
+    private String getCurrentAudioStatus() {
+        try {
+            AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+            if (am != null) {
+                int ringerMode = am.getRingerMode();
+                if (ringerMode == AudioManager.RINGER_MODE_SILENT) {
+                    return "Silent";
+                } else if (ringerMode == AudioManager.RINGER_MODE_VIBRATE) {
+                    return "Vibrate";
+                } else {
+                    int currentVol = am.getStreamVolume(AudioManager.STREAM_MUSIC);
+                    int maxVol = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+                    int pct = (maxVol > 0) ? (currentVol * 100 / maxVol) : 0;
+                    return "Normal (Media Volume: " + pct + "%)";
+                }
+            }
+        } catch (Exception ignored) {}
+        return "Normal";
+    }
+
+    /**
+     * Step 5 Part 2: Safely queries unread SMS count if permission is granted.
+     */
+    private String getUnreadMessageCount() {
+        try {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED) {
+                Cursor cursor = getContentResolver().query(
+                    Uri.parse("content://sms/inbox"),
+                    new String[]{"_id"},
+                    "read = 0",
+                    null,
+                    null
+                );
+                if (cursor != null) {
+                    int count = cursor.getCount();
+                    cursor.close();
+                    return count + " unread";
+                }
+            }
+        } catch (Exception ignored) {}
+        return "0 unread";
+    }
+
+    /**
+     * Step 5 Part 2: Safely retrieves the next upcoming calendar event for today.
+     */
+    private String getNextUpcomingCalendarEvent() {
+        try {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED) {
+                long nowMillis = System.currentTimeMillis();
+                long endOfDayMillis = nowMillis + (24L * 60 * 60 * 1000);
+                Uri.Builder builder = CalendarContract.Instances.CONTENT_URI.buildUpon();
+                ContentUris.appendId(builder, nowMillis);
+                ContentUris.appendId(builder, endOfDayMillis);
+                Cursor cursor = getContentResolver().query(
+                    builder.build(),
+                    new String[]{CalendarContract.Instances.TITLE, CalendarContract.Instances.BEGIN},
+                    null,
+                    null,
+                    CalendarContract.Instances.BEGIN + " ASC"
+                );
+                if (cursor != null && cursor.moveToFirst()) {
+                    String title = cursor.getString(0);
+                    long begin = cursor.getLong(1);
+                    cursor.close();
+                    SimpleDateFormat sdf = new SimpleDateFormat("h:mm a", Locale.getDefault());
+                    return title + " at " + sdf.format(new Date(begin));
+                }
+                if (cursor != null) cursor.close();
+            }
+        } catch (Exception ignored) {}
+        return "No upcoming events today";
     }
 
     private int getBatteryPercentage() {
@@ -906,9 +990,7 @@ public class AssistantActivity extends AppCompatActivity {
             intent.putExtra(AlarmClock.EXTRA_SKIP_UI, true);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(intent);
-            if (!isFinishing()) {
-                finish();
-            }
+            finishDelayed(2500);
         } catch (ActivityNotFoundException e) {
             Log.w(TAG, "Clock/Alarm app not found: " + e.getMessage());
             if (statusTextView != null) {
@@ -1014,40 +1096,89 @@ public class AssistantActivity extends AppCompatActivity {
     }
 
     /**
-     * Opens the camera app facing the front (selfie) camera.
+     * Opens the camera app (standard back camera or front selfie camera).
      */
-    private void openSelfieCamera() {
+    private void openCamera(boolean frontFacing) {
         try {
             Intent intent = new Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA);
-            intent.putExtra("android.intent.extras.CAMERA_FACING", 1); // Front camera
-            intent.putExtra("android.intent.extra.USE_FRONT_CAMERA", true);
+            if (frontFacing) {
+                intent.putExtra("android.intent.extras.CAMERA_FACING", 1);
+                intent.putExtra("android.intent.extra.USE_FRONT_CAMERA", true);
+            }
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(intent);
-            if (!isFinishing()) {
-                finish();
-            }
         } catch (ActivityNotFoundException e) {
-            Log.w(TAG, "Camera app not found: " + e.getMessage());
-            if (statusTextView != null) {
-                statusTextView.setText("Camera app not found.");
-            }
-            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    if (!isFinishing()) finish();
+            try {
+                Intent fallback = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(fallback);
+            } catch (Exception ex) {
+                Log.w(TAG, "Camera app not found: " + ex.getMessage());
+                if (statusTextView != null) {
+                    statusTextView.setText("Camera app not found.");
                 }
-            }, 2000);
+            }
         } catch (Exception e) {
-            Log.e(TAG, "Error opening selfie camera: " + e.getMessage(), e);
+            Log.e(TAG, "Error opening camera: " + e.getMessage(), e);
             if (statusTextView != null) {
                 statusTextView.setText("Failed to open camera.");
             }
-            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    if (!isFinishing()) finish();
-                }
-            }, 2000);
+        }
+    }
+
+    /**
+     * Opens the camera app facing the front (selfie) camera.
+     */
+    private void openSelfieCamera() {
+        openCamera(true);
+        finishDelayed(2500);
+    }
+
+    /**
+     * Step 5 Part 2: Opens the device sound / voice recorder app.
+     */
+    private void openAudioRecorder() {
+        boolean launched = false;
+        try {
+            Intent intent = new Intent(MediaStore.Audio.Media.RECORD_SOUND_ACTION);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+            launched = true;
+        } catch (Exception e) {
+            try {
+                Intent fallback = new Intent("android.provider.MediaStore.RECORD_SOUND");
+                fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(fallback);
+                launched = true;
+            } catch (Exception ignored) {}
+        }
+
+        if (!launched) {
+            String[] recorderPackages = new String[]{
+                "com.motorola.soundrecorder",
+                "com.google.android.apps.recorder",
+                "com.android.soundrecorder",
+                "com.sec.android.app.voicenote"
+            };
+            PackageManager pm = getPackageManager();
+            for (String pkg : recorderPackages) {
+                try {
+                    Intent launchIntent = pm.getLaunchIntentForPackage(pkg);
+                    if (launchIntent != null) {
+                        launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        startActivity(launchIntent);
+                        launched = true;
+                        break;
+                    }
+                } catch (Exception ignored) {}
+            }
+        }
+
+        if (!launched) {
+            Log.w(TAG, "No sound recorder app found on device");
+            if (statusTextView != null) {
+                statusTextView.setText("Voice recorder app not found.");
+            }
         }
     }
 
@@ -1885,6 +2016,92 @@ public class AssistantActivity extends AppCompatActivity {
     }
 
     /**
+     * Step 5 - Part 2: The "Toolbox Catalog" Router (Offline Native Execution).
+     * Intercepts native Android device commands (Camera, Audio Recorder, Alarms)
+     * using regex/keyword matching, executes them locally with immediate TTS and Dynamic Pill,
+     * sets the Siri Orb to SPEAKING, and bypasses the Gemini network call.
+     *
+     * @param command The spoken or entered user query
+     * @return true if handled by a local tool, false to continue routing
+     */
+    private boolean handleLocalCommand(String command) {
+        if (command == null || command.trim().isEmpty()) return false;
+        final String lower = command.trim().toLowerCase();
+
+        // 1. Camera Native Intent Matcher
+        if (lower.matches(".*\\b(open camera|launch camera|start camera|take a photo|take a picture|take photo|take picture|click photo|click a picture|click picture|take selfie|take a selfie|open selfie|open front camera|camera kholo|photo khicho|selfie lo|selfie khicho)\\b.*") ||
+            lower.equals("camera") || lower.equals("selfie") || lower.equals("open camera")) {
+            final boolean isFront = lower.contains("selfie") || lower.contains("front");
+            final String ttsMsg = isFront ? "Opening selfie camera..." : "Opening camera...";
+            setOrbState("SPEAKING");
+            showDynamicPill(isFront ? "Opening Selfie Camera" : "Opening Camera", android.R.drawable.ic_menu_camera);
+            showResponse(ttsMsg, true);
+            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    openCamera(isFront);
+                    finishDelayed(2500);
+                }
+            }, 300);
+            return true;
+        }
+
+        // 2. Audio Recorder Native Intent Matcher
+        if (lower.matches(".*\\b(record audio|start voice recorder|open voice recorder|start recorder|open recorder|record voice|voice recorder|sound recorder|voice memo|audio recording|start recording|voice record karo|awaz record karo)\\b.*") ||
+            lower.equals("recorder") || lower.equals("record audio") || lower.equals("voice recorder")) {
+            final String ttsMsg = "Starting voice recorder...";
+            setOrbState("SPEAKING");
+            showDynamicPill("Starting Voice Recorder", android.R.drawable.ic_btn_speak_now);
+            showResponse(ttsMsg, true);
+            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    openAudioRecorder();
+                    finishDelayed(2500);
+                }
+            }, 300);
+            return true;
+        }
+
+        // 3. Alarm Native Intent Matcher
+        if (lower.matches(".*\\b(set alarm|wake me up|alarm lagao|set an alarm|alarm for|wake me at)\\b.*") ||
+            (lower.contains("alarm") && (lower.contains("am") || lower.contains("pm") || lower.matches(".*\\d+.*")))) {
+            int hour = 7;
+            int minute = 0;
+            Matcher m = Pattern.compile("(\\d{1,2})(?:[:.](\\d{2}))?").matcher(lower);
+            if (m.find()) {
+                try {
+                    hour = Integer.parseInt(m.group(1));
+                    if (m.group(2) != null) {
+                        minute = Integer.parseInt(m.group(2));
+                    }
+                } catch (Exception ignored) {}
+            }
+            if (lower.contains("pm") && hour < 12) {
+                hour += 12;
+            } else if (lower.contains("am") && hour == 12) {
+                hour = 0;
+            }
+            final int fHour = hour;
+            final int fMinute = minute;
+            final String timeDisplay = String.format(Locale.getDefault(), "%02d:%02d", hour, minute);
+            final String ttsMsg = "Setting alarm for " + timeDisplay + "...";
+            setOrbState("SPEAKING");
+            showDynamicPill("Alarm: " + timeDisplay, android.R.drawable.ic_lock_idle_alarm);
+            showResponse(ttsMsg, true);
+            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    setAlarm(fHour, fMinute, "Marvo Alarm");
+                }
+            }, 300);
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
       * Local Intent Router:
      * Separates offline hardware / system commands (calls, sms, flashlight) from online AI queries.
      */
@@ -1969,6 +2186,19 @@ public class AssistantActivity extends AppCompatActivity {
                 startListeningDelayed(1500);
             }
             return; // Exit the router since we handled the confirmation
+        }
+
+        // Step 5 - Part 2: Toolbox Catalog Router (Offline Native Execution)
+        if (handleLocalCommand(command)) {
+            return;
+        }
+
+        // Step 5 - Part 2: Web Knowledge & Wikipedia Fast-Track to Online Gemini AI
+        if (lower.contains("wikipedia") || lower.startsWith("who is ") || lower.startsWith("what is ") ||
+            lower.startsWith("tell me about ") || lower.startsWith("explain ") || lower.startsWith("kya hai ") ||
+            lower.startsWith("kaun hai ")) {
+            queryGemini(command);
+            return;
         }
 
         // Step 10 Part 2 & 3: Smart Contact Aliasing, Whitelist Calling & Bilingual Confirmation
@@ -2794,14 +3024,15 @@ public class AssistantActivity extends AppCompatActivity {
                     // Build request body
                     JSONObject requestBody = new JSONObject();
 
-                    // Step 1, 2 & 5: Core Persona, Zero-Hallucination, XML Structure, Visual Richness & Entity-First Reasoning
+                    // Step 1, 2, 5 & 5 Part 2: Core Persona, Zero-Hallucination, XML Structure, Visual Richness, Entity-First Reasoning & Web Knowledge Grounding
                     String systemInstructionText = "You are Marvo, an intelligent assistant. You craft beautiful, visually rich, and highly accurate responses. \n" +
                         "IDENTITY: You are software; you do not experience emotions or have a physical body, gender, nationality, or personal history. \n" +
                         "BEHAVIOR: You handle user requests by thinking then acting. Accept user corrections about their situation, but do not go along with factual errors; correct them plainly. Be honest when something isn't found, doesn't work, or isn't available. \n" +
                         "ZERO HALLUCINATION: Treat missing data as unknown. It is a CATASTROPHIC violation of trust to infer or guess the value of missing properties or facts. Tell the user exactly what information is missing.\n" +
                         "RESPONSE FORMAT: You must enclose the essential, spoken part of your response inside a <coreResponse> XML tag. The <coreResponse> is the answer in one breath (roughly 100-250 tokens). Open with the substance directly — no preamble, no 'I found...', no narration. Anything that does not fit in one breath (like structured lists or extra details) must be placed OUTSIDE and AFTER the </coreResponse> tag.\n" +
                         "VISUAL RICHNESS: Your responses should be beautiful, vivid, and visually rich — not flat walls of prose. Every response is an opportunity to make the user feel like they're getting a curated, magazine-quality answer. Compose your text using Markdown (bolding, lists, and headings) to shape the discussion. Use tables only when comparing structured, sortable data. If a request deserves a long, thorough answer, the essential spoken part lands in the <coreResponse> tag, and the deep visual depth lives in the exhale (the text after the tag).\n" +
-                        "ENTITY-FIRST REASONING: You possess concrete facts about the user (Entities) provided in the System Context. Treat these entity properties as authoritative data; always prefer them over your own general knowledge. If the user asks about their brother, you know it is Jatin. If the user asks the time or their location, answer immediately from the context block without searching the web.";
+                        "ENTITY-FIRST REASONING: You possess concrete facts about the user (Entities) provided in the System Context. Treat these entity properties as authoritative data; always prefer them over your own general knowledge. If the user asks about their brother, you know it is Jatin. If the user asks the time or their location, answer immediately from the context block without searching the web.\n" +
+                        "WEB KNOWLEDGE & WIKIPEDIA RETRIEVAL: If the user asks a general knowledge, history, or factual question, you must synthesize the answer concisely as if retrieving from a web encyclopedia (like Wikipedia). Ground your facts strictly. If you do not have the data in your training, clearly state 'I need internet access to verify this fact' instead of hallucinating.";
 
                     JSONObject systemInstructionPart = new JSONObject();
                     systemInstructionPart.put("text", systemInstructionText);
