@@ -18,6 +18,7 @@ import android.provider.ContactsContract;
 import android.provider.MediaStore;
 import android.provider.Settings;
 import android.util.Log;
+import android.view.KeyEvent;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import java.util.ArrayList;
@@ -125,17 +126,19 @@ public class OfflineIntentRouter {
 
         // 1. Offline fixed tool keywords
         if (lower.contains("time") || lower.contains("samay") || lower.contains("date") || lower.contains("tarikh") ||
-            lower.contains("battery") || lower.contains("wifi") || lower.contains("bluetooth") ||
+            lower.contains("battery") || lower.contains("wifi") || lower.contains("wi-fi") || lower.contains("bluetooth") ||
             lower.contains("call") || lower.contains("phone") || lower.contains("camera") ||
             lower.contains("flashlight") || lower.contains("torch") || lower.contains("brightness") ||
-            lower.contains("volume") || lower.contains("sound") || lower.contains("awaz") ||
+            lower.contains("volume") || lower.contains("sound") || lower.contains("awaz") || lower.contains("awaaz") ||
+            lower.contains("mute") || lower.contains("unmute") || lower.contains("pause") || lower.contains("resume") ||
             lower.contains("alarm") || lower.contains("timer") || lower.contains("navigate") ||
-            lower.contains("direction") || lower.contains("rasta") || lower.contains("play") ||
+            lower.contains("direction") || lower.contains("rasta") || lower.contains("play") || lower.contains("gaana") || lower.contains("music") ||
             lower.contains("open") || lower.contains("launch") || lower.contains("kholo") ||
             lower.contains("chalao") || lower.contains("batao") || lower.contains("on karo") ||
             lower.contains("off karo") || lower.contains("turn on") || lower.contains("turn off") ||
             lower.contains("set") || lower.contains("calculate") || lower.contains("plus") ||
-            lower.contains("minus") || lower.contains("multiply") || lower.contains("divide")) {
+            lower.contains("minus") || lower.contains("multiply") || lower.contains("divide") ||
+            lower.contains("percent") || lower.contains("root")) {
             return true;
         }
 
@@ -167,6 +170,8 @@ public class OfflineIntentRouter {
         if (handleWeather(subQuery, lower)) return true;
         if (handleMath(subQuery, lower)) return true;
         if (handleBattery(lower)) return true;
+        if (handleConnectivity(subQuery, lower)) return true;
+        if (handleMediaPlayback(subQuery, lower)) return true;
         if (handleSettings(lower)) return true;
         if (handleCalling(subQuery, lower)) return true;
         if (handleChitChat(subQuery, lower)) return true;
@@ -524,9 +529,21 @@ public class OfflineIntentRouter {
             return true;
         }
 
-        // 6. Device Settings (WiFi, Bluetooth, etc.)
+        // 6. Direct Hardware Connectivity (Wi-Fi, Bluetooth Toggles)
+        if (handleConnectivity(command, lower)) {
+            Log.i(TAG, "[HYBRID ROUTER] Solved OFFLINE (Fixed Tools - Connectivity): " + command);
+            return true;
+        }
+
+        // 6b. Device Settings (WiFi, Bluetooth panels/settings)
         if (handleSettings(lower)) {
             Log.i(TAG, "[HYBRID ROUTER] Solved OFFLINE (Fixed Tools - Device Settings): " + command);
+            return true;
+        }
+
+        // 6c. Native Audio & Media Playback Controls
+        if (handleMediaPlayback(command, lower)) {
+            Log.i(TAG, "[HYBRID ROUTER] Solved OFFLINE (Fixed Tools - Media Playback): " + command);
             return true;
         }
 
@@ -815,6 +832,94 @@ public class OfflineIntentRouter {
                 );
                 return true;
             }
+        }
+
+        return false;
+    }
+
+    /**
+     * Step 11: Direct Hardware Connectivity Controller (Zero Cloud).
+     * Intercepts Wi-Fi and Bluetooth on/off toggles with native hardware controls.
+     */
+    private boolean handleConnectivity(String command, String lower) {
+        // Wi-Fi ON
+        if (lower.equals("wifi on") || lower.equals("wi-fi on") || lower.contains("turn on wifi") ||
+            lower.contains("turn on wi-fi") || lower.contains("wifi on karo") || lower.contains("wi-fi on karo") ||
+            lower.contains("wifi chalu karo") || lower.contains("wi-fi chalu karo") || lower.contains("wifi start karo") ||
+            lower.contains("enable wifi") || lower.contains("enable wi-fi")) {
+            activity.toggleWifi(true);
+            return true;
+        }
+
+        // Wi-Fi OFF
+        if (lower.equals("wifi off") || lower.equals("wi-fi off") || lower.contains("turn off wifi") ||
+            lower.contains("turn off wi-fi") || lower.contains("wifi off karo") || lower.contains("wi-fi off karo") ||
+            lower.contains("wifi band karo") || lower.contains("wi-fi band karo") || lower.contains("wifi roko") ||
+            lower.contains("disable wifi") || lower.contains("disable wi-fi")) {
+            activity.toggleWifi(false);
+            return true;
+        }
+
+        // Bluetooth ON
+        if (lower.equals("bluetooth on") || lower.contains("turn on bluetooth") || lower.contains("bluetooth on karo") ||
+            lower.contains("bluetooth chalu karo") || lower.contains("bluetooth start karo") ||
+            lower.contains("enable bluetooth")) {
+            activity.toggleBluetooth(true);
+            return true;
+        }
+
+        // Bluetooth OFF
+        if (lower.equals("bluetooth off") || lower.contains("turn off bluetooth") || lower.contains("bluetooth off karo") ||
+            lower.contains("bluetooth band karo") || lower.contains("bluetooth roko") ||
+            lower.contains("disable bluetooth")) {
+            activity.toggleBluetooth(false);
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Step 11: Audio & Media Engine (playback_control).
+     * Intercepts media playback controls (pause, play, next, previous) and dispatches native KeyEvents.
+     */
+    private boolean handleMediaPlayback(String command, String lower) {
+        // Pause Media
+        if (lower.contains("music pause") || lower.contains("pause music") || lower.contains("gaana pause") ||
+            lower.contains("pause song") || lower.contains("stop music") || lower.contains("music stop") ||
+            lower.contains("gaana roko") || lower.contains("music roko") || lower.contains("gaana band karo") ||
+            lower.equals("pause") || lower.equals("pause karo") || lower.equals("stop")) {
+            activity.controlMediaPlayback(KeyEvent.KEYCODE_MEDIA_PAUSE, "Pause");
+            return true;
+        }
+
+        // Resume / Play Media
+        if (lower.contains("music play karo") || lower.contains("gaana play karo") || lower.contains("resume music") ||
+            lower.contains("resume song") || lower.contains("gaana chalu karo") || lower.contains("music chalu karo") ||
+            lower.equals("play music") || lower.equals("play") || lower.equals("resume") || lower.equals("chalao") ||
+            lower.equals("gaana chalao")) {
+            activity.controlMediaPlayback(KeyEvent.KEYCODE_MEDIA_PLAY, "Play");
+            return true;
+        }
+
+        // Play / Pause Toggle
+        if (lower.contains("play pause") || lower.contains("music toggle") || lower.contains("gaana toggle")) {
+            activity.controlMediaPlayback(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, "Play/Pause");
+            return true;
+        }
+
+        // Next Track
+        if (lower.contains("next song") || lower.contains("next track") || lower.contains("agla gaana") ||
+            lower.contains("agla gana") || lower.contains("next music")) {
+            activity.controlMediaPlayback(KeyEvent.KEYCODE_MEDIA_NEXT, "Next");
+            return true;
+        }
+
+        // Previous Track
+        if (lower.contains("previous song") || lower.contains("previous track") || lower.contains("pichhla gaana") ||
+            lower.contains("pichla gana") || lower.contains("previous music")) {
+            activity.controlMediaPlayback(KeyEvent.KEYCODE_MEDIA_PREVIOUS, "Previous");
+            return true;
         }
 
         return false;
@@ -1729,15 +1834,17 @@ public class OfflineIntentRouter {
      */
     private boolean handleVolume(String lower) {
         // Percentage / Preset volume
-        if (lower.contains("volume 100") || lower.contains("full volume") || lower.contains("max volume") ||
-            lower.contains("maximum volume") || lower.contains("awaz full")) {
+        if (lower.contains("volume 100") || lower.contains("volume full") || lower.contains("full volume") ||
+            lower.contains("max volume") || lower.contains("maximum volume") || lower.contains("awaz full") ||
+            lower.contains("awaaz full") || lower.contains("sound full")) {
             activity.setDeviceVolumeLevel(100);
             return true;
         } else if (lower.contains("volume 50") || lower.contains("half volume") || lower.contains("volume aadha") ||
-                   lower.contains("awaz aadhi") || lower.contains("medium volume")) {
+                   lower.contains("awaz aadhi") || lower.contains("awaaz aadhi") || lower.contains("medium volume")) {
             activity.setDeviceVolumeLevel(50);
             return true;
-        } else if (lower.contains("volume 0") || lower.contains("volume zero") || lower.contains("awaz zero")) {
+        } else if (lower.contains("volume 0") || lower.contains("volume zero") || lower.contains("awaz zero") ||
+                   lower.contains("awaaz zero")) {
             activity.setDeviceVolumeLevel(0);
             return true;
         } else if (lower.contains("volume 80") || lower.contains("volume 75")) {
@@ -1750,19 +1857,22 @@ public class OfflineIntentRouter {
 
         // Stepped Volume Up/Down
         if (lower.contains("volume up") || lower.contains("volume badhao") || lower.contains("awaz badhao") ||
-            lower.contains("increase volume") || lower.contains("sound badhao") || lower.contains("awaz tej") || lower.contains("volume tej")) {
+            lower.contains("awaaz badhao") || lower.contains("increase volume") || lower.contains("sound badhao") ||
+            lower.contains("awaz tej") || lower.contains("awaaz tej") || lower.contains("volume tej")) {
             activity.adjustDeviceVolume(AudioManager.ADJUST_RAISE);
             return true;
         } else if (lower.contains("volume down") || lower.contains("volume kam") || lower.contains("awaz kam") ||
-                   lower.contains("decrease volume") || lower.contains("lower volume") || lower.contains("sound kam") || lower.contains("volume dheere")) {
+                   lower.contains("awaaz kam") || lower.contains("decrease volume") || lower.contains("lower volume") ||
+                   lower.contains("sound kam") || lower.contains("volume dheere") || lower.contains("awaz dheemi")) {
             activity.adjustDeviceVolume(AudioManager.ADJUST_LOWER);
             return true;
-        } else if (lower.equals("mute") || lower.contains("mute phone") || lower.contains("phone silent") ||
-                   lower.contains("awaz band") || lower.contains("silent karo") || lower.contains("mute karo")) {
+        } else if (lower.equals("mute") || lower.contains("phone mute") || lower.contains("mute phone") ||
+                   lower.contains("phone silent") || lower.contains("awaz band") || lower.contains("awaaz band") ||
+                   lower.contains("silent karo") || lower.contains("mute karo")) {
             activity.setDeviceMute(true);
             return true;
         } else if (lower.equals("unmute") || lower.contains("unmute phone") || lower.contains("sound on") ||
-                   lower.contains("unmute karo") || lower.contains("awaz kholo")) {
+                   lower.contains("unmute karo") || lower.contains("awaz kholo") || lower.contains("awaaz kholo")) {
             activity.setDeviceMute(false);
             return true;
         }
@@ -2197,6 +2307,27 @@ public class OfflineIntentRouter {
             s.contains("is text ko read karo") || s.contains("is text ko summarize") ||
             s.contains("what is in clipboard") || s.contains("clipboard me kya hai")) return true;
 
+        // Step 11: Direct Connectivity Controls (Wi-Fi, Bluetooth)
+        if (s.contains("wifi") || s.contains("wi-fi") || s.contains("bluetooth")) return true;
+
+        // Step 11: Audio & Media Playback Controls
+        if (s.contains("music pause") || s.contains("gaana pause") || s.contains("pause song") ||
+            s.contains("stop music") || s.contains("gaana roko") || s.contains("music roko") ||
+            s.contains("music play") || s.contains("gaana play") || s.contains("resume music") ||
+            s.contains("next song") || s.contains("agla gaana") || s.contains("previous song") ||
+            s.contains("pichhla gaana")) return true;
+
+        // Step 11: Math & Arithmetic Offline Calculator
+        if (s.contains("percent of") || s.contains("ka root") || s.contains("square root") ||
+            s.contains("plus") || s.contains("minus") || s.contains("multiplied by") ||
+            s.contains("divided by") || s.contains("ka percent") || s.contains("ka square") ||
+            s.contains("ka cube")) return true;
+
+        // Step 11: Time & Date Offline Queries
+        if (s.contains("current time") || s.contains("what time") || s.contains("samay kya") ||
+            s.contains("aaj kya date") || s.contains("aaj ki date") || s.contains("today's date") ||
+            s.contains("today date") || s.contains("aaj ki tarikh") || s.contains("aaj kaun sa din")) return true;
+
         return false;
     }
 
@@ -2208,6 +2339,39 @@ public class OfflineIntentRouter {
         // Step 10: Clipboard & URL Content Digest Fallback
         if (lower.contains("clipboard") || lower.contains("summarize") || lower.contains("http://") || lower.contains("https://")) {
             if (handleUrlAndClipboard(command, lower)) {
+                return;
+            }
+        }
+
+        // Step 11: Connectivity Fallback (Wi-Fi, Bluetooth)
+        if (lower.contains("wifi") || lower.contains("wi-fi") || lower.contains("bluetooth")) {
+            if (handleConnectivity(command, lower)) {
+                return;
+            }
+        }
+
+        // Step 11: Media Playback Fallback
+        if (lower.contains("music") || lower.contains("gaana") || lower.contains("song") ||
+            lower.contains("pause") || lower.contains("resume") || lower.contains("play")) {
+            if (handleMediaPlayback(command, lower)) {
+                return;
+            }
+        }
+
+        // Step 11: Math Fallback
+        if (lower.contains("percent") || lower.contains("plus") || lower.contains("minus") ||
+            lower.contains("multiplied") || lower.contains("divided") || lower.contains("root") ||
+            lower.contains("square") || lower.contains("cube")) {
+            if (handleMath(command, lower)) {
+                return;
+            }
+        }
+
+        // Step 11: Time & Date Fallback
+        if (lower.contains("time") || lower.contains("samay") || lower.contains("date") ||
+            lower.contains("tarikh") || lower.contains("din") || lower.contains("mahina") ||
+            lower.contains("saal") || lower.contains("year")) {
+            if (handleDateTime(lower)) {
                 return;
             }
         }

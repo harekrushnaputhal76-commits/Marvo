@@ -15,15 +15,19 @@ import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraManager;
+import android.bluetooth.BluetoothAdapter;
 import android.media.AudioManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.Uri;
+import android.net.wifi.WifiManager;
 import android.os.BatteryManager;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
+import android.view.KeyEvent;
 import android.provider.AlarmClock;
 import android.provider.CalendarContract;
 import android.provider.ContactsContract;
@@ -2430,7 +2434,7 @@ public class AssistantActivity extends AppCompatActivity {
     /**
      * Step 9 - Part 4: Native Screen Brightness Controller.
      */
-    void setScreenBrightness(final float ratio, final String label) {
+    public void setScreenBrightness(final float ratio, final String label) {
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
@@ -3228,6 +3232,112 @@ public class AssistantActivity extends AppCompatActivity {
         } catch (Exception e) {
             Log.e(TAG, "Error setting mute: " + e.getMessage(), e);
             showResponse("Volume change karne mein samasya aayi.", true);
+        }
+    }
+
+    /**
+     * Step 11: Native Audio & Media Playback Controller (Zero Cloud).
+     * Dispatches hardware media key events (Play, Pause, Play/Pause, Next, Previous).
+     */
+    public void controlMediaPlayback(int keycode, String actionLabel) {
+        try {
+            AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+            if (am != null) {
+                long eventTime = SystemClock.uptimeMillis();
+                KeyEvent downEvent = new KeyEvent(eventTime, eventTime, KeyEvent.ACTION_DOWN, keycode, 0);
+                am.dispatchMediaKeyEvent(downEvent);
+                KeyEvent upEvent = new KeyEvent(eventTime, eventTime, KeyEvent.ACTION_UP, keycode, 0);
+                am.dispatchMediaKeyEvent(upEvent);
+
+                showDynamicPill("Media " + actionLabel, android.R.drawable.ic_media_play);
+                String msg = "Media " + actionLabel.toLowerCase() + " kar diya gaya hai.";
+                showResponse(msg, true);
+                setOrbState("IDLE");
+                return;
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error dispatching media playback key: " + e.getMessage(), e);
+        }
+        showResponse("Media control karne mein samasya aayi.", true);
+        setOrbState("IDLE");
+    }
+
+    /**
+     * Step 11: Direct Hardware Wi-Fi Controller (Zero Cloud).
+     */
+    public void toggleWifi(boolean enable) {
+        try {
+            WifiManager wm = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+            if (wm != null) {
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                    wm.setWifiEnabled(enable);
+                } else {
+                    // On Android 10+ (Q+), direct third-party Wi-Fi toggling is restricted by Android OS.
+                    // Open the interactive Wi-Fi Settings Panel or Settings
+                    try {
+                        Intent panelIntent = new Intent(Settings.Panel.ACTION_WIFI);
+                        panelIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        startActivity(panelIntent);
+                    } catch (Exception e) {
+                        Intent wifiIntent = new Intent(Settings.ACTION_WIFI_SETTINGS);
+                        wifiIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        startActivity(wifiIntent);
+                    }
+                }
+                String msg = enable ? "Wi-Fi on kar diya gaya hai." : "Wi-Fi band kar diya gaya hai.";
+                showDynamicPill(enable ? "Wi-Fi On" : "Wi-Fi Off", android.R.drawable.ic_menu_compass);
+                showResponse(msg, true);
+                setOrbState("IDLE");
+                return;
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error toggling Wi-Fi: " + e.getMessage(), e);
+            try {
+                Intent wifiIntent = new Intent(Settings.ACTION_WIFI_SETTINGS);
+                wifiIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(wifiIntent);
+            } catch (Exception ignored) {}
+            showResponse("Wi-Fi settings open kar raha hoon.", true);
+            setOrbState("IDLE");
+        }
+    }
+
+    /**
+     * Step 11: Direct Hardware Bluetooth Controller (Zero Cloud).
+     */
+    public void toggleBluetooth(boolean enable) {
+        try {
+            BluetoothAdapter ba = BluetoothAdapter.getDefaultAdapter();
+            if (ba == null) {
+                showDynamicPill("No Bluetooth", android.R.drawable.ic_menu_close_clear_cancel);
+                showResponse("Aapke device mein Bluetooth hardware uplabdh nahi hai.", true);
+                setOrbState("IDLE");
+                return;
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+                    ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.BLUETOOTH_CONNECT}, 105);
+                }
+            }
+            if (enable) {
+                ba.enable();
+                showDynamicPill("Bluetooth On", android.R.drawable.stat_sys_data_bluetooth);
+                showResponse("Bluetooth on kar diya gaya hai.", true);
+            } else {
+                ba.disable();
+                showDynamicPill("Bluetooth Off", android.R.drawable.stat_sys_data_bluetooth);
+                showResponse("Bluetooth band kar diya gaya hai.", true);
+            }
+            setOrbState("IDLE");
+        } catch (Exception e) {
+            Log.e(TAG, "Error toggling Bluetooth: " + e.getMessage(), e);
+            try {
+                Intent btIntent = new Intent(Settings.ACTION_BLUETOOTH_SETTINGS);
+                btIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(btIntent);
+            } catch (Exception ignored) {}
+            showResponse("Bluetooth settings open kar raha hoon.", true);
+            setOrbState("IDLE");
         }
     }
 
