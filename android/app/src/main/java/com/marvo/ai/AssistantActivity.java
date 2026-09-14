@@ -152,6 +152,7 @@ public class AssistantActivity extends AppCompatActivity {
 
     public static synchronized void clearConversationHistory() {
         conversationHistory.clear();
+        OfflineIntentRouter.clearContextStack();
     }
 
     private static final Pattern URL_DETECTION_PATTERN = Pattern.compile("(https?://[\\w\\-._~:/?#\\[\\]@!$&'()*+,;=%]+)", Pattern.CASE_INSENSITIVE);
@@ -4182,8 +4183,10 @@ public class AssistantActivity extends AppCompatActivity {
                         conn.setConnectTimeout(15000);
                         conn.setReadTimeout(30000);
 
-                        // Step 9 - Part 2: Dynamic System Prompt Upgrade for Multi-Domain Media Companion
-                        String baseSystemPrompt = "You are Marvo, an advanced AI assistant. "
+                        // Step 9 - Part 3: Apple Intelligence Deep Reasoning Engine System Instruction
+                        String baseSystemPrompt = "You are Marvo's Deep Reasoning Engine, operating with Apple Intelligence-level precision. "
+                            + "When presented with deep research, scientific, or analytical questions, break down your response into logical, structured sections: "
+                            + "1. Core Summary, 2. Key Insights/Data Points, and 3. Practical Implications. "
                             + "When the user asks for News or Wikipedia facts, provide concise, accurate, and up-to-date summaries. "
                             + "When the user asks for Study/Research material, present structured educational bullet points. "
                             + "When the user asks for Jokes or Stories, be highly engaging, witty, and creative. "
@@ -4192,14 +4195,16 @@ public class AssistantActivity extends AppCompatActivity {
                             + "Instead, structure the text into clean, digestible summaries and natural spoken references.";
 
                         String domainDirective = "";
-                        if ("COMEDY_AND_JOKES".equalsIgnoreCase(activeDomain)) {
+                        if ("DEEP_REASONING".equalsIgnoreCase(activeDomain)) {
+                            domainDirective = " [Reasoning Framework: Analytical breakdown - 1. Core Summary, 2. Key Insights/Data Points, 3. Practical Implications in spoken Hindi/Hinglish.]";
+                        } else if ("COMEDY_AND_JOKES".equalsIgnoreCase(activeDomain)) {
                             domainDirective = " [Category: Comedy & Jokes - Deliver a genuinely funny, witty, and clean joke in conversational Hindi/Hinglish.]";
                         } else if ("STORIES".equalsIgnoreCase(activeDomain)) {
                             domainDirective = " [Category: Stories - Narrate an engaging, imaginative, and captivating short story in vivid Hindi/Hinglish.]";
                         } else if ("NEWS".equalsIgnoreCase(activeDomain)) {
                             domainDirective = " [Category: News & Headlines - Provide a concise, accurate summary of current events and headlines in fluent Hindi/Hinglish without raw URLs.]";
                         } else if ("STUDY_AND_RESEARCH".equalsIgnoreCase(activeDomain)) {
-                            domainDirective = " [Category: Study & Research - Present structured educational points and core conceptual insights in conversational Hindi/Hinglish.]";
+                            domainDirective = " [Category: Study & Research - Break down into 1. Core Summary, 2. Key Insights/Data Points, and 3. Practical Implications in conversational Hindi/Hinglish.]";
                         } else if ("WIKIPEDIA_AND_KNOWLEDGE".equalsIgnoreCase(activeDomain)) {
                             domainDirective = " [Category: Wikipedia & General Knowledge - Provide an accurate, comprehensive yet concise factual summary in clear Hindi/Hinglish.]";
                         }

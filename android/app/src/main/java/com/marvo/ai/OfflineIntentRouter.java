@@ -16,8 +16,11 @@ import android.provider.ContactsContract;
 import android.provider.MediaStore;
 import android.provider.Settings;
 import android.util.Log;
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -37,6 +40,64 @@ public class OfflineIntentRouter {
     private static final Map<String, String> ALIAS_MAP = new HashMap<>();
     private static final Map<String, String> DEFAULT_PHONE_NUMBERS = new HashMap<>();
     private static final Map<String, String> CHIT_CHAT_MAP = new HashMap<>();
+
+    // Step 9 - Part 3: Advanced Semantic Intent Parser & Context Stack (Tracks last 3-5 user interactions)
+    private static final int MAX_CONTEXT_STACK = 5;
+    public static final List<String> recentIntents = Collections.synchronizedList(new ArrayList<String>());
+
+    public static synchronized void pushContextIntent(String query) {
+        if (query == null || query.trim().isEmpty()) return;
+        recentIntents.add(query.trim());
+        while (recentIntents.size() > MAX_CONTEXT_STACK) {
+            recentIntents.remove(0);
+        }
+    }
+
+    public static synchronized void clearContextStack() {
+        recentIntents.clear();
+    }
+
+    /**
+     * Step 9 - Part 3: Advanced Semantic Intent Parser & Context Resolution.
+     * When a vague query arrives ("Uske baare mein aur batao", "Isme kya khas hai?", "Explain more"),
+     * analyzes the Context Stack to dynamically resolve pronouns ("uske", "isme", "iska", "unke", "it")
+     * before routing.
+     */
+    public String resolveContextualPronouns(String command) {
+        if (command == null || command.trim().isEmpty()) return command;
+        String lower = command.trim().toLowerCase();
+
+        boolean isVague = lower.contains("uske") || lower.contains("isme") || lower.contains("iska") ||
+                          lower.contains("uski") || lower.contains("unke") || lower.contains("isse") ||
+                          lower.contains("iske") || lower.equals("aur batao") || lower.startsWith("aur batao") ||
+                          lower.contains("aur samjhao") || lower.contains("more about it") ||
+                          lower.contains("what about it") || lower.contains("tell me more") ||
+                          lower.contains("explain more") || lower.contains("kya khas hai") ||
+                          lower.contains("isme kya") || lower.contains("why is that") ||
+                          lower.contains("how does it work") || lower.contains("what does it mean");
+
+        if (isVague && !recentIntents.isEmpty()) {
+            String lastTopic = null;
+            synchronized (recentIntents) {
+                for (int i = recentIntents.size() - 1; i >= 0; i--) {
+                    String prev = recentIntents.get(i).trim();
+                    String prevLower = prev.toLowerCase();
+                    if (!prevLower.contains("uske") && !prevLower.contains("isme") &&
+                        !prevLower.equals("aur batao") && prev.length() > 3 &&
+                        !prevLower.equals("hello") && !prevLower.equals("hi")) {
+                        lastTopic = prev;
+                        break;
+                    }
+                }
+            }
+
+            if (lastTopic != null && !lastTopic.isEmpty()) {
+                Log.i(TAG, "[HYBRID ROUTER] Semantic Pronoun Resolution: bound \"" + command + "\" with context topic: \"" + lastTopic + "\"");
+                return command + " (Referring to: " + lastTopic + ")";
+            }
+        }
+        return command;
+    }
 
     static {
         // Father Aliases
@@ -129,8 +190,11 @@ public class OfflineIntentRouter {
      * CATEGORY B (Route to Online Gemini API): General knowledge, web facts, coding help,
      * complex analysis.
      */
-    public boolean routeOffline(String command) {
-        if (command == null || command.trim().isEmpty()) return false;
+    public boolean routeOffline(String rawCommand) {
+        if (rawCommand == null || rawCommand.trim().isEmpty()) return false;
+        // Step 9 - Part 3: Semantic Context Resolution
+        String command = resolveContextualPronouns(rawCommand);
+        pushContextIntent(rawCommand);
         String lower = command.trim().toLowerCase();
 
         // CATEGORY A (Handle Locally - Fixed Tools):
@@ -201,7 +265,7 @@ public class OfflineIntentRouter {
         }
 
         // CATEGORY B (Route to Online Gemini API):
-        // Step 9 - Part 2: Web Knowledge Modules (Wikipedia, News, Research, Jokes & Stories)
+        // Step 9 - Part 2 & Part 3: Multi-Step Reasoning & Domain Classification
         String domain = detectDomain(command);
         Log.i(TAG, "[HYBRID ROUTER] Solved ONLINE (Gemini API - " + domain + "): " + command);
         activity.askGeminiOnline(command, domain);
@@ -209,13 +273,36 @@ public class OfflineIntentRouter {
     }
 
     /**
-     * Step 9 - Part 2: Web Knowledge Domain Classifier.
-     * Categorizes queries into specialized domains: Wikipedia/General Knowledge,
+     * Step 9 - Part 3: Deep Domain Intelligence Routing.
+     * Checks if a query requires deep academic, scientific, or analytical research.
+     */
+    public static boolean isSpecializedDeepQuery(String lower) {
+        if (lower == null) return false;
+        return lower.contains("research") || lower.contains("study") || lower.contains("paper") ||
+               lower.contains("history of") || lower.contains("science of") || lower.contains("theory of") ||
+               lower.contains("concept of") || lower.contains("deep dive") || lower.contains("analysis") ||
+               lower.contains("explain in detail") || lower.contains("detailed explanation") ||
+               lower.contains("scientific") || lower.contains("academic") || lower.contains("quantum") ||
+               lower.contains("physics") || lower.contains("chemistry") || lower.contains("biology") ||
+               lower.contains("formula") || lower.contains("derivation") || lower.contains("algorithm") ||
+               lower.contains("technical") || lower.contains("mechanism of") || lower.contains("how does") ||
+               lower.contains("why does") || lower.contains("difference between") || lower.contains("kaise kaam karta") ||
+               lower.contains("kyun hota hai") || lower.contains("ke baare mein deep") || lower.contains("deep research");
+    }
+
+    /**
+     * Step 9 - Part 2 & Part 3: Web Knowledge Domain Classifier.
+     * Categorizes queries into specialized domains: Deep Reasoning, Wikipedia/General Knowledge,
      * News, Study & Research, Comedy & Jokes, Stories, or General.
      */
     public static String detectDomain(String query) {
         if (query == null) return "GENERAL";
         String lower = query.trim().toLowerCase();
+
+        // 0. DEEP REASONING: Deep research topics, scientific theories, multi-part analytical questions
+        if (isSpecializedDeepQuery(lower)) {
+            return "DEEP_REASONING";
+        }
 
         // 1. COMEDY & JOKES: "Tell me a joke", "Kuch hasao", "chutkula", funny prompts
         if (lower.contains("joke") || lower.contains("chutkula") || lower.contains("hasao") ||
@@ -605,6 +692,13 @@ public class OfflineIntentRouter {
      * OFFLINE CHIT-CHAT & IDENTITY ENGINE IN HINDI (Step 7 - Part 4)
      */
     private boolean handleChitChat(String command, String lower) {
+        // Step 9 - Part 3: Deep Domain Intelligence Routing.
+        // Specialized queries (research, science, history, academic, technical)
+        // must bypass simple chit-chat and receive full analytical processing from Gemini.
+        if (isSpecializedDeepQuery(lower)) {
+            return false;
+        }
+
         String clean = lower.replaceAll("[^a-zA-Z0-9\\s]", "")
                             .replaceAll("\\b(marvo|assistant|please|batao|bataiye|ji|karo)\\b", "")
                             .trim();
