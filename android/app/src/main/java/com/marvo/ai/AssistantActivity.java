@@ -2673,8 +2673,29 @@ public class AssistantActivity extends AppCompatActivity {
                     connection.setReadTimeout(30000);
 
                     // Build request body
+                    JSONObject requestBody = new JSONObject();
+
+                    // Step 1/20: Core Persona, Zero-Hallucination & XML Response Structure
+                    String systemInstructionText = "You are Marvo, an intelligent assistant. You craft beautiful, visually rich, and highly accurate responses. \n" +
+                        "IDENTITY: You are software; you do not experience emotions or have a physical body, gender, nationality, or personal history. \n" +
+                        "BEHAVIOR: You handle user requests by thinking then acting. Accept user corrections about their situation, but do not go along with factual errors; correct them plainly. Be honest when something isn't found, doesn't work, or isn't available. \n" +
+                        "ZERO HALLUCINATION: Treat missing data as unknown. It is a CATASTROPHIC violation of trust to infer or guess the value of missing properties or facts. Tell the user exactly what information is missing.\n" +
+                        "RESPONSE FORMAT: You must enclose the essential, spoken part of your response inside a <coreResponse> XML tag. The <coreResponse> is the answer in one breath (roughly 100-250 tokens). Open with the substance directly — no preamble, no 'I found...', no narration. Anything that does not fit in one breath (like structured lists or extra details) must be placed OUTSIDE and AFTER the </coreResponse> tag.";
+
+                    JSONObject systemInstructionPart = new JSONObject();
+                    systemInstructionPart.put("text", systemInstructionText);
+
+                    JSONArray systemInstructionParts = new JSONArray();
+                    systemInstructionParts.put(systemInstructionPart);
+
+                    JSONObject systemInstructionObj = new JSONObject();
+                    systemInstructionObj.put("parts", systemInstructionParts);
+
+                    requestBody.put("system_instruction", systemInstructionObj);
+
+                    // User Query Contents
                     JSONObject textPart = new JSONObject();
-                    textPart.put("text", "You are Marvo, a helpful and friendly AI voice assistant. Keep responses concise and natural for spoken delivery (under 3 sentences when possible). User says: " + userQuery);
+                    textPart.put("text", userQuery);
 
                     JSONArray partsArray = new JSONArray();
                     partsArray.put(textPart);
@@ -2685,7 +2706,6 @@ public class AssistantActivity extends AppCompatActivity {
                     JSONArray contentsArray = new JSONArray();
                     contentsArray.put(content);
 
-                    JSONObject requestBody = new JSONObject();
                     requestBody.put("contents", contentsArray);
 
                     // Send request
@@ -2712,16 +2732,30 @@ public class AssistantActivity extends AppCompatActivity {
                         JSONArray responseParts = responseContent.getJSONArray("parts");
                         String responseText = responseParts.getJSONObject(0).getString("text");
 
-                        // Clean up markdown formatting for spoken delivery
-                        responseText = responseText.replaceAll("\\*\\*", "")
-                                                   .replaceAll("\\*", "")
-                                                   .replaceAll("#+ ", "")
-                                                   .replaceAll("```[\\s\\S]*?```", "")
-                                                   .trim();
+                        // Step 1/20: Parse <coreResponse> XML tag for TTS, keep full text for UI/typewriter
+                        String ttsText = extractCoreResponse(responseText);
+                        String displayText = responseText.replaceAll("(?i)<coreResponse>", "")
+                                                         .replaceAll("(?i)</coreResponse>", "")
+                                                         .trim();
 
-                        Log.d(TAG, "Gemini response: " + responseText);
-                        // State 2: Response Delivery with Synchronized Typewriter & TTS
-                        deliverGeminiResponse(responseText);
+                        // Clean up markdown formatting for spoken delivery
+                        ttsText = ttsText.replaceAll("\\*\\*", "")
+                                         .replaceAll("\\*", "")
+                                         .replaceAll("#+ ", "")
+                                         .replaceAll("```[\\s\\S]*?```", "")
+                                         .trim();
+
+                        displayText = displayText.replaceAll("\\*\\*", "")
+                                                 .replaceAll("\\*", "")
+                                                 .replaceAll("#+ ", "")
+                                                 .replaceAll("```[\\s\\S]*?```", "")
+                                                 .trim();
+
+                        Log.d(TAG, "Gemini core TTS text: " + ttsText);
+                        Log.d(TAG, "Gemini full display text: " + displayText);
+
+                        // State 2: Response Delivery with Synchronized Typewriter (full text) & TTS (<coreResponse> only)
+                        deliverGeminiResponse(ttsText, displayText);
 
                     } else {
                         // Read error stream
@@ -2765,9 +2799,10 @@ public class AssistantActivity extends AppCompatActivity {
     }
 
     /**
-     * Step 10 Part 4: Delivers Gemini response with synchronized TTS & character-by-character typewriter.
+     * Step 1/20: Delivers Gemini response with synchronized TTS (<coreResponse> only)
+     * and full text character-by-character typewriter.
      */
-    private void deliverGeminiResponse(final String responseText) {
+    private void deliverGeminiResponse(final String ttsText, final String displayText) {
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
@@ -2783,23 +2818,41 @@ public class AssistantActivity extends AppCompatActivity {
                 // Transition Siri Orb to SPEAKING state
                 setOrbState("SPEAKING");
 
-                // Start TTS speech at the exact same time typewriter begins
-                if (tts != null && isTtsReady) {
+                // Start TTS speech (ONLY the <coreResponse> essential spoken part)
+                if (tts != null && isTtsReady && ttsText != null && !ttsText.trim().isEmpty()) {
                     try {
                         Bundle params = new Bundle();
                         params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "MarvoTTS");
-                        tts.speak(responseText.replace('\n', ' '), TextToSpeech.QUEUE_FLUSH, params, "MarvoTTS");
+                        tts.speak(ttsText.replace('\n', ' '), TextToSpeech.QUEUE_FLUSH, params, "MarvoTTS");
                     } catch (Exception e) {
                         try {
-                            tts.speak(responseText.replace('\n', ' '), TextToSpeech.QUEUE_FLUSH, null);
+                            tts.speak(ttsText.replace('\n', ' '), TextToSpeech.QUEUE_FLUSH, null);
                         } catch (Exception ignored) {}
                     }
                 }
 
-                // Start character-by-character typewriter effect
-                startTypewriter(responseText);
+                // Start character-by-character typewriter effect for the full text
+                startTypewriter(displayText != null && !displayText.isEmpty() ? displayText : ttsText);
             }
         });
+    }
+
+    /**
+     * Step 1/20: XML Tag Parser for <coreResponse>...</coreResponse>.
+     * Extracts only the essential spoken response inside the tag for TTS.
+     */
+    private String extractCoreResponse(String rawText) {
+        if (rawText == null || rawText.trim().isEmpty()) return "";
+        Pattern pattern = Pattern.compile("<coreResponse>([\\s\\S]*?)</coreResponse>", Pattern.CASE_INSENSITIVE);
+        Matcher matcher = pattern.matcher(rawText);
+        if (matcher.find()) {
+            String core = matcher.group(1).trim();
+            if (!core.isEmpty()) {
+                return core;
+            }
+        }
+        // Fallback: If model did not enclose in tags, return full text
+        return rawText.trim();
     }
 
     /**
