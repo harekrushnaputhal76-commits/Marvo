@@ -15,21 +15,32 @@ import android.content.pm.ServiceInfo;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
+import android.media.audiofx.AcousticEchoCanceler;
 import android.os.Build;
+import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.os.PowerManager;
 import android.os.SystemClock;
+import android.speech.RecognitionListener;
+import android.speech.RecognizerIntent;
+import android.speech.SpeechRecognizer;
 import android.util.Log;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
+import java.util.ArrayList;
+import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
- * Step 13 & Step 13.5: Battery-Optimized Screen-Aware Wake Word Listener Foreground Service.
- * Implements lightweight Voice Activity Detection (VAD) with low-complexity RMS gating.
- * Screen-State Aware: Stops recording immediately on ACTION_SCREEN_OFF so CPU enters 100% Deep Sleep.
- * Resumes on ACTION_SCREEN_ON only if within MemoryVault's configured active time window.
- * On trigger ("Hey Marvo"), acquires a short-lived WakeLock and launches AssistantActivity.
+ * Step 19: Deep-Sleep Battery Architecture & Two-Stage Wake Word Gatekeeper.
+ * - Screen OFF: 100% CPU deep sleep. AudioRecord, SpeechRecognizer, and ExecutorService instantly destroyed.
+ * - Screen ON: Dedicated background ExecutorService with AcousticEchoCanceler to block internal media sounds.
+ * - Two-Stage Verification: Stage 1 detects speech; Stage 2 (Gatekeeper) enforces EXACT match ("marvo", "hey marvo", "hello marvo").
+ * - Zero ghost triggers, zero speaker echo, minimal CPU usage.
  */
 public class WakeWordService extends Service {
     private static final String TAG = "WakeWordService";
@@ -42,45 +53,48 @@ public class WakeWordService extends Service {
     private static final int SAMPLE_RATE = 16000;
     private static final int CHANNEL_CONFIG = AudioFormat.CHANNEL_IN_MONO;
     private static final int AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT;
-    private static final int CHUNK_SIZE = 512; // ~32ms of audio per chunk
+    private static final int CHUNK_SIZE = 512;
 
     // Voice Activity Detection (VAD) Baseline & Energy Threshold
-    private static final double VAD_BASELINE_ENERGY = 750.0;
-    private static final double VAD_VOICE_TRIGGER_ENERGY = 1400.0;
-
-    // Temporal Window for "Hey Marvo" syllable envelope (600ms - 1800ms)
-    private static final long MIN_BURST_DURATION_MS = 350;
-    private static final long MAX_BURST_DURATION_MS = 2200;
-    private static final long COOLDOWN_AFTER_TRIGGER_MS = 4000;
+    private static final double VAD_BASELINE_ENERGY = 850.0;
+    private static final double VAD_VOICE_TRIGGER_ENERGY = 1500.0;
+    private static final long COOLDOWN_AFTER_TRIGGER_MS = 3000;
 
     private volatile boolean isListening = false;
-    private Thread workerThread = null;
+    private volatile boolean isVerifyingStage2 = false;
+
+    private ExecutorService executorService = null;
     private AudioRecord audioRecord = null;
+    private AcousticEchoCanceler echoCanceler = null;
+    private SpeechRecognizer speechRecognizer = null;
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private long lastTriggerTime = 0;
 
-    // Syllable burst tracking state
-    private boolean inSpeechBurst = false;
-    private long burstStartTime = 0;
-    private int burstSyllableCount = 0;
-    private double lastRms = 0;
-
-    // Step 13.5: Dynamic screen state awareness
+    // Dynamic screen state awareness
     private BroadcastReceiver screenStateReceiver = null;
 
     public static void start(Context context) {
-        Intent intent = new Intent(context, WakeWordService.class);
-        intent.setAction(ACTION_START);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(intent);
-        } else {
-            context.startService(intent);
+        try {
+            Intent intent = new Intent(context, WakeWordService.class);
+            intent.setAction(ACTION_START);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent);
+            } else {
+                context.startService(intent);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error starting WakeWordService: " + e.getMessage());
         }
     }
 
     public static void stop(Context context) {
-        Intent intent = new Intent(context, WakeWordService.class);
-        intent.setAction(ACTION_STOP);
-        context.startService(intent);
+        try {
+            Intent intent = new Intent(context, WakeWordService.class);
+            intent.setAction(ACTION_STOP);
+            context.startService(intent);
+        } catch (Exception e) {
+            Log.e(TAG, "Error stopping WakeWordService: " + e.getMessage());
+        }
     }
 
     @Override
@@ -98,15 +112,14 @@ public class WakeWordService extends Service {
                 if (intent == null || intent.getAction() == null) return;
                 String action = intent.getAction();
                 if (Intent.ACTION_SCREEN_OFF.equals(action)) {
-                    Log.i(TAG, "Screen OFF detected -> Stopping audio recording immediately for 100% CPU deep sleep");
+                    Log.i(TAG, "Screen OFF -> Instantly stopping listener for 100% CPU Deep Sleep");
                     stopListening();
                 } else if (Intent.ACTION_SCREEN_ON.equals(action)) {
-                    Log.i(TAG, "Screen ON detected -> Checking active time window before listening");
+                    Log.i(TAG, "Screen ON -> Checking active time window before listening");
                     if (MemoryVault.isWithinActiveWindow(context)) {
                         startListening();
                     } else {
-                        Log.i(TAG, "Screen ON but outside active time window (" + 
-                              MemoryVault.getActiveStartTime(context) + " - " + MemoryVault.getActiveEndTime(context) + ")");
+                        Log.i(TAG, "Screen ON but outside active time window. Sleeping.");
                         stopListening();
                     }
                 }
@@ -116,27 +129,26 @@ public class WakeWordService extends Service {
         filter.addAction(Intent.ACTION_SCREEN_ON);
         filter.addAction(Intent.ACTION_SCREEN_OFF);
         registerReceiver(screenStateReceiver, filter);
-        Log.i(TAG, "Dynamic Screen State BroadcastReceiver registered successfully");
+        Log.i(TAG, "Screen State BroadcastReceiver registered");
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null && ACTION_STOP.equals(intent.getAction())) {
             stopListening();
-            stopForeground(true);
+            try { stopForeground(true); } catch (Exception ignored) {}
             stopSelf();
             return START_NOT_STICKY;
         }
 
         startForegroundNotification();
 
-        // Step 13.5: Screen-State Aware Wake Word - Only listen if screen is on AND within active window
         PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
         boolean isScreenOn = pm != null && pm.isInteractive();
         if (isScreenOn && MemoryVault.isWithinActiveWindow(this)) {
             startListening();
         } else {
-            Log.i(TAG, "WakeWordService started, but screen is off or outside active window. Idle mode (zero CPU usage).");
+            Log.i(TAG, "Screen off or outside active window -> Idle Deep Sleep mode.");
             stopListening();
         }
 
@@ -156,7 +168,7 @@ public class WakeWordService extends Service {
                 "Marvo Background Voice Service",
                 NotificationManager.IMPORTANCE_LOW
             );
-            channel.setDescription("Maintains ultra-low-power wake word listener for 'Hey Marvo'");
+            channel.setDescription("Maintains ultra-low-power wake word listener");
             channel.setShowBadge(false);
             NotificationManager nm = getSystemService(NotificationManager.class);
             if (nm != null) {
@@ -166,69 +178,102 @@ public class WakeWordService extends Service {
     }
 
     private void startForegroundNotification() {
-        Intent notificationIntent = new Intent(this, AssistantActivity.class);
-        PendingIntent pendingIntent = PendingIntent.getActivity(
-            this,
-            0,
-            notificationIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_IMMUTABLE : 0)
-        );
+        try {
+            Intent notificationIntent = new Intent(this, AssistantActivity.class);
+            PendingIntent pendingIntent = PendingIntent.getActivity(
+                this, 0, notificationIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_IMMUTABLE : 0)
+            );
 
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Marvo Assistant Active")
-            .setContentText("Listening for 'Hey Marvo'...")
-            .setSmallIcon(android.R.drawable.ic_btn_speak_now)
-            .setContentIntent(pendingIntent)
-            .setOngoing(true)
-            .setPriority(NotificationCompat.PRIORITY_LOW);
+            NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
+                .setContentTitle("Marvo Assistant Active")
+                .setContentText("Listening for 'Hey Marvo'...")
+                .setSmallIcon(android.R.drawable.ic_btn_speak_now)
+                .setContentIntent(pendingIntent)
+                .setOngoing(true)
+                .setPriority(NotificationCompat.PRIORITY_LOW);
 
-        Notification notification = builder.build();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE);
-        } else {
-            startForeground(NOTIFICATION_ID, notification);
+            Notification notification = builder.build();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE);
+            } else {
+                startForeground(NOTIFICATION_ID, notification);
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Foreground notification start error: " + e.getMessage());
         }
     }
 
-    private synchronized void startListening() {
-        if (isListening) return;
+    /**
+     * Starts listening on a dedicated background thread using ExecutorService.
+     */
+    public synchronized void startListening() {
+        if (isListening || isVerifyingStage2) return;
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             Log.w(TAG, "Cannot start WakeWordService: RECORD_AUDIO permission not granted");
             return;
         }
 
+        if (executorService == null || executorService.isShutdown()) {
+            executorService = Executors.newSingleThreadExecutor();
+        }
+
         isListening = true;
-        workerThread = new Thread(this::audioLoop, "MarvoWakeWordThread");
-        workerThread.setPriority(Thread.NORM_PRIORITY - 1);
-        workerThread.start();
-        Log.i(TAG, "WakeWordService audio loop started");
+        executorService.execute(this::audioLoop);
+        Log.i(TAG, "WakeWordService Stage 1 audio loop started on ExecutorService");
     }
 
-    private synchronized void stopListening() {
+    /**
+     * Instantly stops audio recording, releases mic, destroys recognizer, and shuts down executor.
+     * Ensures 100% CPU deep sleep when screen is off.
+     */
+    public synchronized void stopListening() {
         isListening = false;
-        if (workerThread != null) {
-            workerThread.interrupt();
-            workerThread = null;
+        isVerifyingStage2 = false;
+
+        if (echoCanceler != null) {
+            try {
+                echoCanceler.setEnabled(false);
+                echoCanceler.release();
+            } catch (Exception ignored) {}
+            echoCanceler = null;
         }
+
         if (audioRecord != null) {
             try {
                 if (audioRecord.getRecordingState() == AudioRecord.RECORDSTATE_RECORDING) {
                     audioRecord.stop();
                 }
                 audioRecord.release();
-            } catch (Exception e) {
-                Log.w(TAG, "Error releasing AudioRecord: " + e.getMessage());
-            }
+            } catch (Exception ignored) {}
             audioRecord = null;
         }
-        Log.i(TAG, "WakeWordService audio loop stopped");
+
+        mainHandler.post(() -> {
+            if (speechRecognizer != null) {
+                try {
+                    speechRecognizer.cancel();
+                    speechRecognizer.destroy();
+                } catch (Exception ignored) {}
+                speechRecognizer = null;
+            }
+        });
+
+        if (executorService != null) {
+            try {
+                executorService.shutdownNow();
+            } catch (Exception ignored) {}
+            executorService = null;
+        }
+
+        Log.i(TAG, "WakeWordService completely stopped: Deep Sleep active");
     }
 
     /**
-     * Ultra-low-power audio processing loop.
-     * Uses RMS Voice Activity Detection (VAD) gating:
-     * Drops silence immediately and sleeps 85ms to conserve battery.
+     * Stage 1: Ultra-low-power audio processing loop.
+     * Uses AcousticEchoCanceler to ignore phone-generated media sound.
+     * Uses Thread.sleep(100) on silence to keep CPU usage below 1%.
      */
     private void audioLoop() {
         int minBufSize = AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT);
@@ -254,6 +299,19 @@ public class WakeWordService extends Service {
                 return;
             }
 
+            // Attach AcousticEchoCanceler to block internal phone media/music sounds
+            if (AcousticEchoCanceler.isAvailable()) {
+                try {
+                    echoCanceler = AcousticEchoCanceler.create(audioRecord.getAudioSessionId());
+                    if (echoCanceler != null) {
+                        echoCanceler.setEnabled(true);
+                        Log.d(TAG, "AcousticEchoCanceler enabled on AudioRecord");
+                    }
+                } catch (Exception e) {
+                    Log.w(TAG, "Could not initialize AcousticEchoCanceler: " + e.getMessage());
+                }
+            }
+
             audioRecord.startRecording();
             short[] buffer = new short[CHUNK_SIZE];
 
@@ -268,26 +326,17 @@ public class WakeWordService extends Service {
                     continue;
                 }
 
-                // 1. Calculate RMS Energy over tiny 512-sample chunk
+                // 1. Calculate RMS Energy over 512-sample chunk
                 double sum = 0;
                 for (int i = 0; i < read; i++) {
                     sum += (double) buffer[i] * buffer[i];
                 }
                 double rms = Math.sqrt(sum / read);
 
-                // 2. Low-Complexity VAD Gating
-                // Below ambient threshold -> Drop buffer & sleep 85ms to save battery
+                // 2. Low-Complexity VAD Gating: Below baseline -> drop buffer & sleep 100ms
                 if (rms < VAD_BASELINE_ENERGY) {
-                    if (inSpeechBurst) {
-                        long burstDuration = SystemClock.elapsedRealtime() - burstStartTime;
-                        if (burstDuration >= MIN_BURST_DURATION_MS && burstDuration <= MAX_BURST_DURATION_MS && burstSyllableCount >= 2) {
-                            evaluateWakeWordTrigger();
-                        }
-                        inSpeechBurst = false;
-                        burstSyllableCount = 0;
-                    }
                     try {
-                        Thread.sleep(85); // Critical sleep: keeps CPU load under 1% during silence
+                        Thread.sleep(100); // Critical sleep: keeps CPU under 1% during silence
                     } catch (InterruptedException ie) {
                         break;
                     }
@@ -297,37 +346,20 @@ public class WakeWordService extends Service {
                 // 3. Human speech detected above baseline
                 long now = SystemClock.elapsedRealtime();
                 if (now - lastTriggerTime < COOLDOWN_AFTER_TRIGGER_MS) {
-                    continue; // In post-trigger cooldown
+                    continue;
                 }
 
-                if (!inSpeechBurst) {
-                    inSpeechBurst = true;
-                    burstStartTime = now;
-                    burstSyllableCount = 1;
-                } else {
-                    // Syllable peak detection (energy inflection)
-                    if (rms > VAD_VOICE_TRIGGER_ENERGY && rms > lastRms * 1.35) {
-                        burstSyllableCount++;
-                    }
-                }
-                lastRms = rms;
-
-                // Max burst duration check
-                long currentDuration = now - burstStartTime;
-                if (currentDuration > MAX_BURST_DURATION_MS) {
-                    inSpeechBurst = false;
-                    burstSyllableCount = 0;
-                } else if (burstSyllableCount >= 3 && currentDuration >= MIN_BURST_DURATION_MS) {
-                    // Characteristic 3-syllable envelope ("Hey-Mar-vo")
-                    evaluateWakeWordTrigger();
-                    inSpeechBurst = false;
-                    burstSyllableCount = 0;
+                // Stage 1 Trigger: Potential speech detected -> Transition to Stage 2 Gatekeeper
+                if (rms > VAD_VOICE_TRIGGER_ENERGY) {
+                    Log.i(TAG, "[STAGE 1] Speech energy detected (" + (int) rms + ") -> Invoking Stage 2 Gatekeeper");
+                    triggerStage2Verification();
+                    break; // Exit audio loop to hand off microphone to SpeechRecognizer
                 }
             }
         } catch (Exception e) {
             Log.e(TAG, "Audio loop exception: " + e.getMessage(), e);
         } finally {
-            if (audioRecord != null) {
+            if (audioRecord != null && !isVerifyingStage2) {
                 try {
                     if (audioRecord.getRecordingState() == AudioRecord.RECORDSTATE_RECORDING) {
                         audioRecord.stop();
@@ -340,17 +372,139 @@ public class WakeWordService extends Service {
     }
 
     /**
+     * Stage 2 (Gatekeeper): Stops AudioRecord, initializes SpeechRecognizer on main thread,
+     * and strictly evaluates recognized text to eliminate ghost triggers.
+     */
+    private synchronized void triggerStage2Verification() {
+        if (isVerifyingStage2) return;
+        isVerifyingStage2 = true;
+        isListening = false;
+
+        // Release AudioRecord so SpeechRecognizer has exclusive microphone access
+        if (echoCanceler != null) {
+            try { echoCanceler.release(); } catch (Exception ignored) {}
+            echoCanceler = null;
+        }
+        if (audioRecord != null) {
+            try {
+                if (audioRecord.getRecordingState() == AudioRecord.RECORDSTATE_RECORDING) {
+                    audioRecord.stop();
+                }
+                audioRecord.release();
+            } catch (Exception ignored) {}
+            audioRecord = null;
+        }
+
+        mainHandler.post(this::startGatekeeperRecognizer);
+    }
+
+    private void startGatekeeperRecognizer() {
+        try {
+            if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+                Log.w(TAG, "SpeechRecognizer not available for Gatekeeper");
+                restartListeningSilently();
+                return;
+            }
+
+            if (speechRecognizer != null) {
+                try { speechRecognizer.destroy(); } catch (Exception ignored) {}
+            }
+
+            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
+            speechRecognizer.setRecognitionListener(new RecognitionListener() {
+                @Override
+                public void onReadyForSpeech(Bundle params) {}
+
+                @Override
+                public void onBeginningOfSpeech() {}
+
+                @Override
+                public void onRmsChanged(float rmsdB) {}
+
+                @Override
+                public void onBufferReceived(byte[] buffer) {}
+
+                @Override
+                public void onEndOfSpeech() {}
+
+                @Override
+                public void onError(int error) {
+                    Log.d(TAG, "Stage 2 Gatekeeper error (" + error + ") -> Resuming silent listening");
+                    restartListeningSilently();
+                }
+
+                @Override
+                public void onResults(Bundle results) {
+                    if (results != null) {
+                        ArrayList<String> matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+                        if (matches != null && !matches.isEmpty()) {
+                            String text = matches.get(0).toLowerCase(Locale.ROOT).trim();
+                            Log.i(TAG, "[STAGE 2 GATEKEEPER] Recognized: \"" + text + "\"");
+
+                            // EXACT MATCH GATEWAY (Kill Ghost Triggers)
+                            if (text.equals("marvo") || text.equals("hey marvo") || text.equals("hello marvo")) {
+                                launchAssistantActivity();
+                                return;
+                            }
+                        }
+                    }
+                    // Ignored noise, room chatter, TV, or non-matching text
+                    restartListeningSilently();
+                }
+
+                @Override
+                public void onPartialResults(Bundle partialResults) {}
+
+                @Override
+                public void onEvent(int eventType, Bundle params) {}
+            });
+
+            Intent recognizerIntent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+            recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+            recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US");
+            recognizerIntent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3);
+            recognizerIntent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false);
+            recognizerIntent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1200L);
+
+            speechRecognizer.startListening(recognizerIntent);
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error starting Gatekeeper SpeechRecognizer: " + e.getMessage(), e);
+            restartListeningSilently();
+        }
+    }
+
+    /**
+     * Cleans up Stage 2 Gatekeeper and resumes silent Stage 1 listening without waking the device.
+     */
+    private void restartListeningSilently() {
+        mainHandler.post(() -> {
+            if (speechRecognizer != null) {
+                try {
+                    speechRecognizer.cancel();
+                    speechRecognizer.destroy();
+                } catch (Exception ignored) {}
+                speechRecognizer = null;
+            }
+            isVerifyingStage2 = false;
+
+            PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+            boolean isScreenOn = pm != null && pm.isInteractive();
+            if (isScreenOn && MemoryVault.isWithinActiveWindow(WakeWordService.this)) {
+                startListening();
+            } else {
+                stopListening();
+            }
+        });
+    }
+
+    /**
      * Executes on-device wake-up: acquires temporary WakeLock, fires AssistantActivity, releases lock.
      */
-    private void evaluateWakeWordTrigger() {
-        long now = SystemClock.elapsedRealtime();
-        if (now - lastTriggerTime < COOLDOWN_AFTER_TRIGGER_MS) {
-            return;
-        }
-        lastTriggerTime = now;
-        Log.i(TAG, "[WAKE WORD TRIGGER] 'Hey Marvo' detected via low-power acoustic VAD envelope!");
+    private void launchAssistantActivity() {
+        lastTriggerTime = SystemClock.elapsedRealtime();
+        Log.i(TAG, "[WAKE WORD CONFIRMED] Exact match authenticated -> Summoning Marvo!");
 
-        // Step 15: Stop audio recording and release microphone resource BEFORE launching AssistantActivity's SpeechRecognizer!
         stopListening();
 
         PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
@@ -364,7 +518,7 @@ public class WakeWordService extends Service {
                     PowerManager.ON_AFTER_RELEASE,
                     "marvo:wakeword_trigger"
                 );
-                wakeLock.acquire(5000); // 5-second maximum safety timeout
+                wakeLock.acquire(5000);
             } catch (Exception e) {
                 Log.w(TAG, "WakeLock acquisition notice: " + e.getMessage());
             }
@@ -399,6 +553,6 @@ public class WakeWordService extends Service {
         }
         stopListening();
         super.onDestroy();
+        Log.d(TAG, "WakeWordService destroyed cleanly");
     }
 }
-

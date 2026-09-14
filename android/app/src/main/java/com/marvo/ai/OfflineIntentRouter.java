@@ -1229,24 +1229,12 @@ public class OfflineIntentRouter {
             ContactResolution resolution = resolveContact(cleanTarget);
 
             if (resolution != null && resolution.phoneNumber != null) {
-                if (resolution.isFavorite) {
-                    // Step 8: DIRECT CALLS (Favorites)
-                    activity.showDynamicPill("Calling " + resolution.displayName, android.R.drawable.stat_sys_phone_call);
-                    activity.showResponse("Calling " + resolution.displayName + "...", true);
-                    activity.makeCall(resolution.phoneNumber);
-                    activity.setOrbState("IDLE");
-                } else {
-                    // Step 8: VERBAL CONFIRMATION (Others)
-                    // Sleek text overlay above the orb: "Contact: [Name] - [Number]"
-                    activity.pendingCallName = resolution.displayName;
-                    activity.pendingCallNumber = resolution.phoneNumber;
-                    activity.showDynamicPill("Contact: " + resolution.displayName, android.R.drawable.stat_sys_phone_call);
-                    activity.speakAndListen(
-                        "Kya aap " + resolution.displayName + " ko call karna chahte hain?",
-                        "Contact: " + resolution.displayName + " - " + resolution.phoneNumber,
-                        "CALL_CONFIRMATION"
-                    );
-                }
+                // Step 19: Direct Calling - Execute Intent.ACTION_CALL immediately
+                activity.showDynamicPill("Calling " + resolution.displayName, android.R.drawable.stat_sys_phone_call);
+                activity.showResponse("Calling " + resolution.displayName + "...", true);
+                activity.makeCall(resolution.phoneNumber);
+                activity.setOrbState("IDLE");
+                activity.finishDelayed(2500);
                 return true;
             } else {
                 // Step 8: If contact not found
@@ -2150,22 +2138,47 @@ public class OfflineIntentRouter {
             try {
                 Intent launchIntent = activity.getPackageManager().getLaunchIntentForPackage(targetPkg);
                 if (launchIntent != null) {
-                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
+                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
                     activity.startActivity(launchIntent);
-                    activity.startFloatingOrbService(); // Step 15: Always-on-top floating Marvo
-                    String capName = cleanApp.length() > 0 ? (cleanApp.substring(0, 1).toUpperCase() + cleanApp.substring(1)) : "App";
+
+                    // STRICT PERMISSION CHECK BEFORE LAUNCHING FLOATING ORB (Crash Prevention):
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(activity)) {
+                        try {
+                            Intent floatIntent = new Intent(activity, FloatingOrbService.class);
+                            activity.startService(floatIntent);
+                        } catch (Exception floatEx) {
+                            Log.e(TAG, "FloatingOrbService launch intercepted safely: ", floatEx);
+                        }
+                    }
+
+                    String capName = cleanApp.length() > 0 ? (Character.toUpperCase(cleanApp.charAt(0)) + cleanApp.substring(1)) : "App";
                     activity.showDynamicPill(capName + " Opened", android.R.drawable.ic_menu_compass);
                     activity.showResponse(capName + " khol raha hoon.", true);
                     activity.setOrbState("IDLE");
                     return true;
+                } else {
+                    String capName = cleanApp.length() > 0 ? (Character.toUpperCase(cleanApp.charAt(0)) + cleanApp.substring(1)) : "App";
+                    activity.showDynamicPill("Not Installed", android.R.drawable.ic_menu_close_clear_cancel);
+                    activity.showResponse(capName + " installed nahi hai.", true);
+                    activity.setOrbState("IDLE");
+                    return true;
                 }
             } catch (Exception e) {
-                Log.w(TAG, "Fast launch error for " + targetPkg + ": " + e.getMessage());
+                Log.e(TAG, "Launch intercepted safely: ", e);
+                activity.showResponse("App open karne mein error aaya.", true);
+                activity.setOrbState("IDLE");
+                return true;
             }
         }
 
         // 2. Full fuzzy search across all installed applications on the device
-        activity.launchAppByName(appName);
+        try {
+            activity.launchAppByName(appName);
+        } catch (Exception e) {
+            Log.e(TAG, "Error in launchAppByName: ", e);
+            activity.showResponse("App open karne mein error aaya.", true);
+            activity.setOrbState("IDLE");
+        }
         return true;
     }
 

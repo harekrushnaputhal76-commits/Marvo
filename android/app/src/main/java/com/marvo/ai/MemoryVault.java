@@ -22,6 +22,8 @@ public class MemoryVault {
     private static final String KEY_ACTIVE_START_TIME = "active_start_time";
     private static final String KEY_ACTIVE_END_TIME = "active_end_time";
     private static final String KEY_CUSTOM_QA = "custom_qa_database";
+    private static final String KEY_CONVERSATION_HISTORY = "conversation_history_turns";
+    private static final int MAX_SAVED_TURNS = 5;
 
     public static final String DEFAULT_MOM_NUMBER = "+919437000002";
     public static final String DEFAULT_DAD_NUMBER = "+919437000001";
@@ -225,6 +227,73 @@ public class MemoryVault {
     public static String getAllCustomQA(Context context) {
         if (context == null) return "[]";
         return getPrefs(context).getString(KEY_CUSTOM_QA, "[]");
+    }
+
+    // ===== Step 19: Persistent Multi-Turn Conversation Memory (Context Window) =====
+
+    /**
+     * Saves a conversation turn (user or model) in a persistent JSON array in SharedPreferences.
+     * Retains the last 5 conversation turns to append to Gemini API prompt context.
+     */
+    public static synchronized void saveConversationTurn(Context context, String role, String text) {
+        if (context == null || text == null || text.trim().isEmpty()) return;
+        try {
+            String existing = getPrefs(context).getString(KEY_CONVERSATION_HISTORY, "[]");
+            JSONArray array = new JSONArray(existing);
+            JSONObject turn = new JSONObject();
+            turn.put("role", role);
+            turn.put("text", text.trim());
+            turn.put("timestamp", System.currentTimeMillis());
+            array.put(turn);
+            while (array.length() > MAX_SAVED_TURNS) {
+                array.remove(0);
+            }
+            getPrefs(context).edit().putString(KEY_CONVERSATION_HISTORY, array.toString()).apply();
+        } catch (Exception e) {
+            // Silently ignore or reset on JSON parse failure
+        }
+    }
+
+    /**
+     * Retrieves the stored conversation turns as a JSONArray.
+     */
+    public static synchronized JSONArray getConversationTurns(Context context) {
+        if (context == null) return new JSONArray();
+        try {
+            String existing = getPrefs(context).getString(KEY_CONVERSATION_HISTORY, "[]");
+            return new JSONArray(existing);
+        } catch (Exception e) {
+            return new JSONArray();
+        }
+    }
+
+    /**
+     * Formats the last 5 conversation turns into a prompt context string for Gemini.
+     */
+    public static synchronized String getConversationContextPrompt(Context context) {
+        if (context == null) return "";
+        try {
+            JSONArray array = getConversationTurns(context);
+            if (array.length() == 0) return "";
+            StringBuilder sb = new StringBuilder("\n[Recent Conversation Memory]:\n");
+            for (int i = 0; i < array.length(); i++) {
+                JSONObject obj = array.getJSONObject(i);
+                String role = obj.optString("role", "user");
+                String text = obj.optString("text", "");
+                sb.append("- ").append(role.toUpperCase()).append(": ").append(text).append("\n");
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    /**
+     * Clears persistent conversation turns.
+     */
+    public static synchronized void clearConversationHistory(Context context) {
+        if (context == null) return;
+        getPrefs(context).edit().remove(KEY_CONVERSATION_HISTORY).apply();
     }
 
     // Reset Vault

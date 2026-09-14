@@ -44,22 +44,26 @@ public class FloatingOrbService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        if (intent != null && ACTION_STOP.equals(intent.getAction())) {
-            removeFloatingView();
-            stopForeground(true);
-            stopSelf();
-            return START_NOT_STICKY;
-        }
+        try {
+            if (intent != null && ACTION_STOP.equals(intent.getAction())) {
+                removeFloatingView();
+                try { stopForeground(true); } catch (Exception ignored) {}
+                stopSelf();
+                return START_NOT_STICKY;
+            }
 
-        // Check overlay permission
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
-            Log.w(TAG, "SYSTEM_ALERT_WINDOW permission not granted. Cannot draw overlay.");
-            stopSelf();
-            return START_NOT_STICKY;
-        }
+            // Check overlay permission
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+                Log.w(TAG, "SYSTEM_ALERT_WINDOW permission not granted. Cannot draw overlay.");
+                stopSelf();
+                return START_NOT_STICKY;
+            }
 
-        startForegroundNotification();
-        createFloatingView();
+            startForegroundNotification();
+            createFloatingView();
+        } catch (Exception e) {
+            Log.e(TAG, "FloatingOrbService onStartCommand intercepted safely: " + e.getMessage());
+        }
 
         return START_STICKY;
     }
@@ -102,7 +106,11 @@ public class FloatingOrbService extends Service {
             .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Dismiss", stopPendingIntent)
             .build();
 
-        startForeground(NOTIFICATION_ID, notification);
+        try {
+            startForeground(NOTIFICATION_ID, notification);
+        } catch (Exception e) {
+            Log.w(TAG, "startForeground caught safely: " + e.getMessage());
+        }
     }
 
     private void createFloatingView() {
@@ -208,7 +216,7 @@ public class FloatingOrbService extends Service {
 
         // Remove overlay after bringing assistant back
         removeFloatingView();
-        stopForeground(true);
+        try { stopForeground(true); } catch (Exception ignored) {}
         stopSelf();
     }
 

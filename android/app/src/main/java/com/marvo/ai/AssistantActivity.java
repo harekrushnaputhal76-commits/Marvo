@@ -288,6 +288,14 @@ public class AssistantActivity extends AppCompatActivity {
         OfflineIntentRouter.clearContextStack();
     }
 
+    public static synchronized void clearConversationHistory(Context context) {
+        conversationHistory.clear();
+        OfflineIntentRouter.clearContextStack();
+        if (context != null) {
+            MemoryVault.clearConversationHistory(context);
+        }
+    }
+
     private static final Pattern URL_DETECTION_PATTERN = Pattern.compile("(https?://[\\w\\-._~:/?#\\[\\]@!$&'()*+,;=%]+)", Pattern.CASE_INSENSITIVE);
 
     /**
@@ -1298,12 +1306,21 @@ public class AssistantActivity extends AppCompatActivity {
         if (phoneNumber == null || phoneNumber.trim().isEmpty()) return;
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
-            Intent callIntent = new Intent(Intent.ACTION_CALL);
-            callIntent.setData(Uri.parse("tel:" + phoneNumber.trim()));
-            callIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            startActivity(callIntent);
+            try {
+                Intent callIntent = new Intent(Intent.ACTION_CALL);
+                callIntent.setData(Uri.parse("tel:" + phoneNumber.trim()));
+                callIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(callIntent);
+            } catch (Exception e) {
+                Log.e(TAG, "Error executing direct call: " + e.getMessage());
+                Intent dialIntent = new Intent(Intent.ACTION_DIAL);
+                dialIntent.setData(Uri.parse("tel:" + phoneNumber.trim()));
+                dialIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(dialIntent);
+            }
         } else {
-            Log.w(TAG, "CALL_PHONE permission not granted, opening dialer");
+            Log.w(TAG, "CALL_PHONE permission not granted, requesting permission");
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CALL_PHONE}, 101);
             Intent dialIntent = new Intent(Intent.ACTION_DIAL);
             dialIntent.setData(Uri.parse("tel:" + phoneNumber.trim()));
             dialIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -1715,14 +1732,18 @@ public class AssistantActivity extends AppCompatActivity {
             showDynamicPill("Confirmation: " + recipientName, android.R.drawable.ic_dialog_alert);
         }
 
-        // Speak via Android TTS
+        // Speak via Android TTS (Anti-Echo / Double Voice Fix)
         if (tts != null && isTtsReady) {
             try {
+                if (tts.isSpeaking()) {
+                    tts.stop();
+                }
                 Bundle params = new Bundle();
                 params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "DoubleConfirmTTS");
                 tts.speak(promptText, TextToSpeech.QUEUE_FLUSH, params, "DoubleConfirmTTS");
             } catch (Exception e) {
                 try {
+                    if (tts != null && tts.isSpeaking()) { tts.stop(); }
                     tts.speak(promptText, TextToSpeech.QUEUE_FLUSH, null);
                 } catch (Exception ignored) {}
             }
@@ -2356,13 +2377,15 @@ public class AssistantActivity extends AppCompatActivity {
                 }
                 if (shouldSpeak && tts != null && isTtsReady) {
                     try {
-                        tts.stop();
+                        if (tts.isSpeaking()) {
+                            tts.stop();
+                        }
                         Bundle params = new Bundle();
                         params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "MarvoTTS");
                         tts.speak(message.replace('\n', ' '), TextToSpeech.QUEUE_FLUSH, params, "MarvoTTS");
                     } catch (Exception e) {
                         try {
-                            tts.stop();
+                            if (tts != null && tts.isSpeaking()) { tts.stop(); }
                             tts.speak(message.replace('\n', ' '), TextToSpeech.QUEUE_FLUSH, null);
                         } catch (Exception ignored) {}
                     }
@@ -3302,7 +3325,7 @@ public class AssistantActivity extends AppCompatActivity {
             try {
                 Intent launchIntent = pm.getLaunchIntentForPackage(fastPkg);
                 if (launchIntent != null) {
-                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
+                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
                     startActivity(launchIntent);
                     startFloatingOrbService();
                     String capName = searchName.length() > 0 ? (Character.toUpperCase(searchName.charAt(0)) + searchName.substring(1)) : "App";
@@ -3310,9 +3333,18 @@ public class AssistantActivity extends AppCompatActivity {
                     showResponse(capName + " khol raha hoon.", true);
                     setOrbState("IDLE");
                     return;
+                } else {
+                    String capName = searchName.length() > 0 ? (Character.toUpperCase(searchName.charAt(0)) + searchName.substring(1)) : "App";
+                    showDynamicPill("App Not Installed", android.R.drawable.ic_menu_close_clear_cancel);
+                    showResponse(capName + " installed nahi hai.", true);
+                    setOrbState("IDLE");
+                    return;
                 }
             } catch (Exception e) {
                 Log.w(TAG, "Fast launch by pkg error: " + e.getMessage());
+                showResponse("App open karne mein error aaya.", true);
+                setOrbState("IDLE");
+                return;
             }
         }
 
@@ -3377,7 +3409,7 @@ public class AssistantActivity extends AppCompatActivity {
             try {
                 Intent launchIntent = pm.getLaunchIntentForPackage(bestMatchApp.packageName);
                 if (launchIntent != null) {
-                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
+                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
                     startActivity(launchIntent);
                     startFloatingOrbService();
                     showDynamicPill(bestMatchLabel + " Opened", android.R.drawable.ic_menu_compass);
@@ -3387,19 +3419,15 @@ public class AssistantActivity extends AppCompatActivity {
                 }
             } catch (Exception e) {
                 Log.e(TAG, "Error launching app " + bestMatchLabel + ": " + e.getMessage(), e);
+                showResponse("App open karne mein error aaya.", true);
+                setOrbState("IDLE");
+                return;
             }
         }
 
-        if (fastPkg != null) {
-            String capName = searchName.length() > 0 ? (Character.toUpperCase(searchName.charAt(0)) + searchName.substring(1)) : "App";
-            showDynamicPill("App Not Installed", android.R.drawable.ic_menu_close_clear_cancel);
-            showResponse(capName + " aapke phone mein installed nahi mila.", true);
-            setOrbState("IDLE");
-            return;
-        }
-
-        showDynamicPill("App Not Found", android.R.drawable.ic_menu_close_clear_cancel);
-        showResponse("Mujhe yeh app aapke phone mein nahi mila.", true);
+        String capName = searchName.length() > 0 ? (Character.toUpperCase(searchName.charAt(0)) + searchName.substring(1)) : "App";
+        showDynamicPill("App Not Installed", android.R.drawable.ic_menu_close_clear_cancel);
+        showResponse(capName + " installed nahi hai.", true);
         setOrbState("IDLE");
     }
 
@@ -5118,6 +5146,12 @@ public class AssistantActivity extends AppCompatActivity {
     public void askGeminiOnline(final String userQuery, final String domain) {
         if (userQuery == null || userQuery.trim().isEmpty()) return;
 
+        if (isDeviceLocked()) {
+            showResponse("Is action ke liye kripya pehle apna phone unlock karein.", true);
+            setOrbState("IDLE");
+            return;
+        }
+
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
@@ -5191,7 +5225,8 @@ public class AssistantActivity extends AppCompatActivity {
                             domainDirective = " [Category: Wikipedia & General Knowledge - Provide an accurate, comprehensive yet concise factual summary in clear Hindi/Hinglish.]";
                         }
 
-                        String promptText = "[SYSTEM: " + baseSystemPrompt + domainDirective + "] User Query: " + userQuery;
+                        String memoryContext = MemoryVault.getConversationContextPrompt(AssistantActivity.this);
+                        String promptText = "[SYSTEM: " + baseSystemPrompt + domainDirective + "]" + (memoryContext != null ? memoryContext : "") + "\nUser Query: " + userQuery;
 
                         JSONObject partObj = new JSONObject();
                         partObj.put("text", promptText);
@@ -5268,6 +5303,8 @@ public class AssistantActivity extends AppCompatActivity {
                         final String cleanReply = cleaned;
 
                         Log.i(TAG, "[HYBRID ROUTER] Solved ONLINE (Gemini API - " + activeDomain + "): " + cleanReply);
+                        MemoryVault.saveConversationTurn(AssistantActivity.this, "user", userQuery);
+                        MemoryVault.saveConversationTurn(AssistantActivity.this, "model", cleanReply);
                         runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
@@ -5334,6 +5371,12 @@ public class AssistantActivity extends AppCompatActivity {
      * Prepends the completed offline tasks to the spoken response and dynamic pill.
      */
     public void askGeminiOnlineWithPrefix(final String prefixSpeech, final String prefixPill, final String userQuery, final String domain) {
+        if (isDeviceLocked()) {
+            showResponse("Is action ke liye kripya pehle apna phone unlock karein.", true);
+            setOrbState("IDLE");
+            return;
+        }
+
         if (userQuery == null || userQuery.trim().isEmpty()) {
             if (prefixSpeech != null && !prefixSpeech.isEmpty()) {
                 showResponse(prefixSpeech);
@@ -5413,7 +5456,8 @@ public class AssistantActivity extends AppCompatActivity {
                             domainDirective = " [Category: Wikipedia & General Knowledge - Provide an accurate, comprehensive yet concise factual summary in clear Hindi/Hinglish.]";
                         }
 
-                        String promptText = "[SYSTEM: " + baseSystemPrompt + domainDirective + "] User Query: " + userQuery;
+                        String memoryContext = MemoryVault.getConversationContextPrompt(AssistantActivity.this);
+                        String promptText = "[SYSTEM: " + baseSystemPrompt + domainDirective + "]" + (memoryContext != null ? memoryContext : "") + "\nUser Query: " + userQuery;
 
                         JSONObject partObj = new JSONObject();
                         partObj.put("text", promptText);
@@ -5498,6 +5542,8 @@ public class AssistantActivity extends AppCompatActivity {
                         }
 
                         Log.i(TAG, "[HYBRID ROUTER] Solved ONLINE with prefix: " + finalReply);
+                        MemoryVault.saveConversationTurn(AssistantActivity.this, "user", userQuery);
+                        MemoryVault.saveConversationTurn(AssistantActivity.this, "model", finalReply);
                         runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
@@ -5816,11 +5862,17 @@ public class AssistantActivity extends AppCompatActivity {
                 // Start TTS speech (ONLY the <coreResponse> essential spoken part)
                 if (tts != null && isTtsReady && ttsText != null && !ttsText.trim().isEmpty()) {
                     try {
+                        if (tts.isSpeaking()) {
+                            tts.stop();
+                        }
                         Bundle params = new Bundle();
                         params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "MarvoTTS");
                         tts.speak(ttsText.replace('\n', ' '), TextToSpeech.QUEUE_FLUSH, params, "MarvoTTS");
                     } catch (Exception e) {
                         try {
+                            if (tts != null && tts.isSpeaking()) {
+                                tts.stop();
+                            }
                             tts.speak(ttsText.replace('\n', ' '), TextToSpeech.QUEUE_FLUSH, null);
                         } catch (Exception ignored) {}
                     }
