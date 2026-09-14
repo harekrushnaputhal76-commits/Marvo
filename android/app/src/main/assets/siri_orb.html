@@ -8,18 +8,26 @@
 <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
 <style>
   * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    -webkit-tap-highlight-color: transparent;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    -webkit-tap-highlight-color: transparent !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
   }
 
   html, body {
     width: 100%;
     height: 100%;
-    overflow: visible;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
     background: transparent !important;
     background-color: transparent !important;
+    background-image: none !important;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -30,32 +38,38 @@
     outline: none !important;
   }
 
-  /* Step 4: Apple exact proportions (110px x 110px) with dynamic 3D drop-shadow glow */
+  /* Step 6 - Part 1: Exact 90px x 90px with border-radius: 50% and 3D glow */
   .orb-wrapper {
     position: relative;
-    width: 110px;
-    height: 110px;
+    width: 90px !important;
+    height: 90px !important;
+    border-radius: 50% !important;
+    overflow: visible;
     display: flex;
     align-items: center;
     justify-content: center;
     background: transparent !important;
     background-color: transparent !important;
+    background-image: none !important;
     border: none !important;
     box-shadow: none !important;
     outline: none !important;
-    filter: drop-shadow(0px 10px 40px rgba(255, 0, 127, 0.4)) drop-shadow(0px 0px 25px rgba(0, 229, 255, 0.35));
+    filter: drop-shadow(0px 10px 30px rgba(0, 229, 255, 0.6));
     transform-origin: center center;
     will-change: transform, filter;
     transform: scale(1.0) translateZ(0);
+    transition: transform 0.05s ease-out;
   }
 
-  /* Pure 110px WebGL Canvas */
+  /* Pure 90px WebGL Canvas with border-radius: 50% */
   #siri-canvas {
     display: block;
-    width: 110px;
-    height: 110px;
+    width: 90px !important;
+    height: 90px !important;
+    border-radius: 50% !important;
     background: transparent !important;
     background-color: transparent !important;
+    background-image: none !important;
     border: none !important;
     box-shadow: none !important;
     outline: none !important;
@@ -80,7 +94,7 @@ const orbWrapper = document.getElementById('orbWrapper');
 let dpr = Math.min(window.devicePixelRatio || 1, 2.5);
 
 function resizeCanvas() {
-  const size = 110;
+  const size = 90;
   canvas.width = Math.round(size * dpr);
   canvas.height = Math.round(size * dpr);
 }
@@ -375,11 +389,11 @@ function render(now) {
   // Audio amplitude smoothing
   currentAmplitude += (targetAmplitude - currentAmplitude) * 0.28;
 
-  // Hyper-reactive spring physics: rapid explosive attack (0.45) & bouncy liquid release (0.22)
+  // Hyper-reactive spring physics: rapid explosive attack (0.55) & bouncy liquid release (0.25)
   if (targetScale > currentScale) {
-    currentScale += (targetScale - currentScale) * 0.45;
+    currentScale += (targetScale - currentScale) * 0.55;
   } else {
-    currentScale += (targetScale - currentScale) * 0.22;
+    currentScale += (targetScale - currentScale) * 0.25;
   }
 
   // Smoothly decay targetScale back to neutral 1.0
@@ -387,29 +401,27 @@ function render(now) {
 
   // Compute final scale & 3D glow modulation per state
   let scaleToApply = currentScale;
-  if (currentStateInt === 1) { // LISTENING: hyper-reactive voice response
-    scaleToApply = currentScale;
-    const glowAlpha = (0.4 + currentAmplitude * 0.45).toFixed(2);
-    const cyanAlpha = (0.35 + currentAmplitude * 0.40).toFixed(2);
-    orbWrapper.style.filter = `drop-shadow(0px 10px 40px rgba(255, 0, 127, ${glowAlpha})) drop-shadow(0px 0px 25px rgba(0, 229, 255, ${cyanAlpha}))`;
+  if (currentStateInt === 1) { // LISTENING: hyper-reactive voice response (scale 1.0 up to 1.4)
+    scaleToApply = Math.max(1.0, Math.min(1.4, currentScale));
+    const glowAlpha = (0.6 + currentAmplitude * 0.4).toFixed(2);
+    orbWrapper.style.filter = `drop-shadow(0px 10px 30px rgba(0, 229, 255, ${glowAlpha}))`;
   } else if (currentStateInt === 4) { // CONFIRMATION: pulsating warning Amber / Golden Yellow
     const confirmPulse = 1.05 + Math.sin(elapsed * 5.0) * 0.04;
     scaleToApply = Math.max(scaleToApply, confirmPulse);
     const yellowAlpha = (0.55 + Math.sin(elapsed * 5.0) * 0.25).toFixed(2);
-    const orangeAlpha = (0.45 + Math.cos(elapsed * 5.0) * 0.20).toFixed(2);
-    orbWrapper.style.filter = `drop-shadow(0px 10px 42px rgba(255, 140, 0, ${yellowAlpha})) drop-shadow(0px 0px 28px rgba(255, 200, 0, ${orangeAlpha}))`;
+    orbWrapper.style.filter = `drop-shadow(0px 10px 30px rgba(255, 184, 0, ${yellowAlpha}))`;
   } else if (currentStateInt === 3) { // SPEAKING: vocal cadence pulse
     const speakPulse = 1.0 + currentAmplitude * 0.25 + Math.sin(elapsed * 7.0) * 0.045;
     scaleToApply = Math.max(scaleToApply, speakPulse);
-    const glowAlpha = (0.45 + currentAmplitude * 0.35).toFixed(2);
-    orbWrapper.style.filter = `drop-shadow(0px 10px 40px rgba(255, 0, 127, ${glowAlpha})) drop-shadow(0px 0px 25px rgba(0, 229, 255, 0.4))`;
+    const glowAlpha = (0.5 + currentAmplitude * 0.35).toFixed(2);
+    orbWrapper.style.filter = `drop-shadow(0px 10px 30px rgba(0, 229, 255, ${glowAlpha}))`;
   } else if (currentStateInt === 2) { // THINKING: energized tension scale
-    scaleToApply = 1.08 + Math.sin(elapsed * 10.0) * 0.03;
-    orbWrapper.style.filter = `drop-shadow(0px 10px 45px rgba(255, 0, 127, 0.55)) drop-shadow(0px 0px 30px rgba(0, 229, 255, 0.5))`;
-  } else { // IDLE: organic relaxed heartbeat
-    const idleBreathe = 1.0 + Math.sin(elapsed * 2.2) * 0.025;
+    scaleToApply = 1.05 + Math.sin(elapsed * 10.0) * 0.03;
+    orbWrapper.style.filter = `drop-shadow(0px 10px 30px rgba(0, 229, 255, 0.65))`;
+  } else { // IDLE: pulses smoothly from scale(1.0) to scale(1.05)
+    const idleBreathe = 1.0 + (Math.sin(elapsed * 2.2) * 0.5 + 0.5) * 0.05;
     scaleToApply = idleBreathe;
-    orbWrapper.style.filter = `drop-shadow(0px 10px 40px rgba(255, 0, 127, 0.4)) drop-shadow(0px 0px 25px rgba(0, 229, 255, 0.35))`;
+    orbWrapper.style.filter = `drop-shadow(0px 10px 30px rgba(0, 229, 255, 0.6))`;
   }
 
   orbWrapper.style.transform = `scale(${scaleToApply.toFixed(3)}) translateZ(0)`;

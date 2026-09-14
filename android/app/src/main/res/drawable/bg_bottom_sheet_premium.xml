@@ -1,30 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Premium Floating Frosted Glass Pill Background (32dp Rounded Corners) -->
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Subtle Glass Edge Highlight Border -->
-    <item>
-        <shape android:shape="rectangle">
-            <corners android:radius="32dp" />
-            <stroke
-                android:width="1.2dp"
-                android:color="#38FFFFFF" />
-            <solid android:color="#00000000" />
-        </shape>
-    </item>
-
-    <!-- Translucent Dark Obsidian Frosted Glass Body -->
-    <item
-        android:top="1dp"
-        android:bottom="1dp"
-        android:left="1dp"
-        android:right="1dp">
-        <shape android:shape="rectangle">
-            <corners android:radius="31dp" />
-            <gradient
-                android:type="linear"
-                android:startColor="#D9161922"
-                android:endColor="#E60D0F14"
-                android:angle="270" />
-        </shape>
-    </item>
-</layer-list>
+<!-- Step 6 - Part 1: True Floating Siri Orb — Completely Transparent Container -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@android:color/transparent" />
+</shape>
