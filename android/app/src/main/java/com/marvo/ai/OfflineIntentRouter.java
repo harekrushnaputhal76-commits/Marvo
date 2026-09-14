@@ -3,9 +3,12 @@ package com.marvo.ai;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.database.Cursor;
 import android.hardware.camera2.CameraManager;
+import android.media.AudioManager;
 import android.net.Uri;
+import android.os.BatteryManager;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.AlarmClock;
@@ -13,7 +16,9 @@ import android.provider.ContactsContract;
 import android.provider.MediaStore;
 import android.provider.Settings;
 import android.util.Log;
+import java.util.Calendar;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -77,7 +82,40 @@ public class OfflineIntentRouter {
         DEFAULT_PHONE_NUMBERS.put("Papa", "+919437000001");
         DEFAULT_PHONE_NUMBERS.put("Maa", "+919437000002");
         DEFAULT_PHONE_NUMBERS.put("Jatin", "+919437000003");
+
+        // Step 7 - Part 4: Offline Chit-Chat & Identity Dictionary in Hindi
+        CHIT_CHAT_MAP.put("hello", "Namaste! Main Marvo hoon. Main aapki kya madad kar sakta hoon?");
+        CHIT_CHAT_MAP.put("hi", "Namaste! Main Marvo hoon. Main aapki kya madad kar sakta hoon?");
+        CHIT_CHAT_MAP.put("namaste", "Namaste! Main Marvo hoon. Main aapki kya madad kar sakta hoon?");
+        CHIT_CHAT_MAP.put("namaskar", "Namaskar! Main aapki kya madad kar sakta hoon?");
+        CHIT_CHAT_MAP.put("hey", "Hello! Main Marvo hoon. Bataiye main kya kar sakta hoon?");
+        CHIT_CHAT_MAP.put("pranam", "Pranam! Main Marvo hoon. Kahiye kya madad karoon?");
+
+        CHIT_CHAT_MAP.put("who are you", "Main Marvo hoon, aapka personal offline aur online AI assistant.");
+        CHIT_CHAT_MAP.put("tum kaun ho", "Main Marvo hoon, aapka personal offline aur online AI assistant.");
+        CHIT_CHAT_MAP.put("aap kaun hain", "Main Marvo hoon, aapka personal offline aur online AI assistant.");
+        CHIT_CHAT_MAP.put("who made you", "Mujhe DeepMind aur Marvo team ne design kiya hai.");
+        CHIT_CHAT_MAP.put("tumhe kisne banaya", "Mujhe DeepMind aur Marvo team ne banaya hai.");
+        CHIT_CHAT_MAP.put("what is your name", "Mera naam Marvo hai.");
+        CHIT_CHAT_MAP.put("tumhara naam kya hai", "Mera naam Marvo hai.");
+        CHIT_CHAT_MAP.put("apna naam batao", "Mera naam Marvo hai.");
+
+        CHIT_CHAT_MAP.put("how are you", "Main bilkul theek hoon. Aap bataiye?");
+        CHIT_CHAT_MAP.put("kaise ho", "Main bilkul theek hoon. Aap bataiye?");
+        CHIT_CHAT_MAP.put("aap kaise hain", "Main bilkul theek hoon. Aap bataiye?");
+        CHIT_CHAT_MAP.put("kya haal hai", "Sab badhiya hai! Aap bataiye?");
+
+        CHIT_CHAT_MAP.put("thank you", "Aapka swagat hai! Mujhe aapki madad karke khushi hui.");
+        CHIT_CHAT_MAP.put("thanks", "Aapka swagat hai! Mujhe aapki madad karke khushi hui.");
+        CHIT_CHAT_MAP.put("dhanyavad", "Aapka swagat hai! Mujhe aapki madad karke khushi hui.");
+        CHIT_CHAT_MAP.put("shukriya", "Aapka swagat hai! Mujhe aapki madad karke khushi hui.");
+
+        CHIT_CHAT_MAP.put("bye", "Alvida! Apna khayal rakhiyega.");
+        CHIT_CHAT_MAP.put("goodbye", "Alvida! Apna khayal rakhiyega.");
+        CHIT_CHAT_MAP.put("alvida", "Alvida! Phir milenge.");
     }
+
+    private static final Map<String, String> CHIT_CHAT_MAP = new HashMap<>();
 
     public OfflineIntentRouter(AssistantActivity activity) {
         this.activity = activity;
@@ -92,24 +130,30 @@ public class OfflineIntentRouter {
         if (command == null || command.trim().isEmpty()) return false;
         String lower = command.trim().toLowerCase();
 
-        // 1. Complex Online Bypasses (Must go online to Gemini AI)
+        // 1. Offline Fixed Tools & Chit-Chat in Hindi (Step 7 - Part 4)
+        if (handleChitChat(command, lower)) return true;
+        if (handleDateTime(lower)) return true;
+        if (handleMath(command, lower)) return true;
+        if (handleVolume(lower)) return true;
+        if (handleBattery(lower)) return true;
+
+        // 2. Complex Online Bypasses (Must go online to Gemini AI)
         if (isComplexOnlineQuery(lower)) {
             return false;
         }
 
-        // 2. Native Hardware Tools
+        // 3. Native Hardware Tools
         if (handleCamera(lower)) return true;
         if (handleFlashlight(lower)) return true;
         if (handleAlarmAndTimer(command, lower)) return true;
         if (handleSettings(lower)) return true;
 
-        // 3. Smart Calling with Entity Alias Resolution
+        // 4. Smart Calling with Entity Alias Resolution
         if (handleCalling(command, lower)) return true;
 
-        // 4. OS Integrations (Navigation, Music, Apps, Battery)
+        // 5. OS Integrations (Navigation, Music, Apps)
         if (handleNavigation(command, lower)) return true;
         if (handleMusic(command, lower)) return true;
-        if (handleBattery(lower)) return true;
         if (handleApps(command, lower)) return true;
 
         return false;
@@ -450,10 +494,145 @@ public class OfflineIntentRouter {
     }
 
     /**
-     * BATTERY TOOL: "Battery level" / "Charge" / "Kitna charge"
+     * OFFLINE CHIT-CHAT & IDENTITY ENGINE IN HINDI (Step 7 - Part 4)
+     */
+    private boolean handleChitChat(String command, String lower) {
+        String clean = lower.replaceAll("[^a-zA-Z0-9\\s]", "")
+                            .replaceAll("\\b(marvo|assistant|please|batao|bataiye|ji|karo)\\b", "")
+                            .trim();
+        clean = clean.replaceAll("\\s+", " ").trim();
+
+        // Limit length to avoid intercepting complex queries that begin with greetings
+        if (clean.split("\\s+").length > 8) return false;
+
+        for (Map.Entry<String, String> entry : CHIT_CHAT_MAP.entrySet()) {
+            String key = entry.getKey();
+            if (clean.equals(key) || clean.matches(".*\\b" + Pattern.quote(key) + "\\b.*")) {
+                String reply = entry.getValue();
+                String pillTitle = key.substring(0, 1).toUpperCase() + key.substring(1);
+                activity.showDynamicPill(pillTitle, android.R.drawable.ic_dialog_info);
+                activity.showResponse(reply, true);
+                activity.setOrbState("IDLE");
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * OFFLINE TIME & DATE ENGINE IN HINDI (Step 7 - Part 4)
+     */
+    private boolean handleDateTime(String lower) {
+        boolean isTime = lower.contains("time") || lower.contains("samay") || lower.contains("kitne baje") ||
+                         lower.contains("kya baje") || lower.contains("ghadi") || lower.contains("time batao") ||
+                         lower.contains("samay batao");
+        boolean isDate = lower.contains("date") || lower.contains("tarikh") || lower.contains("tareekh") ||
+                         lower.contains("aaj ka din") || lower.contains("kon sa din") || lower.contains("today date");
+
+        if (isTime) {
+            Calendar cal = Calendar.getInstance();
+            int hour = cal.get(Calendar.HOUR);
+            if (hour == 0) hour = 12;
+            int minute = cal.get(Calendar.MINUTE);
+            String response = (minute == 0)
+                ? "Abhi samay theek " + hour + " baje hain."
+                : "Abhi samay " + hour + " baj kar " + minute + " minute ho raha hai.";
+
+            activity.showDynamicPill("Time: " + String.format(Locale.getDefault(), "%02d:%02d", cal.get(Calendar.HOUR_OF_DAY), minute), android.R.drawable.ic_menu_recent_history);
+            activity.showResponse(response, true);
+            activity.setOrbState("IDLE");
+            return true;
+        }
+
+        if (isDate) {
+            Calendar cal = Calendar.getInstance();
+            String[] daysHindi = {"Ravivar", "Somvar", "Mangalvar", "Budhvar", "Guruvar", "Shukravar", "Shanivar"};
+            String[] monthsHindi = {"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"};
+            String dayName = daysHindi[cal.get(Calendar.DAY_OF_WEEK) - 1];
+            int dayOfMonth = cal.get(Calendar.DAY_OF_MONTH);
+            String monthName = monthsHindi[cal.get(Calendar.MONTH)];
+            int year = cal.get(Calendar.YEAR);
+            String response = "Aaj " + dayName + ", " + dayOfMonth + " " + monthName + " " + year + " hai.";
+
+            activity.showDynamicPill(dayOfMonth + " " + monthName, android.R.drawable.ic_menu_my_calendar);
+            activity.showResponse(response, true);
+            activity.setOrbState("IDLE");
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * OFFLINE MATH CALCULATOR ENGINE IN HINDI (Step 7 - Part 4)
+     */
+    private boolean handleMath(String command, String lower) {
+        Pattern p = Pattern.compile("(\\d+(?:\\.\\d+)?)\\s*(?:plus|\\+|jod|minus|\\-|ghatao|ghata|times|multiplied by|\\*|x|into|guna|divided by|\\/|bhag)\\s*(\\d+(?:\\.\\d+)?)", Pattern.CASE_INSENSITIVE);
+        Matcher m = p.matcher(lower);
+        if (m.find()) {
+            try {
+                double num1 = Double.parseDouble(m.group(1));
+                double num2 = Double.parseDouble(m.group(2));
+                String fullMatch = m.group(0).toLowerCase();
+                double result = 0;
+
+                if (fullMatch.contains("+") || fullMatch.contains("plus") || fullMatch.contains("jod")) {
+                    result = num1 + num2;
+                } else if (fullMatch.contains("-") || fullMatch.contains("minus") || fullMatch.contains("ghata")) {
+                    result = num1 - num2;
+                } else if (fullMatch.contains("*") || fullMatch.contains("x") || fullMatch.contains("into") || fullMatch.contains("times") || fullMatch.contains("guna") || fullMatch.contains("multiplied")) {
+                    result = num1 * num2;
+                } else if (fullMatch.contains("/") || fullMatch.contains("divided") || fullMatch.contains("bhag")) {
+                    if (num2 == 0) {
+                        activity.showResponse("Zero se divide nahi kiya ja sakta.", true);
+                        activity.setOrbState("IDLE");
+                        return true;
+                    }
+                    result = num1 / num2;
+                }
+
+                String resultStr = (result == (long) result) ? String.format(Locale.getDefault(), "%d", (long) result) : String.format(Locale.getDefault(), "%.2f", result);
+                String speech = "Iska jawab hai " + resultStr + ".";
+                activity.showDynamicPill("Math: " + resultStr, android.R.drawable.ic_menu_compass);
+                activity.showResponse(speech, true);
+                activity.setOrbState("IDLE");
+                return true;
+            } catch (Exception e) {
+                Log.w(TAG, "Math parsing error: " + e.getMessage());
+            }
+        }
+        return false;
+    }
+
+    /**
+     * DEEP HARDWARE VOLUME & AUDIO SETTINGS IN HINDI (Step 7 - Part 4)
+     */
+    private boolean handleVolume(String lower) {
+        if (lower.contains("volume up") || lower.contains("volume badhao") || lower.contains("awaz badhao") ||
+            lower.contains("increase volume") || lower.contains("sound badhao") || lower.contains("awaz tej") || lower.contains("volume tej")) {
+            activity.adjustDeviceVolume(AudioManager.ADJUST_RAISE);
+            return true;
+        } else if (lower.contains("volume down") || lower.contains("volume kam") || lower.contains("awaz kam") ||
+                   lower.contains("decrease volume") || lower.contains("lower volume") || lower.contains("sound kam") || lower.contains("volume dheere")) {
+            activity.adjustDeviceVolume(AudioManager.ADJUST_LOWER);
+            return true;
+        } else if (lower.equals("mute") || lower.contains("mute phone") || lower.contains("phone silent") ||
+                   lower.contains("awaz band") || lower.contains("silent karo") || lower.contains("mute karo")) {
+            activity.setDeviceMute(true);
+            return true;
+        } else if (lower.equals("unmute") || lower.contains("unmute phone") || lower.contains("sound on") ||
+                   lower.contains("unmute karo") || lower.contains("awaz kholo")) {
+            activity.setDeviceMute(false);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * BATTERY TOOL: "Battery level" / "Charge" / "Kitna charge" (Step 7 - Part 4 in Hindi)
      */
     private boolean handleBattery(String lower) {
-        if (lower.contains("battery") || lower.contains("charge") || lower.contains("phone status") || lower.contains("kitna charge")) {
+        if (lower.contains("battery") || lower.contains("charge") || lower.contains("kitna charge") || lower.contains("battery kitni")) {
             activity.getDeviceBatteryLevel();
             return true;
         }
@@ -484,3 +663,4 @@ public class OfflineIntentRouter {
         }
     }
 }
+

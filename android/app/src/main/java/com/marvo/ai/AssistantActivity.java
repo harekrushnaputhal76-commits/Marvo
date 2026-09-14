@@ -559,12 +559,46 @@ public class AssistantActivity extends AppCompatActivity {
                 @Override
                 public void onInit(int status) {
                     if (status == TextToSpeech.SUCCESS) {
-                        int result = tts.setLanguage(Locale.getDefault());
+                        Locale hindiLocale = new Locale("hi", "IN");
+                        int result = tts.setLanguage(hindiLocale);
                         if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-                            tts.setLanguage(Locale.US);
+                            Log.w(TAG, "Hindi locale hi_IN not supported, falling back to default/US");
+                            result = tts.setLanguage(Locale.getDefault());
+                            if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                                tts.setLanguage(Locale.US);
+                            }
+                        } else {
+                            try {
+                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                                    java.util.Set<android.speech.tts.Voice> voices = tts.getVoices();
+                                    if (voices != null) {
+                                        android.speech.tts.Voice bestVoice = null;
+                                        for (android.speech.tts.Voice voice : voices) {
+                                            if (voice.getLocale() != null &&
+                                                ("hi".equalsIgnoreCase(voice.getLocale().getLanguage()) ||
+                                                 ("en".equalsIgnoreCase(voice.getLocale().getLanguage()) && "IN".equalsIgnoreCase(voice.getLocale().getCountry())))) {
+                                                if (voice.getQuality() >= android.speech.tts.Voice.QUALITY_HIGH) {
+                                                    bestVoice = voice;
+                                                    break;
+                                                } else if (bestVoice == null) {
+                                                    bestVoice = voice;
+                                                }
+                                            }
+                                        }
+                                        if (bestVoice != null) {
+                                            tts.setVoice(bestVoice);
+                                            Log.d(TAG, "Selected premium TTS voice: " + bestVoice.getName());
+                                        }
+                                    }
+                                }
+                            } catch (Exception e) {
+                                Log.w(TAG, "Could not configure custom voice: " + e.getMessage());
+                            }
                         }
+                        tts.setPitch(1.0f);
+                        tts.setSpeechRate(1.0f);
                         isTtsReady = true;
-                        Log.d(TAG, "TTS initialized successfully");
+                        Log.d(TAG, "TTS initialized successfully with Hindi locale");
 
                         // Step 9: UtteranceProgressListener for orb state + auto-close
                         tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
@@ -2432,7 +2466,7 @@ public class AssistantActivity extends AppCompatActivity {
     }
 
     /**
-     * Queries and displays the current battery level.
+     * Step 7 - Part 4: Native Battery Level Reader with Hindi Vocal Output.
      */
     void getDeviceBatteryLevel() {
         try {
@@ -2442,18 +2476,65 @@ public class AssistantActivity extends AppCompatActivity {
                 int level = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
                 int scale = batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
                 int status = batteryStatus.getIntExtra(BatteryManager.EXTRA_STATUS, -1);
-                float batteryPct = level * 100 / (float) scale;
-                String chargingState = (status == BatteryManager.BATTERY_STATUS_CHARGING ||
-                    status == BatteryManager.BATTERY_STATUS_FULL) ? "Charging" : "Not Charging";
-                updateUI("Battery: " + (int) batteryPct + "%\nStatus: " + chargingState);
+                float batteryPct = (scale > 0) ? (level * 100 / (float) scale) : level;
+                boolean isCharging = (status == BatteryManager.BATTERY_STATUS_CHARGING ||
+                    status == BatteryManager.BATTERY_STATUS_FULL);
+                String hindiSpeech = "Aapke phone ki battery " + (int) batteryPct + " percent hai" + (isCharging ? ", aur phone charge ho raha hai." : ".");
+                showDynamicPill("Battery: " + (int) batteryPct + "%", isCharging ? android.R.drawable.ic_lock_idle_charging : android.R.drawable.ic_lock_idle_low_battery);
+                showResponse(hindiSpeech, true);
+                setOrbState("IDLE");
             } else {
-                updateUI("Unable to read battery status.");
+                showResponse("Battery status check nahi kiya ja saka.", true);
             }
-            finishDelayed(2500);
         } catch (Exception e) {
             Log.e(TAG, "Error reading battery: " + e.getMessage(), e);
-            updateUI("Battery check failed.");
-            finishDelayed(2000);
+            showResponse("Battery check karne mein samasya aayi.", true);
+        }
+    }
+
+    /**
+     * Step 7 - Part 4: Deep Hardware Volume Controller (Raise / Lower).
+     */
+    void adjustDeviceVolume(int direction) {
+        try {
+            AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+            if (am != null) {
+                am.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction, AudioManager.FLAG_SHOW_UI);
+                String msg = (direction == AudioManager.ADJUST_RAISE)
+                    ? "Volume badha diya gaya hai."
+                    : (direction == AudioManager.ADJUST_LOWER ? "Volume kam kar diya gaya hai." : "Volume set kar diya gaya hai.");
+                showDynamicPill(direction == AudioManager.ADJUST_RAISE ? "Volume Up" : "Volume Down", android.R.drawable.ic_lock_silent_mode_off);
+                showResponse(msg, true);
+                setOrbState("IDLE");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error adjusting volume: " + e.getMessage(), e);
+            showResponse("Volume change karne mein samasya aayi.", true);
+        }
+    }
+
+    /**
+     * Step 7 - Part 4: Deep Hardware Ringer / Mute Controller.
+     */
+    void setDeviceMute(boolean mute) {
+        try {
+            AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+            if (am != null) {
+                if (mute) {
+                    am.setStreamVolume(AudioManager.STREAM_MUSIC, 0, AudioManager.FLAG_SHOW_UI);
+                    showDynamicPill("Muted", android.R.drawable.ic_lock_silent_mode);
+                    showResponse("Phone ko silent kar diya gaya hai.", true);
+                } else {
+                    int defaultVol = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC) / 2;
+                    am.setStreamVolume(AudioManager.STREAM_MUSIC, defaultVol, AudioManager.FLAG_SHOW_UI);
+                    showDynamicPill("Unmuted", android.R.drawable.ic_lock_silent_mode_off);
+                    showResponse("Volume on kar diya gaya hai.", true);
+                }
+                setOrbState("IDLE");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error setting mute: " + e.getMessage(), e);
+            showResponse("Volume change karne mein samasya aayi.", true);
         }
     }
 
