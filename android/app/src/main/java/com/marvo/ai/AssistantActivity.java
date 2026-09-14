@@ -301,7 +301,7 @@ public class AssistantActivity extends AppCompatActivity {
     /**
      * Extracts first valid URL or domain pattern from user input string.
      */
-    String extractUrlFromText(String text) {
+    public String extractUrlFromText(String text) {
         if (text == null || text.trim().isEmpty()) return null;
         Matcher matcher = URL_DETECTION_PATTERN.matcher(text);
         if (matcher.find()) {
@@ -1060,7 +1060,7 @@ public class AssistantActivity extends AppCompatActivity {
      * Slides down a sleek frosted translucent pill with icon and action text.
      * Automatically slides up and dismisses after exactly 3000ms without closing the assistant activity.
      */
-    void showDynamicPill(final String message, final int iconResId) {
+    public void showDynamicPill(final String message, final int iconResId) {
         if (message == null) return;
         if (offlineIntentRouter != null && offlineIntentRouter.isCompoundRunning()) {
             offlineIntentRouter.recordCompoundPill(message);
@@ -1117,7 +1117,7 @@ public class AssistantActivity extends AppCompatActivity {
         });
     }
 
-    void showDynamicPill(final String message) {
+    public void showDynamicPill(final String message) {
         showDynamicPill(message, android.R.drawable.ic_lock_silent_mode_off);
     }
 
@@ -1302,7 +1302,7 @@ public class AssistantActivity extends AppCompatActivity {
     /**
      * Initiates a native phone call to the given phone number.
      */
-    void makeCall(String phoneNumber) {
+    public void makeCall(String phoneNumber) {
         if (phoneNumber == null || phoneNumber.trim().isEmpty()) return;
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
@@ -1607,7 +1607,7 @@ public class AssistantActivity extends AppCompatActivity {
     /**
      * Step 5 - Part 4: Native Turn-by-Turn Navigation Intent via Google Maps
      */
-    void startNavigation(String destination) {
+    public void startNavigation(String destination) {
         if (destination == null || destination.trim().isEmpty()) return;
         try {
             Uri gmmIntentUri = Uri.parse("google.navigation:q=" + Uri.encode(destination.trim()));
@@ -1633,7 +1633,7 @@ public class AssistantActivity extends AppCompatActivity {
     /**
      * Step 5 - Part 4: Native Media & Music Playback Intent
      */
-    void playMedia(String query, String targetPlatform) {
+    public void playMedia(String query, String targetPlatform) {
         if (query == null || query.trim().isEmpty()) query = "top songs";
         try {
             Intent intent = new Intent(MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH);
@@ -1796,7 +1796,7 @@ public class AssistantActivity extends AppCompatActivity {
     /**
      * Sets a countdown timer in the system Clock app.
      */
-    void setTimer(int seconds) {
+    public void setTimer(int seconds) {
         try {
             Intent intent = new Intent(AlarmClock.ACTION_SET_TIMER);
             intent.putExtra(AlarmClock.EXTRA_LENGTH, seconds);
@@ -1823,7 +1823,7 @@ public class AssistantActivity extends AppCompatActivity {
     /**
      * Sets an alarm in the system Clock app.
      */
-    void setAlarm(int hour, int minute, String message) {
+    public void setAlarm(int hour, int minute, String message) {
         try {
             Intent intent = new Intent(AlarmClock.ACTION_SET_ALARM);
             intent.putExtra(AlarmClock.EXTRA_HOUR, hour);
@@ -2060,7 +2060,7 @@ public class AssistantActivity extends AppCompatActivity {
     /**
      * Toggles the device's hardware rear flashlight on or off.
      */
-    void toggleFlashlight(boolean state) {
+    public void toggleFlashlight(boolean state) {
         try {
             CameraManager cameraManager = (CameraManager) getSystemService(CAMERA_SERVICE);
             if (cameraManager != null) {
@@ -2343,7 +2343,7 @@ public class AssistantActivity extends AppCompatActivity {
      * Updates the UI TextView instantly on the main thread via runOnUiThread(),
      * and speaks out the response text via TextToSpeech if shouldSpeak is true.
      */
-    void showResponse(final String message, final boolean shouldSpeak) {
+    public void showResponse(final String message, final boolean shouldSpeak) {
         if (message == null) return;
         if (offlineIntentRouter != null && offlineIntentRouter.isCompoundRunning()) {
             offlineIntentRouter.recordCompoundSpeech(message);
@@ -2394,7 +2394,7 @@ public class AssistantActivity extends AppCompatActivity {
         });
     }
 
-    void showResponse(String message) {
+    public void showResponse(String message) {
         showResponse(message, true);
     }
 
@@ -2402,15 +2402,15 @@ public class AssistantActivity extends AppCompatActivity {
      * Step 8: Verbal confirmation prompt with auto-listening state machine.
      * Speaks the prompt via TTS and automatically arms SpeechRecognizer 200ms after speech ends.
      */
-    void speakAndListen(final String text) {
+    public void speakAndListen(final String text) {
         speakAndListen(text, null, null);
     }
 
-    void speakAndListen(final String text, final String pendingActionId) {
+    public void speakAndListen(final String text, final String pendingActionId) {
         speakAndListen(text, null, pendingActionId);
     }
 
-    void speakAndListen(final String text, final String overlayText, final String pendingActionId) {
+    public void speakAndListen(final String text, final String overlayText, final String pendingActionId) {
         if (text == null) return;
         this.pendingActionType = pendingActionId;
         runOnUiThread(new Runnable() {
@@ -2697,7 +2697,7 @@ public class AssistantActivity extends AppCompatActivity {
     /**
      * Step 9 - Part 4: Percentage-based System Volume Controller.
      */
-    void setDeviceVolumeLevel(final int percent) {
+    public void setDeviceVolumeLevel(final int percent) {
         try {
             AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
             if (am != null) {
@@ -2720,11 +2720,11 @@ public class AssistantActivity extends AppCompatActivity {
         }
     }
 
-    private void updateUI(String text) {
+    public void updateUI(String text) {
         showResponse(text, true);
     }
 
-    private void finishDelayed(long delayMillis) {
+    public void finishDelayed(long delayMillis) {
         // Step 6 - Part 2: Never auto-dismiss. Revert orb to IDLE state so the assistant
         // floats gently on screen until the user manually swipes or taps outside.
         new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
@@ -2737,7 +2737,7 @@ public class AssistantActivity extends AppCompatActivity {
         }, delayMillis);
     }
 
-    private void startListeningDelayed(long delayMillis) {
+    public void startListeningDelayed(long delayMillis) {
         new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
             @Override
             public void run() {
@@ -2753,7 +2753,7 @@ public class AssistantActivity extends AppCompatActivity {
      * Prompts the user with a confirmation query, retains pending state,
      * and automatically re-arms the speech listener after a 1.5s delay.
      */
-    private void askForConfirmation(String promptText, Intent intent, String actionType) {
+    public void askForConfirmation(String promptText, Intent intent, String actionType) {
         pendingIntent = intent;
         pendingActionType = actionType;
         updateUI(promptText + "\n(Say YES to confirm or NO to cancel)");
@@ -2816,7 +2816,7 @@ public class AssistantActivity extends AppCompatActivity {
     /**
      * Opens weather forecast on Google with optional location support.
      */
-    void openWeather(String location) {
+    public void openWeather(String location) {
         if (location != null && !location.trim().isEmpty()) {
             searchWeb(location.trim() + " weather forecast");
             showDynamicPill("Weather: " + location.trim(), android.R.drawable.ic_menu_compass);
@@ -2829,7 +2829,7 @@ public class AssistantActivity extends AppCompatActivity {
         setOrbState("IDLE");
     }
 
-    void openWeather() {
+    public void openWeather() {
         openWeather(null);
     }
 
@@ -3139,7 +3139,7 @@ public class AssistantActivity extends AppCompatActivity {
      * Step 10 Part B: Clipboard Smart Context Resolution & Speech Output.
      * Reads clipboard, determines if it is a link or text, and triggers live voice digest.
      */
-    void handleClipboardSummary() {
+    public void handleClipboardSummary() {
         try {
             ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
             if (clipboard == null || !clipboard.hasPrimaryClip()) {
@@ -3213,7 +3213,7 @@ public class AssistantActivity extends AppCompatActivity {
      * Step 10 Part A & B: Live URL Content Digest & Content Summary Engine.
      * Ensures background thread execution for Gemini API summary.
      */
-    void summarizeContent(final String sourceText, final String titleOrUrl) {
+    public void summarizeContent(final String sourceText, final String titleOrUrl) {
         if (sourceText == null || sourceText.trim().isEmpty()) {
             showDynamicPill("Digest Error", android.R.drawable.ic_menu_info_details);
             showResponse("Summarize karne ke liye koi content nahi mila.", true);
@@ -3308,7 +3308,7 @@ public class AssistantActivity extends AppCompatActivity {
     /**
      * Step 9 - Part 11: Native App Launcher with high-performance fuzzy search across all installed apps.
      */
-    void launchAppByName(String appName) {
+    public void launchAppByName(String appName) {
         if (appName == null || appName.trim().isEmpty()) {
             showDynamicPill("App Launcher", android.R.drawable.ic_menu_search);
             showResponse("Aap kaun sa app kholna chahte hain?", true);
@@ -3434,7 +3434,7 @@ public class AssistantActivity extends AppCompatActivity {
     /**
      * Step 7 - Part 4: Native Battery Level Reader with Hindi Vocal Output.
      */
-    void getDeviceBatteryLevel() {
+    public void getDeviceBatteryLevel() {
         try {
             IntentFilter ifilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
             Intent batteryStatus = registerReceiver(null, ifilter);
@@ -5023,7 +5023,7 @@ public class AssistantActivity extends AppCompatActivity {
      * Step 9: Set the orb animation state via JavaScript bridge.
      * States: IDLE, LISTENING, THINKING, SPEAKING
      */
-    void setOrbState(final String state) {
+    public void setOrbState(final String state) {
         if (orbWebView != null) {
             runOnUiThread(new Runnable() {
                 @Override

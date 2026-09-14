@@ -374,3 +374,4 @@ public class OfflineBrainDownloader {
         getPrefs(context).edit().putString(KEY_DOWNLOAD_STATUS, "paused").apply();
     }
 }
+

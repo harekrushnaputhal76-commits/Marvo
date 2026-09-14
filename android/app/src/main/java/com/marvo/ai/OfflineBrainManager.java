@@ -219,3 +219,4 @@ public class OfflineBrainManager {
         return rawText.replaceAll("(?i)</?coreResponse>", "").trim();
     }
 }
+
