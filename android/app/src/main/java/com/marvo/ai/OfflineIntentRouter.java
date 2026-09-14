@@ -201,48 +201,70 @@ public class OfflineIntentRouter {
         }
 
         // CATEGORY B (Route to Online Gemini API):
-        // If query requires general knowledge, web facts, coding help, or complex analysis
-        // that the offline router cannot resolve locally, seamlessly hand it over to Gemini API.
-        Log.i(TAG, "[HYBRID ROUTER] Solved ONLINE (Gemini API): " + command);
-        activity.askGeminiOnline(command);
+        // Step 9 - Part 2: Web Knowledge Modules (Wikipedia, News, Research, Jokes & Stories)
+        String domain = detectDomain(command);
+        Log.i(TAG, "[HYBRID ROUTER] Solved ONLINE (Gemini API - " + domain + "): " + command);
+        activity.askGeminiOnline(command, domain);
         return true;
     }
 
     /**
-     * Identifies queries that must be handled online by Gemini AI.
+     * Step 9 - Part 2: Web Knowledge Domain Classifier.
+     * Categorizes queries into specialized domains: Wikipedia/General Knowledge,
+     * News, Study & Research, Comedy & Jokes, Stories, or General.
      */
-    private boolean isComplexOnlineQuery(String lower) {
-        // URLs or Web Content
-        if (lower.contains("http://") || lower.contains("https://") ||
-            lower.contains(".com") || lower.contains(".org") || lower.contains(".net") ||
-            lower.contains(".ai") || lower.contains(".io") ||
-            lower.startsWith("summarize url") || lower.startsWith("digest url") ||
-            lower.startsWith("read url") || lower.startsWith("summarize link")) {
-            return true;
+    public static String detectDomain(String query) {
+        if (query == null) return "GENERAL";
+        String lower = query.trim().toLowerCase();
+
+        // 1. COMEDY & JOKES: "Tell me a joke", "Kuch hasao", "chutkula", funny prompts
+        if (lower.contains("joke") || lower.contains("chutkula") || lower.contains("hasao") ||
+            lower.contains("hasi") || lower.contains("funny") || lower.contains("make me laugh") ||
+            lower.contains("kuch funny") || lower.contains("koi chutkula") || lower.contains("haso") ||
+            lower.contains("joke sunao")) {
+            return "COMEDY_AND_JOKES";
         }
 
-        // Real-time Web Search
-        if (lower.startsWith("search web") || lower.startsWith("web search") ||
-            lower.startsWith("search live") || lower.startsWith("live search") ||
-            lower.startsWith("real-time search") || lower.startsWith("realtime search") ||
-            lower.startsWith("google search") || lower.startsWith("search online") ||
-            lower.startsWith("online search")) {
-            return true;
+        // 2. STORIES: "Tell me a story", "Ek kahani sunao", tales, bedtime stories
+        if (lower.contains("story") || lower.contains("kahani") || lower.contains("katha") ||
+            lower.contains("dastan") || lower.contains("ek kahani") || lower.contains("tell me a story") ||
+            lower.contains("bedtime story") || lower.contains("koi kahani") || lower.contains("kahani sunao")) {
+            return "STORIES";
         }
 
-        // General Knowledge, Explanations, Factual Inquiries
+        // 3. NEWS: Current events, headlines, "What's happening in [Topic]"
+        if (lower.contains("news") || lower.contains("samachar") || lower.contains("headline") ||
+            lower.contains("what's happening") || lower.contains("whats happening") ||
+            lower.contains("current events") || lower.contains("breaking news") || lower.contains("latest news") ||
+            lower.contains("khabar") || lower.contains("aaj ki khabar") || lower.contains("kya chal raha hai")) {
+            return "NEWS";
+        }
+
+        // 4. STUDY & RESEARCH: Academic inquiries, science papers, free learning topics
+        if (lower.contains("research") || lower.contains("study") || lower.contains("paper") ||
+            lower.contains("academic") || lower.contains("thesis") || lower.contains("science paper") ||
+            lower.contains("teach me") || lower.contains("learn about") || lower.contains("educational") ||
+            lower.contains("formula of") || lower.contains("derivation") || lower.contains("notes on") ||
+            lower.contains("syllabus") || lower.contains("exam prep") || lower.contains("concept of") ||
+            lower.contains("theory of") || lower.contains("physics") || lower.contains("chemistry") ||
+            lower.contains("biology") || lower.contains("mathematics") || lower.contains("quantum") ||
+            lower.contains("photosynthesis") || lower.contains("algorithm") || lower.contains("coding") ||
+            lower.contains("program for") || lower.contains("program to") || lower.contains("solve")) {
+            return "STUDY_AND_RESEARCH";
+        }
+
+        // 5. WIKIPEDIA / GENERAL KNOWLEDGE: History, science, definitions, "Who is X?"
         if (lower.contains("wikipedia") || lower.startsWith("who is ") || lower.startsWith("what is ") ||
-            lower.startsWith("why is ") || lower.startsWith("why do ") || lower.startsWith("why does ") ||
-            lower.startsWith("how to ") || lower.startsWith("how do ") || lower.startsWith("how does ") ||
-            lower.startsWith("how can ") || lower.startsWith("tell me about ") || lower.startsWith("explain ") ||
-            lower.startsWith("define ") || lower.startsWith("meaning of ") || lower.startsWith("what are ") ||
-            lower.startsWith("who was ") || lower.startsWith("where is ") || lower.startsWith("difference between ") ||
+            lower.startsWith("who was ") || lower.startsWith("where is ") || lower.startsWith("define ") ||
+            lower.startsWith("meaning of ") || lower.startsWith("history of ") || lower.startsWith("science of ") ||
+            lower.startsWith("tell me about ") || lower.startsWith("difference between ") ||
             lower.startsWith("kya hai ") || lower.startsWith("kaun hai ") || lower.startsWith("kyun ") ||
-            lower.startsWith("kaise ") || lower.startsWith("kahan hai ")) {
-            return true;
+            lower.startsWith("kaise ") || lower.startsWith("kahan hai ") || lower.startsWith("kisko kehte hain") ||
+            lower.startsWith("facts about") || lower.startsWith("information about")) {
+            return "WIKIPEDIA_AND_KNOWLEDGE";
         }
 
-        return false;
+        return "GENERAL";
     }
 
     /**

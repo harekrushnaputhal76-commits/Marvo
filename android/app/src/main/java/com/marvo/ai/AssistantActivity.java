@@ -4115,10 +4115,18 @@ public class AssistantActivity extends AppCompatActivity {
     }
 
     /**
-     * FINAL STEP: Native Java Gemini 1.5 Flash Online Query Engine.
-     * Makes a lightweight HttpURLConnection POST call and speaks conversational Hindi/Hinglish response.
+     * Step 9 - Part 2: Web Knowledge Modules & Dynamic Multi-Domain System Prompt.
+     * Delegates to domain-aware askGeminiOnline.
      */
     public void askGeminiOnline(final String userQuery) {
+        askGeminiOnline(userQuery, OfflineIntentRouter.detectDomain(userQuery));
+    }
+
+    /**
+     * Native Java Gemini Online Query Engine with Dynamic System Instruction.
+     * Multi-domain media companion for Wikipedia, News, Study/Research, Comedy & Jokes, Stories.
+     */
+    public void askGeminiOnline(final String userQuery, final String domain) {
         if (userQuery == null || userQuery.trim().isEmpty()) return;
 
         runOnUiThread(new Runnable() {
@@ -4145,7 +4153,11 @@ public class AssistantActivity extends AppCompatActivity {
             public void run() {
                 HttpURLConnection conn = null;
                 try {
-                    Log.i(TAG, "[HYBRID ROUTER] Query routed to ONLINE (Gemini API): " + userQuery);
+                    final String activeDomain = (domain != null && !domain.trim().isEmpty())
+                        ? domain.trim()
+                        : OfflineIntentRouter.detectDomain(userQuery);
+
+                    Log.i(TAG, "[HYBRID ROUTER] Query routed to ONLINE (Gemini API - " + activeDomain + "): " + userQuery);
                     String apiKey = "YOUR_API_KEY_HERE";
                     if (apiKey == null || apiKey.trim().isEmpty() || "YOUR_API_KEY_HERE".equals(apiKey)) {
                         apiKey = getGeminiApiKey();
@@ -4170,9 +4182,29 @@ public class AssistantActivity extends AppCompatActivity {
                         conn.setConnectTimeout(15000);
                         conn.setReadTimeout(30000);
 
-                        // Payload format:
-                        // {"contents": [{"parts":[{"text": "[SYSTEM: You are Marvo, a highly intelligent, concise voice assistant. Answer strictly in short, conversational Hindi/Hinglish paragraphs. No markdown.] User Query: " + userQuery}]}]}
-                        String promptText = "[SYSTEM: You are Marvo, a highly intelligent, concise voice assistant. Answer strictly in short, conversational Hindi/Hinglish paragraphs. No markdown.] User Query: " + userQuery;
+                        // Step 9 - Part 2: Dynamic System Prompt Upgrade for Multi-Domain Media Companion
+                        String baseSystemPrompt = "You are Marvo, an advanced AI assistant. "
+                            + "When the user asks for News or Wikipedia facts, provide concise, accurate, and up-to-date summaries. "
+                            + "When the user asks for Study/Research material, present structured educational bullet points. "
+                            + "When the user asks for Jokes or Stories, be highly engaging, witty, and creative. "
+                            + "Always maintain a conversational Hindi/Hinglish voice tone suitable for TTS speech output. "
+                            + "Avoid outputting messy raw markdown links, asterisks, bullet marks, or unpronounceable symbols that sound awkward when read aloud by the TTS engine. "
+                            + "Instead, structure the text into clean, digestible summaries and natural spoken references.";
+
+                        String domainDirective = "";
+                        if ("COMEDY_AND_JOKES".equalsIgnoreCase(activeDomain)) {
+                            domainDirective = " [Category: Comedy & Jokes - Deliver a genuinely funny, witty, and clean joke in conversational Hindi/Hinglish.]";
+                        } else if ("STORIES".equalsIgnoreCase(activeDomain)) {
+                            domainDirective = " [Category: Stories - Narrate an engaging, imaginative, and captivating short story in vivid Hindi/Hinglish.]";
+                        } else if ("NEWS".equalsIgnoreCase(activeDomain)) {
+                            domainDirective = " [Category: News & Headlines - Provide a concise, accurate summary of current events and headlines in fluent Hindi/Hinglish without raw URLs.]";
+                        } else if ("STUDY_AND_RESEARCH".equalsIgnoreCase(activeDomain)) {
+                            domainDirective = " [Category: Study & Research - Present structured educational points and core conceptual insights in conversational Hindi/Hinglish.]";
+                        } else if ("WIKIPEDIA_AND_KNOWLEDGE".equalsIgnoreCase(activeDomain)) {
+                            domainDirective = " [Category: Wikipedia & General Knowledge - Provide an accurate, comprehensive yet concise factual summary in clear Hindi/Hinglish.]";
+                        }
+
+                        String promptText = "[SYSTEM: " + baseSystemPrompt + domainDirective + "] User Query: " + userQuery;
 
                         JSONObject partObj = new JSONObject();
                         partObj.put("text", promptText);
@@ -4242,10 +4274,12 @@ public class AssistantActivity extends AppCompatActivity {
                             .getJSONObject(0)
                             .getString("text");
 
-                        // Clean any markdown formatting if present
-                        final String cleanReply = replyText.replaceAll("[*#_`]", "").trim();
+                        // Clean raw markdown, symbols, and links that sound awkward via TTS
+                        String cleaned = replyText.replaceAll("[*#_`]", "").trim();
+                        cleaned = cleaned.replaceAll("https?://\\S+", "").replaceAll("\\s{2,}", " ").trim();
+                        final String cleanReply = cleaned;
 
-                        Log.i(TAG, "[HYBRID ROUTER] Solved ONLINE (Gemini API): " + cleanReply);
+                        Log.i(TAG, "[HYBRID ROUTER] Solved ONLINE (Gemini API - " + activeDomain + "): " + cleanReply);
                         runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
