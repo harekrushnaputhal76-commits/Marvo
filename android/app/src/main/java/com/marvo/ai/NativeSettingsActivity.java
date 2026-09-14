@@ -354,7 +354,7 @@ public class NativeSettingsActivity extends Activity {
         LinearLayout btnBar = new LinearLayout(this);
         btnBar.setOrientation(LinearLayout.VERTICAL);
 
-        brainDownloadBtn = createPrimaryButton("Download Offline Brain (1.8GB)");
+        brainDownloadBtn = createPrimaryButton("Download Offline Brain (2.2GB)");
         brainDownloadBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -642,13 +642,13 @@ public class NativeSettingsActivity extends Activity {
         long total = progressJson.optLong("totalBytes", 0);
 
         long dlMb = downloaded / (1024 * 1024);
-        long totMb = total > 0 ? (total / (1024 * 1024)) : 1800;
+        long totMb = total > 0 ? (total / (1024 * 1024)) : 2200;
 
         if (isReady || "completed".equalsIgnoreCase(status) || OfflineBrainDownloader.getInstance().isModelDownloaded(this)) {
             brainStatusLabel.setText("Status: Model Ready (Offline Active)");
             brainStatusLabel.setTextColor(Color.parseColor("#2ECC71"));
             brainProgressBar.setProgress(100);
-            brainProgressLabel.setText("Model: " + OfflineBrainDownloader.DEFAULT_MODEL_NAME + " (~1.8GB verified)");
+            brainProgressLabel.setText("Model: " + OfflineBrainDownloader.DEFAULT_MODEL_NAME + " (~2.2GB verified)");
             brainDownloadBtn.setText("Model Installed & Ready");
             brainDownloadBtn.setEnabled(true);
             if (brainPauseBtn != null) brainPauseBtn.setVisibility(View.GONE);

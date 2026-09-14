@@ -311,6 +311,8 @@ const STATES = [
   'state-suspicious', 'state-heart-eyes', 'state-focused', 'state-scared', 'state-glitch',
   'state-stargazing', 'state-dead', 'state-eyeroll', 'state-hypnotized', 'state-ninja',
   'state-overheating',
+  // 10 Core Character States (Step 26)
+  'state-typing', 'state-funny', 'state-singing', 'state-sleeping',
 ];
 
 let currentSessionId = sessionStorage.getItem(SESSION_STORAGE_KEY) || generateSessionId();
@@ -319,6 +321,7 @@ let sessionVersion   = 0;
 let selectedMode     = 'medium'; // 'fast', 'medium' (Thinking), 'high' (Pro)
 let activeAgent      = 'gemini'; // 'gemini', 'huggingface', 'pollinations', 'claude'
 let isBusy           = false;
+let currentChatAbortController = null;
 let hasInteracted    = false;
 let contextTargetSessionId = null;
 let currentAudio     = null;
@@ -436,9 +439,9 @@ function setEyeExpression(state) {
   // React character images based on state (e.g. Spider-Man & Monk user photos)
   if (CHARACTER_PROFILES[currentTheme] && DOM.characterImg) {
     const prof = CHARACTER_PROFILES[currentTheme];
-    if (state === 'state-speaking') {
+    if (state === 'state-speaking' || state === 'state-singing') {
       DOM.characterImg.src = prof.activeImg || prof.idleImg;
-    } else if (state === 'state-thinking') {
+    } else if (state === 'state-thinking' || state === 'state-typing') {
       DOM.characterImg.src = prof.thinkingImg || prof.idleImg;
     } else {
       DOM.characterImg.src = prof.idleImg;
@@ -1512,6 +1515,41 @@ function showLoading() {
   return el;
 }
 
+function setStopButtonState(active) {
+  if (!DOM.btnSend) return;
+  if (active) {
+    DOM.btnSend.classList.add('btn-stop');
+    DOM.btnSend.setAttribute('aria-label', 'Stop generation');
+    DOM.btnSend.setAttribute('title', 'Stop generation');
+    DOM.btnSend.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>`;
+    DOM.btnSend.disabled = false;
+  } else {
+    DOM.btnSend.classList.remove('btn-stop');
+    DOM.btnSend.setAttribute('aria-label', 'Send Message');
+    DOM.btnSend.setAttribute('title', 'Send Message');
+    DOM.btnSend.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"/></svg>`;
+    DOM.btnSend.disabled = false;
+  }
+}
+
+function abortCurrentChat() {
+  if (currentChatAbortController) {
+    try { currentChatAbortController.abort(); } catch (e) {}
+    currentChatAbortController = null;
+  }
+  if (currentAudio) {
+    try { currentAudio.pause(); } catch (e) {}
+    currentAudio = null;
+  }
+  if (typeof isVoiceRecording !== 'undefined' && isVoiceRecording) {
+    stopVoiceRecording(true);
+  }
+  setEyeExpression('state-idle');
+  setStopButtonState(false);
+  isBusy = false;
+  showToast('Generation stopped');
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    CONTEXT-AWARE BACKEND COMMUNICATION (Time, Project, & Agents Pipeline)
    ═══════════════════════════════════════════════════════════════════ */
@@ -1535,7 +1573,8 @@ async function sendMessage(userText) {
   DOM.msgInput.value = '';
   attachedFiles = [];
   renderAttachmentShelf();
-  DOM.btnSend.disabled = true;
+  currentChatAbortController = new AbortController();
+  setStopButtonState(true);
 
   const dots = showLoading();
   const isImageRequest = parseImageGenerationPrompt(cleanInput);
@@ -1587,17 +1626,26 @@ async function sendMessage(userText) {
     payloadMessage = `[System Instructions / Persona for Project "${activeProject.name}":\n${activeProject.instructions.trim()}]\n\n[User Local Time: ${deviceTime}]\n\nUser Question: ${payloadMessage}`;
   }
 
+  // Rolling 5-6 message context cache
+  const recentHistory = await getLocalMessages(requestSessionId);
+  const contextHistory = (recentHistory || []).slice(-6).map(m => ({
+    role: m.role,
+    content: m.content
+  }));
+
   try {
     const res = await fetch(API_CHAT, {
       method: 'POST',
+      signal: currentChatAbortController.signal,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        message:       payloadMessage,
-        mode:          activeModeName,
-        thinking_mode: selectedMode,
-        local_time:    deviceTime,
-        agent:         activeAgent,
-        session_id:    requestSessionId,
+        message:          payloadMessage,
+        mode:             activeModeName,
+        thinking_mode:    selectedMode,
+        local_time:       deviceTime,
+        agent:            activeAgent,
+        session_id:       requestSessionId,
+        context_history:  contextHistory,
       }),
     });
 
@@ -1636,27 +1684,54 @@ async function sendMessage(userText) {
     if (requestSessionId !== currentSessionId || requestVersion !== sessionVersion) return;
     dots.remove();
 
-    // Resilient client-side fallback if image creation encounters network error
-    if (isImageRequest) {
-      showToast('Offline visual generator fallback active');
-      const seed = Math.floor(Math.random() * 1000000);
-      const fallbackUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(isImageRequest)}?width=1024&height=1024&nologo=true&seed=${seed}`;
-      const storageContent = `__IMAGE_GEN__:${encodeURIComponent(isImageRequest)}:${encodeURIComponent(fallbackUrl)}`;
-      setEyeExpression('state-amazed');
-      addMessage(storageContent, 'ai');
-      await saveLocalMessage(requestSessionId, 'ai', storageContent);
-      updateHistorySidebar(cleanInput, requestSessionId);
-    } else {
-      setEyeExpression('state-error');
-      const errMsg = "I couldn't reach my cloud brain right now. Please check your internet connection.";
-      addMessage(errMsg, 'ai');
-      await saveLocalMessage(requestSessionId, 'ai', errMsg);
-      console.error('[Marvo] Chat error:', err);
+    if (err && err.name === 'AbortError') {
+      setEyeExpression('state-idle');
+      return;
+    }
+
+    // Resilient Hybrid Routing: Try Local Offline GGUF Brain
+    let offlineSuccess = false;
+    try {
+      if (!isImageRequest && window.Capacitor?.Plugins?.MarvoNativeBridge?.triggerOfflineQuery) {
+        setEyeExpression('state-thinking');
+        const offRes = await window.Capacitor.Plugins.MarvoNativeBridge.triggerOfflineQuery({ query: cleanInput });
+        if (offRes && offRes.response) {
+          const offText = offRes.response;
+          setEyeExpression('state-speaking');
+          addMessage(offText, 'ai');
+          await saveLocalMessage(requestSessionId, 'ai', offText);
+          updateHistorySidebar(cleanInput, requestSessionId);
+          offlineSuccess = true;
+        }
+      }
+    } catch (nativeErr) {
+      console.warn('[OfflineBrain] Hybrid fallback error:', nativeErr);
+    }
+
+    if (!offlineSuccess) {
+      // Resilient client-side fallback if image creation encounters network error
+      if (isImageRequest) {
+        showToast('Offline visual generator fallback active');
+        const seed = Math.floor(Math.random() * 1000000);
+        const fallbackUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(isImageRequest)}?width=1024&height=1024&nologo=true&seed=${seed}`;
+        const storageContent = `__IMAGE_GEN__:${encodeURIComponent(isImageRequest)}:${encodeURIComponent(fallbackUrl)}`;
+        setEyeExpression('state-amazed');
+        addMessage(storageContent, 'ai');
+        await saveLocalMessage(requestSessionId, 'ai', storageContent);
+        updateHistorySidebar(cleanInput, requestSessionId);
+      } else {
+        setEyeExpression('state-error');
+        const errMsg = "I'm having difficulty connecting right now and the offline brain is not ready yet. Please check your internet connection.";
+        addMessage(errMsg, 'ai');
+        await saveLocalMessage(requestSessionId, 'ai', errMsg);
+        console.error('[Marvo] Chat error:', err);
+      }
     }
   } finally {
+    setStopButtonState(false);
+    currentChatAbortController = null;
     if (requestSessionId !== currentSessionId || requestVersion !== sessionVersion) return;
     isBusy = false;
-    DOM.btnSend.disabled = false;
     DOM.msgInput.focus();
   }
 }
@@ -2211,12 +2286,46 @@ DOM.modeSelector?.addEventListener('click', (e) => {
   }
 });
 
-// Send Message
-DOM.btnSend.addEventListener('click', () => sendMessage(DOM.msgInput.value));
+// Send Message / Stop Button
+DOM.btnSend.addEventListener('click', () => {
+  if (isBusy) {
+    abortCurrentChat();
+  } else {
+    sendMessage(DOM.msgInput.value);
+  }
+});
 DOM.msgInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
-    sendMessage(DOM.msgInput.value);
+    if (!isBusy) {
+      sendMessage(DOM.msgInput.value);
+    }
+  }
+});
+
+// Gemini-style Input Dock & Dynamic Typing States
+DOM.msgInput.addEventListener('focus', () => {
+  const dock = document.querySelector('.input-glass');
+  if (dock) dock.classList.add('active-typing');
+  if (!isBusy) setEyeExpression('state-typing');
+});
+DOM.msgInput.addEventListener('input', () => {
+  const dock = document.querySelector('.input-glass');
+  if (DOM.msgInput.value.trim().length > 0) {
+    if (dock) dock.classList.add('active-typing');
+    if (!isBusy) setEyeExpression('state-typing');
+  } else {
+    if (dock) dock.classList.remove('active-typing');
+    if (!isBusy) setEyeExpression('state-idle');
+  }
+});
+DOM.msgInput.addEventListener('blur', () => {
+  const dock = document.querySelector('.input-glass');
+  if (dock && DOM.msgInput.value.trim().length === 0) {
+    dock.classList.remove('active-typing');
+  }
+  if (!isBusy && currentCharacterState === 'state-typing') {
+    setEyeExpression('state-idle');
   }
 });
 

@@ -1013,19 +1013,15 @@ public class AssistantActivity extends AppCompatActivity {
             @Override
             public void onError(int error) {
                 Log.w(TAG, "SpeechRecognizer onError code: " + error);
-                if (error == SpeechRecognizer.ERROR_NO_MATCH || error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
-                    // Smoothly revert to IDLE state without freezing or flashing error
-                    setOrbState("IDLE");
-                } else {
-                    setVisualState("ERROR");
-                    new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-                        @Override
-                        public void run() {
-                            if (!isFinishing()) {
-                                setOrbState("IDLE");
-                            }
-                        }
-                    }, 1500);
+                // Step 26: Silence "Didn't catch sound" auto-restart bug completely.
+                // Fail silently on speech errors and reset gracefully to IDLE without red error toasts.
+                setOrbState("IDLE");
+                if (statusTextView != null && "Didn't catch that...".equals(statusTextView.getText().toString())) {
+                    statusTextView.setText("Ready");
+                    statusTextView.setTextColor(android.graphics.Color.parseColor("#00f0ff"));
+                }
+                if (subtitleTextView != null) {
+                    subtitleTextView.setVisibility(View.GONE);
                 }
             }
 
@@ -2331,12 +2327,11 @@ public class AssistantActivity extends AppCompatActivity {
 
             case "ERROR":
                 if (statusTextView != null) {
-                    statusTextView.setText("Didn't catch that...");
-                    statusTextView.setTextColor(android.graphics.Color.parseColor("#FF5252"));
+                    statusTextView.setText("Ready");
+                    statusTextView.setTextColor(android.graphics.Color.parseColor("#00f0ff"));
                 }
                 if (subtitleTextView != null) {
-                    subtitleTextView.setText("Tap to try again");
-                    subtitleTextView.setVisibility(View.VISIBLE);
+                    subtitleTextView.setVisibility(View.GONE);
                 }
                 setOrbState("IDLE");
                 break;
@@ -5213,8 +5208,8 @@ public class AssistantActivity extends AppCompatActivity {
                         conn.setConnectTimeout(15000);
                         conn.setReadTimeout(30000);
 
-                        // Step 9 - Part 8: Apple-Style Ultra-Concise Direct System Prompt (Zero Preamble)
-                        String baseSystemPrompt = "You are Marvo, an ultra-concise voice assistant. Answer the user's query directly and immediately in 1-2 short conversational sentences of Hindi/Hinglish. Never introduce yourself, never state what you can do, and never give conversational filler unless explicitly asked 'Who are you?'.";
+                        // Step 26: Friendly, Polite & Intelligent Persona Injection
+                        String baseSystemPrompt = "You are Marvo, a highly intelligent, polite, and helpful personal AI assistant. Provide concise, optimized, and friendly answers in spoken Hindi/Hinglish. Never be rude or overly sarcastic. If the user greets you, respond warmly and ask how you can help today.";
 
                         String domainDirective = "";
                         if ("CONTENT_DIGEST".equalsIgnoreCase(activeDomain)) {
@@ -5424,8 +5419,8 @@ public class AssistantActivity extends AppCompatActivity {
                         conn.setConnectTimeout(15000);
                         conn.setReadTimeout(30000);
 
-                        // Step 9 - Part 8: Apple-Style Ultra-Concise Direct System Prompt (Zero Preamble)
-                        String baseSystemPrompt = "You are Marvo, an ultra-concise voice assistant. Answer the user's query directly and immediately in 1-2 short conversational sentences of Hindi/Hinglish. Never introduce yourself, never state what you can do, and never give conversational filler unless explicitly asked 'Who are you?'.";
+                        // Step 26: Friendly, Polite & Intelligent Persona Injection
+                        String baseSystemPrompt = "You are Marvo, a highly intelligent, polite, and helpful personal AI assistant. Provide concise, optimized, and friendly answers in spoken Hindi/Hinglish. Never be rude or overly sarcastic. If the user greets you, respond warmly and ask how you can help today.";
 
                         String domainDirective = "";
                         if ("CONTENT_DIGEST".equalsIgnoreCase(activeDomain)) {
@@ -5746,8 +5741,8 @@ public class AssistantActivity extends AppCompatActivity {
                     // Build request body
                     JSONObject requestBody = new JSONObject();
 
-                    // Step 1, 2, 5 & Step 7 Part 1: Core Persona, Zero-Hallucination, XML Structure, Visual Richness, Entity-First Reasoning, Persistent Conversation Memory & Live URL Digest
-                    String systemInstructionText = "You are Marvo, an intelligent assistant. You craft beautiful, visually rich, and highly accurate responses. \n" +
+                    // Step 26: Friendly, Polite & Intelligent Persona Injection
+                    String systemInstructionText = "You are Marvo, a highly intelligent, polite, and helpful personal AI assistant. You provide concise, optimized, friendly, and visually rich responses. Never be rude or overly sarcastic. If the user greets you, respond warmly and ask how you can help today.\n" +
                         "IDENTITY: You are software; you do not experience emotions or have a physical body, gender, nationality, or personal history. \n" +
                         "BEHAVIOR: You handle user requests by thinking then acting. Accept user corrections about their situation, but do not go along with factual errors; correct them plainly. Be honest when something isn't found, doesn't work, or isn't available. \n" +
                         "ZERO HALLUCINATION: Treat missing data as unknown. It is a CATASTROPHIC violation of trust to infer or guess the value of missing properties or facts. Tell the user exactly what information is missing.\n" +

@@ -806,9 +806,11 @@ body.chat-active .face{
 }
 
 .msg{
-  max-width:85%;padding:13px 17px;
-  font-size:14.5px;line-height:1.55;
+  max-width:85%;padding:13px 18px;
+  font-size:15px;line-height:1.48;
   word-break:break-word;
+  font-family:-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", system-ui, sans-serif;
+  letter-spacing:-0.15px;
   animation:msg-pop .28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 @keyframes msg-pop{
@@ -816,84 +818,127 @@ body.chat-active .face{
   to{opacity:1;transform:translateY(0) scale(1)}
 }
 
+/* Apple-Style User Bubble (iOS Vibrant Blue / Gradient) */
 .msg-user{
   align-self:flex-end;
-  background:var(--user-bubble);
-  border:1px solid var(--user-border);
-  border-radius:18px 18px 4px 18px;
+  background:linear-gradient(135deg, #0B84FE 0%, #0066FF 100%);
+  border:1px solid rgba(255, 255, 255, 0.18);
+  border-radius:20px 20px 4px 20px;
   color:#ffffff;
-  box-shadow:0 4px 16px rgba(0,114,255,0.12);
+  box-shadow:0 4px 18px rgba(0, 114, 255, 0.28), 0 1px 3px rgba(0, 0, 0, 0.15);
+  font-weight:400;
 }
 
 .msg-ai-wrapper{
   align-self:flex-start;max-width:92%;
-  display:flex;flex-direction:column;gap:6px;
-}
-.msg-ai{
-  align-self:flex-start;
-  background:var(--ai-bubble);
-  border:1px solid var(--ai-border);
-  border-radius:18px 18px 18px 4px;
-  color:var(--text-primary);
-  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
-  box-shadow:0 4px 20px rgba(0,0,0,0.25);
+  display:flex;flex-direction:column;gap:5px;
 }
 
-/* Sleek Action Bar below AI response */
+/* Apple Intelligence Frosted Glass AI Bubble */
+.msg-ai{
+  align-self:flex-start;
+  background:rgba(30, 32, 44, 0.76);
+  border:1px solid rgba(255, 255, 255, 0.12);
+  border-radius:20px 20px 20px 4px;
+  color:var(--text-primary);
+  backdrop-filter:blur(28px) saturate(180%);
+  -webkit-backdrop-filter:blur(28px) saturate(180%);
+  box-shadow:0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  font-weight:400;
+}
+
+body.theme-light .msg-ai{
+  background:#E9E9EB;
+  border:1px solid rgba(0,0,0,0.06);
+  color:#000000;
+  box-shadow:0 2px 10px rgba(0,0,0,0.06);
+}
+
+/* Sleek Apple-Style Action Pill Bar below AI response */
 .msg-action-bar{
-  display:flex;align-items:center;gap:3px;
-  padding-left:4px;
+  display:inline-flex;align-items:center;gap:4px;
+  padding:3px 8px;border-radius:18px;
+  background:rgba(255,255,255,0.06);
+  border:1px solid rgba(255,255,255,0.08);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  width:fit-content;margin-top:3px;margin-left:2px;
+}
+body.theme-light .msg-action-bar{
+  background:rgba(0,0,0,0.04);
+  border-color:rgba(0,0,0,0.08);
 }
 .msg-action-btn{
-  width:28px;height:28px;border-radius:7px;
+  width:26px;height:26px;border-radius:50%;
   display:flex;align-items:center;justify-content:center;
   color:var(--text-muted);background:transparent;
-  font-size:11px;
+  font-size:11px;cursor:pointer;
+  transition:all .2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .msg-action-btn:hover{
-  background:rgba(255,255,255,0.06);
-  color:var(--text-primary);
+  background:rgba(255,255,255,0.14);
+  color:#ffffff;
+  transform:scale(1.1);
+}
+body.theme-light .msg-action-btn:hover{
+  background:rgba(0,0,0,0.08);
+  color:#000000;
 }
 .action-copy.copied{
   color:var(--accent)!important;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   INPUT BAR (Glass Dock)
+   INPUT BAR (Gemini-Style Floating Dock with Pop-up & Fixed Controls)
    ═══════════════════════════════════════════════════════════════════ */
 .input-bar{
-  padding:8px 14px 12px 14px;
+  padding:8px 14px 14px 14px;
   background:transparent;
   position:relative;z-index:20;
 }
 .input-glass{
   max-width:760px;margin:0 auto;
   display:flex;align-items:center;gap:8px;
-  padding:6px 10px;border-radius:26px;
+  padding:6px 8px;border-radius:32px;
   background:var(--bg-glass);
   border:1px solid var(--border-color);
-  box-shadow:0 8px 32px rgba(0,0,0,0.36),0 0 16px rgba(0,240,255,0.05);
-  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
-  transition:border-color .25s,box-shadow .25s;
-}
-.input-glass:focus-within{
-  border-color:var(--border-focus);
-  box-shadow:0 8px 32px rgba(0,0,0,0.45),0 0 20px var(--accent-glow-subtle);
+  box-shadow:0 8px 32px rgba(0,0,0,0.36), 0 0 16px rgba(0,240,255,0.05);
+  backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);
+  transition:transform .26s cubic-bezier(0.16, 1, 0.3, 1), box-shadow .26s ease, border-color .26s ease;
 }
 
-.input-glass input{
-  flex:1;border:none;outline:none;background:transparent;
-  font-size:15px;color:var(--text-primary);
-  padding:8px 4px;font-family:inherit;
+/* Chat Bar Pop-up: Elegantly lifts upward when typing or listening */
+.input-glass:focus-within,
+.input-glass.active-typing,
+.input-glass.active-listening{
+  transform:translateY(-6px);
+  border-color:var(--border-focus);
+  box-shadow:0 16px 44px rgba(0,0,0,0.52), 0 0 24px var(--accent-glow-subtle);
 }
-.input-glass input::placeholder{
+
+/* Prevent squishing: msgInput fills width flexibly */
+.input-glass input#msgInput{
+  flex:1 1 auto;min-width:0;
+  border:none;outline:none;background:transparent;
+  font-size:15px;color:var(--text-primary);
+  padding:10px 8px;font-family:-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+}
+.input-glass input#msgInput::placeholder{
   color:var(--text-muted);opacity:0.75;
 }
 
-.btn{
-  width:38px;height:38px;border-radius:50%;
-  display:flex;align-items:center;justify-content:center;
-  color:var(--text-muted);
+/* Strict fixed dimensions for all toolbar buttons (Never Squish) */
+.input-glass .btn,
+.btn-attach,
+.btn-send,
+.btn-mic,
+.btn-screen{
+  width:45px !important;height:45px !important;
+  min-width:45px !important;min-height:45px !important;
+  max-width:45px !important;max-height:45px !important;
+  flex-shrink:0 !important;border-radius:50% !important;
+  display:flex !important;align-items:center !important;justify-content:center !important;
+  color:var(--text-muted);cursor:pointer;
+  transition:all .22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .btn:hover{
   color:var(--text-primary);
@@ -907,13 +952,8 @@ body.chat-active .face{
   flex-shrink:0;
 }
 .btn-attach{
-  width:36px;height:36px;border-radius:50%;
-  display:flex;align-items:center;justify-content:center;
-  color:var(--text-muted);
-  background:rgba(255,255,255,0.04);
+  background:rgba(255,255,255,0.05);
   border:1px solid var(--border-subtle);
-  transition:all .22s cubic-bezier(0.16, 1, 0.3, 1);
-  cursor:pointer;flex-shrink:0;
 }
 .btn-attach:hover{
   color:var(--accent);
@@ -932,10 +972,10 @@ body.chat-active .face{
   bottom:calc(100% + 14px);
   left:0;
   min-width:215px;
-  background:rgba(18,24,36,0.92);
+  background:rgba(18,24,36,0.94);
   border:1px solid rgba(0,240,255,0.25);
   box-shadow:0 16px 44px rgba(0,0,0,0.65), 0 0 24px var(--accent-glow-subtle);
-  border-radius:16px;
+  border-radius:18px;
   padding:6px;
   transform-origin:bottom left;
 }
@@ -953,9 +993,28 @@ body.chat-active .face{
   box-shadow:0 0 14px var(--accent-glow);
 }
 .btn-send:hover{
-  transform:scale(1.06);
+  transform:scale(1.05);
   box-shadow:0 0 20px var(--accent-glow);
 }
+
+/* Morph to Square (⏹️) Abort/Stop Button when generating or listening */
+.btn-send.btn-stop,
+.btn-mic.btn-stop{
+  border-radius:14px !important;
+  background:linear-gradient(135deg, #FF3B30 0%, #D70015 100%) !important;
+  color:#ffffff !important;
+  box-shadow:0 0 16px rgba(255, 59, 48, 0.45) !important;
+  animation:stopPulse 1.2s infinite alternate;
+}
+@keyframes stopPulse{
+  0%{transform:scale(1);box-shadow:0 0 14px rgba(255,59,48,0.4)}
+  100%{transform:scale(1.06);box-shadow:0 0 22px rgba(255,59,48,0.65)}
+}
+.btn-send.btn-stop svg,
+.btn-mic.btn-stop svg{
+  fill:#ffffff;
+}
+
 .btn-mic.recording{
   color:#ff4d6d;
   animation:mic-pulse 1s infinite alternate;
@@ -2680,6 +2739,134 @@ body.chat-active .face{
   40% { transform: translate(3px, -2px); }
   60% { transform: translate(-2px, -1px); }
   80% { transform: translate(2px, 1px); }
+}
+
+/* 1. USER TYPING STATE */
+.character-avatar.state-typing .character-art-frame {
+  transform: scale(1.03) rotate(-1.5deg);
+  border-color: #00f0ff;
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
+  animation: charTypingPerk 1.8s ease-in-out infinite alternate;
+}
+.character-avatar.state-typing .character-aura {
+  background: radial-gradient(circle, rgba(0, 240, 255, 0.3) 0%, transparent 70%);
+}
+.character-avatar.state-typing .character-state-badge {
+  color: #00f0ff;
+  background: rgba(0, 240, 255, 0.15);
+  border-color: rgba(0, 240, 255, 0.35);
+}
+@keyframes charTypingPerk {
+  0% { transform: scale(1.02) rotate(-1deg); }
+  100% { transform: scale(1.04) rotate(1deg); }
+}
+
+/* 6. AI LISTENING STATE */
+.character-avatar.state-listening .character-art-frame {
+  border-color: #00e5ff;
+  box-shadow: 0 0 26px rgba(0, 229, 255, 0.45);
+}
+.character-avatar.state-listening .character-halo-ring {
+  border-color: rgba(0, 229, 255, 0.6);
+  animation: charPulse 1.2s ease-in-out infinite;
+}
+.character-avatar.state-listening .c-ripple.r1 {
+  animation: charRipple 1.4s ease-out infinite;
+}
+.character-avatar.state-listening .c-ripple.r2 {
+  animation: charRipple 1.4s ease-out 0.45s infinite;
+}
+.character-avatar.state-listening .character-aura {
+  background: radial-gradient(circle, rgba(0, 229, 255, 0.38) 0%, transparent 70%);
+}
+.character-avatar.state-listening .character-state-badge {
+  color: #00e5ff;
+  background: rgba(0, 229, 255, 0.15);
+  border-color: rgba(0, 229, 255, 0.35);
+}
+
+/* 4. AI JOKING/FUNNY STATE */
+.character-avatar.state-funny .character-art-frame {
+  border-color: #ffd60a;
+  box-shadow: 0 0 24px rgba(255, 214, 10, 0.5);
+  animation: charFunnyBounce 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) infinite alternate;
+}
+.character-avatar.state-funny .character-aura {
+  background: radial-gradient(circle, rgba(255, 214, 10, 0.4) 0%, transparent 70%);
+}
+.character-avatar.state-funny .character-state-badge {
+  color: #ffd60a;
+  background: rgba(255, 214, 10, 0.15);
+  border-color: rgba(255, 214, 10, 0.35);
+}
+@keyframes charFunnyBounce {
+  0% { transform: scale(1) translateY(0) rotate(0deg); }
+  100% { transform: scale(1.06) translateY(-8px) rotate(2deg); }
+}
+
+/* 8. AI SINGING STATE */
+.character-avatar.state-singing .character-art-frame {
+  border-color: #f72585;
+  box-shadow: 0 0 28px rgba(247, 37, 133, 0.55);
+  animation: charSingRhythm 0.55s ease-in-out infinite alternate;
+}
+.character-avatar.state-singing .character-halo-ring {
+  border-color: #f72585 transparent #7209b7 transparent;
+  animation: charSpin 1.6s linear infinite;
+}
+.character-avatar.state-singing .character-aura {
+  background: radial-gradient(circle, rgba(247, 37, 133, 0.4) 0%, rgba(114, 9, 183, 0.2) 50%, transparent 70%);
+}
+.character-avatar.state-singing .character-state-badge {
+  color: #f72585;
+  background: rgba(247, 37, 133, 0.15);
+  border-color: rgba(247, 37, 133, 0.35);
+}
+@keyframes charSingRhythm {
+  0% { transform: scale(1) rotate(-2deg); }
+  100% { transform: scale(1.05) rotate(2deg); }
+}
+
+/* 9. AI SUCCESS STATE */
+.character-avatar.state-success .character-art-frame {
+  border-color: #00f5d4;
+  box-shadow: 0 0 26px rgba(0, 245, 212, 0.5);
+  animation: charSuccessScale 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.character-avatar.state-success .character-aura {
+  background: radial-gradient(circle, rgba(0, 245, 212, 0.45) 0%, transparent 70%);
+}
+.character-avatar.state-success .character-state-badge {
+  color: #00f5d4;
+  background: rgba(0, 245, 212, 0.15);
+  border-color: rgba(0, 245, 212, 0.35);
+}
+@keyframes charSuccessScale {
+  0% { transform: scale(0.95); }
+  50% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+/* 10. AI SLEEPING STATE */
+.character-avatar.state-sleeping .character-art-frame,
+.character-avatar.state-sleepy .character-art-frame {
+  filter: brightness(0.85);
+  border-color: rgba(255, 255, 255, 0.15);
+  animation: charSleepDeep 5s ease-in-out infinite;
+}
+.character-avatar.state-sleeping .character-aura,
+.character-avatar.state-sleepy .character-aura {
+  background: radial-gradient(circle, rgba(60, 80, 120, 0.25) 0%, transparent 70%);
+}
+.character-avatar.state-sleeping .character-state-badge,
+.character-avatar.state-sleepy .character-state-badge {
+  color: #8b949e;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+@keyframes charSleepDeep {
+  0%, 100% { transform: scale(0.98); opacity: 0.85; }
+  50% { transform: scale(1.01); opacity: 1; }
 }
 
 /* ── INDIVIDUAL CHARACTER THEME PALETTES ── */

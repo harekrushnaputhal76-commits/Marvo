@@ -157,6 +157,12 @@ public class OfflineBrainManager {
         String clean = prompt.trim();
         String lower = clean.toLowerCase();
 
+        // 0. Polite Greeting Detection & Persona
+        if (lower.matches("^(hi|hii|hello|hey|heyy|namaste|pranam|good morning|good afternoon|good evening|kya haal hai|kaise ho)\\b.*")) {
+            String greeting = "Namaste! Main Marvo hoon, aapka polite aur intelligent personal AI assistant. Aaj main aapki kya madad kar sakta hoon?";
+            return "<coreResponse>" + greeting + "</coreResponse>\n\n" + greeting;
+        }
+
         // 1. Math calculation offline reasoning
         if (isMathExpression(lower)) {
             String mathAns = solveLocalMath(lower);
@@ -170,13 +176,13 @@ public class OfflineBrainManager {
             String subject = clean.replaceAll("(?i)^(who is|what is|define|explain)\\s+", "").replaceAll("[?.]", "").trim();
             if (!subject.isEmpty()) {
                 String capSubject = Character.toUpperCase(subject.charAt(0)) + (subject.length() > 1 ? subject.substring(1) : "");
-                String speech = capSubject + " ke baare mein offline brain se jankari: Yeh ek mukhya vishay hai. Detailed analysis ke liye online connection upyogi ho sakta hai.";
+                String speech = capSubject + " ke baare mein offline brain se jankari: Yeh ek mahatvapurna vishay hai. Aapki poori sahayata ke liye main yahan upalabdh hoon.";
                 return "<coreResponse>" + speech + "</coreResponse>\n\n**" + capSubject + "**\n\nOffline Brain analysis completed.";
             }
         }
 
-        // 3. General conversational fallback
-        String spoken = "Offline Brain active hai. Aapka sawal note kar liya gaya hai: " + clean + ".";
+        // 3. General conversational fallback (Warm & Helpful)
+        String spoken = "Main Marvo hoon, aapka helpful AI assistant. Offline mode mein bhi main aapki sahayata ke liye hamesha taiyar hoon.";
         return "<coreResponse>" + spoken + "</coreResponse>\n\n" + spoken;
     }
 

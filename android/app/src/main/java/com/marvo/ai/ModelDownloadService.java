@@ -12,16 +12,17 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.PowerManager;
 import android.util.Log;
 import androidx.core.app.NotificationCompat;
 import org.json.JSONObject;
 
 /**
- * Step 23: Live Offline Model Downloader Foreground Service.
- * Provides continuous background downloading with real-time system notification bar updates:
- *   - Live percentage (%) and MBs downloaded out of total size.
- *   - Foreground service stability to prevent Android OS from killing the heavy download.
- *   - Notification action buttons for Pause and Cancel.
+ * Sticky Foreground Service for Offline AI Brain Download.
+ * Ensures the Android OS does not kill or throttle the 2.2GB model download
+ * when the app is minimized or the screen turns off.
+ * Provides a live system notification with real-time percentage and MB progress,
+ * and Pause/Resume/Cancel notification actions.
  */
 public class ModelDownloadService extends Service {
     private static final String TAG = "MarvoDownload";
@@ -35,6 +36,7 @@ public class ModelDownloadService extends Service {
     public static final int NOTIFICATION_ID = 1001;
 
     private NotificationManager notificationManager;
+    private PowerManager.WakeLock wakeLock;
     private final Handler pollHandler = new Handler(Looper.getMainLooper());
     private boolean isPolling = false;
 
@@ -47,12 +49,13 @@ public class ModelDownloadService extends Service {
                 String status = progress.optString("status", "idle");
                 int pct = progress.optInt("progress", 0);
                 long downloaded = progress.optLong("downloadedBytes", 0);
-                long total = progress.optLong("totalBytes", 0);
+                long total = progress.optLong("totalBytes", 2200L * 1024L * 1024L);
                 boolean isReady = progress.optBoolean("isReady", false);
 
                 if (isReady || "completed".equalsIgnoreCase(status)) {
                     showCompletedNotification();
                     stopPolling();
+                    releaseWakeLock();
                     stopForeground(false);
                     stopSelf();
                     return;
@@ -61,11 +64,13 @@ public class ModelDownloadService extends Service {
                 } else if ("paused".equalsIgnoreCase(status) || "paused_wifi".equalsIgnoreCase(status)) {
                     showPausedNotification();
                     stopPolling();
+                    releaseWakeLock();
                     stopForeground(false);
                     return;
                 } else if ("failed".equalsIgnoreCase(status)) {
                     showFailedNotification();
                     stopPolling();
+                    releaseWakeLock();
                     stopForeground(false);
                     stopSelf();
                     return;
@@ -91,34 +96,79 @@ public class ModelDownloadService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent == null || intent.getAction() == null) {
-            return START_NOT_STICKY;
+            // Check if download was actively in progress before process kill
+            JSONObject progress = OfflineBrainDownloader.getInstance().getDownloadProgress(this);
+            String status = progress.optString("status", "idle");
+            if ("downloading".equalsIgnoreCase(status)) {
+                acquireWakeLock();
+                startForegroundNotification();
+                OfflineBrainDownloader.getInstance().startDownload(this, true);
+                startPolling();
+                return START_STICKY;
+            }
+            return START_STICKY;
         }
 
         String action = intent.getAction();
         Log.d(TAG, "ModelDownloadService received action: " + action);
 
         if (ACTION_START_DOWNLOAD.equals(action)) {
-            boolean allowMetered = intent.getBooleanExtra(EXTRA_ALLOW_METERED, false);
+            boolean allowMetered = intent.getBooleanExtra(EXTRA_ALLOW_METERED, true);
+            acquireWakeLock();
             startForegroundNotification();
             OfflineBrainDownloader.getInstance().startDownload(this, allowMetered);
             startPolling();
+            return START_STICKY;
         } else if (ACTION_PAUSE.equals(action)) {
             OfflineBrainDownloader.getInstance().pauseDownload(this);
+            releaseWakeLock();
             showPausedNotification();
             stopPolling();
             stopForeground(false);
+            return START_NOT_STICKY;
         } else if (ACTION_CANCEL.equals(action)) {
             OfflineBrainDownloader.getInstance().cancelDownload(this);
+            releaseWakeLock();
             stopPolling();
             stopForeground(true);
             stopSelf();
+            return START_NOT_STICKY;
         }
 
-        return START_NOT_STICKY;
+        return START_STICKY;
+    }
+
+    private void acquireWakeLock() {
+        try {
+            if (wakeLock == null) {
+                PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+                if (pm != null) {
+                    wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Marvo:OfflineBrainDownloadWakeLock");
+                    wakeLock.setReferenceCounted(false);
+                }
+            }
+            if (wakeLock != null && !wakeLock.isHeld()) {
+                wakeLock.acquire(2 * 60 * 60 * 1000L); // 2 hours max
+                Log.d(TAG, "Acquired PARTIAL_WAKE_LOCK for background download.");
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Could not acquire wake lock: " + e.getMessage());
+        }
+    }
+
+    private void releaseWakeLock() {
+        try {
+            if (wakeLock != null && wakeLock.isHeld()) {
+                wakeLock.release();
+                Log.d(TAG, "Released PARTIAL_WAKE_LOCK.");
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Error releasing wake lock: " + e.getMessage());
+        }
     }
 
     private void startForegroundNotification() {
-        Notification notification = buildProgressNotification(0, 0, 1800L * 1024L * 1024L, "Starting download...");
+        Notification notification = buildProgressNotification(0, 0, 2200L * 1024L * 1024L, "Connecting to mirror...");
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -159,7 +209,7 @@ public class ModelDownloadService extends Service {
         pauseIntent.setAction(ACTION_PAUSE);
         PendingIntent pendingPause = PendingIntent.getService(
             this, 1, pauseIntent,
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_IMMUTABLE : 0
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT : PendingIntent.FLAG_UPDATE_CURRENT
         );
 
         // Cancel Action Intent
@@ -167,11 +217,11 @@ public class ModelDownloadService extends Service {
         cancelIntent.setAction(ACTION_CANCEL);
         PendingIntent pendingCancel = PendingIntent.getService(
             this, 2, cancelIntent,
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_IMMUTABLE : 0
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT : PendingIntent.FLAG_UPDATE_CURRENT
         );
 
         long dlMb = downloaded / (1024 * 1024);
-        long totMb = total > 0 ? (total / (1024 * 1024)) : 1800;
+        long totMb = total > 0 ? (total / (1024 * 1024)) : 2200;
         String contentText = dlMb + " MB / " + totMb + " MB (" + progress + "%)";
         if (statusText != null && !statusText.isEmpty()) {
             contentText = statusText + " — " + contentText;
@@ -209,7 +259,7 @@ public class ModelDownloadService extends Service {
         Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_sys_download_done)
             .setContentTitle("Marvo Offline Brain Ready")
-            .setContentText("Model Ready (Offline Active). 1.8GB model ready for local inference.")
+            .setContentText("Model Ready (Offline Active). 2.2GB offline LLM verified.")
             .setContentIntent(pendingOpen)
             .setOngoing(false)
             .setAutoCancel(true)
@@ -232,13 +282,20 @@ public class ModelDownloadService extends Service {
         resumeIntent.putExtra(EXTRA_ALLOW_METERED, true);
         PendingIntent pendingResume = PendingIntent.getService(
             this, 3, resumeIntent,
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_IMMUTABLE : 0
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT : PendingIntent.FLAG_UPDATE_CURRENT
         );
+
+        JSONObject progress = OfflineBrainDownloader.getInstance().getDownloadProgress(this);
+        long downloaded = progress.optLong("downloadedBytes", 0);
+        long total = progress.optLong("totalBytes", 2200L * 1024L * 1024L);
+        int pct = progress.optInt("progress", 0);
+        long dlMb = downloaded / (1024 * 1024);
+        long totMb = total > 0 ? (total / (1024 * 1024)) : 2200;
 
         Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_sys_download)
-            .setContentTitle("Offline Brain Download Paused")
-            .setContentText("Tap to resume or connect to Wi-Fi.")
+            .setContentTitle("Offline Brain Download Paused (" + pct + "%)")
+            .setContentText(dlMb + " MB / " + totMb + " MB downloaded. Tap Resume to continue.")
             .setContentIntent(pendingOpen)
             .setOngoing(false)
             .setAutoCancel(true)
@@ -281,6 +338,7 @@ public class ModelDownloadService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
+        releaseWakeLock();
         stopPolling();
         Log.d(TAG, "ModelDownloadService destroyed.");
     }
@@ -290,4 +348,3 @@ public class ModelDownloadService extends Service {
         return null;
     }
 }
-
