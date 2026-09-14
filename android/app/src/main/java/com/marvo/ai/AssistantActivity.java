@@ -110,6 +110,9 @@ public class AssistantActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);
+        getWindow().setNavigationBarColor(android.graphics.Color.TRANSPARENT);
         overridePendingTransition(R.anim.slide_up_assistant, 0);
         setContentView(R.layout.activity_assistant);
         Log.d(TAG, "Marvo Assistant Triggered via Hardware Button!");
@@ -238,7 +241,11 @@ public class AssistantActivity extends AppCompatActivity {
             }
 
             @Override
-            public void onRmsChanged(float rmsdB) {}
+            public void onRmsChanged(float rmsdB) {
+                // Normalize rmsdB (-2 to ~10 dB) into 0.0 to 1.0 range for live fluid orb audio-reactivity
+                float normalized = Math.max(0.0f, Math.min(1.0f, (rmsdB + 2.0f) / 12.0f));
+                setOrbAmplitude(normalized);
+            }
 
             @Override
             public void onBufferReceived(byte[] buffer) {}
@@ -2573,41 +2580,61 @@ public class AssistantActivity extends AppCompatActivity {
     }
 
     /**
-     * Step 9 Part 3: Load Gemini API key from .env asset file.
-     * Reads the file line-by-line, finds GEMINI_API_KEY=..., stores it.
+     * Step 10 Bugfix: Multi-Source Robust Gemini API Key Parser.
+     * Searches app_config.env, .env, and marvo.env in assets,
+     * strips whitespace and surrounding quotes, and falls back gracefully.
      */
     private void loadGeminiApiKey() {
-        try {
-            InputStream is = getAssets().open(".env");
-            BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-            String line;
-            while ((line = reader.readLine()) != null) {
-                line = line.trim();
-                if (line.startsWith("GEMINI_API_KEY=")) {
-                    geminiApiKey = line.substring("GEMINI_API_KEY=".length()).trim();
-                    if (geminiApiKey.isEmpty() || geminiApiKey.equals("your_gemini_api_key_here")) {
-                        geminiApiKey = null;
-                        Log.w(TAG, "Gemini API key is placeholder — AI queries disabled");
-                    } else {
-                        Log.d(TAG, "Gemini API key loaded successfully");
+        String[] configFiles = new String[]{"app_config.env", ".env", "marvo.env"};
+        for (String fileName : configFiles) {
+            InputStream is = null;
+            BufferedReader reader = null;
+            try {
+                is = getAssets().open(fileName);
+                reader = new BufferedReader(new InputStreamReader(is));
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    line = line.trim();
+                    if (line.startsWith("GEMINI_API_KEY=")) {
+                        String rawVal = line.substring("GEMINI_API_KEY=".length()).trim();
+                        // Strip surrounding single or double quotes
+                        if ((rawVal.startsWith("\"") && rawVal.endsWith("\"")) ||
+                            (rawVal.startsWith("'") && rawVal.endsWith("'"))) {
+                            if (rawVal.length() >= 2) {
+                                rawVal = rawVal.substring(1, rawVal.length() - 1).trim();
+                            }
+                        }
+                        if (!rawVal.isEmpty() && !rawVal.equals("your_gemini_api_key_here")) {
+                            geminiApiKey = rawVal;
+                            Log.d(TAG, "Gemini API key loaded from asset: " + fileName);
+                            return;
+                        }
                     }
-                    break;
+                }
+            } catch (Exception ignored) {
+                // Try next file
+            } finally {
+                if (reader != null) {
+                    try { reader.close(); } catch (Exception ignored) {}
+                }
+                if (is != null) {
+                    try { is.close(); } catch (Exception ignored) {}
                 }
             }
-            reader.close();
-        } catch (Exception e) {
-            Log.e(TAG, "Error reading .env for Gemini API key: " + e.getMessage(), e);
-            geminiApiKey = null;
+        }
+
+        if (geminiApiKey == null) {
+            Log.w(TAG, "GEMINI_API_KEY not found in asset env files");
         }
     }
 
     /**
-     * Step 9 Part 3: Query Gemini AI (gemini-2.0-flash) on a background thread.
+     * Step 9 Part 3 & Step 10: Query Gemini AI (gemini-2.0-flash) on a background thread.
      * Sends the user's spoken query, parses the response, speaks it via TTS.
      */
     private void queryGemini(final String userQuery) {
-        if (geminiApiKey == null) {
-            showResponse("AI brain is not configured. Please add your Gemini API key to the .env file.");
+        if (geminiApiKey == null || geminiApiKey.trim().isEmpty() || geminiApiKey.equals("your_gemini_api_key_here")) {
+            showResponse("AI brain is not configured. Please add GEMINI_API_KEY to your .env file.", true);
             finishDelayed(4000);
             return;
         }
@@ -2634,11 +2661,13 @@ public class AssistantActivity extends AppCompatActivity {
             public void run() {
                 HttpURLConnection connection = null;
                 try {
-                    String endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + geminiApiKey;
+                    String cleanKey = geminiApiKey.trim();
+                    String endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + cleanKey;
                     URL url = new URL(endpoint);
                     connection = (HttpURLConnection) url.openConnection();
                     connection.setRequestMethod("POST");
                     connection.setRequestProperty("Content-Type", "application/json");
+                    connection.setRequestProperty("x-goog-api-key", cleanKey);
                     connection.setDoOutput(true);
                     connection.setConnectTimeout(15000);
                     connection.setReadTimeout(30000);
@@ -2704,7 +2733,10 @@ public class AssistantActivity extends AppCompatActivity {
                         }
                         br.close();
                         Log.e(TAG, "Gemini API error (" + responseCode + "): " + sb.toString());
-                        showResponse("Sorry, I couldn't process that right now. Please try again.");
+                        String errorMsg = (responseCode == 400 || responseCode == 401 || responseCode == 403)
+                            ? "Gemini API authorization issue. Please verify your GEMINI_API_KEY."
+                            : "Sorry, I couldn't process that right now. Please try again.";
+                        showResponse(errorMsg, true);
                         runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
