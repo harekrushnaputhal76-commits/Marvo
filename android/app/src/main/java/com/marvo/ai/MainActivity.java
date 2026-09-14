@@ -6,7 +6,8 @@ import com.getcapacitor.BridgeActivity;
 public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        registerPlugin(MarvoNativeBridge.class);
         super.onCreate(savedInstanceState);
-        WakeWordService.start(this);
+        // Wake-Word permanently disabled: 100% Zero background battery drain
     }
 }

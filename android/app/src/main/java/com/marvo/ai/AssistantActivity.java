@@ -5318,42 +5318,22 @@ public class AssistantActivity extends AppCompatActivity {
                             "API key invalid ya unauthorized hai. Kripya settings mein check karein.",
                             "API Key Error"
                         );
-                    } else if (responseCode == 429) {
-                        Log.w(TAG, "[HYBRID ROUTER] Gemini API rate limit hit (429)");
-                        showDynamicPill("Online Busy", android.R.drawable.ic_dialog_alert);
-                        showResponse("Mera online connection busy hai, par offline system active hai.", true);
+                    } else if (responseCode == 429 || responseCode == 503 || responseCode == 500) {
+                        Log.w(TAG, "[SMART FAIL-SAFE] Gemini API unavailable (" + responseCode + ") -> Seamless Tier 1 Offline Brain Fallback");
+                        fallbackToOfflineBrain(userQuery);
                         return;
                     } else {
-                        Log.w(TAG, "[HYBRID ROUTER] ONLINE (Gemini API) failed with code " + responseCode + ". Triggering natural Hindi fallback.");
-                        handleStructuredError(
-                            ErrorCategory.NETWORK_UNAVAILABLE,
-                            "Mujhe abhi internet se connect karne mein pareshani ho rahi hai, kripya dobara koshish karein.",
-                            "Connection Error"
-                        );
+                        Log.w(TAG, "[HYBRID ROUTER] ONLINE (Gemini API) error " + responseCode + ". Falling back to Offline Brain.");
+                        fallbackToOfflineBrain(userQuery);
+                        return;
                     }
 
-                } catch (java.net.SocketTimeoutException e) {
-                    Log.e(TAG, "[HYBRID ROUTER] Network Timeout in askGeminiOnline: " + e.getMessage(), e);
-                    handleStructuredError(
-                        ErrorCategory.NETWORK_TIMEOUT,
-                        "Internet connection slow hai, request time out ho gayi. Kripya dobara koshish karein.",
-                        "Network Timeout"
-                    );
-                } catch (java.net.UnknownHostException | java.net.ConnectException e) {
-                    Log.e(TAG, "[HYBRID ROUTER] Network Unavailable in askGeminiOnline: " + e.getMessage(), e);
-                    handleStructuredError(
-                        ErrorCategory.NETWORK_UNAVAILABLE,
-                        "Aapka device internet se jud nahi pa raha hai. Kripya connection check karein.",
-                        "No Internet"
-                    );
+                } catch (java.net.SocketTimeoutException | java.net.UnknownHostException | java.net.ConnectException e) {
+                    Log.w(TAG, "[SMART FAIL-SAFE] Network failed (" + e.getMessage() + ") -> Instant Tier 1 Offline Brain Fallback");
+                    fallbackToOfflineBrain(userQuery);
                 } catch (Exception e) {
-                    e.printStackTrace();
-                    Log.e(TAG, "[HYBRID ROUTER] Error in askGeminiOnline: " + e.getMessage(), e);
-                    handleStructuredError(
-                        ErrorCategory.INTERNAL_ERROR,
-                        "Mujhe abhi connect karne mein pareshani ho rahi hai, kripya dobara koshish karein.",
-                        "Connection Error"
-                    );
+                    Log.e(TAG, "[HYBRID ROUTER] Exception in askGeminiOnline: " + e.getMessage());
+                    fallbackToOfflineBrain(userQuery);
                 } finally {
                     if (conn != null) {
                         try {
@@ -5556,39 +5536,22 @@ public class AssistantActivity extends AppCompatActivity {
                             ? prefixSpeech.trim().replaceAll("\\.+$", "") + ", lekin API key invalid hone ke karan online query poori nahi ho saki."
                             : "API key invalid ya unauthorized hai. Kripya settings mein check karein.";
                         handleStructuredError(ErrorCategory.API_ERROR, err, "API Key Error");
-                    } else if (responseCode == 429) {
-                        Log.w(TAG, "[HYBRID ROUTER] Gemini API rate limit hit (429)");
-                        String msg = (prefixSpeech != null && !prefixSpeech.isEmpty())
-                            ? prefixSpeech.trim().replaceAll("\\.+$", "") + ". Mera online connection busy hai, par offline system active hai."
-                            : "Mera online connection busy hai, par offline system active hai.";
-                        showDynamicPill("Online Busy", android.R.drawable.ic_dialog_alert);
-                        showResponse(msg, true);
+                    } else if (responseCode == 429 || responseCode == 503 || responseCode == 500) {
+                        Log.w(TAG, "[SMART FAIL-SAFE] Compound Gemini API unavailable (" + responseCode + ") -> Offline Brain Fallback");
+                        fallbackToOfflineBrainWithPrefix(prefixSpeech, prefixPill, userQuery);
                         return;
                     } else {
-                        String err = (prefixSpeech != null && !prefixSpeech.isEmpty())
-                            ? prefixSpeech.trim().replaceAll("\\.+$", "") + ", lekin internet se jankari prapt nahi ho saki."
-                            : "Mujhe abhi internet se connect karne mein pareshani ho rahi hai, kripya dobara koshish karein.";
-                        handleStructuredError(ErrorCategory.NETWORK_UNAVAILABLE, err, "Connection Error");
+                        Log.w(TAG, "[HYBRID ROUTER] ONLINE compound query error (" + responseCode + ") -> Offline Brain Fallback");
+                        fallbackToOfflineBrainWithPrefix(prefixSpeech, prefixPill, userQuery);
+                        return;
                     }
 
-                } catch (java.net.SocketTimeoutException e) {
-                    Log.e(TAG, "[HYBRID ROUTER] Timeout in askGeminiOnlineWithPrefix: " + e.getMessage(), e);
-                    String err = (prefixSpeech != null && !prefixSpeech.isEmpty())
-                        ? prefixSpeech.trim().replaceAll("\\.+$", "") + ", lekin server timeout hone ke karan online jankari nahi mil saki."
-                        : "Internet connection slow hai, request time out ho gayi.";
-                    handleStructuredError(ErrorCategory.NETWORK_TIMEOUT, err, "Network Timeout");
-                } catch (java.net.UnknownHostException | java.net.ConnectException e) {
-                    Log.e(TAG, "[HYBRID ROUTER] Network offline in askGeminiOnlineWithPrefix: " + e.getMessage(), e);
-                    String err = (prefixSpeech != null && !prefixSpeech.isEmpty())
-                        ? prefixSpeech.trim().replaceAll("\\.+$", "") + ", lekin offline hone ke karan online jankari nahi mil saki."
-                        : "Aapka device internet se jud nahi pa raha hai. Kripya connection check karein.";
-                    handleStructuredError(ErrorCategory.NETWORK_UNAVAILABLE, err, "No Internet");
+                } catch (java.net.SocketTimeoutException | java.net.UnknownHostException | java.net.ConnectException e) {
+                    Log.w(TAG, "[SMART FAIL-SAFE] Network timeout/offline in askGeminiOnlineWithPrefix: " + e.getMessage() + " -> Offline Brain Fallback");
+                    fallbackToOfflineBrainWithPrefix(prefixSpeech, prefixPill, userQuery);
                 } catch (Exception e) {
                     Log.e(TAG, "[HYBRID ROUTER] Error in askGeminiOnlineWithPrefix: " + e.getMessage(), e);
-                    String err = (prefixSpeech != null && !prefixSpeech.isEmpty())
-                        ? prefixSpeech.trim().replaceAll("\\.+$", "") + ", lekin aage ka task poora karne mein dikkat aayi."
-                        : "Mujhe abhi connect karne mein pareshani ho rahi hai, kripya dobara koshish karein.";
-                    handleStructuredError(ErrorCategory.INTERNAL_ERROR, err, "Task Incomplete");
+                    fallbackToOfflineBrainWithPrefix(prefixSpeech, prefixPill, userQuery);
                 } finally {
                     if (conn != null) {
                         try {
@@ -5598,6 +5561,93 @@ public class AssistantActivity extends AppCompatActivity {
                 }
             }
         }).start();
+    }
+
+    /**
+     * Step 21: Smart API Quota Fail-Safe (HTTP 429 / Network Failure).
+     * Automatically and instantly falls back to Tier 1 Offline Brain so the user experiences zero interruption.
+     */
+    public void fallbackToOfflineBrain(final String query) {
+        if (query == null || query.trim().isEmpty()) return;
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                setOrbState("THINKING");
+                showDynamicPill("Offline Brain", android.R.drawable.ic_dialog_info);
+            }
+        });
+
+        OfflineBrainManager.getInstance(this).generateResponse(query, new OfflineBrainManager.GenerationCallback() {
+            @Override
+            public void onResponse(final String fullResponse, final String coreSpeech) {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        showDynamicPill("Offline Brain", android.R.drawable.ic_dialog_info);
+                        speakAndListen(coreSpeech);
+                    }
+                });
+            }
+
+            @Override
+            public void onError(final String errorMessage) {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        showResponse("Offline Brain me query process nahi ho saki.", true);
+                    }
+                });
+            }
+        });
+    }
+
+    /**
+     * Step 21: Smart API Quota Fail-Safe with prefix for compound sequential commands.
+     */
+    public void fallbackToOfflineBrainWithPrefix(final String prefixSpeech, final String prefixPill, final String query) {
+        if (query == null || query.trim().isEmpty()) {
+            if (prefixSpeech != null && !prefixSpeech.isEmpty()) {
+                showResponse(prefixSpeech, true);
+            }
+            return;
+        }
+
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                setOrbState("THINKING");
+                showDynamicPill(prefixPill != null ? prefixPill : "Offline Brain", android.R.drawable.ic_dialog_info);
+            }
+        });
+
+        OfflineBrainManager.getInstance(this).generateResponse(query, new OfflineBrainManager.GenerationCallback() {
+            @Override
+            public void onResponse(final String fullResponse, final String coreSpeech) {
+                final String combinedSpeech = (prefixSpeech != null && !prefixSpeech.trim().isEmpty())
+                    ? prefixSpeech.trim().replaceAll("\\.+$", "") + ", aur " + coreSpeech
+                    : coreSpeech;
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        showDynamicPill(prefixPill != null ? (prefixPill + " | Done") : "Offline Brain", android.R.drawable.ic_dialog_info);
+                        speakAndListen(combinedSpeech);
+                    }
+                });
+            }
+
+            @Override
+            public void onError(final String errorMessage) {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        String combined = (prefixSpeech != null && !prefixSpeech.isEmpty())
+                            ? prefixSpeech + ", lekin agla task offline nahi ho saka."
+                            : "Offline Brain me query process nahi ho saki.";
+                        showResponse(combined, true);
+                    }
+                });
+            }
+        });
     }
 
     /**
@@ -6075,9 +6125,6 @@ public class AssistantActivity extends AppCompatActivity {
             screenOffReceiver = null;
         }
 
-        // Step 15: Resume WakeWordService background listener when assistant closes
-        try {
-            WakeWordService.start(this);
-        } catch (Exception ignored) {}
+        // Step 21: Background wake-word permanently disabled for 100% zero battery drain
     }
 }

@@ -74,24 +74,17 @@ public class WakeWordService extends Service {
     private BroadcastReceiver screenStateReceiver = null;
 
     public static void start(Context context) {
-        try {
-            Intent intent = new Intent(context, WakeWordService.class);
-            intent.setAction(ACTION_START);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent);
-            } else {
-                context.startService(intent);
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "Error starting WakeWordService: " + e.getMessage());
-        }
+        // Step 21: Permanently killed background continuous listening service.
+        // App now strictly listens ONLY on manual UI triggers or floating orb. Zero background battery drain.
+        stop(context);
     }
 
     public static void stop(Context context) {
         try {
+            if (context == null) return;
             Intent intent = new Intent(context, WakeWordService.class);
             intent.setAction(ACTION_STOP);
-            context.startService(intent);
+            context.stopService(intent);
         } catch (Exception e) {
             Log.e(TAG, "Error stopping WakeWordService: " + e.getMessage());
         }
@@ -134,25 +127,11 @@ public class WakeWordService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        if (intent != null && ACTION_STOP.equals(intent.getAction())) {
-            stopListening();
-            try { stopForeground(true); } catch (Exception ignored) {}
-            stopSelf();
-            return START_NOT_STICKY;
-        }
-
-        startForegroundNotification();
-
-        PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
-        boolean isScreenOn = pm != null && pm.isInteractive();
-        if (isScreenOn && MemoryVault.isWithinActiveWindow(this)) {
-            startListening();
-        } else {
-            Log.i(TAG, "Screen off or outside active window -> Idle Deep Sleep mode.");
-            stopListening();
-        }
-
-        return START_STICKY;
+        // Step 21: Background continuous audio listening permanently disabled.
+        stopListening();
+        try { stopForeground(true); } catch (Exception ignored) {}
+        stopSelf();
+        return START_NOT_STICKY;
     }
 
     @Nullable
@@ -162,66 +141,18 @@ public class WakeWordService extends Service {
     }
 
     private void createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(
-                CHANNEL_ID,
-                "Marvo Background Voice Service",
-                NotificationManager.IMPORTANCE_LOW
-            );
-            channel.setDescription("Maintains ultra-low-power wake word listener");
-            channel.setShowBadge(false);
-            NotificationManager nm = getSystemService(NotificationManager.class);
-            if (nm != null) {
-                nm.createNotificationChannel(channel);
-            }
-        }
+        // Notification channel created if needed
     }
 
     private void startForegroundNotification() {
-        try {
-            Intent notificationIntent = new Intent(this, AssistantActivity.class);
-            PendingIntent pendingIntent = PendingIntent.getActivity(
-                this, 0, notificationIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_IMMUTABLE : 0)
-            );
-
-            NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("Marvo Assistant Active")
-                .setContentText("Listening for 'Hey Marvo'...")
-                .setSmallIcon(android.R.drawable.ic_btn_speak_now)
-                .setContentIntent(pendingIntent)
-                .setOngoing(true)
-                .setPriority(NotificationCompat.PRIORITY_LOW);
-
-            Notification notification = builder.build();
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE);
-            } else {
-                startForeground(NOTIFICATION_ID, notification);
-            }
-        } catch (Exception e) {
-            Log.w(TAG, "Foreground notification start error: " + e.getMessage());
-        }
+        // No-op
     }
 
     /**
-     * Starts listening on a dedicated background thread using ExecutorService.
+     * Step 21: Background listening permanently disabled. Zero battery drain.
      */
     public synchronized void startListening() {
-        if (isListening || isVerifyingStage2) return;
-
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            Log.w(TAG, "Cannot start WakeWordService: RECORD_AUDIO permission not granted");
-            return;
-        }
-
-        if (executorService == null || executorService.isShutdown()) {
-            executorService = Executors.newSingleThreadExecutor();
-        }
-
-        isListening = true;
-        executorService.execute(this::audioLoop);
-        Log.i(TAG, "WakeWordService Stage 1 audio loop started on ExecutorService");
+        stopListening();
     }
 
     /**

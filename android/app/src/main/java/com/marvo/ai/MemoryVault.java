@@ -2,6 +2,12 @@ package com.marvo.ai;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.util.Calendar;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -162,14 +168,69 @@ public class MemoryVault {
 
     // ===== Step 15: Custom Q&A Knowledge Base ("Teach AI") =====
 
+    // ===== Step 21: Clean Native Storage Architecture =====
+
+    public static File getModelsDir(Context context) {
+        if (context == null) return null;
+        File dir = new File(context.getFilesDir(), "models");
+        if (!dir.exists()) dir.mkdirs();
+        return dir;
+    }
+
+    public static File getMemoryDir(Context context) {
+        if (context == null) return null;
+        File dir = new File(context.getFilesDir(), "memory");
+        if (!dir.exists()) dir.mkdirs();
+        return dir;
+    }
+
+    public static File getCacheDir(Context context) {
+        if (context == null) return null;
+        File dir = new File(context.getFilesDir(), "cache");
+        if (!dir.exists()) dir.mkdirs();
+        return dir;
+    }
+
+    private static void writeStringToFile(File file, String data) {
+        if (file == null || data == null) return;
+        try {
+            FileOutputStream fos = new FileOutputStream(file);
+            OutputStreamWriter osw = new OutputStreamWriter(fos, "UTF-8");
+            osw.write(data);
+            osw.flush();
+            osw.close();
+            fos.close();
+        } catch (Exception ignored) {}
+    }
+
+    private static String readStringFromFile(File file) {
+        if (file == null || !file.exists()) return null;
+        try {
+            FileInputStream fis = new FileInputStream(file);
+            BufferedReader reader = new BufferedReader(new InputStreamReader(fis, "UTF-8"));
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                sb.append(line);
+            }
+            reader.close();
+            fis.close();
+            return sb.toString();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    // ===== Step 15 & 21: Custom Q&A Knowledge Base ("Teach AI") =====
+
     /**
      * Saves a custom question-answer pair to the local knowledge base.
-     * Stored as a JSON array of {q, a} objects in SharedPreferences.
+     * Synchronized across SharedPreferences, CapacitorStorage, and /memory/custom_qa.json.
      */
     public static void saveCustomQA(Context context, String question, String answer) {
         if (context == null || question == null || answer == null) return;
         try {
-            String existing = getPrefs(context).getString(KEY_CUSTOM_QA, "[]");
+            String existing = getAllCustomQA(context);
             JSONArray qaArray = new JSONArray(existing);
 
             JSONObject entry = new JSONObject();
@@ -177,7 +238,14 @@ public class MemoryVault {
             entry.put("a", answer.trim());
             qaArray.put(entry);
 
-            getPrefs(context).edit().putString(KEY_CUSTOM_QA, qaArray.toString()).apply();
+            String jsonStr = qaArray.toString();
+            getPrefs(context).edit().putString(KEY_CUSTOM_QA, jsonStr).apply();
+            try {
+                context.getSharedPreferences("CapacitorStorage", Context.MODE_PRIVATE)
+                    .edit().putString(KEY_CUSTOM_QA, jsonStr).apply();
+            } catch (Exception ignored) {}
+            File memFile = new File(getMemoryDir(context), "custom_qa.json");
+            writeStringToFile(memFile, jsonStr);
         } catch (Exception e) {
             // Fallback: reset and save fresh
             try {
@@ -186,7 +254,14 @@ public class MemoryVault {
                 entry.put("q", question.trim().toLowerCase());
                 entry.put("a", answer.trim());
                 fresh.put(entry);
-                getPrefs(context).edit().putString(KEY_CUSTOM_QA, fresh.toString()).apply();
+                String jsonStr = fresh.toString();
+                getPrefs(context).edit().putString(KEY_CUSTOM_QA, jsonStr).apply();
+                try {
+                    context.getSharedPreferences("CapacitorStorage", Context.MODE_PRIVATE)
+                        .edit().putString(KEY_CUSTOM_QA, jsonStr).apply();
+                } catch (Exception ignored) {}
+                File memFile = new File(getMemoryDir(context), "custom_qa.json");
+                writeStringToFile(memFile, jsonStr);
             } catch (Exception ignored) {}
         }
     }
@@ -200,7 +275,7 @@ public class MemoryVault {
     public static String getCustomQAAnswer(Context context, String query) {
         if (context == null || query == null || query.trim().isEmpty()) return null;
         try {
-            String existing = getPrefs(context).getString(KEY_CUSTOM_QA, "[]");
+            String existing = getAllCustomQA(context);
             JSONArray qaArray = new JSONArray(existing);
             String lowerQuery = query.trim().toLowerCase();
 
@@ -222,17 +297,35 @@ public class MemoryVault {
 
     /**
      * Returns all stored custom Q&A pairs as a JSON array string.
-     * Used by NativeSettingsActivity for display purposes.
+     * Checked across SharedPreferences, CapacitorStorage, and /memory/custom_qa.json.
      */
     public static String getAllCustomQA(Context context) {
         if (context == null) return "[]";
-        return getPrefs(context).getString(KEY_CUSTOM_QA, "[]");
+        String val = getPrefs(context).getString(KEY_CUSTOM_QA, null);
+        if (val != null && !val.trim().isEmpty() && !val.equals("[]")) {
+            return val;
+        }
+        try {
+            String capVal = context.getSharedPreferences("CapacitorStorage", Context.MODE_PRIVATE)
+                .getString(KEY_CUSTOM_QA, null);
+            if (capVal != null && !capVal.trim().isEmpty() && !capVal.equals("[]")) {
+                getPrefs(context).edit().putString(KEY_CUSTOM_QA, capVal).apply();
+                return capVal;
+            }
+        } catch (Exception ignored) {}
+        File memFile = new File(getMemoryDir(context), "custom_qa.json");
+        String fileVal = readStringFromFile(memFile);
+        if (fileVal != null && !fileVal.trim().isEmpty()) {
+            getPrefs(context).edit().putString(KEY_CUSTOM_QA, fileVal).apply();
+            return fileVal;
+        }
+        return "[]";
     }
 
-    // ===== Step 19: Persistent Multi-Turn Conversation Memory (Context Window) =====
+    // ===== Step 19 & 21: Persistent Multi-Turn Conversation Memory (Context Window) =====
 
     /**
-     * Saves a conversation turn (user or model) in a persistent JSON array in SharedPreferences.
+     * Saves a conversation turn (user or model) in a persistent JSON array in SharedPreferences and /memory/.
      * Retains the last 5 conversation turns to append to Gemini API prompt context.
      */
     public static synchronized void saveConversationTurn(Context context, String role, String text) {
@@ -248,7 +341,10 @@ public class MemoryVault {
             while (array.length() > MAX_SAVED_TURNS) {
                 array.remove(0);
             }
-            getPrefs(context).edit().putString(KEY_CONVERSATION_HISTORY, array.toString()).apply();
+            String arrayStr = array.toString();
+            getPrefs(context).edit().putString(KEY_CONVERSATION_HISTORY, arrayStr).apply();
+            File convFile = new File(getMemoryDir(context), "conversation_history.json");
+            writeStringToFile(convFile, arrayStr);
         } catch (Exception e) {
             // Silently ignore or reset on JSON parse failure
         }
@@ -294,12 +390,18 @@ public class MemoryVault {
     public static synchronized void clearConversationHistory(Context context) {
         if (context == null) return;
         getPrefs(context).edit().remove(KEY_CONVERSATION_HISTORY).apply();
+        File convFile = new File(getMemoryDir(context), "conversation_history.json");
+        try { convFile.delete(); } catch (Exception ignored) {}
     }
 
     // Reset Vault
     public static void clearAll(Context context) {
         if (context == null) return;
         getPrefs(context).edit().clear().apply();
+        try {
+            new File(getMemoryDir(context), "custom_qa.json").delete();
+            new File(getMemoryDir(context), "conversation_history.json").delete();
+        } catch (Exception ignored) {}
     }
 }
 

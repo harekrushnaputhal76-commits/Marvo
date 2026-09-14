@@ -10,7 +10,10 @@ import android.database.Cursor;
 import android.hardware.camera2.CameraManager;
 import android.media.AudioManager;
 import android.net.Uri;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.BatteryManager;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.AlarmClock;
@@ -771,12 +774,75 @@ public class OfflineIntentRouter {
             return true;
         }
 
-        // CATEGORY B (Route to Online Gemini API):
-        // Step 9 - Part 2 & Part 3: Multi-Step Reasoning & Domain Classification
+        // Step 21: Intelligent 3-Tier Hybrid Flow
+        // TIER 1 (Offline Heavy Brain): If Internet is offline, route to OfflineBrainManager
+        boolean isNetworkAvailable = isNetworkConnected(activity);
+        if (!isNetworkAvailable) {
+            Log.i(TAG, "[3-TIER ROUTER] Offline detected -> Routing to TIER 1 (Offline Heavy Brain): " + command);
+            routeToTier1OfflineBrain(command);
+            return true;
+        }
+
+        // TIER 2 (Cloud Fallback - Gemini API):
         String domain = detectDomain(command);
-        Log.i(TAG, "[HYBRID ROUTER] Solved ONLINE (Gemini API - " + domain + "): " + command);
+        Log.i(TAG, "[3-TIER ROUTER] Online connection available -> Routing to TIER 2 (Gemini API - " + domain + "): " + command);
         activity.askGeminiOnline(command, domain);
         return true;
+    }
+
+    /**
+     * Step 21: Checks network connectivity with modern Android NetworkCapabilities.
+     */
+    public static boolean isNetworkConnected(Context context) {
+        if (context == null) return false;
+        try {
+            ConnectivityManager cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+            if (cm == null) return false;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                android.net.Network activeNet = cm.getActiveNetwork();
+                if (activeNet == null) return false;
+                android.net.NetworkCapabilities caps = cm.getNetworkCapabilities(activeNet);
+                return caps != null && caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET);
+            } else {
+                NetworkInfo ni = cm.getActiveNetworkInfo();
+                return ni != null && ni.isConnected();
+            }
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Step 21: Tier 1 Offline Heavy Brain execution.
+     * Evaluates local reasoning model, speaks core response via TTS, and displays output.
+     */
+    public void routeToTier1OfflineBrain(final String command) {
+        if (activity == null || command == null) return;
+        activity.showDynamicPill("Offline Brain", android.R.drawable.ic_dialog_info);
+        activity.setOrbState("THINKING");
+
+        OfflineBrainManager.getInstance(activity).generateResponse(command, new OfflineBrainManager.GenerationCallback() {
+            @Override
+            public void onResponse(final String fullResponse, final String coreSpeech) {
+                activity.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        activity.showDynamicPill("Offline Brain: Done", android.R.drawable.ic_dialog_info);
+                        activity.showResponse(coreSpeech, true);
+                    }
+                });
+            }
+
+            @Override
+            public void onError(final String errorMessage) {
+                activity.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        activity.showResponse("Offline Brain me query process nahi ho saki.", true);
+                    }
+                });
+            }
+        });
     }
 
     /**
