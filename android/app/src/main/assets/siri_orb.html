@@ -406,6 +406,15 @@ requestAnimationFrame(render);
 
 // Initialize as IDLE
 window.setOrbState('IDLE');
+
+// Step 8: Orb Tap-to-Listen Bridge
+function onOrbTap() {
+  if (window.Android && window.Android.startListening) {
+    window.Android.startListening();
+  }
+}
+canvas.addEventListener('click', onOrbTap);
+document.body.addEventListener('click', onOrbTap);
 </script>
 </body>
 </html>

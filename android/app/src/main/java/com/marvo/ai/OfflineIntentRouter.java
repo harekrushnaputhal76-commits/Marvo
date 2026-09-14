@@ -390,13 +390,49 @@ public class OfflineIntentRouter {
             ContactResolution resolution = resolveContact(cleanTarget);
 
             if (resolution != null && resolution.phoneNumber != null) {
-                activity.showDynamicPill("Calling " + resolution.displayName, android.R.drawable.stat_sys_phone_call);
-                activity.showResponse("Calling " + resolution.displayName + "...", true);
-                activity.makeCall(resolution.phoneNumber);
-                activity.setOrbState("IDLE");
+                if (resolution.isFavorite) {
+                    // Step 8: DIRECT CALLS (Favorites)
+                    activity.showDynamicPill("Calling " + resolution.displayName, android.R.drawable.stat_sys_phone_call);
+                    activity.showResponse("Calling " + resolution.displayName + "...", true);
+                    activity.makeCall(resolution.phoneNumber);
+                    activity.setOrbState("IDLE");
+                } else {
+                    // Step 8: VERBAL CONFIRMATION (Others)
+                    // Sleek text overlay above the orb: "Contact: [Name] - [Number]"
+                    activity.pendingCallName = resolution.displayName;
+                    activity.pendingCallNumber = resolution.phoneNumber;
+                    activity.showDynamicPill("Contact: " + resolution.displayName, android.R.drawable.stat_sys_phone_call);
+                    activity.speakAndListen(
+                        "Kya aap " + resolution.displayName + " ko call karna chahte hain?",
+                        "Contact: " + resolution.displayName + " - " + resolution.phoneNumber,
+                        "CALL_CONFIRMATION"
+                    );
+                }
                 return true;
             } else {
-                activity.showResponse("Could not find contact for " + cleanTarget + ".", true);
+                // Step 8: If contact not found
+                activity.showDynamicPill("Not Found", android.R.drawable.ic_menu_close_clear_cancel);
+                activity.showResponse("Mujhe yeh number aapke phone mein nahi mila.", true);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Checks if contact target matches predefined family aliases / favorites.
+     */
+    private boolean isFamilyFavorite(String canonicalName, String rawQuery) {
+        String lowerQuery = (rawQuery != null ? rawQuery.toLowerCase() : "");
+        String lowerCanon = (canonicalName != null ? canonicalName.toLowerCase() : "");
+        String[] familyKeywords = new String[]{
+            "papa", "father", "dad", "daddy", "pitaji", "bapa", "bapuji", "baba",
+            "maa", "mother", "mom", "mummy", "mataji", "mommy", "aai",
+            "jatin", "brother", "bhai", "bhaina", "bro", "bhaiya",
+            "sister", "didi", "behen", "sis"
+        };
+        for (String kw : familyKeywords) {
+            if (lowerCanon.equals(kw) || lowerCanon.contains(kw) || lowerQuery.contains(kw)) {
                 return true;
             }
         }
@@ -422,6 +458,7 @@ public class OfflineIntentRouter {
             }
         }
 
+        boolean isFav = isFamilyFavorite(canonicalName, lowerQuery);
         String searchName = (canonicalName != null) ? canonicalName : query.trim();
 
         // 2. Query device contacts database
@@ -441,7 +478,7 @@ public class OfflineIntentRouter {
                     String foundName = cursor.getString(nameIdx);
                     String foundNumber = cursor.getString(numIdx);
                     cursor.close();
-                    return new ContactResolution(foundName, foundNumber);
+                    return new ContactResolution(foundName, foundNumber, isFav);
                 }
                 cursor.close();
             }
@@ -451,13 +488,13 @@ public class OfflineIntentRouter {
 
         // 3. Fallback to default user profile numbers
         if (canonicalName != null && DEFAULT_PHONE_NUMBERS.containsKey(canonicalName)) {
-            return new ContactResolution(canonicalName, DEFAULT_PHONE_NUMBERS.get(canonicalName));
+            return new ContactResolution(canonicalName, DEFAULT_PHONE_NUMBERS.get(canonicalName), true);
         }
 
         // Check raw query in defaults
         for (Map.Entry<String, String> entry : DEFAULT_PHONE_NUMBERS.entrySet()) {
             if (entry.getKey().equalsIgnoreCase(searchName)) {
-                return new ContactResolution(entry.getKey(), entry.getValue());
+                return new ContactResolution(entry.getKey(), entry.getValue(), true);
             }
         }
 
@@ -656,10 +693,16 @@ public class OfflineIntentRouter {
     public static class ContactResolution {
         public final String displayName;
         public final String phoneNumber;
+        public final boolean isFavorite;
 
-        public ContactResolution(String displayName, String phoneNumber) {
+        public ContactResolution(String displayName, String phoneNumber, boolean isFavorite) {
             this.displayName = displayName;
             this.phoneNumber = phoneNumber;
+            this.isFavorite = isFavorite;
+        }
+
+        public ContactResolution(String displayName, String phoneNumber) {
+            this(displayName, phoneNumber, false);
         }
     }
 }

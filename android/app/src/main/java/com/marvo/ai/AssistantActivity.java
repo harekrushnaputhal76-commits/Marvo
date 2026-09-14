@@ -111,16 +111,16 @@ public class AssistantActivity extends AppCompatActivity {
     private Handler pillHandler = new Handler(Looper.getMainLooper());
     private Runnable pillDismissRunnable;
 
-    // Step 10 Part 2 & 3: Contact Aliasing & Calling Confirmation State
-    private String pendingCallName = null;
-    private String pendingCallNumber = null;
+    // Step 10 Part 2 & 3 & Step 8: Contact Aliasing & Calling Confirmation State
+    String pendingCallName = null;
+    String pendingCallNumber = null;
 
     // Step 10 Part 4: Gemini Synchronized Typewriter Engine
     private Handler typewriterHandler = new Handler(Looper.getMainLooper());
     private Runnable typewriterRunnable;
 
-    // State Management for Confirmation Protocol (Step 6 Part 5 & Step 5 Part 3)
-    private String pendingActionType = null;
+    // State Management for Confirmation Protocol (Step 6 Part 5, Step 5 Part 3 & Step 8)
+    String pendingActionType = null;
     private Intent pendingIntent = null;
     private String pendingRecipientName = null;
     private String pendingDraftContent = null;
@@ -612,23 +612,47 @@ public class AssistantActivity extends AppCompatActivity {
                                 });
                             }
                             @Override
-                            public void onDone(String utteranceId) {
+                            public void onDone(final String utteranceId) {
                                 runOnUiThread(new Runnable() {
                                     @Override
                                     public void run() {
                                         if (typewriterRunnable != null) {
                                             typewriterHandler.removeCallbacks(typewriterRunnable);
                                         }
-                                        setOrbState("IDLE");
+                                        if (utteranceId != null && utteranceId.startsWith("SPEAK_AND_LISTEN")) {
+                                            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                                                @Override
+                                                public void run() {
+                                                    if (!isFinishing()) {
+                                                        setVisualState("LISTENING");
+                                                        startListening();
+                                                    }
+                                                }
+                                            }, 200);
+                                        } else {
+                                            setOrbState("IDLE");
+                                        }
                                     }
                                 });
                             }
                             @Override
-                            public void onError(String utteranceId) {
+                            public void onError(final String utteranceId) {
                                 runOnUiThread(new Runnable() {
                                     @Override
                                     public void run() {
-                                        setOrbState("IDLE");
+                                        if (utteranceId != null && utteranceId.startsWith("SPEAK_AND_LISTEN")) {
+                                            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                                                @Override
+                                                public void run() {
+                                                    if (!isFinishing()) {
+                                                        setVisualState("LISTENING");
+                                                        startListening();
+                                                    }
+                                                }
+                                            }, 200);
+                                        } else {
+                                            setOrbState("IDLE");
+                                        }
                                     }
                                 });
                             }
@@ -1986,6 +2010,53 @@ public class AssistantActivity extends AppCompatActivity {
         showResponse(message, true);
     }
 
+    /**
+     * Step 8: Verbal confirmation prompt with auto-listening state machine.
+     * Speaks the prompt via TTS and automatically arms SpeechRecognizer 200ms after speech ends.
+     */
+    void speakAndListen(final String text, final String pendingActionId) {
+        speakAndListen(text, null, pendingActionId);
+    }
+
+    void speakAndListen(final String text, final String overlayText, final String pendingActionId) {
+        if (text == null) return;
+        this.pendingActionType = pendingActionId;
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if (statusTextView != null) {
+                    statusTextView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18.0f);
+                    statusTextView.setText(text);
+                }
+                if (overlayText != null && subtitleTextView != null) {
+                    subtitleTextView.setText(overlayText);
+                    subtitleTextView.setVisibility(View.VISIBLE);
+                } else if (subtitleTextView != null) {
+                    subtitleTextView.setVisibility(View.GONE);
+                }
+                setOrbState("CONFIRMATION");
+                if (tts != null && isTtsReady) {
+                    try {
+                        Bundle params = new Bundle();
+                        String uId = "SPEAK_AND_LISTEN_" + (pendingActionId != null ? pendingActionId : "DEFAULT");
+                        params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, uId);
+                        int res = tts.speak(text.replace('\n', ' '), TextToSpeech.QUEUE_FLUSH, params, uId);
+                        if (res != TextToSpeech.SUCCESS) {
+                            startListeningDelayed(2000);
+                        }
+                    } catch (Exception e) {
+                        try {
+                            tts.speak(text.replace('\n', ' '), TextToSpeech.QUEUE_FLUSH, null);
+                        } catch (Exception ignored) {}
+                        startListeningDelayed(2000);
+                    }
+                } else {
+                    startListeningDelayed(1500);
+                }
+            }
+        });
+    }
+
     private void updateUI(String text) {
         showResponse(text, true);
     }
@@ -3015,7 +3086,7 @@ public class AssistantActivity extends AppCompatActivity {
                     finishDelayed(2000);
                 } else if (lower.contains("no") || lower.contains("cancel") || lower.contains("nahi") ||
                            lower.contains("na") || lower.contains("mat") || lower.contains("stop") || lower.contains("rok")) {
-                    showResponse("Call cancelled.", true);
+                    showResponse("Call cancel kar diya gaya.", true);
                     showDynamicPill("Call Cancelled", android.R.drawable.ic_menu_close_clear_cancel);
                     pendingActionType = null;
                     pendingCallName = null;
@@ -3248,8 +3319,8 @@ public class AssistantActivity extends AppCompatActivity {
 
             ContactMatch match = lookupContactWithAliasing(targetQuery);
             if (match == null || match.phoneNumber == null) {
-                showResponse("Contact '" + targetQuery + "' not found.", true);
-                showDynamicPill("Contact Not Found", android.R.drawable.ic_menu_close_clear_cancel);
+                showDynamicPill("Not Found", android.R.drawable.ic_menu_close_clear_cancel);
+                showResponse("Mujhe yeh number aapke phone mein nahi mila.", true);
                 finishDelayed(2500);
                 return;
             }
@@ -3264,43 +3335,17 @@ public class AssistantActivity extends AppCompatActivity {
                 return;
             }
 
-            // IF contact is NOT in Favorites:
-            // 1. Display matched Name and Number on the Watermorphic UI
-            // 2. Detect query language
-            // 3. Use Android TTS to ask for confirmation in that language
-            // 4. Enter PENDING_CALL_CONFIRMATION state & listen for next voice input
-            boolean isHindi = lower.contains("ko") || lower.contains("karo") || lower.contains("lagao") ||
-                              lower.contains("chahte") || lower.contains("bhai") || lower.contains("mera") ||
-                              lower.contains("meri") || lower.contains("karna") || lower.contains("lagana");
-            String promptText = isHindi
-                ? "Kya aap " + match.matchedDisplayName + " ko call karna chahte hain?"
-                : "Do you want to call " + match.matchedDisplayName + "?";
-
+            // Step 8: VERBAL CONFIRMATION (Others)
             pendingActionType = "CALL_CONFIRMATION";
             pendingCallName = match.matchedDisplayName;
             pendingCallNumber = match.phoneNumber;
 
-            if (statusTextView != null) {
-                statusTextView.setText(promptText);
-            }
-            if (subtitleTextView != null) {
-                subtitleTextView.setText(match.matchedDisplayName + ": " + match.phoneNumber);
-                subtitleTextView.setVisibility(View.VISIBLE);
-            }
-
-            if (tts != null && isTtsReady) {
-                try {
-                    Bundle params = new Bundle();
-                    params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "CallConfirmTTS");
-                    tts.speak(promptText, TextToSpeech.QUEUE_FLUSH, params, "CallConfirmTTS");
-                } catch (Exception e) {
-                    try {
-                        tts.speak(promptText, TextToSpeech.QUEUE_FLUSH, null);
-                    } catch (Exception ignored) {}
-                }
-            }
-
-            startListeningDelayed(2200);
+            showDynamicPill("Contact: " + match.matchedDisplayName, android.R.drawable.stat_sys_phone_call);
+            speakAndListen(
+                "Kya aap " + match.matchedDisplayName + " ko call karna chahte hain?",
+                "Contact: " + match.matchedDisplayName + " - " + match.phoneNumber,
+                "CALL_CONFIRMATION"
+            );
             return;
         }
 
@@ -3879,6 +3924,9 @@ public class AssistantActivity extends AppCompatActivity {
             orbWebView.setBackgroundColor(android.graphics.Color.TRANSPARENT);
             orbWebView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
 
+            // Step 8: Orb Tap-to-Listen Native Bridge
+            orbWebView.addJavascriptInterface(new OrbBridge(), "Android");
+
             orbWebView.setWebViewClient(new WebViewClient() {
                 @Override
                 public void onPageFinished(WebView view, String url) {
@@ -3893,6 +3941,48 @@ public class AssistantActivity extends AppCompatActivity {
         } catch (Exception e) {
             Log.e(TAG, "Error initializing orb WebView: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Step 8: JavaScript Interface bridge for Siri Orb touch/click events.
+     */
+    public class OrbBridge {
+        @JavascriptInterface
+        public void startListening() {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    handleOrbTap();
+                }
+            });
+        }
+    }
+
+    /**
+     * Step 8: Handles tap on the Siri Orb.
+     * Instantly interrupts ongoing TTS, clears thinking/processing states,
+     * sets Orb state to LISTENING, and re-activates speech recognition.
+     */
+    void handleOrbTap() {
+        Log.d(TAG, "Orb tapped: interrupting speech and listening immediately");
+        try {
+            if (tts != null && tts.isSpeaking()) {
+                tts.stop();
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Error stopping TTS on orb tap: " + e.getMessage());
+        }
+        if (typewriterRunnable != null) {
+            typewriterHandler.removeCallbacks(typewriterRunnable);
+        }
+        pendingActionType = null;
+        pendingCallName = null;
+        pendingCallNumber = null;
+        pendingIntent = null;
+        pendingRecipientName = null;
+        pendingDraftContent = null;
+        setVisualState("LISTENING");
+        startListening();
     }
 
     /**
@@ -4325,7 +4415,7 @@ public class AssistantActivity extends AppCompatActivity {
         }
     }
 
-    private void startListening() {
+    void startListening() {
         if (speechRecognizer != null && speechRecognizerIntent != null) {
             try {
                 speechRecognizer.cancel();
