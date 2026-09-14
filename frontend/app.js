@@ -512,15 +512,145 @@ async function clearActiveProject() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   SETTINGS MODAL & VOICE SELECTION
+   SETTINGS MODAL & VOICE SELECTION & OFFLINE BRAIN DOWNLOADER
    ═══════════════════════════════════════════════════════════════════ */
+let downloadPollTimer = null;
+
 function openSettingsModal() {
   closeAllDropdowns();
   DOM.settingsModal.classList.add('show');
+  startDownloadPolling();
 }
 
 function closeSettingsModal() {
   DOM.settingsModal.classList.remove('show');
+  stopDownloadPolling();
+}
+
+async function startDownloadPolling() {
+  stopDownloadPolling();
+  await updateDownloadCard();
+  downloadPollTimer = setInterval(updateDownloadCard, 1200);
+}
+
+function stopDownloadPolling() {
+  if (downloadPollTimer) {
+    clearInterval(downloadPollTimer);
+    downloadPollTimer = null;
+  }
+}
+
+async function updateDownloadCard() {
+  const badge = document.getElementById('offlineBrainStatusBadge');
+  const bar = document.getElementById('offlineProgressBar');
+  const text = document.getElementById('offlineProgressText');
+  const btnDl = document.getElementById('btnDownloadBrain');
+  const btnPause = document.getElementById('btnPauseBrain');
+  const btnCancel = document.getElementById('btnCancelBrain');
+  if (!badge || !bar || !text || !btnDl) return;
+
+  try {
+    if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.MarvoNativeBridge) {
+      const res = await window.Capacitor.Plugins.MarvoNativeBridge.getModelDownloadProgress();
+      const status = (res.status || 'idle').toLowerCase();
+      const progress = res.progress || 0;
+      const isReady = res.isReady || false;
+      const dlMb = Math.round((res.downloadedBytes || 0) / (1024 * 1024));
+      const totMb = Math.round((res.totalBytes || 0) / (1024 * 1024)) || 1800;
+
+      if (isReady || status === 'completed') {
+        badge.textContent = 'Model Ready (Offline Active)';
+        badge.className = 'offline-status-badge status-ready';
+        bar.style.width = '100%';
+        bar.classList.add('ready');
+        text.textContent = `~${totMb} MB verified & active in /models/`;
+        btnDl.textContent = 'Offline Active';
+        btnDl.disabled = true;
+        if (btnPause) btnPause.style.display = 'none';
+        if (btnCancel) btnCancel.style.display = 'none';
+      } else if (status === 'downloading') {
+        badge.textContent = `Downloading... (${progress}%)`;
+        badge.className = 'offline-status-badge status-downloading';
+        bar.style.width = progress + '%';
+        bar.classList.remove('ready');
+        text.textContent = `${dlMb} MB / ${totMb} MB (${progress}%)`;
+        btnDl.textContent = 'Downloading in Background...';
+        btnDl.disabled = false;
+        if (btnPause) { btnPause.style.display = 'inline-block'; btnPause.textContent = 'Pause'; }
+        if (btnCancel) { btnCancel.style.display = 'inline-block'; }
+      } else if (status === 'paused' || status === 'paused_wifi') {
+        badge.textContent = 'Paused';
+        badge.className = 'offline-status-badge status-paused';
+        bar.style.width = progress + '%';
+        bar.classList.remove('ready');
+        text.textContent = `${dlMb} MB / ${totMb} MB (Paused)`;
+        btnDl.textContent = 'Resume Download';
+        btnDl.disabled = false;
+        if (btnPause) { btnPause.style.display = 'none'; }
+        if (btnCancel) { btnCancel.style.display = 'inline-block'; }
+      } else {
+        badge.textContent = 'Not Downloaded';
+        badge.className = 'offline-status-badge status-idle';
+        bar.style.width = '0%';
+        bar.classList.remove('ready');
+        text.textContent = 'Requires ~1.8GB storage';
+        btnDl.textContent = 'Download Offline Brain';
+        btnDl.disabled = false;
+        if (btnPause) btnPause.style.display = 'none';
+        if (btnCancel) btnCancel.style.display = 'none';
+      }
+    }
+  } catch (err) {
+    // Non-native fallback
+  }
+}
+
+function initDownloadCardControls() {
+  const btnDl = document.getElementById('btnDownloadBrain');
+  const btnPause = document.getElementById('btnPauseBrain');
+  const btnCancel = document.getElementById('btnCancelBrain');
+
+  if (btnDl) {
+    btnDl.addEventListener('click', async () => {
+      try {
+        if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.MarvoNativeBridge) {
+          showToast('Starting Offline Brain download in background...');
+          await window.Capacitor.Plugins.MarvoNativeBridge.startModelDownload({ allowMetered: true });
+          updateDownloadCard();
+        }
+      } catch (e) {
+        showToast('Download error: ' + e.message);
+      }
+    });
+  }
+
+  if (btnPause) {
+    btnPause.addEventListener('click', async () => {
+      try {
+        if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.MarvoNativeBridge) {
+          await window.Capacitor.Plugins.MarvoNativeBridge.pauseModelDownload();
+          showToast('Download paused.');
+          updateDownloadCard();
+        }
+      } catch (e) {
+        showToast('Pause error: ' + e.message);
+      }
+    });
+  }
+
+  if (btnCancel) {
+    btnCancel.addEventListener('click', async () => {
+      try {
+        if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.MarvoNativeBridge) {
+          await window.Capacitor.Plugins.MarvoNativeBridge.cancelModelDownload();
+          showToast('Download canceled.');
+          updateDownloadCard();
+        }
+      } catch (e) {
+        showToast('Cancel error: ' + e.message);
+      }
+    });
+  }
 }
 
 async function initVoiceSelection() {
@@ -2152,6 +2282,7 @@ async function initApp() {
   setupQuickNoteListeners();
   initInteractiveEyes();
   await initVoiceSelection();
+  initDownloadCardControls();
   await loadActiveProject();
   setEyeExpression('state-idle');
   await persistCurrentSession();

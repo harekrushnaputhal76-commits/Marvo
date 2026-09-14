@@ -434,4 +434,63 @@ public class OfflineBrainDownloader {
         getPrefs(context).edit().putString(KEY_DOWNLOAD_STATUS, "paused").apply();
         Log.d(TAG, "Download status set to paused.");
     }
+
+    public synchronized void cancelDownload(Context context) {
+        cancelFallback = true;
+        Log.d(TAG, "cancelDownload requested.");
+        if (context == null) return;
+        long downloadId = getPrefs(context).getLong(KEY_DOWNLOAD_ID, -1);
+        if (downloadId != -1) {
+            try {
+                DownloadManager dm = (DownloadManager) context.getSystemService(Context.DOWNLOAD_SERVICE);
+                if (dm != null) {
+                    dm.remove(downloadId);
+                    Log.d(TAG, "Removed download ID " + downloadId + " from DownloadManager.");
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "Error removing download from DownloadManager: " + e.getMessage());
+            }
+        }
+
+        // Clean up partial files
+        try {
+            File target = getModelFile(context);
+            if (target != null) {
+                File part = new File(target.getAbsolutePath() + ".download");
+                if (part.exists()) part.delete();
+            }
+            File tempDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
+            if (tempDir == null) tempDir = MemoryVault.getCacheDir(context);
+            File tempModel = new File(tempDir, DEFAULT_MODEL_NAME + ".part");
+            if (tempModel.exists()) tempModel.delete();
+        } catch (Exception ignored) {}
+
+        getPrefs(context).edit()
+            .putLong(KEY_DOWNLOAD_ID, -1)
+            .putString(KEY_DOWNLOAD_STATUS, "idle")
+            .apply();
+        Log.d(TAG, "Download canceled and status reset to idle.");
+    }
+
+    /**
+     * Helper to start the ModelDownloadService foreground service with live notification.
+     */
+    public static void startForegroundDownloadService(Context context, boolean allowMetered) {
+        if (context == null) return;
+        try {
+            Intent intent = new Intent(context, ModelDownloadService.class);
+            intent.setAction(ModelDownloadService.ACTION_START_DOWNLOAD);
+            intent.putExtra(ModelDownloadService.EXTRA_ALLOW_METERED, allowMetered);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent);
+            } else {
+                context.startService(intent);
+            }
+            Log.d(TAG, "Launched ModelDownloadService with live foreground notification.");
+        } catch (Exception e) {
+            Log.e(TAG, "Error launching ModelDownloadService: " + e.getMessage(), e);
+            // Fallback to direct download
+            getInstance().startDownload(context, allowMetered);
+        }
+    }
 }

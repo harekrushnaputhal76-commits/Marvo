@@ -24,6 +24,7 @@
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
@@ -89,6 +90,12 @@
         <!-- Step 15: Persistent Floating Overlay Service -->
         <service
             android:name=".FloatingOrbService"
+            android:exported="false" />
+
+        <!-- Step 23: Live Offline Model Downloader Foreground Service -->
+        <service
+            android:name=".ModelDownloadService"
+            android:foregroundServiceType="dataSync"
             android:exported="false" />
 
         <!-- Step 15: Native Settings & Teach AI Activity -->

@@ -403,5 +403,16 @@ public class MemoryVault {
             new File(getMemoryDir(context), "conversation_history.json").delete();
         } catch (Exception ignored) {}
     }
+
+    // Orb Eye Color
+    public static String getEyeColor(Context context) {
+        if (context == null) return "neon-blue";
+        return getPrefs(context).getString("orb_eye_color", "neon-blue");
+    }
+
+    public static void setEyeColor(Context context, String color) {
+        if (context == null || color == null) return;
+        getPrefs(context).edit().putString("orb_eye_color", color).apply();
+    }
 }
 

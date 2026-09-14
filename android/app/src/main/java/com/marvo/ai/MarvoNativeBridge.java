@@ -57,9 +57,9 @@ public class MarvoNativeBridge extends Plugin {
         try {
             Context context = getContext();
             boolean allowMetered = call.getBoolean("allowMetered", false);
-            boolean started = OfflineBrainDownloader.getInstance().startDownload(context, allowMetered);
+            OfflineBrainDownloader.startForegroundDownloadService(context, allowMetered);
             JSObject res = new JSObject();
-            res.put("started", started);
+            res.put("started", true);
             call.resolve(res);
         } catch (Exception e) {
             Log.e(TAG, "Error starting download: " + e.getMessage(), e);
@@ -75,6 +75,17 @@ public class MarvoNativeBridge extends Plugin {
             call.resolve();
         } catch (Exception e) {
             call.reject("Error pausing download: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void cancelModelDownload(PluginCall call) {
+        try {
+            Context context = getContext();
+            OfflineBrainDownloader.getInstance().cancelDownload(context);
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("Error canceling download: " + e.getMessage());
         }
     }
 

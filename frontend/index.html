@@ -361,6 +361,32 @@
     </div>
     <div class="settings-body">
       
+      <!-- Section: Offline Brain & AI Models (Live Download Manager) -->
+      <div class="settings-section offline-brain-section">
+        <h4 class="settings-section-title">🧠 OFFLINE AI BRAIN (1.8GB)</h4>
+        <div class="offline-brain-card">
+          <div class="offline-card-header">
+            <span class="offline-model-name">Phi-3 Mini 4K Instruct</span>
+            <span id="offlineBrainStatusBadge" class="offline-status-badge status-idle">Checking...</span>
+          </div>
+          
+          <div class="offline-progress-track">
+            <div id="offlineProgressBar" class="offline-progress-fill" style="width: 0%;"></div>
+          </div>
+          
+          <div class="offline-progress-info">
+            <span id="offlineProgressText" class="offline-progress-text">0 MB / 1800 MB (0%)</span>
+            <span class="offline-storage-tag">Internal: /models/</span>
+          </div>
+          
+          <div class="offline-action-row">
+            <button id="btnDownloadBrain" class="btn-offline-action primary" type="button">Download Offline Brain</button>
+            <button id="btnPauseBrain" class="btn-offline-action secondary" type="button" style="display:none;">Pause</button>
+            <button id="btnCancelBrain" class="btn-offline-action danger" type="button" style="display:none;">Cancel</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Section: Eye Color Customization -->
       <div class="settings-section">
         <h4 class="settings-section-title">3D EYE COLOR</h4>
