@@ -40,6 +40,7 @@ public class OfflineIntentRouter {
     private static final Map<String, String> ALIAS_MAP = new HashMap<>();
     private static final Map<String, String> DEFAULT_PHONE_NUMBERS = new HashMap<>();
     private static final Map<String, String> CHIT_CHAT_MAP = new HashMap<>();
+    private static final Map<String, String> FAST_APP_MAP = new HashMap<>();
 
     // Step 9 - Part 3: Advanced Semantic Intent Parser & Context Stack (Tracks last 3-5 user interactions)
     private static final int MAX_CONTEXT_STACK = 5;
@@ -175,6 +176,34 @@ public class OfflineIntentRouter {
         CHIT_CHAT_MAP.put("bye", "Alvida! Apna khayal rakhiyega.");
         CHIT_CHAT_MAP.put("goodbye", "Alvida! Apna khayal rakhiyega.");
         CHIT_CHAT_MAP.put("alvida", "Alvida! Phir milenge.");
+
+        // Step 9 - Part 4: Fast App Package Dictionary (<5ms Instant Launch)
+        FAST_APP_MAP.put("whatsapp", "com.whatsapp");
+        FAST_APP_MAP.put("youtube", "com.google.android.youtube");
+        FAST_APP_MAP.put("instagram", "com.instagram.android");
+        FAST_APP_MAP.put("insta", "com.instagram.android");
+        FAST_APP_MAP.put("facebook", "com.facebook.katana");
+        FAST_APP_MAP.put("chrome", "com.android.chrome");
+        FAST_APP_MAP.put("browser", "com.android.chrome");
+        FAST_APP_MAP.put("maps", "com.google.android.apps.maps");
+        FAST_APP_MAP.put("google maps", "com.google.android.apps.maps");
+        FAST_APP_MAP.put("gmail", "com.google.android.gm");
+        FAST_APP_MAP.put("mail", "com.google.android.gm");
+        FAST_APP_MAP.put("email", "com.google.android.gm");
+        FAST_APP_MAP.put("spotify", "com.spotify.music");
+        FAST_APP_MAP.put("music", "com.spotify.music");
+        FAST_APP_MAP.put("gaana", "com.spotify.music");
+        FAST_APP_MAP.put("twitter", "com.twitter.android");
+        FAST_APP_MAP.put("x", "com.twitter.android");
+        FAST_APP_MAP.put("telegram", "org.telegram.messenger");
+        FAST_APP_MAP.put("play store", "com.android.vending");
+        FAST_APP_MAP.put("playstore", "com.android.vending");
+        FAST_APP_MAP.put("calculator", "com.google.android.calculator");
+        FAST_APP_MAP.put("clock", "com.google.android.deskclock");
+        FAST_APP_MAP.put("alarm", "com.google.android.deskclock");
+        FAST_APP_MAP.put("calendar", "com.google.android.calendar");
+        FAST_APP_MAP.put("photos", "com.google.android.apps.photos");
+        FAST_APP_MAP.put("gallery", "com.google.android.apps.photos");
     }
 
     public OfflineIntentRouter(AssistantActivity activity) {
@@ -234,7 +263,11 @@ public class OfflineIntentRouter {
             return true;
         }
 
-        // 7. Native Hardware & System Tools (Volume, Camera, Flashlight, Alarms, Navigation, Media, Apps)
+        // 7. Native Hardware & System Tools (Brightness, Volume, Camera, Flashlight, Alarms, Navigation, Media, Apps)
+        if (handleBrightness(lower)) {
+            Log.i(TAG, "[HYBRID ROUTER] Solved OFFLINE (Fixed Tools - Brightness): " + command);
+            return true;
+        }
         if (handleVolume(lower)) {
             Log.i(TAG, "[HYBRID ROUTER] Solved OFFLINE (Fixed Tools - Volume): " + command);
             return true;
@@ -396,12 +429,17 @@ public class OfflineIntentRouter {
         boolean isOnCommand = lower.contains("flashlight on") || lower.contains("torch on") ||
                               lower.contains("turn on flashlight") || lower.contains("turn on torch") ||
                               lower.contains("torch jalao") || lower.contains("light on") ||
-                              lower.contains("flash on");
+                              lower.contains("flash on") || lower.contains("torch chalu") ||
+                              lower.contains("flash chalu") || lower.contains("light jalao") ||
+                              lower.contains("light chalu") || lower.equals("torch") ||
+                              lower.equals("flashlight");
 
         boolean isOffCommand = lower.contains("flashlight off") || lower.contains("torch off") ||
                                lower.contains("turn off flashlight") || lower.contains("turn off torch") ||
-                               lower.contains("torch band karo") || lower.contains("light off") ||
-                               lower.contains("flash off");
+                               lower.contains("torch band karo") || lower.contains("torch band") ||
+                               lower.contains("light off") || lower.contains("light band") ||
+                               lower.contains("light band karo") || lower.contains("flash off") ||
+                               lower.contains("flash band");
 
         if (isOnCommand) {
             activity.toggleFlashlight(true);
@@ -598,7 +636,92 @@ public class OfflineIntentRouter {
     }
 
     /**
-     * Resolves a spoken name using the Entity Alias Dictionary and Android Contacts.
+     * Step 9 - Part 4: Indian & Hinglish Phonetic Normalizer.
+     * Maps spoken speech variations to standard phonetic representation.
+     */
+    public static String toPhoneticKey(String text) {
+        if (text == null) return "";
+        String s = text.toLowerCase().replaceAll("[^a-z0-9]", "");
+        if (s.isEmpty()) return "";
+
+        // Normalize common Indian speech-to-text vowel variants
+        s = s.replace("ee", "i");
+        s = s.replace("oo", "u");
+        s = s.replace("aa", "a");
+        s = s.replace("ai", "e");
+        s = s.replace("ay", "e");
+
+        // Normalize consonant variants
+        s = s.replace("ph", "f");
+        s = s.replace("sh", "s");
+        s = s.replace("zh", "j");
+        s = s.replace("z", "j");
+        s = s.replace("w", "v");
+        s = s.replace("b", "v");
+        s = s.replace("th", "t");
+        s = s.replace("dh", "d");
+        s = s.replace("kh", "k");
+        s = s.replace("gh", "g");
+        s = s.replace("bh", "b");
+        s = s.replace("ch", "c");
+
+        // Collapse repeated identical adjacent letters
+        StringBuilder sb = new StringBuilder();
+        char prev = 0;
+        for (int i = 0; i < s.length(); i++) {
+            char curr = s.charAt(i);
+            if (curr != prev) {
+                sb.append(curr);
+                prev = curr;
+            }
+        }
+        String res = sb.toString();
+        if (res.length() > 3 && (res.endsWith("a") || res.endsWith("h"))) {
+            res = res.substring(0, res.length() - 1);
+        }
+        return res;
+    }
+
+    /**
+     * Computes the Levenshtein distance between two strings.
+     */
+    public static int levenshteinDistance(String s1, String s2) {
+        if (s1 == null) s1 = "";
+        if (s2 == null) s2 = "";
+        int len1 = s1.length();
+        int len2 = s2.length();
+        int[][] dp = new int[len1 + 1][len2 + 1];
+
+        for (int i = 0; i <= len1; i++) dp[i][0] = i;
+        for (int j = 0; j <= len2; j++) dp[0][j] = j;
+
+        for (int i = 1; i <= len1; i++) {
+            for (int j = 1; j <= len2; j++) {
+                int cost = (s1.charAt(i - 1) == s2.charAt(j - 1)) ? 0 : 1;
+                dp[i][j] = Math.min(
+                    Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1),
+                    dp[i - 1][j - 1] + cost
+                );
+            }
+        }
+        return dp[len1][len2];
+    }
+
+    /**
+     * Calculates a similarity score between 0.0 and 1.0 based on Levenshtein distance.
+     */
+    public static double fuzzyScore(String s1, String s2) {
+        if (s1 == null || s2 == null || s1.isEmpty() || s2.isEmpty()) return 0.0;
+        int maxLen = Math.max(s1.length(), s2.length());
+        if (maxLen == 0) return 1.0;
+        int dist = levenshteinDistance(s1, s2);
+        return 1.0 - ((double) dist / maxLen);
+    }
+
+    /**
+     * Step 9 - Part 4: On-Device Phonetic & Fuzzy Contact Resolution Engine.
+     * Resolves spoken names using Phonetic keys, Levenshtein distance, Entity Aliases,
+     * and Android Contacts database.
      */
     public ContactResolution resolveContact(String query) {
         if (query == null || query.trim().isEmpty()) return null;
@@ -607,7 +730,6 @@ public class OfflineIntentRouter {
         // 1. Resolve alias via Entity Dictionary
         String canonicalName = ALIAS_MAP.get(lowerQuery);
         if (canonicalName == null) {
-            // Check contains
             for (Map.Entry<String, String> entry : ALIAS_MAP.entrySet()) {
                 if (lowerQuery.contains(entry.getKey())) {
                     canonicalName = entry.getValue();
@@ -618,45 +740,168 @@ public class OfflineIntentRouter {
 
         boolean isFav = isFamilyFavorite(canonicalName, lowerQuery);
         String searchName = (canonicalName != null) ? canonicalName : query.trim();
+        String cleanQuery = searchName.toLowerCase().replaceAll("[^a-z0-9]", "");
+        String queryPhonetic = toPhoneticKey(searchName);
 
-        // 2. Query device contacts database
+        // 2. Query device contacts database with Phonetic & Fuzzy evaluation
         try {
             Uri contactUri = ContactsContract.CommonDataKinds.Phone.CONTENT_URI;
-            String selection = ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " LIKE ?";
-            String[] selectionArgs = new String[]{"%" + searchName + "%"};
-
             Cursor cursor = activity.getContentResolver().query(contactUri,
                 new String[]{ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME, ContactsContract.CommonDataKinds.Phone.NUMBER},
-                selection, selectionArgs, null);
+                null, null, null);
 
             if (cursor != null) {
-                if (cursor.moveToFirst()) {
-                    int nameIdx = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME);
-                    int numIdx = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER);
-                    String foundName = cursor.getString(nameIdx);
-                    String foundNumber = cursor.getString(numIdx);
-                    cursor.close();
-                    return new ContactResolution(foundName, foundNumber, isFav);
+                int nameIdx = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME);
+                int numIdx = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER);
+
+                String bestMatchName = null;
+                String bestMatchNumber = null;
+                double bestScore = 0.0;
+
+                while (cursor.moveToNext()) {
+                    String dName = cursor.getString(nameIdx);
+                    String num = cursor.getString(numIdx);
+                    if (dName == null || num == null) continue;
+
+                    String lowerDName = dName.trim().toLowerCase();
+                    String cleanDName = lowerDName.replaceAll("[^a-z0-9]", "");
+
+                    // Exact match
+                    if (cleanDName.equals(cleanQuery)) {
+                        bestMatchName = dName;
+                        bestMatchNumber = num;
+                        bestScore = 2.0;
+                        break;
+                    }
+
+                    // Substring match
+                    if (cleanDName.contains(cleanQuery) || cleanQuery.contains(cleanDName)) {
+                        double score = 0.90 + (cleanQuery.length() / (double) Math.max(cleanDName.length(), 1)) * 0.08;
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestMatchName = dName;
+                            bestMatchNumber = num;
+                        }
+                    }
+
+                    // Token-level check (e.g., "Rohit" matching "Rohit Sharma")
+                    String[] tokens = lowerDName.split("\\s+");
+                    for (String token : tokens) {
+                        String cleanToken = token.replaceAll("[^a-z0-9]", "");
+                        if (cleanToken.isEmpty()) continue;
+
+                        if (cleanToken.equals(cleanQuery)) {
+                            double score = 0.95;
+                            if (score > bestScore) {
+                                bestScore = score;
+                                bestMatchName = dName;
+                                bestMatchNumber = num;
+                            }
+                        }
+
+                        // Phonetic match on token
+                        String tokenPhonetic = toPhoneticKey(cleanToken);
+                        if (!queryPhonetic.isEmpty() && queryPhonetic.equals(tokenPhonetic)) {
+                            double score = 0.92;
+                            if (score > bestScore) {
+                                bestScore = score;
+                                bestMatchName = dName;
+                                bestMatchNumber = num;
+                            }
+                        }
+
+                        // Fuzzy match on token
+                        double fScore = fuzzyScore(cleanQuery, cleanToken);
+                        if (fScore >= 0.70) {
+                            double combinedScore = fScore * 0.85;
+                            if (!queryPhonetic.isEmpty() && fuzzyScore(queryPhonetic, tokenPhonetic) >= 0.70) {
+                                combinedScore += 0.10;
+                            }
+                            if (combinedScore > bestScore) {
+                                bestScore = combinedScore;
+                                bestMatchName = dName;
+                                bestMatchNumber = num;
+                            }
+                        }
+                    }
+
+                    // Whole name phonetic match
+                    String wholePhonetic = toPhoneticKey(cleanDName);
+                    if (!queryPhonetic.isEmpty() && queryPhonetic.equals(wholePhonetic)) {
+                        double score = 0.92;
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestMatchName = dName;
+                            bestMatchNumber = num;
+                        }
+                    }
+
+                    // Whole name fuzzy
+                    double wholeFuzzy = fuzzyScore(cleanQuery, cleanDName);
+                    if (wholeFuzzy >= 0.70 && wholeFuzzy > bestScore) {
+                        bestScore = wholeFuzzy;
+                        bestMatchName = dName;
+                        bestMatchNumber = num;
+                    }
                 }
                 cursor.close();
+
+                if (bestMatchName != null && bestScore >= 0.68) {
+                    boolean finalFav = isFav || isFamilyFavorite(bestMatchName, lowerQuery);
+                    return new ContactResolution(bestMatchName, bestMatchNumber, finalFav);
+                }
             }
         } catch (Exception e) {
             Log.w(TAG, "Contacts query permission or error: " + e.getMessage());
         }
 
-        // 3. Fallback to default user profile numbers
+        // 3. Fallback to default user profile numbers with fuzzy/phonetic search
         if (canonicalName != null && DEFAULT_PHONE_NUMBERS.containsKey(canonicalName)) {
             return new ContactResolution(canonicalName, DEFAULT_PHONE_NUMBERS.get(canonicalName), true);
         }
 
-        // Check raw query in defaults
         for (Map.Entry<String, String> entry : DEFAULT_PHONE_NUMBERS.entrySet()) {
-            if (entry.getKey().equalsIgnoreCase(searchName)) {
-                return new ContactResolution(entry.getKey(), entry.getValue(), true);
+            String defName = entry.getKey();
+            if (defName.equalsIgnoreCase(searchName) ||
+                toPhoneticKey(defName).equals(queryPhonetic) ||
+                fuzzyScore(cleanQuery, defName.toLowerCase()) >= 0.75) {
+                return new ContactResolution(defName, entry.getValue(), true);
             }
         }
 
         return null;
+    }
+
+    /**
+     * SCREEN BRIGHTNESS PRESETS TOOL (Step 9 - Part 4)
+     * Executes instant on-device brightness changes in under 10ms.
+     */
+    private boolean handleBrightness(String lower) {
+        if (!lower.contains("brightness") && !lower.contains("screen tej") && !lower.contains("screen kam") &&
+            !lower.contains("dim screen") && !lower.contains("screen light")) {
+            return false;
+        }
+
+        if (lower.contains("100") || lower.contains("full") || lower.contains("max") || lower.contains("highest") ||
+            lower.contains("screen tej") || lower.contains("badhao") || lower.contains("pura")) {
+            activity.setScreenBrightness(1.0f, "100%");
+            return true;
+        } else if (lower.contains("0%") || lower.contains("min") || lower.contains("lowest") || lower.contains("dim") ||
+                   lower.contains("kam") || lower.contains("dheere") || lower.contains("10%") || lower.contains("20%")) {
+            activity.setScreenBrightness(0.15f, "15%");
+            return true;
+        } else if (lower.contains("50%") || lower.contains("medium") || lower.contains("half") || lower.contains("normal") ||
+                   lower.contains("aadha") || lower.contains("adha")) {
+            activity.setScreenBrightness(0.50f, "50%");
+            return true;
+        } else if (lower.contains("75%") || lower.contains("80%")) {
+            activity.setScreenBrightness(0.75f, "75%");
+            return true;
+        } else if (lower.contains("25%") || lower.contains("30%")) {
+            activity.setScreenBrightness(0.30f, "30%");
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -722,14 +967,28 @@ public class OfflineIntentRouter {
     }
 
     /**
-     * OFFLINE TIME & DATE ENGINE IN HINDI (Step 7 - Part 4)
+     * OFFLINE TIME & DATE ENGINE IN HINDI (Step 7 - Part 4 & Step 9 - Part 4)
      */
     private boolean handleDateTime(String lower) {
         boolean isTime = lower.contains("time") || lower.contains("samay") || lower.contains("kitne baje") ||
                          lower.contains("kya baje") || lower.contains("ghadi") || lower.contains("time batao") ||
                          lower.contains("samay batao");
+        boolean isTomorrow = lower.contains("kal kaun sa din") || lower.contains("kal kya din") ||
+                             lower.contains("tomorrow date") || lower.contains("kal ki tarikh") ||
+                             lower.contains("kal ki tareekh") || lower.contains("kal konsa din");
+        boolean isYesterday = lower.contains("kal kya date thi") || lower.contains("yesterday date") ||
+                              lower.contains("yesterday's date") || lower.contains("kal kya tarikh thi");
+        boolean isDayAfter = lower.contains("parson") || lower.contains("day after tomorrow");
+        boolean isMonth = lower.contains("current month") || lower.contains("kon sa mahina") ||
+                          lower.contains("kaun sa mahina") || lower.contains("mahina kaun sa");
+        boolean isYear = lower.contains("current year") || lower.contains("kaun sa saal") ||
+                         lower.contains("kon sa saal") || lower.contains("saal kaun sa");
         boolean isDate = lower.contains("date") || lower.contains("tarikh") || lower.contains("tareekh") ||
-                         lower.contains("aaj ka din") || lower.contains("kon sa din") || lower.contains("today date");
+                         lower.contains("aaj ka din") || lower.contains("kon sa din") || lower.contains("today date") ||
+                         lower.contains("aaj ki date");
+
+        String[] daysHindi = {"Ravivar", "Somvar", "Mangalvar", "Budhvar", "Guruvar", "Shukravar", "Shanivar"};
+        String[] monthsHindi = {"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"};
 
         if (isTime) {
             Calendar cal = Calendar.getInstance();
@@ -746,10 +1005,68 @@ public class OfflineIntentRouter {
             return true;
         }
 
+        if (isTomorrow) {
+            Calendar cal = Calendar.getInstance();
+            cal.add(Calendar.DAY_OF_YEAR, 1);
+            String dayName = daysHindi[cal.get(Calendar.DAY_OF_WEEK) - 1];
+            int dayOfMonth = cal.get(Calendar.DAY_OF_MONTH);
+            String monthName = monthsHindi[cal.get(Calendar.MONTH)];
+            int year = cal.get(Calendar.YEAR);
+            String response = "Kal " + dayName + ", " + dayOfMonth + " " + monthName + " " + year + " hoga.";
+            activity.showDynamicPill("Kal: " + dayOfMonth + " " + monthName, android.R.drawable.ic_menu_my_calendar);
+            activity.showResponse(response, true);
+            activity.setOrbState("IDLE");
+            return true;
+        }
+
+        if (isDayAfter) {
+            Calendar cal = Calendar.getInstance();
+            cal.add(Calendar.DAY_OF_YEAR, 2);
+            String dayName = daysHindi[cal.get(Calendar.DAY_OF_WEEK) - 1];
+            int dayOfMonth = cal.get(Calendar.DAY_OF_MONTH);
+            String monthName = monthsHindi[cal.get(Calendar.MONTH)];
+            int year = cal.get(Calendar.YEAR);
+            String response = "Parson " + dayName + ", " + dayOfMonth + " " + monthName + " " + year + " hoga.";
+            activity.showDynamicPill("Parson: " + dayOfMonth + " " + monthName, android.R.drawable.ic_menu_my_calendar);
+            activity.showResponse(response, true);
+            activity.setOrbState("IDLE");
+            return true;
+        }
+
+        if (isYesterday) {
+            Calendar cal = Calendar.getInstance();
+            cal.add(Calendar.DAY_OF_YEAR, -1);
+            String dayName = daysHindi[cal.get(Calendar.DAY_OF_WEEK) - 1];
+            int dayOfMonth = cal.get(Calendar.DAY_OF_MONTH);
+            String monthName = monthsHindi[cal.get(Calendar.MONTH)];
+            int year = cal.get(Calendar.YEAR);
+            String response = "Kal " + dayName + ", " + dayOfMonth + " " + monthName + " " + year + " tha.";
+            activity.showDynamicPill("Beeta Kal: " + dayOfMonth + " " + monthName, android.R.drawable.ic_menu_my_calendar);
+            activity.showResponse(response, true);
+            activity.setOrbState("IDLE");
+            return true;
+        }
+
+        if (isMonth) {
+            Calendar cal = Calendar.getInstance();
+            String monthName = monthsHindi[cal.get(Calendar.MONTH)];
+            activity.showDynamicPill(monthName, android.R.drawable.ic_menu_my_calendar);
+            activity.showResponse("Yeh mahina " + monthName + " hai.", true);
+            activity.setOrbState("IDLE");
+            return true;
+        }
+
+        if (isYear) {
+            Calendar cal = Calendar.getInstance();
+            int year = cal.get(Calendar.YEAR);
+            activity.showDynamicPill("Year: " + year, android.R.drawable.ic_menu_my_calendar);
+            activity.showResponse("Yeh saal " + year + " hai.", true);
+            activity.setOrbState("IDLE");
+            return true;
+        }
+
         if (isDate) {
             Calendar cal = Calendar.getInstance();
-            String[] daysHindi = {"Ravivar", "Somvar", "Mangalvar", "Budhvar", "Guruvar", "Shukravar", "Shanivar"};
-            String[] monthsHindi = {"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"};
             String dayName = daysHindi[cal.get(Calendar.DAY_OF_WEEK) - 1];
             int dayOfMonth = cal.get(Calendar.DAY_OF_MONTH);
             String monthName = monthsHindi[cal.get(Calendar.MONTH)];
@@ -766,9 +1083,125 @@ public class OfflineIntentRouter {
     }
 
     /**
-     * OFFLINE MATH CALCULATOR ENGINE IN HINDI (Step 7 - Part 4)
+     * OFFLINE MATH CALCULATOR ENGINE IN HINDI (Step 7 - Part 4 & Step 9 - Part 4)
+     * Handles arithmetic, percentages, square roots, squares, powers, and cubes in <5ms.
      */
     private boolean handleMath(String command, String lower) {
+        // 1. Percentage: "20 percent of 500" / "500 ka 20 percent" / "15% of 200"
+        Pattern pctPattern = Pattern.compile("(\\d+(?:\\.\\d+)?)\\s*(?:%|percent|pratishat)\\s*(?:of|ka)?\\s*(\\d+(?:\\.\\d+)?)", Pattern.CASE_INSENSITIVE);
+        Matcher pctMatcher = pctPattern.matcher(lower);
+        if (pctMatcher.find()) {
+            try {
+                double pct = Double.parseDouble(pctMatcher.group(1));
+                double total = Double.parseDouble(pctMatcher.group(2));
+                double res = (pct * total) / 100.0;
+                String resultStr = (res == (long) res) ? String.format(Locale.getDefault(), "%d", (long) res) : String.format(Locale.getDefault(), "%.2f", res);
+                String speech = (long) total + " ka " + (long) pct + " percent hai " + resultStr + ".";
+                activity.showDynamicPill("Math: " + resultStr, android.R.drawable.ic_menu_compass);
+                activity.showResponse(speech, true);
+                activity.setOrbState("IDLE");
+                return true;
+            } catch (Exception ignored) {}
+        }
+        Pattern pctPatternAlt = Pattern.compile("(\\d+(?:\\.\\d+)?)\\s*ka\\s*(\\d+(?:\\.\\d+)?)\\s*(?:%|percent|pratishat)", Pattern.CASE_INSENSITIVE);
+        Matcher pctMatcherAlt = pctPatternAlt.matcher(lower);
+        if (pctMatcherAlt.find()) {
+            try {
+                double total = Double.parseDouble(pctMatcherAlt.group(1));
+                double pct = Double.parseDouble(pctMatcherAlt.group(2));
+                double res = (pct * total) / 100.0;
+                String resultStr = (res == (long) res) ? String.format(Locale.getDefault(), "%d", (long) res) : String.format(Locale.getDefault(), "%.2f", res);
+                String speech = (long) total + " ka " + (long) pct + " percent hai " + resultStr + ".";
+                activity.showDynamicPill("Math: " + resultStr, android.R.drawable.ic_menu_compass);
+                activity.showResponse(speech, true);
+                activity.setOrbState("IDLE");
+                return true;
+            } catch (Exception ignored) {}
+        }
+
+        // 2. Square Root: "square root of 144" / "root of 144" / "144 ka root" / "144 ka square root"
+        Pattern rootPattern = Pattern.compile("(?:square root of|root of|under root of)\\s*(\\d+(?:\\.\\d+)?)", Pattern.CASE_INSENSITIVE);
+        Matcher rootMatcher = rootPattern.matcher(lower);
+        if (rootMatcher.find()) {
+            try {
+                double val = Double.parseDouble(rootMatcher.group(1));
+                double res = Math.sqrt(val);
+                String resultStr = (res == (long) res) ? String.format(Locale.getDefault(), "%d", (long) res) : String.format(Locale.getDefault(), "%.2f", res);
+                activity.showDynamicPill("Root: " + resultStr, android.R.drawable.ic_menu_compass);
+                activity.showResponse("Iska square root hai " + resultStr + ".", true);
+                activity.setOrbState("IDLE");
+                return true;
+            } catch (Exception ignored) {}
+        }
+        Pattern rootPatternHindi = Pattern.compile("(\\d+(?:\\.\\d+)?)\\s*ka\\s*(?:square root|root)", Pattern.CASE_INSENSITIVE);
+        Matcher rootMatcherHindi = rootPatternHindi.matcher(lower);
+        if (rootMatcherHindi.find()) {
+            try {
+                double val = Double.parseDouble(rootMatcherHindi.group(1));
+                double res = Math.sqrt(val);
+                String resultStr = (res == (long) res) ? String.format(Locale.getDefault(), "%d", (long) res) : String.format(Locale.getDefault(), "%.2f", res);
+                activity.showDynamicPill("Root: " + resultStr, android.R.drawable.ic_menu_compass);
+                activity.showResponse("Iska square root hai " + resultStr + ".", true);
+                activity.setOrbState("IDLE");
+                return true;
+            } catch (Exception ignored) {}
+        }
+
+        // 3. Square & Cube: "square of 25" / "25 ka square" / "cube of 5" / "5 ka cube"
+        Pattern sqPattern = Pattern.compile("(?:square of)\\s*(\\d+(?:\\.\\d+)?)", Pattern.CASE_INSENSITIVE);
+        Matcher sqMatcher = sqPattern.matcher(lower);
+        if (sqMatcher.find()) {
+            try {
+                double val = Double.parseDouble(sqMatcher.group(1));
+                double res = val * val;
+                String resultStr = (res == (long) res) ? String.format(Locale.getDefault(), "%d", (long) res) : String.format(Locale.getDefault(), "%.2f", res);
+                activity.showDynamicPill("Square: " + resultStr, android.R.drawable.ic_menu_compass);
+                activity.showResponse("Iska square hai " + resultStr + ".", true);
+                activity.setOrbState("IDLE");
+                return true;
+            } catch (Exception ignored) {}
+        }
+        Pattern sqPatternHindi = Pattern.compile("(\\d+(?:\\.\\d+)?)\\s*ka\\s*square", Pattern.CASE_INSENSITIVE);
+        Matcher sqMatcherHindi = sqPatternHindi.matcher(lower);
+        if (sqMatcherHindi.find()) {
+            try {
+                double val = Double.parseDouble(sqMatcherHindi.group(1));
+                double res = val * val;
+                String resultStr = (res == (long) res) ? String.format(Locale.getDefault(), "%d", (long) res) : String.format(Locale.getDefault(), "%.2f", res);
+                activity.showDynamicPill("Square: " + resultStr, android.R.drawable.ic_menu_compass);
+                activity.showResponse("Iska square hai " + resultStr + ".", true);
+                activity.setOrbState("IDLE");
+                return true;
+            } catch (Exception ignored) {}
+        }
+        Pattern cubePattern = Pattern.compile("(?:cube of)\\s*(\\d+(?:\\.\\d+)?)", Pattern.CASE_INSENSITIVE);
+        Matcher cubeMatcher = cubePattern.matcher(lower);
+        if (cubeMatcher.find()) {
+            try {
+                double val = Double.parseDouble(cubeMatcher.group(1));
+                double res = val * val * val;
+                String resultStr = (res == (long) res) ? String.format(Locale.getDefault(), "%d", (long) res) : String.format(Locale.getDefault(), "%.2f", res);
+                activity.showDynamicPill("Cube: " + resultStr, android.R.drawable.ic_menu_compass);
+                activity.showResponse("Iska cube hai " + resultStr + ".", true);
+                activity.setOrbState("IDLE");
+                return true;
+            } catch (Exception ignored) {}
+        }
+        Pattern cubePatternHindi = Pattern.compile("(\\d+(?:\\.\\d+)?)\\s*ka\\s*cube", Pattern.CASE_INSENSITIVE);
+        Matcher cubeMatcherHindi = cubePatternHindi.matcher(lower);
+        if (cubeMatcherHindi.find()) {
+            try {
+                double val = Double.parseDouble(cubeMatcherHindi.group(1));
+                double res = val * val * val;
+                String resultStr = (res == (long) res) ? String.format(Locale.getDefault(), "%d", (long) res) : String.format(Locale.getDefault(), "%.2f", res);
+                activity.showDynamicPill("Cube: " + resultStr, android.R.drawable.ic_menu_compass);
+                activity.showResponse("Iska cube hai " + resultStr + ".", true);
+                activity.setOrbState("IDLE");
+                return true;
+            } catch (Exception ignored) {}
+        }
+
+        // 4. Basic Arithmetic Operations (+, -, *, /)
         Pattern p = Pattern.compile("(\\d+(?:\\.\\d+)?)\\s*(?:plus|\\+|jod|minus|\\-|ghatao|ghata|times|multiplied by|\\*|x|into|guna|divided by|\\/|bhag)\\s*(\\d+(?:\\.\\d+)?)", Pattern.CASE_INSENSITIVE);
         Matcher m = p.matcher(lower);
         if (m.find()) {
@@ -807,9 +1240,30 @@ public class OfflineIntentRouter {
     }
 
     /**
-     * DEEP HARDWARE VOLUME & AUDIO SETTINGS IN HINDI (Step 7 - Part 4)
+     * DEEP HARDWARE VOLUME & AUDIO SETTINGS IN HINDI (Step 7 - Part 4 & Step 9 - Part 4)
      */
     private boolean handleVolume(String lower) {
+        // Percentage / Preset volume
+        if (lower.contains("volume 100") || lower.contains("full volume") || lower.contains("max volume") ||
+            lower.contains("maximum volume") || lower.contains("awaz full")) {
+            activity.setDeviceVolumeLevel(100);
+            return true;
+        } else if (lower.contains("volume 50") || lower.contains("half volume") || lower.contains("volume aadha") ||
+                   lower.contains("awaz aadhi") || lower.contains("medium volume")) {
+            activity.setDeviceVolumeLevel(50);
+            return true;
+        } else if (lower.contains("volume 0") || lower.contains("volume zero") || lower.contains("awaz zero")) {
+            activity.setDeviceVolumeLevel(0);
+            return true;
+        } else if (lower.contains("volume 80") || lower.contains("volume 75")) {
+            activity.setDeviceVolumeLevel(80);
+            return true;
+        } else if (lower.contains("volume 20") || lower.contains("volume 25") || lower.contains("volume 30")) {
+            activity.setDeviceVolumeLevel(25);
+            return true;
+        }
+
+        // Stepped Volume Up/Down
         if (lower.contains("volume up") || lower.contains("volume badhao") || lower.contains("awaz badhao") ||
             lower.contains("increase volume") || lower.contains("sound badhao") || lower.contains("awaz tej") || lower.contains("volume tej")) {
             activity.adjustDeviceVolume(AudioManager.ADJUST_RAISE);
@@ -843,11 +1297,31 @@ public class OfflineIntentRouter {
 
     /**
      * APP LAUNCHER TOOL: "Open WhatsApp" / "Launch YouTube" / "Kholo Calculator"
+     * Step 9 - Part 4: Fast App Launcher (<5ms) using FAST_APP_MAP with fallback.
      */
     private boolean handleApps(String command, String lower) {
-        if (lower.startsWith("open ") || lower.startsWith("launch ") || lower.startsWith("start app ") || lower.startsWith("kholo ")) {
-            String appName = command.replaceAll("(?i)(open app|launch app|start app|open|launch|kholo)\\s*", "").trim();
+        if (lower.startsWith("open ") || lower.startsWith("launch ") || lower.startsWith("start app ") ||
+            lower.startsWith("kholo ") || lower.startsWith("start ")) {
+            String appName = command.replaceAll("(?i)(open app|launch app|start app|open|launch|start|kholo)\\s*", "").trim();
             if (!appName.isEmpty()) {
+                String cleanApp = appName.toLowerCase().replaceAll("[^a-z0-9\\s]", "").trim();
+                String targetPkg = FAST_APP_MAP.get(cleanApp);
+                if (targetPkg != null) {
+                    try {
+                        Intent launchIntent = activity.getPackageManager().getLaunchIntentForPackage(targetPkg);
+                        if (launchIntent != null) {
+                            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                            activity.startActivity(launchIntent);
+                            String capName = cleanApp.substring(0, 1).toUpperCase() + cleanApp.substring(1);
+                            activity.showDynamicPill(capName + " Opened", android.R.drawable.ic_menu_compass);
+                            activity.showResponse(capName + " khol raha hoon.", true);
+                            activity.setOrbState("IDLE");
+                            return true;
+                        }
+                    } catch (Exception e) {
+                        Log.w(TAG, "Fast launch error for " + targetPkg + ": " + e.getMessage());
+                    }
+                }
                 activity.launchAppByName(appName);
                 return true;
             }

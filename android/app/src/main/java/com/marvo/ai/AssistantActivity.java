@@ -37,16 +37,26 @@ import android.speech.tts.UtteranceProgressListener;
 import android.telephony.SmsManager;
 import android.util.Log;
 import android.util.TypedValue;
+import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
+import android.os.Build;
+import android.text.TextUtils;
+import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
+import android.view.WindowManager;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
+import android.view.animation.DecelerateInterpolator;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
@@ -2048,6 +2058,9 @@ public class AssistantActivity extends AppCompatActivity {
                 } else if (subtitleTextView != null) {
                     subtitleTextView.setVisibility(View.GONE);
                 }
+                if ("CALL_CONFIRMATION".equals(pendingActionId)) {
+                    showContactCard(pendingCallName, pendingCallNumber);
+                }
                 setOrbState("CONFIRMATION");
                 if (tts != null && isTtsReady) {
                     try {
@@ -2069,6 +2082,272 @@ public class AssistantActivity extends AppCompatActivity {
                 }
             }
         });
+    }
+
+    // =========================================================================
+    // STEP 9 - PART 4: SLEEK NATIVE CONTACT CARD POPUP & HARDWARE CONTROLLERS
+    // =========================================================================
+    private View contactCardView = null;
+
+    private int dpToPx(int dp) {
+        return (int) TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            dp,
+            getResources().getDisplayMetrics()
+        );
+    }
+
+    void showContactCard(final String name, final String number) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    final ViewGroup bottomSheet = findViewById(R.id.bottomSheetContainer);
+                    if (bottomSheet == null) return;
+
+                    // Remove any existing card first
+                    hideContactCardImmediate();
+
+                    // Create Root Card Layout
+                    final LinearLayout card = new LinearLayout(AssistantActivity.this);
+                    card.setOrientation(LinearLayout.HORIZONTAL);
+                    card.setGravity(Gravity.CENTER_VERTICAL);
+
+                    LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT
+                    );
+                    params.setMargins(dpToPx(16), dpToPx(4), dpToPx(16), dpToPx(12));
+                    card.setLayoutParams(params);
+                    card.setPadding(dpToPx(16), dpToPx(12), dpToPx(16), dpToPx(12));
+
+                    // Rounded translucent dark background with subtle border
+                    GradientDrawable bg = new GradientDrawable();
+                    bg.setColor(Color.parseColor("#E60F172A")); // Deep slate translucent
+                    bg.setCornerRadius(dpToPx(18));
+                    bg.setStroke(dpToPx(1), Color.parseColor("#4D00E5FF")); // Neon cyan subtle glow border
+                    card.setBackground(bg);
+                    card.setElevation(dpToPx(12));
+
+                    // 1. Avatar Icon (Left)
+                    FrameLayout avatarFrame = new FrameLayout(AssistantActivity.this);
+                    LinearLayout.LayoutParams avatarParams = new LinearLayout.LayoutParams(dpToPx(44), dpToPx(44));
+                    avatarParams.setMarginEnd(dpToPx(14));
+                    avatarFrame.setLayoutParams(avatarParams);
+
+                    GradientDrawable avatarBg = new GradientDrawable();
+                    avatarBg.setShape(GradientDrawable.OVAL);
+                    avatarBg.setColor(Color.parseColor("#1A00E5FF"));
+                    avatarBg.setStroke(dpToPx(1), Color.parseColor("#8000E5FF"));
+                    avatarFrame.setBackground(avatarBg);
+
+                    ImageView avatarIcon = new ImageView(AssistantActivity.this);
+                    FrameLayout.LayoutParams iconParams = new FrameLayout.LayoutParams(dpToPx(24), dpToPx(24));
+                    iconParams.gravity = Gravity.CENTER;
+                    avatarIcon.setLayoutParams(iconParams);
+                    avatarIcon.setImageResource(android.R.drawable.stat_sys_phone_call);
+                    avatarIcon.setColorFilter(Color.parseColor("#00E5FF"));
+                    avatarFrame.addView(avatarIcon);
+                    card.addView(avatarFrame);
+
+                    // 2. Info Block (Middle)
+                    LinearLayout infoLayout = new LinearLayout(AssistantActivity.this);
+                    infoLayout.setOrientation(LinearLayout.VERTICAL);
+                    LinearLayout.LayoutParams infoParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
+                    infoLayout.setLayoutParams(infoParams);
+
+                    TextView nameTv = new TextView(AssistantActivity.this);
+                    nameTv.setText(name != null ? name : "Contact");
+                    nameTv.setTextColor(Color.WHITE);
+                    nameTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16.0f);
+                    nameTv.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+                    nameTv.setSingleLine(true);
+                    nameTv.setEllipsize(TextUtils.TruncateAt.END);
+                    infoLayout.addView(nameTv);
+
+                    if (number != null && !number.isEmpty()) {
+                        TextView numTv = new TextView(AssistantActivity.this);
+                        numTv.setText(number);
+                        numTv.setTextColor(Color.parseColor("#B300E5FF"));
+                        numTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13.0f);
+                        numTv.setTypeface(Typeface.create("sans-serif", Typeface.NORMAL));
+                        infoLayout.addView(numTv);
+                    }
+
+                    TextView statusTv = new TextView(AssistantActivity.this);
+                    statusTv.setText("CONFIRM CALL \u2022 HAAN YA NAHI");
+                    statusTv.setTextColor(Color.parseColor("#4ADE80")); // Apple Green accent
+                    statusTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.0f);
+                    statusTv.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+                    statusTv.setLetterSpacing(0.04f);
+                    infoLayout.addView(statusTv);
+
+                    card.addView(infoLayout);
+
+                    // 3. Quick Call Button (Right)
+                    FrameLayout callBtnFrame = new FrameLayout(AssistantActivity.this);
+                    LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(dpToPx(40), dpToPx(40));
+                    btnParams.setMarginStart(dpToPx(10));
+                    callBtnFrame.setLayoutParams(btnParams);
+
+                    GradientDrawable btnBg = new GradientDrawable();
+                    btnBg.setShape(GradientDrawable.OVAL);
+                    btnBg.setColor(Color.parseColor("#22C55E")); // Green call circle
+                    callBtnFrame.setBackground(btnBg);
+
+                    ImageView callIcon = new ImageView(AssistantActivity.this);
+                    FrameLayout.LayoutParams callIconParams = new FrameLayout.LayoutParams(dpToPx(20), dpToPx(20));
+                    callIconParams.gravity = Gravity.CENTER;
+                    callIcon.setLayoutParams(callIconParams);
+                    callIcon.setImageResource(android.R.drawable.stat_sys_phone_call);
+                    callIcon.setColorFilter(Color.WHITE);
+                    callBtnFrame.addView(callIcon);
+                    card.addView(callBtnFrame);
+
+                    // Tap on card or call button executes call immediately
+                    View.OnClickListener callClickListener = new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            if (pendingCallNumber != null) {
+                                String dName = pendingCallName != null ? pendingCallName : "Contact";
+                                showResponse("Calling " + dName + "...", true);
+                                showDynamicPill("Calling " + dName, android.R.drawable.stat_sys_phone_call);
+                                makeCall(pendingCallNumber);
+                                pendingActionType = null;
+                                pendingCallName = null;
+                                pendingCallNumber = null;
+                                hideContactCard();
+                                finishDelayed(2000);
+                            }
+                        }
+                    };
+                    card.setOnClickListener(callClickListener);
+                    callBtnFrame.setOnClickListener(callClickListener);
+
+                    // Insert above orbContainer in bottomSheetContainer
+                    View orbContainer = findViewById(R.id.orbContainer);
+                    int insertIdx = bottomSheet.indexOfChild(orbContainer);
+                    if (insertIdx >= 0) {
+                        bottomSheet.addView(card, insertIdx);
+                    } else {
+                        bottomSheet.addView(card);
+                    }
+
+                    // Smooth entrance animation
+                    card.setAlpha(0.0f);
+                    card.setTranslationY(dpToPx(20));
+                    card.animate()
+                        .alpha(1.0f)
+                        .translationY(0.0f)
+                        .setDuration(220)
+                        .setInterpolator(new DecelerateInterpolator())
+                        .start();
+
+                    contactCardView = card;
+                } catch (Exception e) {
+                    Log.e(TAG, "Error displaying native contact card: " + e.getMessage(), e);
+                }
+            }
+        });
+    }
+
+    void hideContactCard() {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if (contactCardView != null) {
+                    final View viewToRemove = contactCardView;
+                    contactCardView = null;
+                    viewToRemove.animate()
+                        .alpha(0.0f)
+                        .translationY(dpToPx(20))
+                        .setDuration(180)
+                        .withEndAction(new Runnable() {
+                            @Override
+                            public void run() {
+                                ViewGroup parent = (ViewGroup) viewToRemove.getParent();
+                                if (parent != null) {
+                                    parent.removeView(viewToRemove);
+                                }
+                            }
+                        })
+                        .start();
+                }
+            }
+        });
+    }
+
+    private void hideContactCardImmediate() {
+        if (contactCardView != null) {
+            ViewGroup parent = (ViewGroup) contactCardView.getParent();
+            if (parent != null) {
+                parent.removeView(contactCardView);
+            }
+            contactCardView = null;
+        }
+    }
+
+    /**
+     * Step 9 - Part 4: Native Screen Brightness Controller.
+     */
+    void setScreenBrightness(final float ratio, final String label) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    // 1. Adjust Window Attributes (instant visual effect on screen)
+                    WindowManager.LayoutParams lp = getWindow().getAttributes();
+                    lp.screenBrightness = Math.max(0.05f, Math.min(1.0f, ratio));
+                    getWindow().setAttributes(lp);
+
+                    // 2. Try System Settings if write permission is granted
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        if (Settings.System.canWrite(AssistantActivity.this)) {
+                            int intVal = (int) (ratio * 255);
+                            Settings.System.putInt(getContentResolver(), Settings.System.SCREEN_BRIGHTNESS, intVal);
+                        }
+                    }
+
+                    String pillMsg = "Brightness: " + (label != null ? label : (int)(ratio * 100) + "%");
+                    String speech = (ratio >= 0.8f)
+                        ? "Screen brightness full kar di gayi hai."
+                        : (ratio <= 0.25f ? "Screen brightness kam kar di gayi hai." : "Screen brightness set kar di gayi hai.");
+
+                    showDynamicPill(pillMsg, android.R.drawable.ic_menu_view);
+                    showResponse(speech, true);
+                    setOrbState("IDLE");
+                } catch (Exception e) {
+                    Log.e(TAG, "Error setting screen brightness: " + e.getMessage(), e);
+                    showResponse("Brightness change karne mein samasya aayi.", true);
+                }
+            }
+        });
+    }
+
+    /**
+     * Step 9 - Part 4: Percentage-based System Volume Controller.
+     */
+    void setDeviceVolumeLevel(final int percent) {
+        try {
+            AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+            if (am != null) {
+                int maxVol = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+                int targetVol = (int) Math.round((percent / 100.0) * maxVol);
+                am.setStreamVolume(AudioManager.STREAM_MUSIC, targetVol, AudioManager.FLAG_SHOW_UI);
+
+                String pillMsg = "Volume: " + percent + "%";
+                String speech = (percent == 0)
+                    ? "Phone ko silent kar diya gaya hai."
+                    : (percent >= 90 ? "Volume full kar diya gaya hai." : "Volume " + percent + " percent par set hai.");
+
+                showDynamicPill(pillMsg, percent == 0 ? android.R.drawable.ic_lock_silent_mode : android.R.drawable.stat_sys_speakerphone);
+                showResponse(speech, true);
+                setOrbState("IDLE");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error setting volume level: " + e.getMessage(), e);
+            showResponse("Volume change karne mein samasya aayi.", true);
+        }
     }
 
     private void updateUI(String text) {
@@ -3094,15 +3373,19 @@ public class AssistantActivity extends AppCompatActivity {
                     showResponse("Calling " + displayName + "...", true);
                     showDynamicPill("Calling " + displayName, android.R.drawable.stat_sys_phone_call);
                     makeCall(pendingCallNumber);
+                    hideContactCard();
                     pendingActionType = null;
                     pendingCallName = null;
                     pendingCallNumber = null;
                     finishDelayed(2000);
                 } else if (lower.contains("no") || lower.contains("cancel") || lower.contains("nahi") ||
                            lower.contains("na") || lower.contains("mat") || lower.contains("stop") || lower.contains("rok")) {
+                    hideContactCard();
                     pendingActionType = null;
                     pendingCallName = null;
                     pendingCallNumber = null;
+                    showDynamicPill("Cancelled", android.R.drawable.ic_menu_close_clear_cancel);
+                    showResponse("Call cancel kar diya gaya.", true);
                     setOrbState("IDLE");
                     if (subtitleTextView != null) {
                         subtitleTextView.setVisibility(View.GONE);
@@ -4706,6 +4989,7 @@ public class AssistantActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        hideContactCardImmediate();
         if (audioPollHandler != null && audioPollRunnable != null) {
             audioPollHandler.removeCallbacks(audioPollRunnable);
             audioPollHandler = null;
