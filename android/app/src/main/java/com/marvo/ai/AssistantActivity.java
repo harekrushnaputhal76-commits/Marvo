@@ -149,6 +149,17 @@ public class AssistantActivity extends AppCompatActivity {
     private boolean flashlightEnabled;
     private String geminiApiKey = null;
 
+    // Step 9 - Part 11: 4-Voice Profile System
+    public static final int VOICE_PROFILE_MALE_ENGLISH = 1;
+    public static final int VOICE_PROFILE_MALE_HINDI = 2;
+    public static final int VOICE_PROFILE_FEMALE_ENGLISH = 3;
+    public static final int VOICE_PROFILE_FEMALE_HINDI = 4;
+    private int currentVoiceProfile = VOICE_PROFILE_MALE_HINDI;
+
+    public int getCurrentVoiceProfile() {
+        return currentVoiceProfile;
+    }
+
     // Step 7 - Part 2: Offline Intent Router & 50ms Live Mic Sync
     private OfflineIntentRouter offlineIntentRouter;
     private float currentAudioAmplitude = 0.0f;
@@ -661,6 +672,10 @@ public class AssistantActivity extends AppCompatActivity {
 
                         isTtsReady = true;
                         Log.d(TAG, "TTS initialized successfully with Hindi locale");
+                        int savedProfile = MemoryVault.getVoiceProfile(AssistantActivity.this);
+                        currentVoiceProfile = savedProfile;
+                        applyVoiceProfile(savedProfile, false);
+                        Log.d(TAG, "TTS initialized successfully with voice profile " + savedProfile);
 
                         // Step 9: UtteranceProgressListener for orb state + auto-close
                         tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
@@ -726,6 +741,142 @@ public class AssistantActivity extends AppCompatActivity {
             });
         } catch (Exception e) {
             Log.e(TAG, "Error initializing TTS: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Step 9 - Part 11: 4-Voice Profile System (Male/Female - English/Hindi).
+     * Exposes a clean method to switch profiles seamlessly.
+     */
+    public void setVoiceProfile(int profileIndex) {
+        if (profileIndex < 1 || profileIndex > 4) {
+            profileIndex = VOICE_PROFILE_MALE_HINDI;
+        }
+        currentVoiceProfile = profileIndex;
+        MemoryVault.setVoiceProfile(this, profileIndex);
+
+        if (tts == null || !isTtsReady) {
+            Log.w(TAG, "TTS not ready yet. Voice profile " + profileIndex + " cached in vault.");
+            return;
+        }
+
+        applyVoiceProfile(profileIndex, true);
+    }
+
+    void applyVoiceProfile(int profileIndex, boolean announceChange) {
+        if (tts == null) return;
+
+        String profileName;
+        String announceMessage;
+        Locale targetLocale;
+        boolean seekFemale;
+        float targetPitch;
+        float targetRate = 0.95f;
+
+        switch (profileIndex) {
+            case VOICE_PROFILE_MALE_ENGLISH:
+                profileName = "Male English";
+                announceMessage = "Voice switched to Male English.";
+                targetLocale = Locale.US;
+                seekFemale = false;
+                targetPitch = 0.85f;
+                targetRate = 0.95f;
+                break;
+            case VOICE_PROFILE_FEMALE_ENGLISH:
+                profileName = "Female English";
+                announceMessage = "Voice switched to Female English.";
+                targetLocale = Locale.US;
+                seekFemale = true;
+                targetPitch = 1.05f;
+                targetRate = 1.0f;
+                break;
+            case VOICE_PROFILE_FEMALE_HINDI:
+                profileName = "Female Hindi";
+                announceMessage = "Awaaz Female Hindi mein badal di gayi hai.";
+                targetLocale = new Locale("hi", "IN");
+                seekFemale = true;
+                targetPitch = 1.10f;
+                targetRate = 0.95f;
+                break;
+            case VOICE_PROFILE_MALE_HINDI:
+            default:
+                profileName = "Male Hindi";
+                announceMessage = "Awaaz Male Hindi mein badal di gayi hai.";
+                targetLocale = new Locale("hi", "IN");
+                seekFemale = false;
+                targetPitch = 0.90f;
+                targetRate = 0.95f;
+                break;
+        }
+
+        try {
+            int res = tts.setLanguage(targetLocale);
+            if (res == TextToSpeech.LANG_MISSING_DATA || res == TextToSpeech.LANG_NOT_SUPPORTED) {
+                Log.w(TAG, "Locale " + targetLocale + " not supported, falling back to US");
+                tts.setLanguage(Locale.US);
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Error setting language for profile " + profileName + ": " + e.getMessage());
+        }
+
+        // Scan system voices matching locale and gender
+        boolean matchedVoice = false;
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                java.util.Set<android.speech.tts.Voice> voices = tts.getVoices();
+                if (voices != null) {
+                    for (android.speech.tts.Voice voice : voices) {
+                        if (voice != null && voice.getLocale() != null) {
+                            String lang = voice.getLocale().getLanguage();
+                            String country = voice.getLocale().getCountry();
+                            String name = voice.getName() != null ? voice.getName().toLowerCase() : "";
+
+                            boolean localeMatch;
+                            if ("hi".equalsIgnoreCase(targetLocale.getLanguage())) {
+                                localeMatch = "hi".equalsIgnoreCase(lang) || ("hi".equalsIgnoreCase(lang) && "IN".equalsIgnoreCase(country));
+                            } else {
+                                localeMatch = "en".equalsIgnoreCase(lang) || Locale.US.getCountry().equalsIgnoreCase(country);
+                            }
+
+                            if (localeMatch) {
+                                boolean isFemaleVoice = name.contains("female") || name.contains("woman") || name.contains("#female");
+                                boolean isMaleVoice = name.contains("male") && !name.contains("female");
+
+                                if (seekFemale && isFemaleVoice) {
+                                    tts.setVoice(voice);
+                                    matchedVoice = true;
+                                    Log.d(TAG, "Matched female voice for " + profileName + ": " + voice.getName());
+                                    break;
+                                } else if (!seekFemale && isMaleVoice) {
+                                    tts.setVoice(voice);
+                                    matchedVoice = true;
+                                    Log.d(TAG, "Matched male voice for " + profileName + ": " + voice.getName());
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Error scanning system voices: " + e.getMessage());
+        }
+
+        // Apply pitch and rate modulation
+        if (matchedVoice) {
+            tts.setPitch(targetPitch);
+            tts.setSpeechRate(targetRate);
+        } else {
+            float fallbackPitch = seekFemale ? 1.15f : 0.85f;
+            tts.setPitch(fallbackPitch);
+            tts.setSpeechRate(targetRate);
+            Log.d(TAG, "Applied fallback pitch " + fallbackPitch + " for " + profileName);
+        }
+
+        if (announceChange) {
+            showDynamicPill("Voice: " + profileName, android.R.drawable.ic_btn_speak_now);
+            showResponse(announceMessage, true);
+            setOrbState("IDLE");
         }
     }
 
@@ -2849,34 +3000,97 @@ public class AssistantActivity extends AppCompatActivity {
 
     /**
      * Launches an installed app by matching the spoken name to package labels.
+     * Step 9 - Part 11: Native App Launcher with high-performance fuzzy search across all installed apps.
      */
     void launchAppByName(String appName) {
         if (appName == null || appName.trim().isEmpty()) {
             updateUI("Which app should I open?");
             finishDelayed(2000);
+            showDynamicPill("App Launcher", android.R.drawable.ic_menu_search);
+            showResponse("Aap kaun sa app kholna chahte hain?", true);
+            setOrbState("IDLE");
             return;
         }
 
         String searchName = appName.toLowerCase().trim();
+        String searchName = appName.toLowerCase().replaceAll("[^a-z0-9\\s]", "").trim();
         PackageManager pm = getPackageManager();
         List<ApplicationInfo> apps = pm.getInstalledApplications(PackageManager.GET_META_DATA);
+        List<ApplicationInfo> apps = pm.getInstalledApplications(0);
+
+        ApplicationInfo bestMatchApp = null;
+        String bestMatchLabel = null;
+        double bestScore = 0.0;
 
         for (ApplicationInfo app : apps) {
             String label = pm.getApplicationLabel(app).toString().toLowerCase().trim();
             if (label.equals(searchName) || label.contains(searchName)) {
                 Intent launchIntent = pm.getLaunchIntentForPackage(app.packageName);
+            Intent launchIntent = pm.getLaunchIntentForPackage(app.packageName);
+            if (launchIntent == null) continue;
+
+            CharSequence rawLabel = pm.getApplicationLabel(app);
+            if (rawLabel == null) continue;
+            String label = rawLabel.toString().toLowerCase().trim();
+            String cleanLabel = label.replaceAll("[^a-z0-9\\s]", "").trim();
+
+            // 1. Exact match
+            if (cleanLabel.equals(searchName)) {
+                bestMatchApp = app;
+                bestMatchLabel = rawLabel.toString();
+                bestScore = 2.0;
+                break;
+            }
+
+            // 2. Prefix or Substring match
+            if (cleanLabel.startsWith(searchName) || searchName.startsWith(cleanLabel)) {
+                double score = 1.0 + (double) Math.min(searchName.length(), cleanLabel.length()) / Math.max(searchName.length(), cleanLabel.length());
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestMatchApp = app;
+                    bestMatchLabel = rawLabel.toString();
+                }
+            } else if (cleanLabel.contains(searchName) || searchName.contains(cleanLabel)) {
+                double score = 0.85;
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestMatchApp = app;
+                    bestMatchLabel = rawLabel.toString();
+                }
+            } else {
+                // 3. Fuzzy match using Levenshtein distance
+                double fScore = OfflineIntentRouter.fuzzyScore(searchName, cleanLabel);
+                if (fScore >= 0.70 && fScore > bestScore) {
+                    bestScore = fScore;
+                    bestMatchApp = app;
+                    bestMatchLabel = rawLabel.toString();
+                }
+            }
+        }
+
+        if (bestMatchApp != null && bestScore >= 0.65) {
+            try {
+                Intent launchIntent = pm.getLaunchIntentForPackage(bestMatchApp.packageName);
                 if (launchIntent != null) {
                     launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                     updateUI("Opening " + pm.getApplicationLabel(app) + "...");
                     startActivity(launchIntent);
                     finishDelayed(1000);
+                    showDynamicPill(bestMatchLabel + " Opened", android.R.drawable.ic_menu_compass);
+                    showResponse(bestMatchLabel + " khol raha hoon.", true);
+                    setOrbState("IDLE");
                     return;
                 }
+            } catch (Exception e) {
+                Log.e(TAG, "Error launching app " + bestMatchLabel + ": " + e.getMessage(), e);
             }
         }
 
         updateUI("App '" + appName + "' not found.");
         finishDelayed(2000);
+        showDynamicPill("App Not Found", android.R.drawable.ic_menu_close_clear_cancel);
+        showResponse("Mujhe yeh app aapke phone mein nahi mila.", true);
+        setOrbState("IDLE");
     }
 
     /**

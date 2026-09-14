@@ -177,6 +177,7 @@ public class OfflineIntentRouter {
         if (handleNavigation(subQuery, lower)) return true;
         if (handleMusic(subQuery, lower)) return true;
         if (handleApps(subQuery, lower)) return true;
+        if (handleVoiceProfile(subQuery, lower)) return true;
 
         // Step 9 - Part 8: Strict Routing Wall for Compound sub-queries (Zero Cloud Leakage)
         if (isStrictDeviceUtilityQuery(lower)) {
@@ -567,6 +568,10 @@ public class OfflineIntentRouter {
         }
         if (handleApps(command, lower)) {
             Log.i(TAG, "[HYBRID ROUTER] Solved OFFLINE (Fixed Tools - Apps): " + command);
+            return true;
+        }
+        if (handleVoiceProfile(command, lower)) {
+            Log.i(TAG, "[HYBRID ROUTER] Solved OFFLINE (Fixed Tools - Voice Profile): " + command);
             return true;
         }
 
@@ -1774,6 +1779,10 @@ public class OfflineIntentRouter {
      * APP LAUNCHER TOOL: "Open WhatsApp" / "Launch YouTube" / "Kholo Calculator"
      * Step 9 - Part 4: Fast App Launcher (<5ms) using FAST_APP_MAP with fallback.
      */
+    /**
+     * APP LAUNCHER TOOL: "Open WhatsApp" / "Launch YouTube" / "WhatsApp kholo" / "Calculator open karo"
+     * Step 9 - Part 11: Native App Launcher & In-App Voice Search Engine.
+     */
     private boolean handleApps(String command, String lower) {
         if (lower.startsWith("open ") || lower.startsWith("launch ") || lower.startsWith("start app ") ||
             lower.startsWith("kholo ") || lower.startsWith("start ")) {
@@ -1796,11 +1805,89 @@ public class OfflineIntentRouter {
                     } catch (Exception e) {
                         Log.w(TAG, "Fast launch error for " + targetPkg + ": " + e.getMessage());
                     }
+        boolean isAppCommand = lower.startsWith("open ") || lower.startsWith("launch ") ||
+                               lower.startsWith("start app ") || lower.startsWith("open app ") ||
+                               lower.startsWith("kholo ") || lower.startsWith("start ") ||
+                               lower.endsWith(" kholo") || lower.endsWith(" open karo") ||
+                               lower.endsWith(" launch karo") || lower.endsWith(" chalu karo") ||
+                               lower.endsWith(" start karo") || lower.contains(" app kholo") ||
+                               lower.contains(" app open karo") || lower.contains(" application kholo");
+
+        if (!isAppCommand) return false;
+
+        String appName = command.replaceAll("(?i)\\b(open app|launch app|start app|open application|launch application|open|launch|start|kholo|open karo|launch karo|chalu karo|start karo|app|application)\\b", "").trim();
+
+        if (appName.isEmpty()) {
+            activity.showDynamicPill("App Launcher", android.R.drawable.ic_menu_search);
+            activity.showResponse("Aap kaun sa app kholna chahte hain?", true);
+            activity.setOrbState("IDLE");
+            return true;
+        }
+
+        String cleanApp = appName.toLowerCase().replaceAll("[^a-z0-9\\s]", "").trim();
+
+        // 1. Instant <5ms FAST_APP_MAP
+        String targetPkg = FAST_APP_MAP.get(cleanApp);
+        if (targetPkg != null) {
+            try {
+                Intent launchIntent = activity.getPackageManager().getLaunchIntentForPackage(targetPkg);
+                if (launchIntent != null) {
+                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    activity.startActivity(launchIntent);
+                    String capName = cleanApp.substring(0, 1).toUpperCase() + cleanApp.substring(1);
+                    activity.showDynamicPill(capName + " Opened", android.R.drawable.ic_menu_compass);
+                    activity.showResponse(capName + " khol raha hoon.", true);
+                    activity.setOrbState("IDLE");
+                    return true;
                 }
                 activity.launchAppByName(appName);
                 return true;
+            } catch (Exception e) {
+                Log.w(TAG, "Fast launch error for " + targetPkg + ": " + e.getMessage());
             }
         }
+
+        // 2. Full fuzzy search across all installed applications on the device
+        activity.launchAppByName(appName);
+        return true;
+    }
+
+    /**
+     * Step 9 - Part 11: 4-Voice Profile Controller.
+     * Profile 1: Male English
+     * Profile 2: Male Hindi
+     * Profile 3: Female English
+     * Profile 4: Female Hindi
+     */
+    private boolean handleVoiceProfile(String command, String lower) {
+        if (!lower.contains("voice") && !lower.contains("awaaz") && !lower.contains("awaz")) {
+            return false;
+        }
+
+        if (lower.contains("profile 1") || (lower.contains("male") && lower.contains("english")) ||
+            (lower.contains("ladka") && lower.contains("english")) || (lower.contains("purush") && lower.contains("english"))) {
+            activity.setVoiceProfile(AssistantActivity.VOICE_PROFILE_MALE_ENGLISH);
+            return true;
+        } else if (lower.contains("profile 2") || (lower.contains("male") && lower.contains("hindi")) ||
+                   (lower.contains("ladke ki") || lower.contains("ladka") || lower.contains("male voice")) && !lower.contains("english")) {
+            activity.setVoiceProfile(AssistantActivity.VOICE_PROFILE_MALE_HINDI);
+            return true;
+        } else if (lower.contains("profile 3") || (lower.contains("female") && lower.contains("english")) ||
+                   (lower.contains("ladki") && lower.contains("english")) || (lower.contains("mahila") && lower.contains("english"))) {
+            activity.setVoiceProfile(AssistantActivity.VOICE_PROFILE_FEMALE_ENGLISH);
+            return true;
+        } else if (lower.contains("profile 4") || (lower.contains("female") && lower.contains("hindi")) ||
+                   (lower.contains("ladki ki") || lower.contains("ladki") || lower.contains("female voice") || lower.contains("mahila")) && !lower.contains("english")) {
+            activity.setVoiceProfile(AssistantActivity.VOICE_PROFILE_FEMALE_HINDI);
+            return true;
+        } else if (lower.contains("change voice") || lower.contains("switch voice") ||
+                   lower.contains("voice change") || lower.contains("awaaz badlo") ||
+                   lower.contains("awaz badlo")) {
+            int nextProfile = (activity.getCurrentVoiceProfile() % 4) + 1;
+            activity.setVoiceProfile(nextProfile);
+            return true;
+        }
+
         return false;
     }
 
@@ -2077,6 +2164,16 @@ public class OfflineIntentRouter {
         if (s.startsWith("call ") || s.startsWith("phone ") || s.startsWith("dial ") ||
             s.contains("ko call karo") || s.contains("ko phone lagao") || s.contains("ko call lagao")) return true;
 
+        // App Launching
+        if (s.startsWith("open ") || s.startsWith("launch ") || s.startsWith("kholo ") ||
+            s.endsWith(" kholo") || s.endsWith(" open karo") || s.endsWith(" launch karo") ||
+            s.endsWith(" chalu karo") || s.contains(" app kholo") || s.contains(" app open karo")) return true;
+
+        // Voice Profile
+        if (s.contains("change voice") || s.contains("switch voice") || s.contains("voice profile") ||
+            s.contains("awaaz badlo") || s.contains("awaz badlo") || s.contains("female voice") ||
+            s.contains("male voice") || s.contains("ladki ki awaaz") || s.contains("ladke ki awaaz")) return true;
+
         return false;
     }
 
@@ -2085,6 +2182,20 @@ public class OfflineIntentRouter {
      * Prevents hardware/system utility commands from leaking to the online Gemini cloud LLM.
      */
     private void handleDeviceUtilityFallback(String command, String lower) {
+        // App Launcher Fallback
+        if (lower.startsWith("open ") || lower.startsWith("launch ") || lower.startsWith("kholo ") ||
+            lower.endsWith(" kholo") || lower.endsWith(" open karo") || lower.endsWith(" launch karo") ||
+            lower.endsWith(" chalu karo") || lower.contains(" app kholo") || lower.contains(" app open karo")) {
+            handleApps(command, lower);
+            return;
+        }
+
+        // Voice Profile Fallback
+        if (lower.contains("voice") || lower.contains("awaaz") || lower.contains("awaz")) {
+            handleVoiceProfile(command, lower);
+            return;
+        }
+
         // Flashlight / Torch
         if (lower.contains("torch") || lower.contains("flashlight") || lower.contains("flash light")) {
             boolean isOff = lower.contains("off") || lower.contains("band") || lower.contains("bujha") ||
