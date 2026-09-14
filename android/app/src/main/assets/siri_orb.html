@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Apple Siri Fluid Orb (WebGL Canvas)</title>
+<title>Apple Siri Fluid Orb (True Floating WebGL)</title>
 <!-- Lottie Web Player (CDN Option) -->
 <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
 <style>
@@ -17,7 +17,7 @@
   html, body {
     width: 100%;
     height: 100%;
-    overflow: hidden;
+    overflow: visible;
     background: transparent !important;
     background-color: transparent !important;
     display: flex;
@@ -30,11 +30,30 @@
     outline: none !important;
   }
 
-  /* Zero bounding-box WebGL Canvas */
+  /* Step 4: Apple exact proportions (110px x 110px) with dynamic 3D drop-shadow glow */
+  .orb-wrapper {
+    position: relative;
+    width: 110px;
+    height: 110px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+    filter: drop-shadow(0px 10px 40px rgba(255, 0, 127, 0.4)) drop-shadow(0px 0px 25px rgba(0, 229, 255, 0.35));
+    transform-origin: center center;
+    will-change: transform, filter;
+    transform: scale(1.0) translateZ(0);
+  }
+
+  /* Pure 110px WebGL Canvas */
   #siri-canvas {
     display: block;
-    width: 100%;
-    height: 100%;
+    width: 110px;
+    height: 110px;
     background: transparent !important;
     background-color: transparent !important;
     border: none !important;
@@ -45,23 +64,25 @@
 </head>
 <body>
 
-<canvas id="siri-canvas"></canvas>
+<div class="orb-wrapper" id="orbWrapper">
+  <canvas id="siri-canvas"></canvas>
+</div>
 
 <script>
 // =======================================================================
 // APPLE SIRI FLUID ORB — HARDWARE-ACCELERATED WEBGL SHADER ENGINE
 // 1:1 Pure Liquid Mesh Sphere (Cyan, Magenta, Violet, White Core)
-// Zero CSS Bounding Box, 100% Transparent Exterior, Audio-Reactive
+// Zero CSS Bounding Box, 100% Transparent Exterior, Hyper-Reactive
 // =======================================================================
 
 const canvas = document.getElementById('siri-canvas');
+const orbWrapper = document.getElementById('orbWrapper');
 let dpr = Math.min(window.devicePixelRatio || 1, 2.5);
 
 function resizeCanvas() {
-  const width = window.innerWidth || 180;
-  const height = window.innerHeight || 180;
-  canvas.width = Math.round(width * dpr);
-  canvas.height = Math.round(height * dpr);
+  const size = 110;
+  canvas.width = Math.round(size * dpr);
+  canvas.height = Math.round(size * dpr);
 }
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
@@ -74,7 +95,7 @@ const vsSource = `
   }
 `;
 
-// Fragment Shader (Exact Siri 3D Liquid Fluid Mesh)
+// Fragment Shader (Exact 1:1 Apple Siri 3D Liquid Fluid Mesh)
 const fsSource = `
   precision highp float;
 
@@ -92,7 +113,7 @@ const fsSource = `
     // Centered normalized coordinates (-1.0 to 1.0)
     vec2 st = (gl_FragCoord.xy - 0.5 * u_resolution.xy) / min(u_resolution.x, u_resolution.y);
     
-    // Sphere Radius inside canvas (margin ensures zero edge-clipping)
+    // Sphere Radius inside 110px canvas (margin ensures zero edge clipping)
     float orbRadius = 0.44; 
     vec2 uv = st / orbRadius;
     float r = length(uv);
@@ -134,7 +155,6 @@ const fsSource = `
     glassColor += vec3(0.55, 0.02, 0.22) * bottomMagentaGlow;
 
     // 2. 3D FLUID LIQUID MESH RIBBONS (Organic folding waves)
-    // Wave coordinate distortion
     vec2 pWarp = uv;
     pWarp += vec2(
       sin(pWarp.y * 3.5 + t * 0.8 + amp * 1.5) * 0.12,
@@ -296,11 +316,13 @@ if (gl) {
 }
 
 // -------------------------------------------------------------
-// STATE & AUDIO REACTIVITY CONTROL (Java Bridge)
+// STEP 4: HYPER-REACTIVE VOICE SCALING & SPRING PHYSICS
 // -------------------------------------------------------------
 let currentStateInt = 0; // 0: IDLE, 1: LISTENING, 2: THINKING, 3: SPEAKING
 let currentAmplitude = 0.0;
 let targetAmplitude = 0.0;
+let currentScale = 1.0;
+let targetScale = 1.0;
 let startTime = performance.now();
 
 window.setOrbState = function(state) {
@@ -323,14 +345,54 @@ window.setOrbState = function(state) {
 };
 
 window.setAmplitude = function(amp) {
-  targetAmplitude = Math.max(0.0, Math.min(1.0, parseFloat(amp) || 0.0));
+  const parsed = Math.max(0.0, Math.min(1.0, parseFloat(amp) || 0.0));
+  targetAmplitude = parsed;
+
+  // Hyper-reactivity: amplify scale up to 1.40x with loud speech
+  targetScale = 1.0 + parsed * 0.40;
 };
 
-// Main 60 FPS WebGL Render Loop
+// Main 60 FPS WebGL Render & Hyper-Reactivity Loop
 function render(now) {
   const elapsed = (now - startTime) * 0.001;
-  currentAmplitude += (targetAmplitude - currentAmplitude) * 0.22;
+  
+  // Audio amplitude smoothing
+  currentAmplitude += (targetAmplitude - currentAmplitude) * 0.28;
 
+  // Hyper-reactive spring physics: rapid explosive attack (0.45) & bouncy liquid release (0.22)
+  if (targetScale > currentScale) {
+    currentScale += (targetScale - currentScale) * 0.45;
+  } else {
+    currentScale += (targetScale - currentScale) * 0.22;
+  }
+
+  // Smoothly decay targetScale back to neutral 1.0
+  targetScale += (1.0 - targetScale) * 0.15;
+
+  // Compute final scale & 3D glow modulation per state
+  let scaleToApply = currentScale;
+  if (currentStateInt === 1) { // LISTENING: hyper-reactive voice response
+    scaleToApply = currentScale;
+    const glowAlpha = (0.4 + currentAmplitude * 0.45).toFixed(2);
+    const cyanAlpha = (0.35 + currentAmplitude * 0.40).toFixed(2);
+    orbWrapper.style.filter = `drop-shadow(0px 10px 40px rgba(255, 0, 127, ${glowAlpha})) drop-shadow(0px 0px 25px rgba(0, 229, 255, ${cyanAlpha}))`;
+  } else if (currentStateInt === 3) { // SPEAKING: vocal cadence pulse
+    const speakPulse = 1.0 + currentAmplitude * 0.25 + Math.sin(elapsed * 7.0) * 0.045;
+    scaleToApply = Math.max(scaleToApply, speakPulse);
+    const glowAlpha = (0.45 + currentAmplitude * 0.35).toFixed(2);
+    orbWrapper.style.filter = `drop-shadow(0px 10px 40px rgba(255, 0, 127, ${glowAlpha})) drop-shadow(0px 0px 25px rgba(0, 229, 255, 0.4))`;
+  } else if (currentStateInt === 2) { // THINKING: energized tension scale
+    scaleToApply = 1.08 + Math.sin(elapsed * 10.0) * 0.03;
+    orbWrapper.style.filter = `drop-shadow(0px 10px 45px rgba(255, 0, 127, 0.55)) drop-shadow(0px 0px 30px rgba(0, 229, 255, 0.5))`;
+  } else { // IDLE: organic relaxed heartbeat
+    const idleBreathe = 1.0 + Math.sin(elapsed * 2.2) * 0.025;
+    scaleToApply = idleBreathe;
+    orbWrapper.style.filter = `drop-shadow(0px 10px 40px rgba(255, 0, 127, 0.4)) drop-shadow(0px 0px 25px rgba(0, 229, 255, 0.35))`;
+  }
+
+  orbWrapper.style.transform = `scale(${scaleToApply.toFixed(3)}) translateZ(0)`;
+
+  // Render WebGL shader
   if (gl && program) {
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clear(gl.COLOR_BUFFER_BIT);

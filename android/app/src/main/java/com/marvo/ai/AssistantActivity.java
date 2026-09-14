@@ -117,6 +117,8 @@ public class AssistantActivity extends AppCompatActivity {
         getWindow().setBackgroundDrawableResource(android.R.color.transparent);
         getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);
         getWindow().setNavigationBarColor(android.graphics.Color.TRANSPARENT);
+        getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+        getWindow().setDimAmount(0.0f);
         overridePendingTransition(R.anim.slide_up_assistant, 0);
         setContentView(R.layout.activity_assistant);
         Log.d(TAG, "Marvo Assistant Triggered via Hardware Button!");
