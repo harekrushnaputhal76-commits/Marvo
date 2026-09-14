@@ -12,6 +12,8 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
+import android.os.Handler;
+import android.os.Looper;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -21,6 +23,7 @@ import android.widget.ArrayAdapter;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.util.Log;
+import org.json.JSONObject;
 
 /**
  * Step 15 - Part 2: Native Android Settings & "Teach AI" Knowledge Base.
@@ -29,6 +32,7 @@ import android.util.Log;
  *   - Voice Profile Selector (Male/Female, Hindi/English)
  *   - Active Time Window (Start/End)
  *   - "Teach AI" Custom Q&A Section
+ *   - Offline AI Brain Downloader & Live Progress Monitor
  */
 public class NativeSettingsActivity extends Activity {
     private static final String TAG = "NativeSettingsActivity";
@@ -43,6 +47,19 @@ public class NativeSettingsActivity extends Activity {
     // Teach AI Inputs
     private EditText teachQuestionInput;
     private EditText teachAnswerInput;
+
+    // Offline AI Brain Downloader UI Components
+    private TextView brainStatusLabel;
+    private TextView brainProgressLabel;
+    private Button brainActionBtn;
+    private final Handler progressPollHandler = new Handler(Looper.getMainLooper());
+    private final Runnable progressPollRunnable = new Runnable() {
+        @Override
+        public void run() {
+            updateOfflineBrainUI();
+            progressPollHandler.postDelayed(this, 1500);
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -208,6 +225,65 @@ public class NativeSettingsActivity extends Activity {
         rootLayout.addView(createDivider());
         addSpacer(rootLayout, 24);
 
+        // ===== SECTION 4: OFFLINE AI BRAIN =====
+        rootLayout.addView(createSectionHeader("Offline AI Brain \uD83E\uDDE0"));
+        addSpacer(rootLayout, 8);
+        rootLayout.addView(createSectionDescription("High-intelligence offline LLM model (~1.8GB). Enables Marvo to reason, answer queries, and execute commands offline without internet."));
+        addSpacer(rootLayout, 12);
+
+        LinearLayout brainCard = new LinearLayout(this);
+        brainCard.setOrientation(LinearLayout.VERTICAL);
+        brainCard.setPadding(dp(16), dp(16), dp(16), dp(16));
+        brainCard.setBackground(createRoundedRectBg("#2D2D44", 12));
+
+        brainStatusLabel = new TextView(this);
+        brainStatusLabel.setText("Status: Checking...");
+        brainStatusLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+        brainStatusLabel.setTextColor(Color.parseColor("#00E5FF"));
+        brainStatusLabel.setTypeface(Typeface.DEFAULT_BOLD);
+        brainCard.addView(brainStatusLabel);
+
+        View brainCardSpacer = new View(this);
+        brainCardSpacer.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(6)));
+        brainCard.addView(brainCardSpacer);
+
+        brainProgressLabel = new TextView(this);
+        brainProgressLabel.setText("Progress: 0% (0 MB / ~1800 MB)");
+        brainProgressLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+        brainProgressLabel.setTextColor(Color.parseColor("#CCCCCC"));
+        brainCard.addView(brainProgressLabel);
+
+        rootLayout.addView(brainCard, createFullWidthParams());
+
+        addSpacer(rootLayout, 12);
+
+        brainActionBtn = createButton("Download Offline Brain (1.8GB)");
+        brainActionBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (OfflineBrainDownloader.getInstance().isModelDownloaded(NativeSettingsActivity.this)) {
+                    Toast.makeText(NativeSettingsActivity.this, "Offline Brain is already installed & ready!", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                JSONObject progress = OfflineBrainDownloader.getInstance().getDownloadProgress(NativeSettingsActivity.this);
+                String status = progress.optString("status", "idle");
+                if ("downloading".equalsIgnoreCase(status)) {
+                    Toast.makeText(NativeSettingsActivity.this, "Download is already running in background...", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                Toast.makeText(NativeSettingsActivity.this, "Starting Offline Brain download (1.8GB)...", Toast.LENGTH_LONG).show();
+                OfflineBrainDownloader.getInstance().startDownload(NativeSettingsActivity.this, true);
+                updateOfflineBrainUI();
+            }
+        });
+        rootLayout.addView(brainActionBtn, createFullWidthParams());
+
+        addSpacer(rootLayout, 32);
+        rootLayout.addView(createDivider());
+        addSpacer(rootLayout, 24);
+
         // ===== BACK BUTTON =====
         Button backBtn = createButton("Close Settings");
         backBtn.setOnClickListener(new View.OnClickListener() {
@@ -222,6 +298,60 @@ public class NativeSettingsActivity extends Activity {
 
         scrollView.addView(rootLayout);
         setContentView(scrollView);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        updateOfflineBrainUI();
+        progressPollHandler.postDelayed(progressPollRunnable, 1500);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        progressPollHandler.removeCallbacks(progressPollRunnable);
+    }
+
+    private void updateOfflineBrainUI() {
+        if (brainStatusLabel == null || brainProgressLabel == null || brainActionBtn == null) return;
+
+        JSONObject progressJson = OfflineBrainDownloader.getInstance().getDownloadProgress(this);
+        String status = progressJson.optString("status", "idle");
+        int progress = progressJson.optInt("progress", 0);
+        boolean isReady = progressJson.optBoolean("isReady", false);
+        long downloaded = progressJson.optLong("downloadedBytes", 0);
+        long total = progressJson.optLong("totalBytes", 0);
+
+        long dlMb = downloaded / (1024 * 1024);
+        long totMb = total > 0 ? (total / (1024 * 1024)) : 1800;
+
+        if (isReady || "completed".equalsIgnoreCase(status) || OfflineBrainDownloader.getInstance().isModelDownloaded(this)) {
+            brainStatusLabel.setText("Status: ✓ Downloaded & Ready");
+            brainStatusLabel.setTextColor(Color.parseColor("#2ECC71"));
+            brainProgressLabel.setText("Model: " + OfflineBrainDownloader.DEFAULT_MODEL_NAME + " (~1.8GB installed)");
+            brainActionBtn.setText("Offline Brain Installed");
+        } else if ("downloading".equalsIgnoreCase(status)) {
+            brainStatusLabel.setText("Status: Downloading... (" + progress + "%)");
+            brainStatusLabel.setTextColor(Color.parseColor("#F39C12"));
+            brainProgressLabel.setText("Downloaded: " + dlMb + " MB / " + totMb + " MB (" + progress + "%)");
+            brainActionBtn.setText("Downloading in Background...");
+        } else if ("paused_wifi".equalsIgnoreCase(status) || "paused".equalsIgnoreCase(status)) {
+            brainStatusLabel.setText("Status: Paused (Waiting for Wi-Fi)");
+            brainStatusLabel.setTextColor(Color.parseColor("#E67E22"));
+            brainProgressLabel.setText("Wi-Fi required. Tap below to download now on mobile data.");
+            brainActionBtn.setText("Download Now on Mobile Data");
+        } else if ("failed".equalsIgnoreCase(status)) {
+            brainStatusLabel.setText("Status: Download Failed / Interrupted");
+            brainStatusLabel.setTextColor(Color.parseColor("#E74C3C"));
+            brainProgressLabel.setText("An error occurred during download. Tap below to retry.");
+            brainActionBtn.setText("Retry Download (1.8GB)");
+        } else {
+            brainStatusLabel.setText("Status: Not Downloaded");
+            brainStatusLabel.setTextColor(Color.parseColor("#CCCCCC"));
+            brainProgressLabel.setText("Requires ~1.8GB free storage. Fast Wi-Fi recommended.");
+            brainActionBtn.setText("Download Offline Brain (1.8GB)");
+        }
     }
 
     // ===== UI Helper Methods =====

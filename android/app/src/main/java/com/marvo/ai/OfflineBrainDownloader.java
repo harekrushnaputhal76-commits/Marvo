@@ -14,6 +14,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
 import android.util.Log;
+import androidx.core.content.ContextCompat;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -31,11 +32,11 @@ import org.json.JSONObject;
  * Implements native DownloadManager with Wi-Fi enforcement & resilient background fallback.
  */
 public class OfflineBrainDownloader {
-    private static final String TAG = "OfflineBrainDownloader";
+    private static final String TAG = "MarvoDownload";
 
     public static final String PREF_NAME = "marvo_model_downloader";
     public static final String KEY_DOWNLOAD_ID = "active_download_id";
-    public static final String KEY_DOWNLOAD_STATUS = "download_status"; // "idle", "downloading", "completed", "paused", "failed"
+    public static final String KEY_DOWNLOAD_STATUS = "download_status"; // "idle", "downloading", "completed", "paused", "failed", "paused_wifi"
     public static final String KEY_ALLOW_METERED = "allow_metered_download";
 
     // High-Intelligence Quantized Model Parameters (Phi-3 Mini / Gemma 2B Class ~1.8GB)
@@ -67,8 +68,12 @@ public class OfflineBrainDownloader {
     public boolean isModelDownloaded(Context context) {
         if (context == null) return false;
         File modelFile = getModelFile(context);
-        // Ensure file exists and is of substantial size (> 500 MB)
-        return modelFile != null && modelFile.exists() && modelFile.length() > 500L * 1024L * 1024L;
+        boolean exists = modelFile != null && modelFile.exists();
+        long length = exists ? modelFile.length() : 0;
+        boolean ready = exists && length > 500L * 1024L * 1024L;
+        Log.d(TAG, "isModelDownloaded check: file=" + (modelFile != null ? modelFile.getAbsolutePath() : "null")
+                + ", exists=" + exists + ", size=" + (length / (1024 * 1024)) + "MB, ready=" + ready);
+        return ready;
     }
 
     /**
@@ -100,6 +105,7 @@ public class OfflineBrainDownloader {
                 return ni != null && ni.isConnected() && ni.getType() == ConnectivityManager.TYPE_WIFI;
             }
         } catch (Exception e) {
+            Log.w(TAG, "Error checking network capabilities: " + e.getMessage());
             return false;
         }
     }
@@ -108,17 +114,25 @@ public class OfflineBrainDownloader {
      * Initiates autonomous background download using native DownloadManager with Wi-Fi gating.
      */
     public synchronized boolean startDownload(final Context context, boolean allowMetered) {
-        if (context == null) return false;
+        if (context == null) {
+            Log.e(TAG, "startDownload failed: Context is null!");
+            return false;
+        }
+        Log.d(TAG, "startDownload requested: allowMetered=" + allowMetered);
+
         if (isModelDownloaded(context)) {
-            Log.i(TAG, "Offline model already downloaded and ready.");
+            Log.d(TAG, "Offline model already downloaded and verified on disk. Status set to completed.");
             getPrefs(context).edit().putString(KEY_DOWNLOAD_STATUS, "completed").apply();
             return true;
         }
 
         getPrefs(context).edit().putBoolean(KEY_ALLOW_METERED, allowMetered).apply();
 
-        if (!allowMetered && !isUnmeteredConnection(context)) {
-            Log.w(TAG, "Download paused: Metered connection detected. Waiting for Wi-Fi.");
+        boolean unmetered = isUnmeteredConnection(context);
+        Log.d(TAG, "Network connection check: isUnmeteredConnection=" + unmetered + ", allowMetered=" + allowMetered);
+
+        if (!allowMetered && !unmetered) {
+            Log.d(TAG, "Download paused: Metered network detected and allowMetered is false. Waiting for Wi-Fi.");
             getPrefs(context).edit().putString(KEY_DOWNLOAD_STATUS, "paused_wifi").apply();
             return false;
         }
@@ -136,11 +150,13 @@ public class OfflineBrainDownloader {
                     request.setAllowedNetworkTypes(DownloadManager.Request.NETWORK_WIFI);
                 }
 
-                // Temporary file in external files dir, moved to /models/ on completion
                 File tempDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
                 if (tempDir == null) tempDir = MemoryVault.getCacheDir(context);
                 File tempModel = new File(tempDir, DEFAULT_MODEL_NAME + ".part");
-                if (tempModel.exists()) tempModel.delete();
+                if (tempModel.exists()) {
+                    boolean del = tempModel.delete();
+                    Log.d(TAG, "Existing temporary .part file cleaned up: " + del);
+                }
 
                 request.setDestinationUri(Uri.fromFile(tempModel));
 
@@ -150,61 +166,70 @@ public class OfflineBrainDownloader {
                     .putString(KEY_DOWNLOAD_STATUS, "downloading")
                     .apply();
 
-                Log.i(TAG, "DownloadManager enqueued download with ID: " + downloadId);
-
-                // Register one-shot completion receiver
+                Log.d(TAG, "DownloadManager enqueued download with ID: " + downloadId + " for URL: " + DEFAULT_MODEL_URL);
                 registerDownloadCompleteReceiver(context.getApplicationContext(), downloadId, tempModel);
                 return true;
+            } else {
+                Log.w(TAG, "DownloadManager service is null. Falling back to HTTP background streamer.");
             }
         } catch (Exception e) {
-            Log.w(TAG, "DownloadManager failed to enqueue: " + e.getMessage() + ". Starting resilient HTTP fallback...");
+            Log.w(TAG, "DownloadManager failed to enqueue: " + e.getMessage() + ". Starting resilient HTTP fallback...", e);
         }
 
-        // Fallback: Resilient HTTP chunked background download thread
         startResilientFallbackDownload(context);
         return true;
     }
 
     private void registerDownloadCompleteReceiver(final Context appContext, final long expectedId, final File tempFile) {
         try {
+            Log.d(TAG, "Registering download complete BroadcastReceiver for ID: " + expectedId);
             BroadcastReceiver receiver = new BroadcastReceiver() {
                 @Override
                 public void onReceive(Context ctx, Intent intent) {
                     long id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1);
+                    Log.d(TAG, "DownloadManager broadcast received: ID=" + id + " (Expected=" + expectedId + ")");
                     if (id == expectedId) {
-                        Log.i(TAG, "DownloadManager finished download ID: " + id);
+                        Log.d(TAG, "DownloadManager finished download successfully for ID: " + id);
                         finalizeDownloadedModel(appContext, tempFile);
                         try {
                             appContext.unregisterReceiver(this);
+                            Log.d(TAG, "Unregistered broadcast receiver for ID: " + id);
                         } catch (Exception ignored) {}
                     }
                 }
             };
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                appContext.registerReceiver(receiver, new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE), Context.RECEIVER_EXPORTED);
-            } else {
-                appContext.registerReceiver(receiver, new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE));
-            }
+            IntentFilter filter = new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE);
+            ContextCompat.registerReceiver(appContext, receiver, filter, ContextCompat.RECEIVER_EXPORTED);
+            Log.d(TAG, "Download complete BroadcastReceiver registered successfully.");
         } catch (Exception e) {
-            Log.w(TAG, "Failed to register download complete receiver: " + e.getMessage());
+            Log.e(TAG, "Failed to register download complete receiver: " + e.getMessage(), e);
         }
     }
 
     private synchronized void finalizeDownloadedModel(Context context, File sourceFile) {
-        if (sourceFile == null || !sourceFile.exists()) return;
+        if (sourceFile == null || !sourceFile.exists()) {
+            Log.e(TAG, "finalizeDownloadedModel error: sourceFile is null or does not exist!");
+            return;
+        }
         File targetFile = getModelFile(context);
+        Log.d(TAG, "Finalizing downloaded model file: Source=" + sourceFile.getAbsolutePath() + " (" + (sourceFile.length() / (1024 * 1024)) + "MB) -> Target=" + targetFile.getAbsolutePath());
         try {
-            if (targetFile.exists()) targetFile.delete();
+            if (targetFile.exists()) {
+                boolean del = targetFile.delete();
+                Log.d(TAG, "Existing target model file deleted: " + del);
+            }
             boolean renamed = sourceFile.renameTo(targetFile);
             if (!renamed) {
-                // Copy if rename across filesystems fails
+                Log.d(TAG, "Direct rename failed across storage mounts; copying file stream...");
                 copyFile(sourceFile, targetFile);
                 sourceFile.delete();
+                Log.d(TAG, "Copy completed and source temp file removed.");
             }
             getPrefs(context).edit().putString(KEY_DOWNLOAD_STATUS, "completed").apply();
-            Log.i(TAG, "Model successfully installed to: " + targetFile.getAbsolutePath() + " (" + targetFile.length() + " bytes)");
+            Log.d(TAG, "SUCCESS: Offline AI Brain model installed to: " + targetFile.getAbsolutePath() + " (" + targetFile.length() + " bytes). Model is ready for offline reasoning!");
         } catch (Exception e) {
             Log.e(TAG, "Error finalizing model file: " + e.getMessage(), e);
+            getPrefs(context).edit().putString(KEY_DOWNLOAD_STATUS, "failed").apply();
         }
     }
 
@@ -225,9 +250,13 @@ public class OfflineBrainDownloader {
      * Fallback HTTP chunked range downloader that streams directly into /models/.
      */
     private void startResilientFallbackDownload(final Context context) {
-        if (isFallbackRunning) return;
+        if (isFallbackRunning) {
+            Log.d(TAG, "Fallback HTTP download already running. Ignoring duplicate request.");
+            return;
+        }
         cancelFallback = false;
         isFallbackRunning = true;
+        Log.d(TAG, "Initiating resilient HTTP chunked background download thread...");
 
         executor.execute(new Runnable() {
             @Override
@@ -237,6 +266,7 @@ public class OfflineBrainDownloader {
                 HttpURLConnection conn = null;
                 try {
                     long existingBytes = partFile.exists() ? partFile.length() : 0;
+                    Log.d(TAG, "Fallback HTTP connecting to: " + DEFAULT_MODEL_URL + " (Resuming from byte: " + existingBytes + ")");
                     URL url = new URL(DEFAULT_MODEL_URL);
                     conn = (HttpURLConnection) url.openConnection();
                     conn.setConnectTimeout(20000);
@@ -248,15 +278,25 @@ public class OfflineBrainDownloader {
                     }
 
                     int code = conn.getResponseCode();
+                    Log.d(TAG, "Fallback HTTP response code: " + code + ", Content-Length=" + conn.getContentLength());
                     if (code == HttpURLConnection.HTTP_OK || code == HttpURLConnection.HTTP_PARTIAL) {
                         getPrefs(context).edit().putString(KEY_DOWNLOAD_STATUS, "downloading").apply();
                         InputStream in = conn.getInputStream();
                         FileOutputStream out = new FileOutputStream(partFile, existingBytes > 0);
                         byte[] buffer = new byte[32768];
                         int bytesRead;
+                        long totalDownloaded = existingBytes;
+                        long lastLogTime = System.currentTimeMillis();
 
                         while (!cancelFallback && (bytesRead = in.read(buffer)) != -1) {
                             out.write(buffer, 0, bytesRead);
+                            totalDownloaded += bytesRead;
+
+                            long now = System.currentTimeMillis();
+                            if (now - lastLogTime > 4000) { // Log progress every 4 seconds
+                                Log.d(TAG, "Fallback HTTP download progress: " + (totalDownloaded / (1024 * 1024)) + " MB downloaded...");
+                                lastLogTime = now;
+                            }
                         }
 
                         out.flush();
@@ -265,13 +305,23 @@ public class OfflineBrainDownloader {
 
                         if (!cancelFallback) {
                             if (targetFile.exists()) targetFile.delete();
-                            partFile.renameTo(targetFile);
+                            boolean renamed = partFile.renameTo(targetFile);
+                            if (!renamed) {
+                                copyFile(partFile, targetFile);
+                                partFile.delete();
+                            }
                             getPrefs(context).edit().putString(KEY_DOWNLOAD_STATUS, "completed").apply();
-                            Log.i(TAG, "Fallback download completed: " + targetFile.length() + " bytes");
+                            Log.d(TAG, "SUCCESS: Fallback HTTP download complete! Model installed at: " + targetFile.getAbsolutePath() + " (" + targetFile.length() + " bytes)");
+                        } else {
+                            Log.d(TAG, "Fallback HTTP download canceled or paused.");
+                            getPrefs(context).edit().putString(KEY_DOWNLOAD_STATUS, "paused").apply();
                         }
+                    } else {
+                        Log.e(TAG, "Fallback HTTP download failed with HTTP status code: " + code);
+                        getPrefs(context).edit().putString(KEY_DOWNLOAD_STATUS, "failed").apply();
                     }
                 } catch (Exception e) {
-                    Log.e(TAG, "Fallback download error: " + e.getMessage());
+                    Log.e(TAG, "Fallback HTTP download exception: " + e.getMessage(), e);
                     getPrefs(context).edit().putString(KEY_DOWNLOAD_STATUS, "failed").apply();
                 } finally {
                     if (conn != null) conn.disconnect();
@@ -293,6 +343,7 @@ public class OfflineBrainDownloader {
                 res.put("isReady", true);
                 File f = getModelFile(context);
                 res.put("fileSize", f != null ? f.length() : 0);
+                Log.d(TAG, "getDownloadProgress: Model is completed & ready. (" + (f != null ? (f.length() / (1024 * 1024)) : 0) + "MB)");
                 return res;
             }
 
@@ -332,6 +383,7 @@ public class OfflineBrainDownloader {
                         } else if (dmStatus == DownloadManager.STATUS_FAILED) {
                             res.put("status", "failed");
                         }
+                        Log.d(TAG, "getDownloadProgress (DownloadManager): status=" + res.optString("status") + ", progress=" + progress + "%, downloaded=" + (downloaded / (1024 * 1024)) + "MB / " + (total / (1024 * 1024)) + "MB");
                         return res;
                     }
                     if (cursor != null) cursor.close();
@@ -348,11 +400,13 @@ public class OfflineBrainDownloader {
                 res.put("progress", progress);
                 res.put("downloadedBytes", downloaded);
                 res.put("totalBytes", estimatedTotal);
+                Log.d(TAG, "getDownloadProgress (Fallback file): progress=" + progress + "%, downloaded=" + (downloaded / (1024 * 1024)) + "MB");
             } else {
                 res.put("progress", 0);
             }
 
         } catch (Exception e) {
+            Log.e(TAG, "getDownloadProgress error: " + e.getMessage(), e);
             try {
                 res.put("status", "error");
                 res.put("error", e.getMessage());
@@ -363,15 +417,21 @@ public class OfflineBrainDownloader {
 
     public synchronized void pauseDownload(Context context) {
         cancelFallback = true;
+        Log.d(TAG, "pauseDownload requested.");
         if (context == null) return;
         long downloadId = getPrefs(context).getLong(KEY_DOWNLOAD_ID, -1);
         if (downloadId != -1) {
             try {
                 DownloadManager dm = (DownloadManager) context.getSystemService(Context.DOWNLOAD_SERVICE);
-                if (dm != null) dm.remove(downloadId);
-            } catch (Exception ignored) {}
+                if (dm != null) {
+                    dm.remove(downloadId);
+                    Log.d(TAG, "Removed download ID " + downloadId + " from DownloadManager.");
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "Error removing download from DownloadManager: " + e.getMessage());
+            }
         }
         getPrefs(context).edit().putString(KEY_DOWNLOAD_STATUS, "paused").apply();
+        Log.d(TAG, "Download status set to paused.");
     }
 }
-

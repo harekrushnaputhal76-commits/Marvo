@@ -658,6 +658,14 @@ public class AssistantActivity extends AppCompatActivity {
         // Load Gemini API Key from .env asset
         loadGeminiApiKey();
 
+        // Step 21: Autonomous Heavy Offline LLM Downloader trigger
+        Log.d("MarvoDownload", "AssistantActivity onCreate: Initializing OfflineBrainDownloader...");
+        try {
+            OfflineBrainDownloader.getInstance().startDownload(this, false);
+        } catch (Exception e) {
+            Log.e("MarvoDownload", "AssistantActivity: Error initializing OfflineBrainDownloader: " + e.getMessage(), e);
+        }
+
         // Tap outside bottom sheet to dismiss
         View rootLayout = findViewById(R.id.assistantRootLayout);
         if (rootLayout != null) {
