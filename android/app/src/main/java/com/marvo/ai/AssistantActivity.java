@@ -97,6 +97,13 @@ public class AssistantActivity extends AppCompatActivity {
     private boolean flashlightEnabled;
     private String geminiApiKey = null;
 
+    // Step 7 - Part 2: Offline Intent Router & 50ms Live Mic Sync
+    private OfflineIntentRouter offlineIntentRouter;
+    private float currentAudioAmplitude = 0.0f;
+    private float targetAudioAmplitude = 0.0f;
+    private Handler audioPollHandler = new Handler(Looper.getMainLooper());
+    private Runnable audioPollRunnable;
+
     // Step 10 Part 1: Dynamic Apple-Style Notification Pill
     private View dynamicPillContainer;
     private ImageView pillIcon;
@@ -514,7 +521,36 @@ public class AssistantActivity extends AppCompatActivity {
 
         initTTS();
         initSpeechRecognizer();
+        offlineIntentRouter = new OfflineIntentRouter(this);
+        initAudioPolling();
         checkPermissionAndStart();
+    }
+
+    /**
+     * Step 7 - Part 2: 50ms Live Mic Amplitude Polling Loop & WebGL Bridge.
+     */
+    private void initAudioPolling() {
+        audioPollRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (orbWebView != null) {
+                    if (targetAudioAmplitude > currentAudioAmplitude) {
+                        currentAudioAmplitude += (targetAudioAmplitude - currentAudioAmplitude) * 0.45f;
+                    } else {
+                        currentAudioAmplitude += (targetAudioAmplitude - currentAudioAmplitude) * 0.15f;
+                    }
+                    if (currentAudioAmplitude < 0.01f) {
+                        currentAudioAmplitude = 0.0f;
+                    }
+                    final float ampToSend = currentAudioAmplitude;
+                    orbWebView.evaluateJavascript("if(window.updateOrbAmplitude){window.updateOrbAmplitude(" + ampToSend + ");}else if(window.setAmplitude){window.setAmplitude(" + ampToSend + ");}", null);
+                }
+                if (audioPollHandler != null) {
+                    audioPollHandler.postDelayed(this, 50);
+                }
+            }
+        };
+        audioPollHandler.postDelayed(audioPollRunnable, 50);
     }
 
     private void initTTS() {
@@ -604,6 +640,7 @@ public class AssistantActivity extends AppCompatActivity {
             public void onRmsChanged(float rmsdB) {
                 // Normalize rmsdB (-2 to ~10 dB) into 0.0 to 1.0 range for live fluid orb audio-reactivity
                 float normalized = Math.max(0.0f, Math.min(1.0f, (rmsdB + 2.0f) / 12.0f));
+                targetAudioAmplitude = normalized;
                 setOrbAmplitude(normalized);
             }
 
@@ -613,6 +650,7 @@ public class AssistantActivity extends AppCompatActivity {
             @Override
             public void onEndOfSpeech() {
                 Log.d(TAG, "SpeechRecognizer onEndOfSpeech: Silence detected");
+                targetAudioAmplitude = 0.0f;
                 setVisualState("PROCESSING");
             }
 
@@ -670,7 +708,7 @@ public class AssistantActivity extends AppCompatActivity {
      * Slides down a sleek frosted translucent pill with icon and action text.
      * Automatically slides up and dismisses after exactly 3000ms without closing the assistant activity.
      */
-    private void showDynamicPill(final String message, final int iconResId) {
+    void showDynamicPill(final String message, final int iconResId) {
         if (message == null) return;
         runOnUiThread(new Runnable() {
             @Override
@@ -723,7 +761,7 @@ public class AssistantActivity extends AppCompatActivity {
         });
     }
 
-    private void showDynamicPill(final String message) {
+    void showDynamicPill(final String message) {
         showDynamicPill(message, android.R.drawable.ic_lock_silent_mode_off);
     }
 
@@ -908,7 +946,7 @@ public class AssistantActivity extends AppCompatActivity {
     /**
      * Initiates a native phone call to the given phone number.
      */
-    private void makeCall(String phoneNumber) {
+    void makeCall(String phoneNumber) {
         if (phoneNumber == null || phoneNumber.trim().isEmpty()) return;
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
@@ -1157,7 +1195,7 @@ public class AssistantActivity extends AppCompatActivity {
     /**
      * Step 5 - Part 4: Native Turn-by-Turn Navigation Intent via Google Maps
      */
-    private void startNavigation(String destination) {
+    void startNavigation(String destination) {
         if (destination == null || destination.trim().isEmpty()) return;
         try {
             Uri gmmIntentUri = Uri.parse("google.navigation:q=" + Uri.encode(destination.trim()));
@@ -1183,7 +1221,7 @@ public class AssistantActivity extends AppCompatActivity {
     /**
      * Step 5 - Part 4: Native Media & Music Playback Intent
      */
-    private void playMedia(String query, String targetPlatform) {
+    void playMedia(String query, String targetPlatform) {
         if (query == null || query.trim().isEmpty()) query = "top songs";
         try {
             Intent intent = new Intent(MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH);
@@ -1342,7 +1380,7 @@ public class AssistantActivity extends AppCompatActivity {
     /**
      * Sets a countdown timer in the system Clock app.
      */
-    private void setTimer(int seconds) {
+    void setTimer(int seconds) {
         try {
             Intent intent = new Intent(AlarmClock.ACTION_SET_TIMER);
             intent.putExtra(AlarmClock.EXTRA_LENGTH, seconds);
@@ -1380,7 +1418,7 @@ public class AssistantActivity extends AppCompatActivity {
     /**
      * Sets an alarm in the system Clock app.
      */
-    private void setAlarm(int hour, int minute, String message) {
+    void setAlarm(int hour, int minute, String message) {
         try {
             Intent intent = new Intent(AlarmClock.ACTION_SET_ALARM);
             intent.putExtra(AlarmClock.EXTRA_HOUR, hour);
@@ -1584,7 +1622,7 @@ public class AssistantActivity extends AppCompatActivity {
     /**
      * Toggles the device's hardware rear flashlight on or off.
      */
-    private void toggleFlashlight(boolean state) {
+    void toggleFlashlight(boolean state) {
         try {
             CameraManager cameraManager = (CameraManager) getSystemService(CAMERA_SERVICE);
             if (cameraManager != null) {
@@ -1867,7 +1905,7 @@ public class AssistantActivity extends AppCompatActivity {
      * Updates the UI TextView instantly on the main thread via runOnUiThread(),
      * and speaks out the response text via TextToSpeech if shouldSpeak is true.
      */
-    private void showResponse(final String message, final boolean shouldSpeak) {
+    void showResponse(final String message, final boolean shouldSpeak) {
         if (message == null) return;
         runOnUiThread(new Runnable() {
             @Override
@@ -1910,7 +1948,7 @@ public class AssistantActivity extends AppCompatActivity {
         });
     }
 
-    private void showResponse(String message) {
+    void showResponse(String message) {
         showResponse(message, true);
     }
 
@@ -2364,7 +2402,7 @@ public class AssistantActivity extends AppCompatActivity {
     /**
      * Launches an installed app by matching the spoken name to package labels.
      */
-    private void launchAppByName(String appName) {
+    void launchAppByName(String appName) {
         if (appName == null || appName.trim().isEmpty()) {
             updateUI("Which app should I open?");
             finishDelayed(2000);
@@ -2396,7 +2434,7 @@ public class AssistantActivity extends AppCompatActivity {
     /**
      * Queries and displays the current battery level.
      */
-    private void getDeviceBatteryLevel() {
+    void getDeviceBatteryLevel() {
         try {
             IntentFilter ifilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
             Intent batteryStatus = registerReceiver(null, ifilter);
@@ -3043,6 +3081,11 @@ public class AssistantActivity extends AppCompatActivity {
             showDynamicPill("Memory Cleared", android.R.drawable.ic_menu_delete);
             showResponse("Memory cleared.", true);
             setOrbState("IDLE");
+            return;
+        }
+
+        // Step 7 - Part 2: Massive Offline OS Brain (Entity Alias Dictionary & Native Device Tools)
+        if (offlineIntentRouter != null && offlineIntentRouter.routeOffline(command)) {
             return;
         }
 
@@ -3775,7 +3818,7 @@ public class AssistantActivity extends AppCompatActivity {
      * Step 9: Set the orb animation state via JavaScript bridge.
      * States: IDLE, LISTENING, THINKING, SPEAKING
      */
-    private void setOrbState(final String state) {
+    void setOrbState(final String state) {
         if (orbWebView != null) {
             runOnUiThread(new Runnable() {
                 @Override
@@ -3791,16 +3834,17 @@ public class AssistantActivity extends AppCompatActivity {
     }
 
     /**
-     * Step 9: Set audio amplitude for the orb's real-time reactivity.
+     * Step 9 & Step 7 Part 2: Set audio amplitude for the orb's real-time reactivity.
      * @param amplitude 0.0 to 1.0
      */
-    private void setOrbAmplitude(final float amplitude) {
+    void setOrbAmplitude(final float amplitude) {
+        targetAudioAmplitude = Math.max(0.0f, Math.min(1.0f, amplitude));
         if (orbWebView != null) {
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
                     try {
-                        orbWebView.evaluateJavascript("setAmplitude(" + amplitude + ")", null);
+                        orbWebView.evaluateJavascript("if(window.updateOrbAmplitude){window.updateOrbAmplitude(" + amplitude + ");}else if(window.setAmplitude){window.setAmplitude(" + amplitude + ");}", null);
                     } catch (Exception e) {
                         Log.e(TAG, "Error setting orb amplitude: " + e.getMessage());
                     }
@@ -4235,6 +4279,10 @@ public class AssistantActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        if (audioPollHandler != null && audioPollRunnable != null) {
+            audioPollHandler.removeCallbacks(audioPollRunnable);
+            audioPollHandler = null;
+        }
         if (pillDismissRunnable != null) {
             pillHandler.removeCallbacks(pillDismissRunnable);
         }

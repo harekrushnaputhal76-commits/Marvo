@@ -3,9 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Apple Siri Fluid Orb (True Floating WebGL)</title>
-<!-- Lottie Web Player (CDN Option) -->
-<script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+<title>Apple Siri Fluid Orb (100x Borderless 3D Hologram)</title>
 <style>
   * {
     margin: 0 !important;
@@ -17,6 +15,7 @@
     border: none !important;
     outline: none !important;
     box-shadow: none !important;
+    filter: none !important;
   }
 
   html, body {
@@ -24,7 +23,7 @@
     height: 100%;
     margin: 0 !important;
     padding: 0 !important;
-    overflow: visible !important;
+    overflow: hidden !important;
     background: transparent !important;
     background-color: transparent !important;
     background-image: none !important;
@@ -33,103 +32,42 @@
     justify-content: center;
     -webkit-user-select: none;
     user-select: none;
-    border: none !important;
-    box-shadow: none !important;
-    outline: none !important;
   }
 
-  /* Step 6 - Part 2: Outer 3D Holographic Glow Container (Unclipped) */
-  .glow-container {
-    position: relative;
-    width: 90px !important;
-    height: 90px !important;
-    overflow: visible !important;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: transparent !important;
-    background-color: transparent !important;
-    border: none !important;
-    outline: none !important;
-    box-shadow: none !important;
-    filter: drop-shadow(0 0 35px rgba(0, 240, 255, 0.85)) drop-shadow(0 10px 30px rgba(255, 0, 128, 0.5));
-    transform-origin: center center;
-    will-change: transform, filter;
-    transform: scale(1.0) translateZ(0);
-    transition: transform 0.05s ease-out;
-  }
-
-  /* Inner Orb Wrapper: Strict 50% Circular Mask to physically kill ANY square edge */
-  .orb-wrapper {
-    position: relative;
-    width: 90px !important;
-    height: 90px !important;
-    border-radius: 50% !important;
-    overflow: hidden !important;
-    -webkit-mask-image: -webkit-radial-gradient(white, black);
-    mask-image: radial-gradient(white, black);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: transparent !important;
-    background-color: transparent !important;
-    background-image: none !important;
-    border: none !important;
-    box-shadow: none !important;
-    outline: none !important;
-  }
-
-  /* Pure 90px WebGL Canvas with border-radius: 50% */
   #siri-canvas {
     display: block;
-    width: 90px !important;
-    height: 90px !important;
-    border-radius: 50% !important;
+    width: 120px;
+    height: 120px;
     background: transparent !important;
     background-color: transparent !important;
-    background-image: none !important;
     border: none !important;
-    box-shadow: none !important;
     outline: none !important;
-  }
-
-  /* 3D Specular White Holographic Core Overlay */
-  .orb-core {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    border-radius: 50% !important;
-    pointer-events: none;
-    background: radial-gradient(circle at 35% 32%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.45) 20%, rgba(0, 240, 255, 0.25) 42%, rgba(0, 0, 0, 0) 68%) !important;
-    mix-blend-mode: screen;
+    box-shadow: none !important;
+    filter: none !important;
+    transform-origin: center center;
+    will-change: transform;
+    transform: scale(0.85) translateZ(0);
+    transition: transform 0.04s ease-out;
   }
 </style>
 </head>
 <body>
 
-<div class="glow-container" id="glowContainer">
-  <div class="orb-wrapper" id="orbWrapper">
-    <canvas id="siri-canvas"></canvas>
-    <div class="orb-core"></div>
-  </div>
-</div>
+<canvas id="siri-canvas"></canvas>
 
 <script>
 // =======================================================================
-// APPLE SIRI FLUID ORB — HARDWARE-ACCELERATED WEBGL SHADER ENGINE
-// 1:1 Pure Liquid Mesh Sphere (Cyan, Magenta, Violet, White Core)
-// Zero CSS Bounding Box, 100% Transparent Exterior, Hyper-Reactive
+// APPLE SIRI FLUID ORB — 100x BORDERLESS 3D HOLOGRAPHIC WEBGL ENGINE
+// Zero CSS Filters (No Drop-Shadow / No Grey Boxes / Pure Native Transparency)
+// 100% Mathematically Bound Ambient Aura in Fragment Shader (r <= 0.48)
+// Hyper-Reactive 50ms Voice Reactivity & Spring Physics (scale 0.85 -> 1.45+)
 // =======================================================================
 
 const canvas = document.getElementById('siri-canvas');
-const orbWrapper = document.getElementById('orbWrapper');
-const glowContainer = document.getElementById('glowContainer');
 let dpr = Math.min(window.devicePixelRatio || 1, 2.5);
 
 function resizeCanvas() {
-  const size = 90;
+  const size = 120;
   canvas.width = Math.round(size * dpr);
   canvas.height = Math.round(size * dpr);
 }
@@ -144,7 +82,7 @@ const vsSource = `
   }
 `;
 
-// Fragment Shader (Exact 1:1 Apple Siri 3D Liquid Fluid Mesh)
+// Fragment Shader (Borderless 3D Liquid Hologram + Shader-Calculated Aura)
 const fsSource = `
   precision highp float;
 
@@ -159,61 +97,71 @@ const fsSource = `
   }
 
   void main() {
-    // Centered normalized coordinates (-1.0 to 1.0)
+    // Normalized coordinates centered at (0.0, 0.0), range [-0.5, +0.5]
     vec2 st = (gl_FragCoord.xy - 0.5 * u_resolution.xy) / min(u_resolution.x, u_resolution.y);
-    
-    // Sphere Radius inside 110px canvas (margin ensures zero edge clipping)
-    float orbRadius = 0.44; 
-    vec2 uv = st / orbRadius;
-    float r = length(uv);
+    float r = length(st);
 
-    // Completely transparent outside the sphere boundary
-    if (r > 1.015) {
-      gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
+    // Exact mathematical cutoff: zero alpha at r >= 0.48 (prevents canvas edge caching)
+    if (r >= 0.48) {
+      gl_FragColor = vec4(0.0);
       return;
     }
 
-    // 1.5-pixel smooth antialiased boundary
-    float edgeAlpha = smoothstep(1.0, 0.985, r);
-    if (edgeAlpha <= 0.001) {
-      gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
-      return;
-    }
-
-    // 3D Sphere Normal & Depth
-    float z = sqrt(max(0.0, 1.0 - r * r));
-    vec3 normal = vec3(uv.x, uv.y, z);
-
-    // Animation Speed & Motion Dynamics based on assistant lifecycle
-    float speed = (u_state == 2) ? 2.8 : ((u_state == 4) ? 2.0 : ((u_state == 1) ? 1.4 : 0.85));
+    // Dynamic Animation Rates
+    float speed = (u_state == 2) ? 2.8 : ((u_state == 4) ? 2.0 : ((u_state == 1) ? 1.5 : 0.9));
     float t = u_time * speed;
     float amp = u_amplitude;
 
-    // 1. BASE DARK GLASS ENVELOPE (Midnight Indigo / Deep Plum or Warning Amber in Confirmation)
-    vec3 glassColor = (u_state == 4)
-      ? mix(vec3(0.12, 0.04, 0.0), vec3(0.06, 0.02, 0.0), uv.y * 0.5 + 0.5)
-      : mix(vec3(0.015, 0.03, 0.07), vec3(0.05, 0.01, 0.04), uv.y * 0.5 + 0.5);
+    // Active liquid sphere core radius (expands dynamically with microphone amplitude)
+    float coreRadius = 0.30 + amp * 0.05;
 
-    // Ambient back-glows (subsurface rim luminescence)
-    float topCyanGlow = smoothstep(0.9, 0.2, length(uv - vec2(-0.25, 0.35))) * 0.45;
-    float bottomMagentaGlow = smoothstep(0.95, 0.3, length(uv - vec2(0.05, -0.45))) * 0.55;
+    // Angle for ethereal chromatic rotation
+    float angle = atan(st.y, st.x) + t * 0.6;
 
-    if (u_state == 4) {
-      glassColor += vec3(0.85, 0.4, 0.0) * topCyanGlow;
-      glassColor += vec3(0.95, 0.25, 0.0) * bottomMagentaGlow;
-    } else {
-      glassColor += vec3(0.0, 0.45, 0.55) * topCyanGlow;
-      glassColor += vec3(0.55, 0.02, 0.22) * bottomMagentaGlow;
+    // State-Aware Chromatic Color Palettes
+    vec3 cyan = (u_state == 4) ? vec3(1.0, 0.78, 0.0) : vec3(0.0, 0.94, 1.0);
+    vec3 magenta = (u_state == 4) ? vec3(1.0, 0.35, 0.02) : vec3(1.0, 0.06, 0.52);
+    vec3 violet = (u_state == 4) ? vec3(1.0, 0.55, 0.05) : vec3(0.52, 0.12, 0.95);
+    vec3 teal = (u_state == 4) ? vec3(1.0, 0.90, 0.25) : vec3(0.0, 0.80, 0.90);
+
+    // 1. SOFT AMBIENT AURA (Mathematically fades to exact alpha 0.0 at r = 0.48)
+    float auraGrad = smoothstep(0.48, coreRadius * 0.95, r);
+    vec3 auraColor = mix(cyan, magenta, sin(angle) * 0.5 + 0.5);
+    float auraAlpha = auraGrad * auraGrad * (0.35 + amp * 0.40);
+
+    // Outside the liquid sphere: render only the soft ambient aura
+    if (r > coreRadius) {
+      gl_FragColor = vec4(auraColor * auraAlpha, auraAlpha);
+      return;
     }
 
-    // 2. 3D FLUID LIQUID MESH RIBBONS (Organic folding waves)
+    // 2. INSIDE THE 3D LIQUID SPHERE
+    vec2 uv = st / coreRadius;
+    float uvR = length(uv);
+
+    // 3D Sphere Normal & Depth
+    float z = sqrt(max(0.0, 1.0 - uvR * uvR));
+    vec3 normal = vec3(uv.x, uv.y, z);
+
+    // Base Dark Glass Envelope
+    vec3 glassColor = (u_state == 4)
+      ? mix(vec3(0.14, 0.05, 0.0), vec3(0.06, 0.02, 0.0), uv.y * 0.5 + 0.5)
+      : mix(vec3(0.02, 0.04, 0.08), vec3(0.05, 0.01, 0.05), uv.y * 0.5 + 0.5);
+
+    // Subsurface rim luminescence
+    float topCyanGlow = smoothstep(0.9, 0.2, length(uv - vec2(-0.25, 0.35))) * 0.45;
+    float bottomMagentaGlow = smoothstep(0.95, 0.3, length(uv - vec2(0.05, -0.45))) * 0.55;
+    glassColor += cyan * topCyanGlow * 0.6;
+    glassColor += magenta * bottomMagentaGlow * 0.6;
+
+    // 3D Fluid Liquid Mesh Ribbons
     vec2 pWarp = uv;
     pWarp += vec2(
       sin(pWarp.y * 3.5 + t * 0.8 + amp * 1.5) * 0.12,
       cos(pWarp.x * 3.2 - t * 0.7) * 0.12
     );
 
-    // RIBBON 1: Electric Siri Cyan (#00F0FF) / Gold (#FFB800) in Confirmation
+    // Ribbon 1: Electric Cyan / Gold
     vec2 pCyan = uv;
     pCyan = rot2d(sin(t * 0.4) * 0.25) * (pCyan - vec2(-0.15, 0.1));
     float cyanFold = pCyan.y - sin(pCyan.x * 3.2 + t) * 0.22 + pCyan.x * 0.4;
@@ -221,87 +169,74 @@ const fsSource = `
     cyanRibbon *= smoothstep(0.9, 0.15, length(uv - vec2(-0.2, 0.15)));
     float cyanLayer2 = exp(-pow((pCyan.y + 0.15 - cos(pCyan.x * 2.8 + t * 1.2) * 0.2) * 5.0, 2.0)) * 0.5;
     cyanRibbon = max(cyanRibbon, cyanLayer2);
-    vec3 cyanColor = (u_state == 4) ? vec3(1.0, 0.75, 0.0) : vec3(0.0, 0.92, 1.0);
 
-    // RIBBON 2: Vivid Siri Magenta (#FF007F) / Tangerine Amber (#FF5205) in Confirmation
+    // Ribbon 2: Vivid Magenta / Tangerine
     vec2 pMag = uv;
     pMag = rot2d(cos(t * 0.35) * 0.2) * (pMag - vec2(0.0, -0.2));
     float magFold = pMag.y + 0.1 + cos(pMag.x * 2.8 - t * 0.9) * 0.25;
     float magRibbon = exp(-pow(magFold * 3.8, 2.0));
     magRibbon *= smoothstep(0.95, 0.2, length(uv - vec2(0.0, -0.25)));
     float magLayer2 = exp(-pow((pMag.y + 0.15 - cos(pMag.x * 2.8 + t * 1.2) * 0.2) * 5.0, 2.0)) * 0.5;
-    vec3 magColor = (u_state == 4) ? vec3(1.0, 0.32, 0.02) : vec3(1.0, 0.08, 0.42);
+    magRibbon = max(magRibbon, magLayer2);
 
-    // RIBBON 3: Royal Purple (#7928CA) / Coral Amber (#FF8C0D) in Confirmation
+    // Ribbon 3: Deep Violet
     vec2 pVio = uv;
     pVio = rot2d(sin(t * 0.5 + 1.2) * 0.3) * (pVio - vec2(0.2, 0.1));
     float vioFold = pVio.x - 0.05 + sin(pVio.y * 3.0 + t * 1.1) * 0.28;
     float vioRibbon = exp(-pow(vioFold * 4.0, 2.0));
     vioRibbon *= smoothstep(0.85, 0.2, length(uv - vec2(0.25, 0.15)));
-    vec3 vioColor = (u_state == 4) ? vec3(1.0, 0.55, 0.05) : vec3(0.55, 0.15, 0.95);
 
-    // RIBBON 4: Soft Turquoise (#00E5FF) / Solar Lemon Yellow (#FFD933) in Confirmation
+    // Ribbon 4: Electric Teal
     vec2 pTeal = rot2d(0.6) * uv;
     float tealRibbon = exp(-pow((pTeal.y - 0.2 + sin(pTeal.x * 2.5 + t * 0.8) * 0.2) * 4.5, 2.0)) * 0.6;
-    tealRibbon *= smoothstep(0.8, 0.2, r);
-    vec3 tealColor = (u_state == 4) ? vec3(1.0, 0.88, 0.2) : vec3(0.0, 0.75, 0.85);
+    tealRibbon *= smoothstep(0.8, 0.2, uvR);
 
-    // Fluid Sheath Color Composition
+    // Liquid Fluid Color Composition
     vec3 fluidColor = vec3(0.0);
-    fluidColor += cyanColor * cyanRibbon * 1.15;
-    fluidColor += magColor * magRibbon * 1.15;
-    fluidColor += vioColor * vioRibbon * 1.05;
-    fluidColor += tealColor * tealRibbon * 0.8;
+    fluidColor += cyan * cyanRibbon * 1.2;
+    fluidColor += magenta * magRibbon * 1.2;
+    fluidColor += violet * vioRibbon * 1.1;
+    fluidColor += teal * tealRibbon * 0.85;
 
-    // Fluid Fusion Intersections (electric luminescence where waves meet)
+    // Fluid Fusion Intersections (luminescence where waves meet)
     float overlap = cyanRibbon * magRibbon;
-    fluidColor += (u_state == 4 ? vec3(1.0, 0.85, 0.3) : vec3(0.9, 0.6, 1.0)) * overlap * 1.6;
+    fluidColor += (u_state == 4 ? vec3(1.0, 0.85, 0.3) : vec3(0.95, 0.7, 1.0)) * overlap * 1.8;
 
-    // 3. INTENSE GLOWING WHITE-HOT CORE (#FFFFFF)
+    // 3. INTENSE GLOWING WHITE-HOT CORE
     vec2 corePos = vec2(sin(t * 0.7) * 0.04, cos(t * 0.6) * 0.04);
     float distCore = length(uv - corePos);
-    
-    // Core expansion responding dynamically to microphone / speech amplitude
-    float coreRadius = 0.24 + amp * 0.14;
-    float coreSharp = exp(-pow(distCore / (coreRadius * 0.45), 2.2));
-    float coreGlow = exp(-pow(distCore / (coreRadius * 0.95), 1.8)) * 0.88;
-    float coreHalo = exp(-pow(distCore / (coreRadius * 1.8), 1.4)) * 0.48;
+    float whiteHotRadius = 0.22 + amp * 0.12;
+    float coreSharp = exp(-pow(distCore / (whiteHotRadius * 0.45), 2.2));
+    float coreGlow = exp(-pow(distCore / (whiteHotRadius * 0.95), 1.8)) * 0.85;
+    vec3 coreColor = vec3(1.0) * coreSharp * 1.5;
+    coreColor += (u_state == 4 ? vec3(1.0, 0.8, 0.3) : vec3(0.4, 0.88, 1.0)) * coreGlow;
 
-    vec3 coreColor = vec3(1.0) * coreSharp * 1.45;
-    if (u_state == 4) {
-      coreColor += mix(vec3(1.0, 0.85, 0.3), vec3(1.0, 0.45, 0.1), uv.y * 0.5 + 0.5) * coreGlow;
-      coreColor += vec3(1.0, 0.6, 0.1) * coreHalo;
-    } else {
-      coreColor += mix(vec3(0.4, 0.9, 1.0), vec3(1.0, 0.5, 0.8), uv.y * 0.5 + 0.5) * coreGlow;
-      coreColor += vec3(0.6, 0.3, 0.9) * coreHalo;
-    }
-
-    // 4. COMBINE LAYERS WITH 3D GLASS SHADING
+    // Combine Fluid Layers
     vec3 finalColor = glassColor + fluidColor + coreColor;
 
-    // Inner sphere depth attenuation
-    float innerSphereShadow = smoothstep(1.0, 0.5, r);
-    finalColor *= mix(0.75, 1.0, innerSphereShadow);
-
-    // Fresnel specular highlight (simulates 3D curved glass surface reflection)
+    // Fresnel specular highlight (simulates 3D curved glass reflection)
     float fresnel = pow(1.0 - z, 3.0);
     vec3 fresnelColor = (u_state == 4)
       ? mix(vec3(1.0, 0.8, 0.2), vec3(1.0, 0.4, 0.0), uv.y * 0.5 + 0.5)
-      : mix(vec3(0.0, 0.8, 1.0), vec3(1.0, 0.2, 0.6), uv.y * 0.5 + 0.5);
-    finalColor += fresnelColor * fresnel * 0.35;
+      : mix(vec3(0.0, 0.85, 1.0), vec3(1.0, 0.2, 0.65), uv.y * 0.5 + 0.5);
+    finalColor += fresnelColor * fresnel * 0.4;
 
-    // Soft top-left specular highlight
+    // Specular highlight spot
     vec3 lightDir = normalize(vec3(-0.4, 0.5, 0.8));
     float spec = pow(max(0.0, dot(reflect(-lightDir, normal), vec3(0.0, 0.0, 1.0))), 24.0);
-    finalColor += vec3(1.0) * spec * 0.35;
+    finalColor += vec3(1.0) * spec * 0.4;
 
-    // Final color clamping and premultiplied alpha output
-    finalColor = clamp(finalColor, 0.0, 1.0);
-    gl_FragColor = vec4(finalColor * edgeAlpha, edgeAlpha);
+    // Antialiased transition to outer aura at uvR = 1.0
+    float edgeAlpha = smoothstep(1.0, 0.96, uvR);
+    vec3 blendedColor = mix(auraColor, finalColor, edgeAlpha);
+    float finalAlpha = mix(auraAlpha, 1.0, edgeAlpha);
+
+    blendedColor = clamp(blendedColor, 0.0, 1.0);
+    gl_FragColor = vec4(blendedColor * finalAlpha, finalAlpha);
   }
 `;
 
-// Initialize WebGL
+// Initialize Hardware-Accelerated WebGL
 let gl = null;
 try {
   gl = canvas.getContext('webgl', { 
@@ -345,7 +280,7 @@ if (gl) {
     if (gl.getProgramParameter(program, gl.LINK_STATUS)) {
       gl.useProgram(program);
 
-      // Vertex Buffer: Fullscreen Quad
+      // Fullscreen Quad
       const posBuf = gl.createBuffer();
       gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
       gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
@@ -367,7 +302,7 @@ if (gl) {
       uAmplitudeLoc = gl.getUniformLocation(program, 'u_amplitude');
       uStateLoc = gl.getUniformLocation(program, 'u_state');
 
-      // Transparent blending configuration
+      // Alpha blending configuration
       gl.clearColor(0.0, 0.0, 0.0, 0.0);
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
@@ -376,15 +311,16 @@ if (gl) {
 }
 
 // -------------------------------------------------------------
-// STEP 4: HYPER-REACTIVE VOICE SCALING & SPRING PHYSICS
+// STEP 7 PART 2: 50MS LIVE MIC SYNC & DYNAMIC SPRING PHYSICS
 // -------------------------------------------------------------
-let currentStateInt = 0; // 0: IDLE, 1: LISTENING, 2: THINKING, 3: SPEAKING
+let currentStateInt = 0; // 0: IDLE, 1: LISTENING, 2: THINKING, 3: SPEAKING, 4: CONFIRMATION
 let currentAmplitude = 0.0;
 let targetAmplitude = 0.0;
-let currentScale = 1.0;
-let targetScale = 1.0;
+let currentScale = 0.85;
+let targetScale = 0.85;
 let startTime = performance.now();
 
+// State Bridge
 window.setOrbState = function(state) {
   if (!state) return;
   const s = state.toUpperCase().trim();
@@ -392,6 +328,7 @@ window.setOrbState = function(state) {
     case 'LISTENING':
       currentStateInt = 1;
       break;
+    case 'PROCESSING':
     case 'THINKING':
       currentStateInt = 2;
       break;
@@ -409,64 +346,48 @@ window.setOrbState = function(state) {
   }
 };
 
-window.setAmplitude = function(amp) {
+// Amplitude Bridge: Silent = tiny (scale 0.85), Loud = violently expands (scale 1.45+)
+window.updateOrbAmplitude = function(amp) {
   const parsed = Math.max(0.0, Math.min(1.0, parseFloat(amp) || 0.0));
   targetAmplitude = parsed;
-
-  // Hyper-reactivity: amplify scale up to 1.40x with loud speech
-  targetScale = 1.0 + parsed * 0.40;
+  targetScale = 0.85 + parsed * 0.60;
 };
+window.setAmplitude = window.updateOrbAmplitude;
 
-// Main 60 FPS WebGL Render & Hyper-Reactivity Loop
+// 60 FPS Render & Spring Physics Loop
 function render(now) {
   const elapsed = (now - startTime) * 0.001;
-  
-  // Audio amplitude smoothing
-  currentAmplitude += (targetAmplitude - currentAmplitude) * 0.28;
 
-  // Hyper-reactive spring physics: rapid explosive attack (0.55) & bouncy liquid release (0.25)
+  // Amplitude smoothing
+  currentAmplitude += (targetAmplitude - currentAmplitude) * 0.32;
+
+  // Spring physics: explosive attack (0.55) & bouncy release (0.22)
   if (targetScale > currentScale) {
     currentScale += (targetScale - currentScale) * 0.55;
   } else {
-    currentScale += (targetScale - currentScale) * 0.25;
+    currentScale += (targetScale - currentScale) * 0.22;
   }
 
-  // Smoothly decay targetScale back to neutral 1.0
-  targetScale += (1.0 - targetScale) * 0.15;
+  // Lifecycle-Aware Dynamic Base Scale & Breathing
+  let baseScale = 0.85;
+  if (currentStateInt === 1) { // LISTENING
+    baseScale = 0.90 + currentAmplitude * 0.55;
+  } else if (currentStateInt === 2) { // THINKING
+    baseScale = 0.95 + Math.sin(elapsed * 8.0) * 0.05;
+  } else if (currentStateInt === 3) { // SPEAKING
+    baseScale = 0.92 + currentAmplitude * 0.40 + Math.sin(elapsed * 6.0) * 0.04;
+  } else if (currentStateInt === 4) { // CONFIRMATION
+    baseScale = 0.95 + Math.sin(elapsed * 5.0) * 0.06;
+  } else { // IDLE: gentle tranquil breathing
+    baseScale = 0.85 + (Math.sin(elapsed * 2.2) * 0.5 + 0.5) * 0.04;
+  }
 
-  // Compute final scale & multi-layered 3D holographic glow per state
+  targetScale += (baseScale - targetScale) * 0.14;
+
   let scaleToApply = currentScale;
-  if (currentStateInt === 1) { // LISTENING: hyper-reactive voice response (scale 1.0 up to 1.4)
-    scaleToApply = Math.max(1.0, Math.min(1.4, currentScale));
-    const cyanA = Math.min(1.0, 0.85 + currentAmplitude * 0.15).toFixed(2);
-    const magA = Math.min(1.0, 0.50 + currentAmplitude * 0.35).toFixed(2);
-    const blurC = Math.round(35 + currentAmplitude * 15);
-    const blurM = Math.round(30 + currentAmplitude * 15);
-    glowContainer.style.filter = `drop-shadow(0 0 ${blurC}px rgba(0, 240, 255, ${cyanA})) drop-shadow(0 10px ${blurM}px rgba(255, 0, 128, ${magA}))`;
-  } else if (currentStateInt === 4) { // CONFIRMATION: pulsating warning Amber / Golden Yellow
-    const confirmPulse = 1.05 + Math.sin(elapsed * 5.0) * 0.04;
-    scaleToApply = Math.max(scaleToApply, confirmPulse);
-    const yellowAlpha = (0.7 + Math.sin(elapsed * 5.0) * 0.25).toFixed(2);
-    glowContainer.style.filter = `drop-shadow(0 0 35px rgba(255, 184, 0, ${yellowAlpha})) drop-shadow(0 10px 30px rgba(255, 82, 5, 0.65))`;
-  } else if (currentStateInt === 3) { // SPEAKING: vocal cadence pulse
-    const speakPulse = 1.0 + currentAmplitude * 0.25 + Math.sin(elapsed * 7.0) * 0.045;
-    scaleToApply = Math.max(scaleToApply, speakPulse);
-    const speakA = Math.min(1.0, 0.85 + currentAmplitude * 0.15).toFixed(2);
-    glowContainer.style.filter = `drop-shadow(0 0 38px rgba(0, 240, 255, ${speakA})) drop-shadow(0 10px 32px rgba(255, 0, 128, 0.6))`;
-  } else if (currentStateInt === 2) { // THINKING: energized tension scale
-    scaleToApply = 1.05 + Math.sin(elapsed * 10.0) * 0.03;
-    const thinkA = (0.85 + Math.sin(elapsed * 8.0) * 0.15).toFixed(2);
-    glowContainer.style.filter = `drop-shadow(0 0 40px rgba(0, 240, 255, ${thinkA})) drop-shadow(0 10px 35px rgba(121, 40, 202, 0.7))`;
-  } else { // IDLE: pulses smoothly from scale(1.0) to scale(1.05)
-    const idleBreathe = 1.0 + (Math.sin(elapsed * 2.2) * 0.5 + 0.5) * 0.05;
-    scaleToApply = idleBreathe;
-    const idlePulse = (0.80 + Math.sin(elapsed * 2.2) * 0.1).toFixed(2);
-    glowContainer.style.filter = `drop-shadow(0 0 35px rgba(0, 240, 255, ${idlePulse})) drop-shadow(0 10px 30px rgba(255, 0, 128, 0.5))`;
-  }
+  canvas.style.transform = `scale(${scaleToApply.toFixed(3)}) translateZ(0)`;
 
-  glowContainer.style.transform = `scale(${scaleToApply.toFixed(3)}) translateZ(0)`;
-
-  // Render WebGL shader
+  // Render WebGL
   if (gl && program) {
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clear(gl.COLOR_BUFFER_BIT);
