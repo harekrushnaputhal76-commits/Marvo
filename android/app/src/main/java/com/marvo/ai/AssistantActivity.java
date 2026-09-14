@@ -567,36 +567,45 @@ public class AssistantActivity extends AppCompatActivity {
                             if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
                                 tts.setLanguage(Locale.US);
                             }
-                        } else {
-                            try {
-                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-                                    java.util.Set<android.speech.tts.Voice> voices = tts.getVoices();
-                                    if (voices != null) {
-                                        android.speech.tts.Voice bestVoice = null;
-                                        for (android.speech.tts.Voice voice : voices) {
-                                            if (voice.getLocale() != null &&
-                                                ("hi".equalsIgnoreCase(voice.getLocale().getLanguage()) ||
-                                                 ("en".equalsIgnoreCase(voice.getLocale().getLanguage()) && "IN".equalsIgnoreCase(voice.getLocale().getCountry())))) {
-                                                if (voice.getQuality() >= android.speech.tts.Voice.QUALITY_HIGH) {
-                                                    bestVoice = voice;
-                                                    break;
-                                                } else if (bestVoice == null) {
-                                                    bestVoice = voice;
-                                                }
+                        }
+
+                        // Search for a male Hindi voice in tts.getVoices()
+                        boolean foundMaleVoice = false;
+                        try {
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                                java.util.Set<android.speech.tts.Voice> voices = tts.getVoices();
+                                if (voices != null) {
+                                    for (android.speech.tts.Voice voice : voices) {
+                                        if (voice != null && voice.getLocale() != null) {
+                                            String lang = voice.getLocale().getLanguage();
+                                            String country = voice.getLocale().getCountry();
+                                            String name = voice.getName() != null ? voice.getName().toLowerCase() : "";
+                                            boolean isHindi = "hi".equalsIgnoreCase(lang) ||
+                                                ("hi".equalsIgnoreCase(lang) && "IN".equalsIgnoreCase(country));
+                                            if (isHindi && name.contains("male")) {
+                                                tts.setVoice(voice);
+                                                foundMaleVoice = true;
+                                                Log.d(TAG, "Selected male Hindi TTS voice: " + voice.getName());
+                                                break;
                                             }
-                                        }
-                                        if (bestVoice != null) {
-                                            tts.setVoice(bestVoice);
-                                            Log.d(TAG, "Selected premium TTS voice: " + bestVoice.getName());
                                         }
                                     }
                                 }
-                            } catch (Exception e) {
-                                Log.w(TAG, "Could not configure custom voice: " + e.getMessage());
                             }
+                        } catch (Exception e) {
+                            Log.w(TAG, "Could not configure male voice: " + e.getMessage());
                         }
-                        tts.setPitch(1.0f);
-                        tts.setSpeechRate(1.0f);
+
+                        // Voice fallback: lower pitch for deep, calm male voice and adjust cadence
+                        if (foundMaleVoice) {
+                            tts.setPitch(0.90f);
+                            tts.setSpeechRate(0.95f);
+                        } else {
+                            tts.setPitch(0.85f);
+                            tts.setSpeechRate(0.95f);
+                            Log.d(TAG, "Male voice not explicitly found; applied pitch 0.85f and rate 0.95f fallback");
+                        }
+
                         isTtsReady = true;
                         Log.d(TAG, "TTS initialized successfully with Hindi locale");
 
@@ -4136,72 +4145,119 @@ public class AssistantActivity extends AppCompatActivity {
             public void run() {
                 HttpURLConnection conn = null;
                 try {
-                    String apiKey = getGeminiApiKey();
-
-                    String endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
-                    URL url = new URL(endpoint);
-                    conn = (HttpURLConnection) url.openConnection();
-                    conn.setRequestMethod("POST");
-                    conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
-                    conn.setDoOutput(true);
-                    conn.setConnectTimeout(15000);
-                    conn.setReadTimeout(30000);
-
-                    // Payload format requested:
-                    // {"contents": [{"parts":[{"text": "[SYSTEM: You are Marvo, a highly intelligent, concise voice assistant. Answer strictly in short, conversational Hindi/Hinglish paragraphs. No markdown.] User Query: " + userQuery}]}]}
-                    String promptText = "[SYSTEM: You are Marvo, a highly intelligent, concise voice assistant. Answer strictly in short, conversational Hindi/Hinglish paragraphs. No markdown.] User Query: " + userQuery;
-
-                    JSONObject partObj = new JSONObject();
-                    partObj.put("text", promptText);
-
-                    JSONArray partsArr = new JSONArray();
-                    partsArr.put(partObj);
-
-                    JSONObject contentObj = new JSONObject();
-                    contentObj.put("parts", partsArr);
-
-                    JSONArray contentsArr = new JSONArray();
-                    contentsArr.put(contentObj);
-
-                    JSONObject requestBody = new JSONObject();
-                    requestBody.put("contents", contentsArr);
-
-                    OutputStream os = conn.getOutputStream();
-                    os.write(requestBody.toString().getBytes("UTF-8"));
-                    os.flush();
-                    os.close();
-
-                    int responseCode = conn.getResponseCode();
-                    InputStream is = (responseCode >= 200 && responseCode < 300)
-                        ? conn.getInputStream()
-                        : conn.getErrorStream();
-
-                    BufferedReader br = new BufferedReader(new InputStreamReader(is, "UTF-8"));
-                    StringBuilder sb = new StringBuilder();
-                    String line;
-                    while ((line = br.readLine()) != null) {
-                        sb.append(line);
+                    String apiKey = "YOUR_API_KEY_HERE";
+                    if (apiKey == null || apiKey.trim().isEmpty() || "YOUR_API_KEY_HERE".equals(apiKey)) {
+                        apiKey = getGeminiApiKey();
                     }
-                    br.close();
 
-                    String responseStr = sb.toString();
-                    JSONObject jsonResponse = new JSONObject(responseStr);
-                    JSONArray candidates = jsonResponse.getJSONArray("candidates");
-                    String replyText = candidates.getJSONObject(0)
-                        .getJSONObject("content")
-                        .getJSONArray("parts")
-                        .getJSONObject(0)
-                        .getString("text");
+                    // Try gemini-3.6-flash (standard for modern keys) with automatic gemini-1.5-flash fallback
+                    String[] models = new String[]{"gemini-3.6-flash", "gemini-1.5-flash"};
+                    int responseCode = -1;
+                    String responseStr = "";
 
-                    // Clean any markdown formatting if present
-                    final String cleanReply = replyText.replaceAll("[*#_`]", "").trim();
-
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            speakAndListen(cleanReply);
+                    for (String modelName : models) {
+                        if (conn != null) {
+                            try { conn.disconnect(); } catch (Exception ignored) {}
                         }
-                    });
+
+                        String endpoint = "https://generativelanguage.googleapis.com/v1beta/models/" + modelName + ":generateContent?key=" + apiKey;
+                        URL url = new URL(endpoint);
+                        conn = (HttpURLConnection) url.openConnection();
+                        conn.setRequestMethod("POST");
+                        conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+                        conn.setDoOutput(true);
+                        conn.setConnectTimeout(15000);
+                        conn.setReadTimeout(30000);
+
+                        // Payload format:
+                        // {"contents": [{"parts":[{"text": "[SYSTEM: You are Marvo, a highly intelligent, concise voice assistant. Answer strictly in short, conversational Hindi/Hinglish paragraphs. No markdown.] User Query: " + userQuery}]}]}
+                        String promptText = "[SYSTEM: You are Marvo, a highly intelligent, concise voice assistant. Answer strictly in short, conversational Hindi/Hinglish paragraphs. No markdown.] User Query: " + userQuery;
+
+                        JSONObject partObj = new JSONObject();
+                        partObj.put("text", promptText);
+
+                        JSONArray partsArr = new JSONArray();
+                        partsArr.put(partObj);
+
+                        JSONObject contentObj = new JSONObject();
+                        contentObj.put("parts", partsArr);
+
+                        JSONArray contentsArr = new JSONArray();
+                        contentsArr.put(contentObj);
+
+                        JSONObject requestBody = new JSONObject();
+                        requestBody.put("contents", contentsArr);
+
+                        OutputStream os = conn.getOutputStream();
+                        os.write(requestBody.toString().getBytes("UTF-8"));
+                        os.flush();
+                        os.close();
+
+                        responseCode = conn.getResponseCode();
+                        if (responseCode == 200) {
+                            BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
+                            StringBuilder sb = new StringBuilder();
+                            String line;
+                            while ((line = br.readLine()) != null) {
+                                sb.append(line);
+                            }
+                            br.close();
+                            responseStr = sb.toString();
+                            break;
+                        } else if (responseCode == 404) {
+                            InputStream errStream = conn.getErrorStream();
+                            if (errStream != null) {
+                                BufferedReader errBr = new BufferedReader(new InputStreamReader(errStream, "UTF-8"));
+                                StringBuilder errSb = new StringBuilder();
+                                String errLine;
+                                while ((errLine = errBr.readLine()) != null) {
+                                    errSb.append(errLine);
+                                }
+                                errBr.close();
+                                Log.w(TAG, "Model " + modelName + " returned 404: " + errSb.toString());
+                            }
+                        } else {
+                            InputStream errStream = conn.getErrorStream();
+                            if (errStream != null) {
+                                BufferedReader errBr = new BufferedReader(new InputStreamReader(errStream, "UTF-8"));
+                                StringBuilder errSb = new StringBuilder();
+                                String errLine;
+                                while ((errLine = errBr.readLine()) != null) {
+                                    errSb.append(errLine);
+                                }
+                                errBr.close();
+                                Log.e(TAG, "Gemini API error (" + responseCode + "): " + errSb.toString());
+                            }
+                            break;
+                        }
+                    }
+
+                    if (responseCode == 200 && !responseStr.isEmpty()) {
+                        JSONObject jsonResponse = new JSONObject(responseStr);
+                        JSONArray candidates = jsonResponse.getJSONArray("candidates");
+                        String replyText = candidates.getJSONObject(0)
+                            .getJSONObject("content")
+                            .getJSONArray("parts")
+                            .getJSONObject(0)
+                            .getString("text");
+
+                        // Clean any markdown formatting if present
+                        final String cleanReply = replyText.replaceAll("[*#_`]", "").trim();
+
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                speakAndListen(cleanReply);
+                            }
+                        });
+                    } else {
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                showResponse("Connection failed.", true);
+                            }
+                        });
+                    }
 
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -4214,7 +4270,9 @@ public class AssistantActivity extends AppCompatActivity {
                     });
                 } finally {
                     if (conn != null) {
-                        conn.disconnect();
+                        try {
+                            conn.disconnect();
+                        } catch (Exception ignored) {}
                     }
                 }
             }
