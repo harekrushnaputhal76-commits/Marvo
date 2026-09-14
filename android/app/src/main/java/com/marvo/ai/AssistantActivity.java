@@ -110,9 +110,11 @@ public class AssistantActivity extends AppCompatActivity {
     private Handler typewriterHandler = new Handler(Looper.getMainLooper());
     private Runnable typewriterRunnable;
 
-    // State Management for Confirmation Protocol (Step 6 Part 5)
+    // State Management for Confirmation Protocol (Step 6 Part 5 & Step 5 Part 3)
     private String pendingActionType = null;
     private Intent pendingIntent = null;
+    private String pendingRecipientName = null;
+    private String pendingDraftContent = null;
 
     // =========================================================================
     // STEP 5: PERSONAL CONTEXT ENGINE & ENTITY INJECTION (Apple 'Device State')
@@ -877,18 +879,11 @@ public class AssistantActivity extends AppCompatActivity {
     }
 
     /**
-     * Dispatches a message to WhatsApp via deep-link Intent.
+     * Step 5 - Part 3: Builds a WhatsApp Intent with pre-filled recipient and text.
      */
-    private void sendWhatsAppMessage(String phoneNumber, String message) {
-        if (phoneNumber == null || phoneNumber.trim().isEmpty()) {
-            Log.w(TAG, "sendWhatsAppMessage: Empty phone number");
-            return;
-        }
-
-        // Clean the phone number (remove spaces, dashes, parentheses)
+    private Intent buildWhatsAppIntent(String phoneNumber, String message) {
+        if (phoneNumber == null || phoneNumber.trim().isEmpty()) return null;
         String cleanNumber = phoneNumber.replaceAll("[\\s-()]", "");
-
-        // Prepend +91 if no country code (+) is present
         if (!cleanNumber.startsWith("+")) {
             if (cleanNumber.startsWith("91") && cleanNumber.length() == 12) {
                 cleanNumber = "+" + cleanNumber;
@@ -896,22 +891,163 @@ public class AssistantActivity extends AppCompatActivity {
                 cleanNumber = "+91" + cleanNumber;
             }
         }
+        String encodedText = "";
+        try {
+            encodedText = URLEncoder.encode(message != null ? message : "", "UTF-8");
+        } catch (Exception ignored) {
+            encodedText = (message != null ? message : "");
+        }
+        Intent intent = new Intent(Intent.ACTION_VIEW);
+        intent.setData(Uri.parse("https://api.whatsapp.com/send?phone=" + cleanNumber + "&text=" + encodedText));
+        intent.setPackage("com.whatsapp");
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        if (intent.resolveActivity(getPackageManager()) == null) {
+            intent.setPackage(null); // Fallback to browser or any compatible handler
+        }
+        return intent;
+    }
+
+    /**
+     * Step 5 - Part 3: Builds an Email Intent with pre-filled recipient, subject, and body.
+     */
+    private Intent buildEmailIntent(String recipient, String subject, String body) {
+        Intent intent = new Intent(Intent.ACTION_SENDTO);
+        intent.setData(Uri.parse("mailto:" + (recipient != null ? recipient.trim() : "")));
+        if (subject != null && !subject.trim().isEmpty()) {
+            intent.putExtra(Intent.EXTRA_SUBJECT, subject.trim());
+        }
+        if (body != null && !body.trim().isEmpty()) {
+            intent.putExtra(Intent.EXTRA_TEXT, body.trim());
+        }
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        return intent;
+    }
+
+    /**
+     * Step 5 - Part 3: Opens Instagram app to Direct Messages, specific user profile, or home feed.
+     */
+    private void openInstagram(String query) {
+        String lower = (query != null) ? query.toLowerCase().trim() : "";
+        Intent intent;
+        if (lower.contains("dm") || lower.contains("direct") || lower.contains("message")) {
+            Uri directUri = Uri.parse("https://instagram.com/direct/inbox/");
+            intent = new Intent(Intent.ACTION_VIEW, directUri);
+            intent.setPackage("com.instagram.android");
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            if (intent.resolveActivity(getPackageManager()) == null) {
+                intent = new Intent(Intent.ACTION_VIEW, directUri);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            }
+        } else if (lower.contains("profile") || lower.contains("user")) {
+            String username = query.replaceAll("(?i).*(?:profile of|user|profile)\\s*", "").trim();
+            if (username.startsWith("@")) username = username.substring(1);
+            Uri profileUri = Uri.parse("https://instagram.com/" + (!username.isEmpty() ? username : ""));
+            intent = new Intent(Intent.ACTION_VIEW, profileUri);
+            intent.setPackage("com.instagram.android");
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            if (intent.resolveActivity(getPackageManager()) == null) {
+                intent = new Intent(Intent.ACTION_VIEW, profileUri);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            }
+        } else {
+            PackageManager pm = getPackageManager();
+            intent = pm.getLaunchIntentForPackage("com.instagram.android");
+            if (intent == null) {
+                intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://instagram.com/"));
+            }
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        }
 
         try {
-            Intent intent = new Intent(Intent.ACTION_VIEW);
-            String encodedText = "";
-            try {
-                encodedText = URLEncoder.encode(message != null ? message : "", "UTF-8");
-            } catch (Exception ignored) {
-                encodedText = message != null ? message : "";
-            }
-            intent.setData(Uri.parse("https://api.whatsapp.com/send?phone=" + cleanNumber + "&text=" + encodedText));
+            startActivity(intent);
+        } catch (Exception e) {
+            Log.e(TAG, "Error opening Instagram: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Step 5 - Part 3: Triggers the native Android account creation intent for Google Account.
+     */
+    private void openAddGoogleAccount() {
+        try {
+            Intent intent = new Intent(Settings.ACTION_ADD_ACCOUNT);
+            intent.putExtra(Settings.EXTRA_ACCOUNT_TYPES, new String[]{"com.google"});
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(intent);
-            if (!isFinishing()) {
-                finish();
+        } catch (Exception e) {
+            try {
+                Intent fallback = new Intent(Settings.ACTION_SYNC_SETTINGS);
+                fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(fallback);
+            } catch (Exception ex) {
+                Log.e(TAG, "Error opening account settings: " + ex.getMessage(), ex);
             }
-        } catch (ActivityNotFoundException e) {
+        }
+    }
+
+    /**
+     * Step 5 - Part 3: Double-Confirmation Security Protocol (State Machine)
+     * Holds the pending Intent in memory, sets the Siri Orb to CONFIRMATION state (pulsating Amber/Gold),
+     * speaks a bilingual confirmation query ("I have drafted a message to [Name] saying: [Message]. Do you want me to send it?"),
+     * renders the Dynamic Notification Pill with warning icon, and listens for the user's voice response.
+     */
+    private void requestDoubleConfirmation(final String actionType, final String recipientName, final String messagePayload, final Intent intent, boolean isHindi) {
+        this.pendingActionType = actionType;
+        this.pendingIntent = intent;
+        this.pendingRecipientName = recipientName;
+        this.pendingDraftContent = messagePayload;
+
+        // Step 4 of UI Sync: Switch Siri Orb to pulsating Orange/Yellow CONFIRMATION state
+        setOrbState("CONFIRMATION");
+
+        // Format bilingual prompt
+        String promptText;
+        if (isHindi) {
+            promptText = "Maine " + recipientName + " ke liye message taiyar kiya hai: \"" + messagePayload + "\". Kya main ise bhej doon?";
+        } else {
+            promptText = "I have drafted a message to " + recipientName + " saying: \"" + messagePayload + "\". Do you want me to send it?";
+        }
+
+        // Display on UI
+        if (statusTextView != null) {
+            statusTextView.setText(promptText);
+        }
+        if (subtitleTextView != null) {
+            subtitleTextView.setText("To: " + recipientName + " | \"" + messagePayload + "\"");
+            subtitleTextView.setVisibility(View.VISIBLE);
+        }
+
+        // Show Dynamic Notification Pill
+        showDynamicPill("Confirmation: " + recipientName, android.R.drawable.ic_dialog_alert);
+
+        // Speak via Android TTS
+        if (tts != null && isTtsReady) {
+            try {
+                Bundle params = new Bundle();
+                params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "DoubleConfirmTTS");
+                tts.speak(promptText, TextToSpeech.QUEUE_FLUSH, params, "DoubleConfirmTTS");
+            } catch (Exception e) {
+                try {
+                    tts.speak(promptText, TextToSpeech.QUEUE_FLUSH, null);
+                } catch (Exception ignored) {}
+            }
+        }
+
+        // Activate microphone automatically after TTS delivers the prompt
+        long speechDelay = Math.max(2200L, promptText.split("\\s+").length * 280L);
+        startListeningDelayed(speechDelay);
+    }
+
+    /**
+     * Dispatches a message to WhatsApp via deep-link Intent.
+     */
+    private void sendWhatsAppMessage(String phoneNumber, String message) {
+        Intent intent = buildWhatsAppIntent(phoneNumber, message);
+        if (intent != null) {
+            try {
+                startActivity(intent);
+                finishDelayed(2500);
+            } catch (ActivityNotFoundException e) {
             Log.w(TAG, "WhatsApp not installed: " + e.getMessage());
             if (statusTextView != null) {
                 statusTextView.setText("WhatsApp not installed.");
@@ -2098,6 +2234,176 @@ public class AssistantActivity extends AppCompatActivity {
             return true;
         }
 
+        // 4. Instagram Intent Matcher
+        if (lower.matches(".*\\b(open instagram|launch instagram|instagram dm|instagram direct|instagram message|send message on instagram|instagram messages|instagram kholo)\\b.*") ||
+            lower.equals("instagram")) {
+            setOrbState("SPEAKING");
+            String ttsMsg = (lower.contains("dm") || lower.contains("direct") || lower.contains("message"))
+                ? "Opening Instagram Direct..." : "Opening Instagram...";
+            showDynamicPill(ttsMsg, android.R.drawable.ic_menu_share);
+            showResponse(ttsMsg, true);
+            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    openInstagram(command);
+                    finishDelayed(2500);
+                }
+            }, 300);
+            return true;
+        }
+
+        // 5. Google Account Creation Matcher
+        if (lower.matches(".*\\b(add google account|create google account|add account|google account jodo|google account banao|new google account)\\b.*")) {
+            setOrbState("SPEAKING");
+            String ttsMsg = "Opening Google Account setup...";
+            showDynamicPill("Add Google Account", android.R.drawable.ic_menu_add);
+            showResponse(ttsMsg, true);
+            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    openAddGoogleAccount();
+                    finishDelayed(2500);
+                }
+            }, 300);
+            return true;
+        }
+
+        // 6. WhatsApp Deep Intent with Double-Confirmation
+        if (lower.contains("whatsapp")) {
+            String recipient = "";
+            String message = "";
+            boolean isHindi = lower.contains("ko") || lower.contains("karo") || lower.contains("bhejo") || lower.contains("ki ");
+
+            // Pattern 1: Hindi/Hinglish "[Name] ko whatsapp [karo/bhejo] ki [Message]"
+            Matcher mHindi = Pattern.compile("(?i)(?:send\\s+)?(?:a\\s+)?(?:whatsapp\\s+)?(.+?)\\s+ko\\s+whatsapp(?:\\s+karo|\\s+bhejo)?(?:\\s+ki\\s+|\\s+)(.+)").matcher(command);
+            if (mHindi.find()) {
+                recipient = mHindi.group(1).replaceAll("(?i)^(send|whatsapp)\\s*", "").trim();
+                message = mHindi.group(2).trim();
+            }
+
+            // Pattern 2: English "send whatsapp to [Name] saying/that [Message]"
+            if (recipient.isEmpty() || message.isEmpty()) {
+                Matcher mEng1 = Pattern.compile("(?i)(?:send\\s+)?(?:a\\s+)?whatsapp(?:\\s+message)?\\s+to\\s+(.+?)\\s+(?:saying|that|with\\s+text|message)\\s+(.+)").matcher(command);
+                if (mEng1.find()) {
+                    recipient = mEng1.group(1).trim();
+                    message = mEng1.group(2).trim();
+                }
+            }
+
+            // Pattern 3: English "whatsapp [Name] saying/that [Message]"
+            if (recipient.isEmpty() || message.isEmpty()) {
+                Matcher mEng2 = Pattern.compile("(?i)^whatsapp\\s+(.+?)\\s+(?:saying|that|message)\\s+(.+)").matcher(command);
+                if (mEng2.find()) {
+                    recipient = mEng2.group(1).trim();
+                    message = mEng2.group(2).trim();
+                }
+            }
+
+            // Pattern 4: Fallback "whatsapp to [Name] [Message]" or "whatsapp [Name] [Message]"
+            if (recipient.isEmpty() || message.isEmpty()) {
+                Matcher mEng3 = Pattern.compile("(?i)(?:send\\s+)?(?:a\\s+)?whatsapp(?:\\s+to)?\\s+([a-zA-Z0-9+_]+)\\s+(.+)").matcher(command);
+                if (mEng3.find()) {
+                    recipient = mEng3.group(1).trim();
+                    message = mEng3.group(2).trim();
+                }
+            }
+
+            // If we extracted at least the recipient
+            if (!recipient.isEmpty()) {
+                if (message.isEmpty()) {
+                    String askMsg = isHindi ? ("Aap " + recipient + " ko WhatsApp par kya bhejna chahte hain?") : ("What message should I send to " + recipient + " on WhatsApp?");
+                    showResponse(askMsg, true);
+                    startListeningDelayed(2000);
+                    return true;
+                }
+
+                // Resolve contact / phone number
+                ContactMatch match = lookupContactWithAliasing(recipient);
+                String phone = (match != null && match.phoneNumber != null) ? match.phoneNumber : recipient.replaceAll("[^0-9+]", "");
+                String displayName = (match != null && match.matchedDisplayName != null) ? match.matchedDisplayName : recipient;
+
+                if (phone == null || phone.trim().isEmpty()) {
+                    showResponse("Contact '" + recipient + "' not found.", true);
+                    showDynamicPill("Contact Not Found", android.R.drawable.ic_menu_close_clear_cancel);
+                    finishDelayed(2500);
+                    return true;
+                }
+
+                // Build WhatsApp Intent and trigger Double-Confirmation Protocol
+                Intent intent = buildWhatsAppIntent(phone, message);
+                if (intent != null) {
+                    requestDoubleConfirmation("WHATSAPP_DRAFT", displayName, message, intent, isHindi);
+                    return true;
+                }
+            }
+        }
+
+        // 7. Email Deep Intent with Double-Confirmation
+        if (lower.startsWith("email ") || lower.startsWith("send email ") || lower.startsWith("send an email ") ||
+            lower.contains("ko email") || lower.contains("email bhejo")) {
+            String recipient = "";
+            String subject = "Marvo Message";
+            String body = "";
+            boolean isHindi = lower.contains("ko") || lower.contains("bhejo") || lower.contains("ki ");
+
+            // Pattern 1: Explicit subject and body ("subject X body Y")
+            Matcher mSubjBody = Pattern.compile("(?i)(?:send\\s+)?(?:an\\s+)?email\\s+to\\s+(.+?)\\s+subject\\s+(.+?)\\s+body\\s+(.+)").matcher(command);
+            if (mSubjBody.find()) {
+                recipient = mSubjBody.group(1).trim();
+                subject = mSubjBody.group(2).trim();
+                body = mSubjBody.group(3).trim();
+            }
+
+            // Pattern 2: English "send email to [Name] saying/that [Body]"
+            if (recipient.isEmpty() || body.isEmpty()) {
+                Matcher mEng = Pattern.compile("(?i)(?:send\\s+)?(?:an\\s+)?email(?:\\s+to)?\\s+(.+?)\\s+(?:saying|that|with\\s+body|with\\s+message)\\s+(.+)").matcher(command);
+                if (mEng.find()) {
+                    recipient = mEng.group(1).trim();
+                    body = mEng.group(2).trim();
+                }
+            }
+
+            // Pattern 3: Hindi/Hinglish "[Name] ko email bhejo ki [Body]"
+            if (recipient.isEmpty() || body.isEmpty()) {
+                Matcher mHindi = Pattern.compile("(?i)(.+?)\\s+ko\\s+email(?:\\s+karo|\\s+bhejo)?(?:\\s+ki\\s+|\\s+)(.+)").matcher(command);
+                if (mHindi.find()) {
+                    recipient = mHindi.group(1).replaceAll("(?i)^(send|email)\\s*", "").trim();
+                    body = mHindi.group(2).trim();
+                }
+            }
+
+            // Pattern 4: Fallback "email [Name] [Body]"
+            if (recipient.isEmpty() || body.isEmpty()) {
+                Matcher mFallback = Pattern.compile("(?i)(?:send\\s+)?(?:an\\s+)?email\\s+(?:to\\s+)?([a-zA-Z0-9@._+-]+)\\s+(.+)").matcher(command);
+                if (mFallback.find()) {
+                    recipient = mFallback.group(1).trim();
+                    body = mFallback.group(2).trim();
+                }
+            }
+
+            if (!recipient.isEmpty()) {
+                if (body.isEmpty()) {
+                    String askMsg = isHindi ? ("Aap " + recipient + " ko kya email bhejna chahte hain?") : ("What should the email say to " + recipient + "?");
+                    showResponse(askMsg, true);
+                    startListeningDelayed(2000);
+                    return true;
+                }
+
+                String emailAddress = recipient;
+                String displayName = recipient;
+                if (!recipient.contains("@")) {
+                    ContactMatch match = lookupContactWithAliasing(recipient);
+                    if (match != null && match.matchedDisplayName != null) {
+                        displayName = match.matchedDisplayName;
+                    }
+                }
+
+                Intent intent = buildEmailIntent(emailAddress, subject, body);
+                requestDoubleConfirmation("EMAIL_DRAFT", displayName, body, intent, isHindi);
+                return true;
+            }
+        }
+
         return false;
     }
 
@@ -2135,6 +2441,51 @@ public class AssistantActivity extends AppCompatActivity {
                 } else {
                     showResponse("Say YES to call or NO to cancel.", true);
                     startListeningDelayed(1500);
+                }
+                return;
+            }
+
+            // Step 5 - Part 3: Double-Confirmation Security Protocol for Messages & Emails
+            if ("WHATSAPP_DRAFT".equals(pendingActionType) || "EMAIL_DRAFT".equals(pendingActionType) || "SMS_DRAFT".equals(pendingActionType)) {
+                boolean isHindi = lower.contains("haan") || lower.contains("ha") || lower.contains("bhejo") || lower.contains("karo") || lower.contains("nahi") || lower.contains("mat");
+                if (lower.contains("yes") || lower.contains("haan") || lower.contains("ha") ||
+                    lower.contains("send") || lower.contains("bhejo") || lower.contains("bhej do") ||
+                    lower.contains("confirm") || lower.contains("karo") || lower.contains("sure") ||
+                    lower.contains("ok") || lower.contains("please")) {
+                    String displayName = pendingRecipientName != null ? pendingRecipientName : "Recipient";
+                    String successMsg = isHindi ? (displayName + " ko message bhej raha hoon...") : ("Sending message to " + displayName + "...");
+                    setOrbState("SPEAKING");
+                    showResponse(successMsg, true);
+                    showDynamicPill("Sent to " + displayName, android.R.drawable.ic_menu_send);
+                    if (pendingIntent != null) {
+                        try {
+                            startActivity(pendingIntent);
+                        } catch (Exception e) {
+                            Log.e(TAG, "Error executing confirmed intent: " + e.getMessage(), e);
+                            showResponse("Failed to launch application.", true);
+                        }
+                    }
+                    pendingActionType = null;
+                    pendingIntent = null;
+                    pendingRecipientName = null;
+                    pendingDraftContent = null;
+                    finishDelayed(2500);
+                } else if (lower.contains("no") || lower.contains("cancel") || lower.contains("nahi") ||
+                           lower.contains("na") || lower.contains("mat") || lower.contains("stop") ||
+                           lower.contains("rok") || lower.contains("don't") || lower.contains("dont")) {
+                    String cancelMsg = isHindi ? "Message cancel kar diya gaya." : "Message cancelled.";
+                    setOrbState("SPEAKING");
+                    showResponse(cancelMsg, true);
+                    showDynamicPill("Message Cancelled", android.R.drawable.ic_menu_close_clear_cancel);
+                    pendingActionType = null;
+                    pendingIntent = null;
+                    pendingRecipientName = null;
+                    pendingDraftContent = null;
+                    finishDelayed(1800);
+                } else {
+                    String retryMsg = isHindi ? "Bhejne ke liye HAAN bolein ya cancel karne ke liye NAHI bolein." : "Say YES to send or NO to cancel.";
+                    showResponse(retryMsg, true);
+                    startListeningDelayed(1600);
                 }
                 return;
             }

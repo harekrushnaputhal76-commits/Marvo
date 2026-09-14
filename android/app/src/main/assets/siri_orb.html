@@ -102,7 +102,7 @@ const fsSource = `
   uniform vec2 u_resolution;
   uniform float u_time;
   uniform float u_amplitude;
-  uniform int u_state; // 0: IDLE, 1: LISTENING, 2: THINKING, 3: SPEAKING
+  uniform int u_state; // 0: IDLE, 1: LISTENING, 2: THINKING, 3: SPEAKING, 4: CONFIRMATION
 
   mat2 rot2d(float a) {
     float s = sin(a), c = cos(a);
@@ -136,23 +136,26 @@ const fsSource = `
     vec3 normal = vec3(uv.x, uv.y, z);
 
     // Animation Speed & Motion Dynamics based on assistant lifecycle
-    float speed = (u_state == 2) ? 2.8 : ((u_state == 1) ? 1.4 : 0.85);
+    float speed = (u_state == 2) ? 2.8 : ((u_state == 4) ? 2.0 : ((u_state == 1) ? 1.4 : 0.85));
     float t = u_time * speed;
     float amp = u_amplitude;
 
-    // 1. BASE DARK GLASS ENVELOPE (Midnight Indigo / Deep Plum)
-    vec3 glassColor = mix(
-      vec3(0.015, 0.03, 0.07), // Midnight Navy top
-      vec3(0.05, 0.01, 0.04),  // Deep Plum bottom
-      uv.y * 0.5 + 0.5
-    );
+    // 1. BASE DARK GLASS ENVELOPE (Midnight Indigo / Deep Plum or Warning Amber in Confirmation)
+    vec3 glassColor = (u_state == 4)
+      ? mix(vec3(0.12, 0.04, 0.0), vec3(0.06, 0.02, 0.0), uv.y * 0.5 + 0.5)
+      : mix(vec3(0.015, 0.03, 0.07), vec3(0.05, 0.01, 0.04), uv.y * 0.5 + 0.5);
 
     // Ambient back-glows (subsurface rim luminescence)
     float topCyanGlow = smoothstep(0.9, 0.2, length(uv - vec2(-0.25, 0.35))) * 0.45;
-    glassColor += vec3(0.0, 0.45, 0.55) * topCyanGlow;
-
     float bottomMagentaGlow = smoothstep(0.95, 0.3, length(uv - vec2(0.05, -0.45))) * 0.55;
-    glassColor += vec3(0.55, 0.02, 0.22) * bottomMagentaGlow;
+
+    if (u_state == 4) {
+      glassColor += vec3(0.85, 0.4, 0.0) * topCyanGlow;
+      glassColor += vec3(0.95, 0.25, 0.0) * bottomMagentaGlow;
+    } else {
+      glassColor += vec3(0.0, 0.45, 0.55) * topCyanGlow;
+      glassColor += vec3(0.55, 0.02, 0.22) * bottomMagentaGlow;
+    }
 
     // 2. 3D FLUID LIQUID MESH RIBBONS (Organic folding waves)
     vec2 pWarp = uv;
@@ -161,7 +164,7 @@ const fsSource = `
       cos(pWarp.x * 3.2 - t * 0.7) * 0.12
     );
 
-    // RIBBON 1: Electric Siri Cyan (#00F0FF / #00E5FF)
+    // RIBBON 1: Electric Siri Cyan (#00F0FF) / Gold (#FFB800) in Confirmation
     vec2 pCyan = uv;
     pCyan = rot2d(sin(t * 0.4) * 0.25) * (pCyan - vec2(-0.15, 0.1));
     float cyanFold = pCyan.y - sin(pCyan.x * 3.2 + t) * 0.22 + pCyan.x * 0.4;
@@ -169,29 +172,30 @@ const fsSource = `
     cyanRibbon *= smoothstep(0.9, 0.15, length(uv - vec2(-0.2, 0.15)));
     float cyanLayer2 = exp(-pow((pCyan.y + 0.15 - cos(pCyan.x * 2.8 + t * 1.2) * 0.2) * 5.0, 2.0)) * 0.5;
     cyanRibbon = max(cyanRibbon, cyanLayer2);
-    vec3 cyanColor = vec3(0.0, 0.92, 1.0);
+    vec3 cyanColor = (u_state == 4) ? vec3(1.0, 0.75, 0.0) : vec3(0.0, 0.92, 1.0);
 
-    // RIBBON 2: Vivid Siri Magenta / Hot Coral-Pink (#FF007F / #FF2D55)
+    // RIBBON 2: Vivid Siri Magenta (#FF007F) / Tangerine Amber (#FF5205) in Confirmation
     vec2 pMag = uv;
     pMag = rot2d(cos(t * 0.35) * 0.2) * (pMag - vec2(0.0, -0.2));
     float magFold = pMag.y + 0.1 + cos(pMag.x * 2.8 - t * 0.9) * 0.25;
     float magRibbon = exp(-pow(magFold * 3.8, 2.0));
     magRibbon *= smoothstep(0.95, 0.2, length(uv - vec2(0.0, -0.25)));
-    vec3 magColor = vec3(1.0, 0.08, 0.42);
+    float magLayer2 = exp(-pow((pMag.y + 0.15 - cos(pMag.x * 2.8 + t * 1.2) * 0.2) * 5.0, 2.0)) * 0.5;
+    vec3 magColor = (u_state == 4) ? vec3(1.0, 0.32, 0.02) : vec3(1.0, 0.08, 0.42);
 
-    // RIBBON 3: Royal Purple / Deep Violet (#7928CA / #4B0082)
+    // RIBBON 3: Royal Purple (#7928CA) / Coral Amber (#FF8C0D) in Confirmation
     vec2 pVio = uv;
     pVio = rot2d(sin(t * 0.5 + 1.2) * 0.3) * (pVio - vec2(0.2, 0.1));
     float vioFold = pVio.x - 0.05 + sin(pVio.y * 3.0 + t * 1.1) * 0.28;
     float vioRibbon = exp(-pow(vioFold * 4.0, 2.0));
     vioRibbon *= smoothstep(0.85, 0.2, length(uv - vec2(0.25, 0.15)));
-    vec3 vioColor = vec3(0.55, 0.15, 0.95);
+    vec3 vioColor = (u_state == 4) ? vec3(1.0, 0.55, 0.05) : vec3(0.55, 0.15, 0.95);
 
-    // RIBBON 4: Soft Turquoise Connecting Sheath
+    // RIBBON 4: Soft Turquoise (#00E5FF) / Solar Lemon Yellow (#FFD933) in Confirmation
     vec2 pTeal = rot2d(0.6) * uv;
     float tealRibbon = exp(-pow((pTeal.y - 0.2 + sin(pTeal.x * 2.5 + t * 0.8) * 0.2) * 4.5, 2.0)) * 0.6;
     tealRibbon *= smoothstep(0.8, 0.2, r);
-    vec3 tealColor = vec3(0.0, 0.75, 0.85);
+    vec3 tealColor = (u_state == 4) ? vec3(1.0, 0.88, 0.2) : vec3(0.0, 0.75, 0.85);
 
     // Fluid Sheath Color Composition
     vec3 fluidColor = vec3(0.0);
@@ -202,7 +206,7 @@ const fsSource = `
 
     // Fluid Fusion Intersections (electric luminescence where waves meet)
     float overlap = cyanRibbon * magRibbon;
-    fluidColor += vec3(0.9, 0.6, 1.0) * overlap * 1.6;
+    fluidColor += (u_state == 4 ? vec3(1.0, 0.85, 0.3) : vec3(0.9, 0.6, 1.0)) * overlap * 1.6;
 
     // 3. INTENSE GLOWING WHITE-HOT CORE (#FFFFFF)
     vec2 corePos = vec2(sin(t * 0.7) * 0.04, cos(t * 0.6) * 0.04);
@@ -215,8 +219,13 @@ const fsSource = `
     float coreHalo = exp(-pow(distCore / (coreRadius * 1.8), 1.4)) * 0.48;
 
     vec3 coreColor = vec3(1.0) * coreSharp * 1.45;
-    coreColor += mix(vec3(0.4, 0.9, 1.0), vec3(1.0, 0.5, 0.8), uv.y * 0.5 + 0.5) * coreGlow;
-    coreColor += vec3(0.6, 0.3, 0.9) * coreHalo;
+    if (u_state == 4) {
+      coreColor += mix(vec3(1.0, 0.85, 0.3), vec3(1.0, 0.45, 0.1), uv.y * 0.5 + 0.5) * coreGlow;
+      coreColor += vec3(1.0, 0.6, 0.1) * coreHalo;
+    } else {
+      coreColor += mix(vec3(0.4, 0.9, 1.0), vec3(1.0, 0.5, 0.8), uv.y * 0.5 + 0.5) * coreGlow;
+      coreColor += vec3(0.6, 0.3, 0.9) * coreHalo;
+    }
 
     // 4. COMBINE LAYERS WITH 3D GLASS SHADING
     vec3 finalColor = glassColor + fluidColor + coreColor;
@@ -227,7 +236,9 @@ const fsSource = `
 
     // Fresnel specular highlight (simulates 3D curved glass surface reflection)
     float fresnel = pow(1.0 - z, 3.0);
-    vec3 fresnelColor = mix(vec3(0.0, 0.8, 1.0), vec3(1.0, 0.2, 0.6), uv.y * 0.5 + 0.5);
+    vec3 fresnelColor = (u_state == 4)
+      ? mix(vec3(1.0, 0.8, 0.2), vec3(1.0, 0.4, 0.0), uv.y * 0.5 + 0.5)
+      : mix(vec3(0.0, 0.8, 1.0), vec3(1.0, 0.2, 0.6), uv.y * 0.5 + 0.5);
     finalColor += fresnelColor * fresnel * 0.35;
 
     // Soft top-left specular highlight
@@ -338,6 +349,11 @@ window.setOrbState = function(state) {
     case 'SPEAKING':
       currentStateInt = 3;
       break;
+    case 'CONFIRMATION':
+    case 'WAITING_CONFIRMATION':
+    case 'WARNING':
+      currentStateInt = 4;
+      break;
     default:
       currentStateInt = 0; // IDLE
       break;
@@ -376,6 +392,12 @@ function render(now) {
     const glowAlpha = (0.4 + currentAmplitude * 0.45).toFixed(2);
     const cyanAlpha = (0.35 + currentAmplitude * 0.40).toFixed(2);
     orbWrapper.style.filter = `drop-shadow(0px 10px 40px rgba(255, 0, 127, ${glowAlpha})) drop-shadow(0px 0px 25px rgba(0, 229, 255, ${cyanAlpha}))`;
+  } else if (currentStateInt === 4) { // CONFIRMATION: pulsating warning Amber / Golden Yellow
+    const confirmPulse = 1.05 + Math.sin(elapsed * 5.0) * 0.04;
+    scaleToApply = Math.max(scaleToApply, confirmPulse);
+    const yellowAlpha = (0.55 + Math.sin(elapsed * 5.0) * 0.25).toFixed(2);
+    const orangeAlpha = (0.45 + Math.cos(elapsed * 5.0) * 0.20).toFixed(2);
+    orbWrapper.style.filter = `drop-shadow(0px 10px 42px rgba(255, 140, 0, ${yellowAlpha})) drop-shadow(0px 0px 28px rgba(255, 200, 0, ${orangeAlpha}))`;
   } else if (currentStateInt === 3) { // SPEAKING: vocal cadence pulse
     const speakPulse = 1.0 + currentAmplitude * 0.25 + Math.sin(elapsed * 7.0) * 0.045;
     scaleToApply = Math.max(scaleToApply, speakPulse);
