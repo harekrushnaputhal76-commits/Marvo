@@ -138,7 +138,9 @@ public class OfflineIntentRouter {
             lower.contains("off karo") || lower.contains("turn on") || lower.contains("turn off") ||
             lower.contains("set") || lower.contains("calculate") || lower.contains("plus") ||
             lower.contains("minus") || lower.contains("multiply") || lower.contains("divide") ||
-            lower.contains("percent") || lower.contains("root")) {
+            lower.contains("percent") || lower.contains("root") ||
+            lower.contains("selfie") || lower.contains("how to") || lower.contains("screenshot") ||
+            lower.contains("wallpaper") || lower.contains("cache")) {
             return true;
         }
 
@@ -184,6 +186,7 @@ public class OfflineIntentRouter {
         if (handleApps(subQuery, lower)) return true;
         if (handleVoiceProfile(subQuery, lower)) return true;
         if (handleUrlAndClipboard(subQuery, lower)) return true;
+        if (handleDeviceExpert(subQuery, lower)) return true;
 
         // Step 9 - Part 8: Strict Routing Wall for Compound sub-queries (Zero Cloud Leakage)
         if (isStrictDeviceUtilityQuery(lower)) {
@@ -429,33 +432,166 @@ public class OfflineIntentRouter {
         CHIT_CHAT_MAP.put("goodbye", "Alvida! Apna khayal rakhiyega.");
         CHIT_CHAT_MAP.put("alvida", "Alvida! Phir milenge.");
 
-        // Step 9 - Part 4: Fast App Package Dictionary (<5ms Instant Launch)
+        // Step 12: The App Alias Map (85+ High-Frequency Apps/Aliases to bypass Android 11+ Package Visibility)
+        // Messaging & Social
         FAST_APP_MAP.put("whatsapp", "com.whatsapp");
+        FAST_APP_MAP.put("whatsapp business", "com.whatsapp.w4b");
+        FAST_APP_MAP.put("wa", "com.whatsapp");
         FAST_APP_MAP.put("youtube", "com.google.android.youtube");
+        FAST_APP_MAP.put("yt", "com.google.android.youtube");
+        FAST_APP_MAP.put("youtube music", "com.google.android.apps.youtube.music");
+        FAST_APP_MAP.put("yt music", "com.google.android.apps.youtube.music");
+        FAST_APP_MAP.put("ytmusic", "com.google.android.apps.youtube.music");
         FAST_APP_MAP.put("instagram", "com.instagram.android");
         FAST_APP_MAP.put("insta", "com.instagram.android");
         FAST_APP_MAP.put("facebook", "com.facebook.katana");
+        FAST_APP_MAP.put("fb", "com.facebook.katana");
+        FAST_APP_MAP.put("messenger", "com.facebook.orca");
+        FAST_APP_MAP.put("twitter", "com.twitter.android");
+        FAST_APP_MAP.put("x", "com.twitter.android");
+        FAST_APP_MAP.put("telegram", "org.telegram.messenger");
+        FAST_APP_MAP.put("snapchat", "com.snapchat.android");
+        FAST_APP_MAP.put("snap", "com.snapchat.android");
+        FAST_APP_MAP.put("linkedin", "com.linkedin.android");
+        FAST_APP_MAP.put("reddit", "com.reddit.frontpage");
+        FAST_APP_MAP.put("pinterest", "com.pinterest");
+        FAST_APP_MAP.put("threads", "com.instagram.barcelona");
+        FAST_APP_MAP.put("discord", "com.discord");
+        FAST_APP_MAP.put("truecaller", "com.truecaller");
+
+        // Google Apps & System Tools
         FAST_APP_MAP.put("chrome", "com.android.chrome");
+        FAST_APP_MAP.put("google chrome", "com.android.chrome");
         FAST_APP_MAP.put("browser", "com.android.chrome");
+        FAST_APP_MAP.put("internet", "com.android.chrome");
+        FAST_APP_MAP.put("google", "com.google.android.googlequicksearchbox");
         FAST_APP_MAP.put("maps", "com.google.android.apps.maps");
         FAST_APP_MAP.put("google maps", "com.google.android.apps.maps");
         FAST_APP_MAP.put("gmail", "com.google.android.gm");
         FAST_APP_MAP.put("mail", "com.google.android.gm");
         FAST_APP_MAP.put("email", "com.google.android.gm");
-        FAST_APP_MAP.put("spotify", "com.spotify.music");
-        FAST_APP_MAP.put("music", "com.spotify.music");
-        FAST_APP_MAP.put("gaana", "com.spotify.music");
-        FAST_APP_MAP.put("twitter", "com.twitter.android");
-        FAST_APP_MAP.put("x", "com.twitter.android");
-        FAST_APP_MAP.put("telegram", "org.telegram.messenger");
         FAST_APP_MAP.put("play store", "com.android.vending");
         FAST_APP_MAP.put("playstore", "com.android.vending");
         FAST_APP_MAP.put("calculator", "com.google.android.calculator");
+        FAST_APP_MAP.put("calc", "com.google.android.calculator");
         FAST_APP_MAP.put("clock", "com.google.android.deskclock");
         FAST_APP_MAP.put("alarm", "com.google.android.deskclock");
         FAST_APP_MAP.put("calendar", "com.google.android.calendar");
         FAST_APP_MAP.put("photos", "com.google.android.apps.photos");
         FAST_APP_MAP.put("gallery", "com.google.android.apps.photos");
+        FAST_APP_MAP.put("google drive", "com.google.android.apps.docs");
+        FAST_APP_MAP.put("drive", "com.google.android.apps.docs");
+        FAST_APP_MAP.put("google docs", "com.google.android.apps.docs.editors.docs");
+        FAST_APP_MAP.put("docs", "com.google.android.apps.docs.editors.docs");
+        FAST_APP_MAP.put("google sheets", "com.google.android.apps.docs.editors.sheets");
+        FAST_APP_MAP.put("sheets", "com.google.android.apps.docs.editors.sheets");
+        FAST_APP_MAP.put("google keep", "com.google.android.keep");
+        FAST_APP_MAP.put("keep notes", "com.google.android.keep");
+        FAST_APP_MAP.put("notes", "com.google.android.keep");
+        FAST_APP_MAP.put("google meet", "com.google.android.apps.meetings");
+        FAST_APP_MAP.put("meet", "com.google.android.apps.meetings");
+        FAST_APP_MAP.put("google lens", "com.google.ar.lens");
+        FAST_APP_MAP.put("lens", "com.google.ar.lens");
+        FAST_APP_MAP.put("files", "com.google.android.apps.nbu.files");
+        FAST_APP_MAP.put("google files", "com.google.android.apps.nbu.files");
+        FAST_APP_MAP.put("file manager", "com.google.android.apps.nbu.files");
+        FAST_APP_MAP.put("settings", "com.android.settings");
+        FAST_APP_MAP.put("setting", "com.android.settings");
+
+        // Music & Video Streaming
+        FAST_APP_MAP.put("spotify", "com.spotify.music");
+        FAST_APP_MAP.put("music", "com.spotify.music");
+        FAST_APP_MAP.put("gaana", "com.spotify.music");
+        FAST_APP_MAP.put("jiosaavn", "com.jio.media.jiobeats");
+        FAST_APP_MAP.put("saavn", "com.jio.media.jiobeats");
+        FAST_APP_MAP.put("wynk", "com.bsb.hike");
+        FAST_APP_MAP.put("netflix", "com.netflix.mediaclient");
+        FAST_APP_MAP.put("prime video", "com.amazon.avod.thirdpartyclient");
+        FAST_APP_MAP.put("amazon prime", "com.amazon.avod.thirdpartyclient");
+        FAST_APP_MAP.put("prime", "com.amazon.avod.thirdpartyclient");
+        FAST_APP_MAP.put("disney hotstar", "in.startv.hotstar");
+        FAST_APP_MAP.put("hotstar", "in.startv.hotstar");
+        FAST_APP_MAP.put("jiocinema", "com.jio.media.ondemand");
+        FAST_APP_MAP.put("jio cinema", "com.jio.media.ondemand");
+        FAST_APP_MAP.put("zee5", "com.graymatrix.did");
+        FAST_APP_MAP.put("sony liv", "com.sonyliv");
+        FAST_APP_MAP.put("sonyliv", "com.sonyliv");
+        FAST_APP_MAP.put("mx player", "com.mxtech.videoplayer.ad");
+        FAST_APP_MAP.put("vlc", "org.videolan.vlc");
+
+        // Payments & Finance
+        FAST_APP_MAP.put("phonepe", "com.phonepe.app");
+        FAST_APP_MAP.put("google pay", "com.google.android.apps.nbu.paisa.user");
+        FAST_APP_MAP.put("gpay", "com.google.android.apps.nbu.paisa.user");
+        FAST_APP_MAP.put("paytm", "net.one97.paytm");
+        FAST_APP_MAP.put("bhim", "in.org.npci.upiapp");
+        FAST_APP_MAP.put("cred", "com.dreamplug.androidapp");
+
+        // Shopping & Delivery & Travel
+        FAST_APP_MAP.put("amazon", "in.amazon.mShop.android.shopping");
+        FAST_APP_MAP.put("flipkart", "com.flipkart.android");
+        FAST_APP_MAP.put("myntra", "com.myntra.android");
+        FAST_APP_MAP.put("meesho", "com.meesho.supply");
+        FAST_APP_MAP.put("zomato", "com.application.zomato");
+        FAST_APP_MAP.put("swiggy", "in.swiggy.android");
+        FAST_APP_MAP.put("blinkit", "com.grofers.customerapp");
+        FAST_APP_MAP.put("zepto", "com.zepto.store");
+        FAST_APP_MAP.put("ola", "com.olacabs.customer");
+        FAST_APP_MAP.put("uber", "com.ubercab");
+        FAST_APP_MAP.put("rapido", "com.rapido.passenger");
+
+        // Productivity & Utilities
+        FAST_APP_MAP.put("camscanner", "com.intsig.camscanner");
+        FAST_APP_MAP.put("adobe acrobat", "com.adobe.reader");
+        FAST_APP_MAP.put("adobe reader", "com.adobe.reader");
+        FAST_APP_MAP.put("pdf reader", "com.adobe.reader");
+        FAST_APP_MAP.put("chatgpt", "com.openai.chatgpt");
+        FAST_APP_MAP.put("zoom", "us.zoom.videomeetings");
+        FAST_APP_MAP.put("teams", "com.microsoft.teams");
+        FAST_APP_MAP.put("microsoft teams", "com.microsoft.teams");
+        FAST_APP_MAP.put("duolingo", "com.duolingo");
+    }
+
+    /**
+     * Step 12: Bulletproof App Alias Resolver.
+     * Maps user spoken app names to their exact Android package name.
+     */
+    public static String getAppPackage(String appName) {
+        if (appName == null) return null;
+        String clean = appName.toLowerCase().replaceAll("[^a-z0-9\\s]", "").trim();
+        if (clean.isEmpty()) return null;
+
+        // 1. Direct key match
+        if (FAST_APP_MAP.containsKey(clean)) {
+            return FAST_APP_MAP.get(clean);
+        }
+
+        // 2. Spaces stripped match (e.g. "whatsapp", "playstore", "youtube")
+        String noSpaces = clean.replaceAll("\\s+", "");
+        if (FAST_APP_MAP.containsKey(noSpaces)) {
+            return FAST_APP_MAP.get(noSpaces);
+        }
+
+        // 3. Prefix, suffix or word-boundary match
+        for (Map.Entry<String, String> entry : FAST_APP_MAP.entrySet()) {
+            String key = entry.getKey();
+            if (clean.equals(key) || clean.startsWith(key + " ") || clean.endsWith(" " + key) || clean.contains(" " + key + " ")) {
+                return entry.getValue();
+            }
+        }
+
+        // 4. Fuzzy fallback across dictionary
+        String bestPkg = null;
+        double bestScore = 0.0;
+        for (Map.Entry<String, String> entry : FAST_APP_MAP.entrySet()) {
+            double score = fuzzyScore(clean, entry.getKey());
+            if (score > 0.80 && score > bestScore) {
+                bestScore = score;
+                bestPkg = entry.getValue();
+            }
+        }
+
+        return bestPkg;
     }
 
     public OfflineIntentRouter(AssistantActivity activity) {
@@ -596,6 +732,10 @@ public class OfflineIntentRouter {
             Log.i(TAG, "[HYBRID ROUTER] Handled URL/Clipboard Digest: " + command);
             return true;
         }
+        if (handleDeviceExpert(command, lower)) {
+            Log.i(TAG, "[HYBRID ROUTER] Solved OFFLINE (Fixed Tools - Device Expert): " + command);
+            return true;
+        }
 
         // Step 9 - Part 8: Strict Routing Wall (Zero Cloud Leakage for Hardware/Device Controls)
         if (isStrictDeviceUtilityQuery(lower)) {
@@ -698,11 +838,23 @@ public class OfflineIntentRouter {
      * CAMERA TOOL: "Open camera" / "Take a photo" / "Take selfie"
      */
     private boolean handleCamera(String lower) {
+        // Step 12: Smart Selfie Automation (Front camera with 3s timer)
+        boolean isSelfie = lower.contains("selfie") || lower.contains("front camera") ||
+                           lower.contains("samne ka camera") || lower.contains("samne wala camera") ||
+                           lower.contains("agla camera") || lower.contains("meri photo") ||
+                           lower.contains("meri picture") || lower.contains("take my selfie") ||
+                           lower.contains("meri selfie");
+
+        if (isSelfie) {
+            activity.captureSelfieWithTimer();
+            return true;
+        }
+
         if (lower.equals("open camera") || lower.equals("camera") || lower.equals("camera open") ||
             lower.equals("take a photo") || lower.equals("take photo") || lower.equals("click a photo") ||
-            lower.equals("click photo") || lower.equals("capture photo") || lower.equals("take selfie") ||
+            lower.equals("click photo") || lower.equals("capture photo") ||
             lower.equals("start camera") || lower.equals("launch camera") || lower.contains("camera on") ||
-            lower.contains("camera kholo") || lower.contains("photo khincho") || lower.contains("selfie lo") ||
+            lower.contains("camera kholo") || lower.contains("photo khincho") ||
             lower.contains("camera chalu") || lower.contains("picture lo") || lower.contains("click picture")) {
 
             if (ContextCompat.checkSelfPermission(activity, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
@@ -711,7 +863,7 @@ public class OfflineIntentRouter {
 
             try {
                 Intent intent = new Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA);
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
                 activity.startActivity(intent);
                 activity.showDynamicPill("Camera Opened", android.R.drawable.ic_menu_camera);
                 activity.showResponse("Opening camera.", true);
@@ -720,7 +872,7 @@ public class OfflineIntentRouter {
             } catch (ActivityNotFoundException e) {
                 try {
                     Intent fallback = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-                    fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
                     activity.startActivity(fallback);
                     activity.showDynamicPill("Camera Opened", android.R.drawable.ic_menu_camera);
                     activity.showResponse("Opening camera.", true);
@@ -1920,15 +2072,15 @@ public class OfflineIntentRouter {
 
         String cleanApp = appName.toLowerCase().replaceAll("[^a-z0-9\\s]", "").trim();
 
-        // 1. Instant <5ms FAST_APP_MAP
-        String targetPkg = FAST_APP_MAP.get(cleanApp);
+        // 1. Instant <5ms FAST_APP_MAP lookup via getAppPackage
+        String targetPkg = getAppPackage(cleanApp);
         if (targetPkg != null) {
             try {
                 Intent launchIntent = activity.getPackageManager().getLaunchIntentForPackage(targetPkg);
                 if (launchIntent != null) {
-                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
                     activity.startActivity(launchIntent);
-                    String capName = cleanApp.substring(0, 1).toUpperCase() + cleanApp.substring(1);
+                    String capName = cleanApp.length() > 0 ? (cleanApp.substring(0, 1).toUpperCase() + cleanApp.substring(1)) : "App";
                     activity.showDynamicPill(capName + " Opened", android.R.drawable.ic_menu_compass);
                     activity.showResponse(capName + " khol raha hoon.", true);
                     activity.setOrbState("IDLE");
@@ -2011,6 +2163,128 @@ public class OfflineIntentRouter {
             lower.contains("link summarize karo") || lower.contains("summarize the link") ||
             lower.contains("summarize link") || lower.contains("url summarize")) {
             activity.handleClipboardSummary();
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Step 12: Apple-Style "Device Expert" Module (Zero Cloud Dependency).
+     * Provides immediate offline step-by-step guidance for device features, settings & hardware controls.
+     */
+    private boolean handleDeviceExpert(String command, String lower) {
+        if (!lower.contains("how to") && !lower.contains("how do i") && !lower.contains("how can i") &&
+            !lower.contains("kaise karein") && !lower.contains("kaise kare") && !lower.contains("kaise karte") &&
+            !lower.contains("kaise lagaye") && !lower.contains("kaise lagayein") && !lower.contains("kaise le") &&
+            !lower.contains("kaise lete") && !lower.contains("kaise badhaye") && !lower.contains("kaise badhayein") &&
+            !lower.contains("kaise badle") && !lower.contains("kaise change") && !lower.contains("kaise saaf") &&
+            !lower.contains("kaise band") && !lower.contains("kaise chalu") && !lower.contains("kaise on") &&
+            !lower.contains("kaise off") && !lower.contains("kaise hataye") && !lower.contains("kaise dekhein")) {
+            return false;
+        }
+
+        // 1. Wi-Fi
+        if (lower.contains("wifi") || lower.contains("wi-fi") || lower.contains("internet")) {
+            activity.showDynamicPill("Device Expert: Wi-Fi", android.R.drawable.ic_dialog_info);
+            activity.showResponse("Wi-Fi connect karne ke liye notification panel niche swipe karein aur Wi-Fi icon par tap karein, ya Settings mein jaakar Network and Internet chunein.", true);
+            activity.setOrbState("IDLE");
+            return true;
+        }
+
+        // 2. Bluetooth
+        if (lower.contains("bluetooth") || lower.contains("pair") || lower.contains("connect device")) {
+            activity.showDynamicPill("Device Expert: Bluetooth", android.R.drawable.ic_dialog_info);
+            activity.showResponse("Bluetooth on karne ke liye notification panel se Bluetooth icon par tap karein, ya Settings mein Connected Devices par jakar naya device pair karein.", true);
+            activity.setOrbState("IDLE");
+            return true;
+        }
+
+        // 3. Screenshot
+        if (lower.contains("screenshot") || lower.contains("screen shot") || lower.contains("screen capture")) {
+            activity.showDynamicPill("Device Expert: Screenshot", android.R.drawable.ic_dialog_info);
+            activity.showResponse("Screenshot lene ke liye Power button aur Volume Down button ko ek sath 1 second dabayein, ya teen ungliyon se screen par niche swipe karein.", true);
+            activity.setOrbState("IDLE");
+            return true;
+        }
+
+        // 4. Flashlight / Torch
+        if (lower.contains("torch") || lower.contains("flashlight") || lower.contains("flash light")) {
+            activity.showDynamicPill("Device Expert: Flashlight", android.R.drawable.ic_dialog_info);
+            activity.showResponse("Flashlight on karne ke liye notification shade niche swipe karke Torch icon par tap karein, ya mujhe 'Torch on karo' kahein.", true);
+            activity.setOrbState("IDLE");
+            return true;
+        }
+
+        // 5. Wallpaper
+        if (lower.contains("wallpaper") || lower.contains("home screen") || lower.contains("lock screen")) {
+            activity.showDynamicPill("Device Expert: Wallpaper", android.R.drawable.ic_dialog_info);
+            activity.showResponse("Wallpaper badalne ke liye Home Screen ke kisi khaali hisse par long press karein aur 'Wallpapers' option chunein.", true);
+            activity.setOrbState("IDLE");
+            return true;
+        }
+
+        // 6. Alarm / Timer
+        if (lower.contains("alarm") || lower.contains("timer")) {
+            activity.showDynamicPill("Device Expert: Alarm", android.R.drawable.ic_dialog_info);
+            activity.showResponse("Alarm lagane ke liye Clock app kholein aur plus '+' button dabayein, ya sidhe mujhe bole 'Set alarm for 7 AM'.", true);
+            activity.setOrbState("IDLE");
+            return true;
+        }
+
+        // 7. Volume / Sound / Ringtone
+        if (lower.contains("volume") || lower.contains("sound") || lower.contains("ringtone") || lower.contains("awaz") || lower.contains("awaaz")) {
+            activity.showDynamicPill("Device Expert: Volume", android.R.drawable.ic_dialog_info);
+            activity.showResponse("Volume adjust karne ke liye phone ke side wale Volume buttons dabayein, ya Settings mein jaakar Sound and Vibration par tap karein.", true);
+            activity.setOrbState("IDLE");
+            return true;
+        }
+
+        // 8. Brightness / Display
+        if (lower.contains("brightness") || lower.contains("display") || lower.contains("screen timeout") || lower.contains("roshni")) {
+            activity.showDynamicPill("Device Expert: Display", android.R.drawable.ic_dialog_info);
+            activity.showResponse("Brightness badalne ke liye notification panel ko do baar niche swipe karein aur slider adjust karein, ya Settings > Display mein jayein.", true);
+            activity.setOrbState("IDLE");
+            return true;
+        }
+
+        // 9. Clear Cache / Storage / Space
+        if (lower.contains("cache") || lower.contains("storage") || lower.contains("space") || lower.contains("memory")) {
+            activity.showDynamicPill("Device Expert: Storage", android.R.drawable.ic_dialog_info);
+            activity.showResponse("Storage khali karne ke liye Settings > Storage mein jayein aur Free up space tap karein, ya Files app se unwanted files delete karein.", true);
+            activity.setOrbState("IDLE");
+            return true;
+        }
+
+        // 10. Restart / Reboot / Power Off
+        if (lower.contains("restart") || lower.contains("reboot") || lower.contains("power off") || lower.contains("switch off")) {
+            activity.showDynamicPill("Device Expert: Power", android.R.drawable.ic_dialog_info);
+            activity.showResponse("Phone restart karne ke liye Power button ko 3 second tak press karke rakhein aur screen par Restart option chunein.", true);
+            activity.setOrbState("IDLE");
+            return true;
+        }
+
+        // 11. Battery percentage / Saving mode
+        if (lower.contains("battery") || lower.contains("power saving") || lower.contains("battery saver")) {
+            activity.showDynamicPill("Device Expert: Battery", android.R.drawable.ic_dialog_info);
+            activity.showResponse("Battery saver on karne ke liye Settings > Battery mein jayein aur Battery Saver chalu karein.", true);
+            activity.setOrbState("IDLE");
+            return true;
+        }
+
+        // 12. Developer Options / USB Debugging
+        if (lower.contains("developer option") || lower.contains("usb debugging")) {
+            activity.showDynamicPill("Device Expert: Developer", android.R.drawable.ic_dialog_info);
+            activity.showResponse("Developer options enable karne ke liye Settings > About Phone mein jakar Build number par 7 baar tap karein.", true);
+            activity.setOrbState("IDLE");
+            return true;
+        }
+
+        // 13. Generic Device Settings Guide
+        if (lower.contains("setting") || lower.contains("settings")) {
+            activity.showDynamicPill("Device Expert: Settings", android.R.drawable.ic_dialog_info);
+            activity.showResponse("Device settings ke liye notification shade se Gear icon par tap karein ya app drawer se Settings app kholein.", true);
+            activity.setOrbState("IDLE");
             return true;
         }
 
@@ -2328,6 +2602,16 @@ public class OfflineIntentRouter {
             s.contains("aaj kya date") || s.contains("aaj ki date") || s.contains("today's date") ||
             s.contains("today date") || s.contains("aaj ki tarikh") || s.contains("aaj kaun sa din")) return true;
 
+        // Step 12: Device Expert ("How to" / "Kaise karein" tutorials)
+        if ((s.contains("how to") || s.contains("how do i") || s.contains("how can i") || s.contains("kaise kare") ||
+             s.contains("kaise karte") || s.contains("kaise lagaye") || s.contains("kaise badhaye") || s.contains("kaise le") ||
+             s.contains("kaise badle") || s.contains("kaise change") || s.contains("kaise saaf")) &&
+            (s.contains("wifi") || s.contains("wi-fi") || s.contains("bluetooth") || s.contains("torch") ||
+             s.contains("flashlight") || s.contains("screenshot") || s.contains("wallpaper") ||
+             s.contains("alarm") || s.contains("volume") || s.contains("brightness") ||
+             s.contains("cache") || s.contains("restart") || s.contains("battery") ||
+             s.contains("setting") || s.contains("storage"))) return true;
+
         return false;
     }
 
@@ -2336,6 +2620,11 @@ public class OfflineIntentRouter {
      * Prevents hardware/system utility commands from leaking to the online Gemini cloud LLM.
      */
     private void handleDeviceUtilityFallback(String command, String lower) {
+        // Step 12: Device Expert Fallback
+        if (handleDeviceExpert(command, lower)) {
+            return;
+        }
+
         // Step 10: Clipboard & URL Content Digest Fallback
         if (lower.contains("clipboard") || lower.contains("summarize") || lower.contains("http://") || lower.contains("https://")) {
             if (handleUrlAndClipboard(command, lower)) {

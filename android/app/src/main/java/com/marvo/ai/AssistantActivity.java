@@ -1747,6 +1747,50 @@ public class AssistantActivity extends AppCompatActivity {
     }
 
     /**
+     * Step 12: Smart Selfie Automation with 3-second camera countdown timer.
+     * Keeps AssistantActivity alive in the background without finishing.
+     */
+    public void captureSelfieWithTimer() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA}, PERMISSION_REQUEST_CAMERA);
+        }
+        try {
+            Intent intent = new Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA);
+            intent.putExtra("android.intent.extras.CAMERA_FACING", 1);
+            intent.putExtra("android.intent.extras.LENS_FACING_FRONT", 1);
+            intent.putExtra("android.intent.extra.USE_FRONT_CAMERA", true);
+            intent.putExtra("android.intent.extra.TIMER_DURATION", 3);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
+            startActivity(intent);
+            showDynamicPill("Selfie (3s Timer)", android.R.drawable.ic_menu_camera);
+            showResponse("Front camera khol diya hai, 3 second ka timer set hai. Smile!", true);
+            setOrbState("IDLE");
+        } catch (ActivityNotFoundException e) {
+            try {
+                Intent fallback = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                fallback.putExtra("android.intent.extras.CAMERA_FACING", 1);
+                fallback.putExtra("android.intent.extras.LENS_FACING_FRONT", 1);
+                fallback.putExtra("android.intent.extra.USE_FRONT_CAMERA", true);
+                fallback.putExtra("android.intent.extra.TIMER_DURATION", 3);
+                fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
+                startActivity(fallback);
+                showDynamicPill("Selfie (3s Timer)", android.R.drawable.ic_menu_camera);
+                showResponse("Front camera khol diya hai, 3 second ka timer set hai. Smile!", true);
+                setOrbState("IDLE");
+            } catch (Exception ex) {
+                showDynamicPill("Camera Error", android.R.drawable.ic_menu_close_clear_cancel);
+                showResponse("Selfie camera open karne mein dikkat hui.", true);
+                setOrbState("IDLE");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error opening selfie camera: " + e.getMessage(), e);
+            showDynamicPill("Camera Error", android.R.drawable.ic_menu_close_clear_cancel);
+            showResponse("Selfie camera open karne mein dikkat hui.", true);
+            setOrbState("IDLE");
+        }
+    }
+
+    /**
      * Opens the camera app (standard back camera or front selfie camera).
      */
     private void openCamera(boolean frontFacing) {
@@ -1756,12 +1800,12 @@ public class AssistantActivity extends AppCompatActivity {
                 intent.putExtra("android.intent.extras.CAMERA_FACING", 1);
                 intent.putExtra("android.intent.extra.USE_FRONT_CAMERA", true);
             }
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
             startActivity(intent);
         } catch (ActivityNotFoundException e) {
             try {
                 Intent fallback = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-                fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
                 startActivity(fallback);
             } catch (Exception ex) {
                 Log.w(TAG, "Camera app not found: " + ex.getMessage());
@@ -1781,8 +1825,7 @@ public class AssistantActivity extends AppCompatActivity {
      * Opens the camera app facing the front (selfie) camera.
      */
     private void openSelfieCamera() {
-        openCamera(true);
-        finishDelayed(2500);
+        captureSelfieWithTimer();
     }
 
     /**
@@ -3092,51 +3135,79 @@ public class AssistantActivity extends AppCompatActivity {
 
         String searchName = appName.toLowerCase().replaceAll("[^a-z0-9\\s]", "").trim();
         PackageManager pm = getPackageManager();
-        List<ApplicationInfo> apps = pm.getInstalledApplications(0);
+
+        // 1. Direct FAST_APP_MAP package resolution (<5ms)
+        String fastPkg = OfflineIntentRouter.getAppPackage(searchName);
+        if (fastPkg != null) {
+            try {
+                Intent launchIntent = pm.getLaunchIntentForPackage(fastPkg);
+                if (launchIntent != null) {
+                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
+                    startActivity(launchIntent);
+                    String capName = searchName.length() > 0 ? (Character.toUpperCase(searchName.charAt(0)) + searchName.substring(1)) : "App";
+                    showDynamicPill(capName + " Opened", android.R.drawable.ic_menu_compass);
+                    showResponse(capName + " khol raha hoon.", true);
+                    setOrbState("IDLE");
+                    return;
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "Fast launch by pkg error: " + e.getMessage());
+            }
+        }
+
+        // 2. Full installed application package scan & fuzzy search
+        List<ApplicationInfo> apps = null;
+        try {
+            apps = pm.getInstalledApplications(0);
+        } catch (Exception e) {
+            Log.w(TAG, "Error querying installed applications: " + e.getMessage());
+        }
 
         ApplicationInfo bestMatchApp = null;
         String bestMatchLabel = null;
         double bestScore = 0.0;
 
-        for (ApplicationInfo app : apps) {
-            Intent launchIntent = pm.getLaunchIntentForPackage(app.packageName);
-            if (launchIntent == null) continue;
+        if (apps != null) {
+            for (ApplicationInfo app : apps) {
+                Intent launchIntent = pm.getLaunchIntentForPackage(app.packageName);
+                if (launchIntent == null) continue;
 
-            CharSequence rawLabel = pm.getApplicationLabel(app);
-            if (rawLabel == null) continue;
-            String label = rawLabel.toString().toLowerCase().trim();
-            String cleanLabel = label.replaceAll("[^a-z0-9\\s]", "").trim();
+                CharSequence rawLabel = pm.getApplicationLabel(app);
+                if (rawLabel == null) continue;
+                String label = rawLabel.toString().toLowerCase().trim();
+                String cleanLabel = label.replaceAll("[^a-z0-9\\s]", "").trim();
 
-            // 1. Exact match
-            if (cleanLabel.equals(searchName)) {
-                bestMatchApp = app;
-                bestMatchLabel = rawLabel.toString();
-                bestScore = 2.0;
-                break;
-            }
-
-            // 2. Prefix or Substring match
-            if (cleanLabel.startsWith(searchName) || searchName.startsWith(cleanLabel)) {
-                double score = 1.0 + (double) Math.min(searchName.length(), cleanLabel.length()) / Math.max(searchName.length(), cleanLabel.length());
-                if (score > bestScore) {
-                    bestScore = score;
+                // Exact match
+                if (cleanLabel.equals(searchName)) {
                     bestMatchApp = app;
                     bestMatchLabel = rawLabel.toString();
+                    bestScore = 2.0;
+                    break;
                 }
-            } else if (cleanLabel.contains(searchName) || searchName.contains(cleanLabel)) {
-                double score = 0.85;
-                if (score > bestScore) {
-                    bestScore = score;
-                    bestMatchApp = app;
-                    bestMatchLabel = rawLabel.toString();
-                }
-            } else {
-                // 3. Fuzzy match using Levenshtein distance
-                double fScore = OfflineIntentRouter.fuzzyScore(searchName, cleanLabel);
-                if (fScore >= 0.70 && fScore > bestScore) {
-                    bestScore = fScore;
-                    bestMatchApp = app;
-                    bestMatchLabel = rawLabel.toString();
+
+                // Prefix or Substring match
+                if (cleanLabel.startsWith(searchName) || searchName.startsWith(cleanLabel)) {
+                    double score = 1.0 + (double) Math.min(searchName.length(), cleanLabel.length()) / Math.max(searchName.length(), cleanLabel.length());
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestMatchApp = app;
+                        bestMatchLabel = rawLabel.toString();
+                    }
+                } else if (cleanLabel.contains(searchName) || searchName.contains(cleanLabel)) {
+                    double score = 0.85;
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestMatchApp = app;
+                        bestMatchLabel = rawLabel.toString();
+                    }
+                } else {
+                    // Fuzzy match using Levenshtein distance
+                    double fScore = OfflineIntentRouter.fuzzyScore(searchName, cleanLabel);
+                    if (fScore >= 0.70 && fScore > bestScore) {
+                        bestScore = fScore;
+                        bestMatchApp = app;
+                        bestMatchLabel = rawLabel.toString();
+                    }
                 }
             }
         }
@@ -3145,7 +3216,7 @@ public class AssistantActivity extends AppCompatActivity {
             try {
                 Intent launchIntent = pm.getLaunchIntentForPackage(bestMatchApp.packageName);
                 if (launchIntent != null) {
-                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
                     startActivity(launchIntent);
                     showDynamicPill(bestMatchLabel + " Opened", android.R.drawable.ic_menu_compass);
                     showResponse(bestMatchLabel + " khol raha hoon.", true);
@@ -3155,6 +3226,14 @@ public class AssistantActivity extends AppCompatActivity {
             } catch (Exception e) {
                 Log.e(TAG, "Error launching app " + bestMatchLabel + ": " + e.getMessage(), e);
             }
+        }
+
+        if (fastPkg != null) {
+            String capName = searchName.length() > 0 ? (Character.toUpperCase(searchName.charAt(0)) + searchName.substring(1)) : "App";
+            showDynamicPill("App Not Installed", android.R.drawable.ic_menu_close_clear_cancel);
+            showResponse(capName + " aapke phone mein installed nahi mila.", true);
+            setOrbState("IDLE");
+            return;
         }
 
         showDynamicPill("App Not Found", android.R.drawable.ic_menu_close_clear_cancel);
@@ -3365,8 +3444,11 @@ public class AssistantActivity extends AppCompatActivity {
             new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
                 @Override
                 public void run() {
-                    openCamera(isFront);
-                    finishDelayed(2500);
+                    if (isFront) {
+                        captureSelfieWithTimer();
+                    } else {
+                        openCamera(false);
+                    }
                 }
             }, 300);
             return true;
@@ -5667,6 +5749,16 @@ public class AssistantActivity extends AppCompatActivity {
                     statusTextView.setText("Microphone permission needed");
                 }
             }
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        setOrbState("IDLE");
+        isSpeaking = false;
+        if (speechRecognizer == null) {
+            initSpeechRecognizer();
         }
     }
 
