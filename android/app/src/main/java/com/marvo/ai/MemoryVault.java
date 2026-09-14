@@ -3,6 +3,8 @@ package com.marvo.ai;
 import android.content.Context;
 import android.content.SharedPreferences;
 import java.util.Calendar;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 /**
  * Step 9 - Part 10 & Step 13.5: Local User Profile Vault (MemoryVault).
@@ -19,6 +21,7 @@ public class MemoryVault {
     private static final String KEY_VOICE_PROFILE = "voice_profile";
     private static final String KEY_ACTIVE_START_TIME = "active_start_time";
     private static final String KEY_ACTIVE_END_TIME = "active_end_time";
+    private static final String KEY_CUSTOM_QA = "custom_qa_database";
 
     public static final String DEFAULT_MOM_NUMBER = "+919437000002";
     public static final String DEFAULT_DAD_NUMBER = "+919437000001";
@@ -153,6 +156,75 @@ public class MemoryVault {
         } catch (Exception e) {
             return defaultMinutes;
         }
+    }
+
+    // ===== Step 15: Custom Q&A Knowledge Base ("Teach AI") =====
+
+    /**
+     * Saves a custom question-answer pair to the local knowledge base.
+     * Stored as a JSON array of {q, a} objects in SharedPreferences.
+     */
+    public static void saveCustomQA(Context context, String question, String answer) {
+        if (context == null || question == null || answer == null) return;
+        try {
+            String existing = getPrefs(context).getString(KEY_CUSTOM_QA, "[]");
+            JSONArray qaArray = new JSONArray(existing);
+
+            JSONObject entry = new JSONObject();
+            entry.put("q", question.trim().toLowerCase());
+            entry.put("a", answer.trim());
+            qaArray.put(entry);
+
+            getPrefs(context).edit().putString(KEY_CUSTOM_QA, qaArray.toString()).apply();
+        } catch (Exception e) {
+            // Fallback: reset and save fresh
+            try {
+                JSONArray fresh = new JSONArray();
+                JSONObject entry = new JSONObject();
+                entry.put("q", question.trim().toLowerCase());
+                entry.put("a", answer.trim());
+                fresh.put(entry);
+                getPrefs(context).edit().putString(KEY_CUSTOM_QA, fresh.toString()).apply();
+            } catch (Exception ignored) {}
+        }
+    }
+
+    /**
+     * Searches custom Q&A database for a fuzzy match against the user's spoken query.
+     * Uses String.contains() matching — if any taught question is contained in the query
+     * or the query is contained in the taught question, returns the taught answer.
+     * Returns null if no match found.
+     */
+    public static String getCustomQAAnswer(Context context, String query) {
+        if (context == null || query == null || query.trim().isEmpty()) return null;
+        try {
+            String existing = getPrefs(context).getString(KEY_CUSTOM_QA, "[]");
+            JSONArray qaArray = new JSONArray(existing);
+            String lowerQuery = query.trim().toLowerCase();
+
+            for (int i = 0; i < qaArray.length(); i++) {
+                JSONObject entry = qaArray.getJSONObject(i);
+                String taughtQuestion = entry.getString("q").toLowerCase();
+                String taughtAnswer = entry.getString("a");
+
+                // Fuzzy match: query contains taught question OR taught question contains query
+                if (lowerQuery.contains(taughtQuestion) || taughtQuestion.contains(lowerQuery)) {
+                    return taughtAnswer;
+                }
+            }
+        } catch (Exception e) {
+            // Silently fail — no match
+        }
+        return null;
+    }
+
+    /**
+     * Returns all stored custom Q&A pairs as a JSON array string.
+     * Used by NativeSettingsActivity for display purposes.
+     */
+    public static String getAllCustomQA(Context context) {
+        if (context == null) return "[]";
+        return getPrefs(context).getString(KEY_CUSTOM_QA, "[]");
     }
 
     // Reset Vault

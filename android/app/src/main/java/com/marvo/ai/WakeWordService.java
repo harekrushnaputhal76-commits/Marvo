@@ -350,6 +350,9 @@ public class WakeWordService extends Service {
         lastTriggerTime = now;
         Log.i(TAG, "[WAKE WORD TRIGGER] 'Hey Marvo' detected via low-power acoustic VAD envelope!");
 
+        // Step 15: Stop audio recording and release microphone resource BEFORE launching AssistantActivity's SpeechRecognizer!
+        stopListening();
+
         PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
         PowerManager.WakeLock wakeLock = null;
 

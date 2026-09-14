@@ -192,6 +192,41 @@ public class AssistantActivity extends AppCompatActivity {
         setVoiceProfile(nextProfile);
     }
 
+    /**
+     * Step 15: Starts the persistent floating overlay service.
+     * Shows a mini draggable Marvo icon on top of other apps.
+     */
+    public void startFloatingOrbService() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+                Log.w(TAG, "SYSTEM_ALERT_WINDOW permission not granted. Cannot start FloatingOrbService.");
+                return;
+            }
+            Intent intent = new Intent(this, FloatingOrbService.class);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent);
+            } else {
+                startService(intent);
+            }
+            Log.d(TAG, "FloatingOrbService started successfully");
+        } catch (Exception e) {
+            Log.w(TAG, "Error starting FloatingOrbService: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Step 15: Stops the floating overlay service.
+     */
+    public void stopFloatingOrbService() {
+        try {
+            Intent intent = new Intent(this, FloatingOrbService.class);
+            intent.setAction(FloatingOrbService.ACTION_STOP);
+            startService(intent);
+        } catch (Exception e) {
+            Log.w(TAG, "Error stopping FloatingOrbService: " + e.getMessage());
+        }
+    }
+
     // Step 13.5: Screen-Off Lifecycle Listener
     private BroadcastReceiver screenOffReceiver = null;
 
@@ -636,6 +671,14 @@ public class AssistantActivity extends AppCompatActivity {
             });
         }
 
+        // Step 15: Stop floating orb overlay while AssistantActivity is in foreground
+        stopFloatingOrbService();
+
+        // Step 15: Release microphone from background WakeWordService before initializing SpeechRecognizer
+        try {
+            WakeWordService.stop(this);
+        } catch (Exception ignored) {}
+
         initTTS();
         initSpeechRecognizer();
         offlineIntentRouter = new OfflineIntentRouter(this);
@@ -729,19 +772,18 @@ public class AssistantActivity extends AppCompatActivity {
                                         if (typewriterRunnable != null) {
                                             typewriterHandler.removeCallbacks(typewriterRunnable);
                                         }
-                                        if (utteranceId != null && utteranceId.startsWith("SPEAK_AND_LISTEN")) {
-                                            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-                                                @Override
-                                                public void run() {
-                                                    if (!isFinishing()) {
-                                                        setVisualState("LISTENING");
-                                                        startListening();
-                                                    }
+                                        // Step 15: CONTINUOUS LOOP - Auto-listen after Marvo speaks
+                                        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                if (!isFinishing()) {
+                                                    setVisualState("LISTENING");
+                                                    startListening();
+                                                } else {
+                                                    setOrbState("IDLE");
                                                 }
-                                            }, 200);
-                                        } else {
-                                            setOrbState("IDLE");
-                                        }
+                                            }
+                                        }, 250);
                                     }
                                 });
                             }
@@ -751,16 +793,9 @@ public class AssistantActivity extends AppCompatActivity {
                                 runOnUiThread(new Runnable() {
                                     @Override
                                     public void run() {
-                                        if (utteranceId != null && utteranceId.startsWith("SPEAK_AND_LISTEN")) {
-                                            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-                                                @Override
-                                                public void run() {
-                                                    if (!isFinishing()) {
-                                                        setVisualState("LISTENING");
-                                                        startListening();
-                                                    }
-                                                }
-                                            }, 200);
+                                        if (!isFinishing()) {
+                                            setVisualState("LISTENING");
+                                            startListening();
                                         } else {
                                             setOrbState("IDLE");
                                         }
@@ -3269,6 +3304,7 @@ public class AssistantActivity extends AppCompatActivity {
                 if (launchIntent != null) {
                     launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
                     startActivity(launchIntent);
+                    startFloatingOrbService();
                     String capName = searchName.length() > 0 ? (Character.toUpperCase(searchName.charAt(0)) + searchName.substring(1)) : "App";
                     showDynamicPill(capName + " Opened", android.R.drawable.ic_menu_compass);
                     showResponse(capName + " khol raha hoon.", true);
@@ -3343,6 +3379,7 @@ public class AssistantActivity extends AppCompatActivity {
                 if (launchIntent != null) {
                     launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
                     startActivity(launchIntent);
+                    startFloatingOrbService();
                     showDynamicPill(bestMatchLabel + " Opened", android.R.drawable.ic_menu_compass);
                     showResponse(bestMatchLabel + " khol raha hoon.", true);
                     setOrbState("IDLE");
@@ -5246,11 +5283,9 @@ public class AssistantActivity extends AppCompatActivity {
                         );
                     } else if (responseCode == 429) {
                         Log.w(TAG, "[HYBRID ROUTER] Gemini API rate limit hit (429)");
-                        handleStructuredError(
-                            ErrorCategory.API_ERROR,
-                            "API request limit poori ho gayi hai. Kripya thodi der baad prayas karein.",
-                            "Rate Limit Exceeded"
-                        );
+                        showDynamicPill("Online Busy", android.R.drawable.ic_dialog_alert);
+                        showResponse("Mera online connection busy hai, par offline system active hai.", true);
+                        return;
                     } else {
                         Log.w(TAG, "[HYBRID ROUTER] ONLINE (Gemini API) failed with code " + responseCode + ". Triggering natural Hindi fallback.");
                         handleStructuredError(
@@ -5476,10 +5511,13 @@ public class AssistantActivity extends AppCompatActivity {
                             : "API key invalid ya unauthorized hai. Kripya settings mein check karein.";
                         handleStructuredError(ErrorCategory.API_ERROR, err, "API Key Error");
                     } else if (responseCode == 429) {
-                        String err = (prefixSpeech != null && !prefixSpeech.isEmpty())
-                            ? prefixSpeech.trim().replaceAll("\\.+$", "") + ", lekin API request limit poori hone ke karan aage ki query poori nahi ho saki."
-                            : "API request limit poori ho gayi hai. Kripya thodi der baad prayas karein.";
-                        handleStructuredError(ErrorCategory.API_ERROR, err, "Rate Limit Exceeded");
+                        Log.w(TAG, "[HYBRID ROUTER] Gemini API rate limit hit (429)");
+                        String msg = (prefixSpeech != null && !prefixSpeech.isEmpty())
+                            ? prefixSpeech.trim().replaceAll("\\.+$", "") + ". Mera online connection busy hai, par offline system active hai."
+                            : "Mera online connection busy hai, par offline system active hai.";
+                        showDynamicPill("Online Busy", android.R.drawable.ic_dialog_alert);
+                        showResponse(msg, true);
+                        return;
                     } else {
                         String err = (prefixSpeech != null && !prefixSpeech.isEmpty())
                             ? prefixSpeech.trim().replaceAll("\\.+$", "") + ", lekin internet se jankari prapt nahi ho saki."
@@ -5720,6 +5758,11 @@ public class AssistantActivity extends AppCompatActivity {
                         }
                         br.close();
                         Log.e(TAG, "Gemini API error (" + responseCode + "): " + sb.toString());
+                        if (responseCode == 429) {
+                            showDynamicPill("Online Busy", android.R.drawable.ic_dialog_alert);
+                            showResponse("Mera online connection busy hai, par offline system active hai.", true);
+                            return;
+                        }
                         String errorMsg = (responseCode == 400 || responseCode == 401 || responseCode == 403)
                             ? "Gemini API authorization issue. Please verify your GEMINI_API_KEY."
                             : "Sorry, I couldn't process that right now. Please try again.";
@@ -5979,5 +6022,10 @@ public class AssistantActivity extends AppCompatActivity {
             } catch (Exception ignored) {}
             screenOffReceiver = null;
         }
+
+        // Step 15: Resume WakeWordService background listener when assistant closes
+        try {
+            WakeWordService.start(this);
+        } catch (Exception ignored) {}
     }
 }

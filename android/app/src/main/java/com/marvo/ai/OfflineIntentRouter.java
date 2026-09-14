@@ -169,6 +169,9 @@ public class OfflineIntentRouter {
         if (subQuery == null || subQuery.trim().isEmpty()) return false;
         String lower = subQuery.trim().toLowerCase();
 
+        // Step 15: Offline Teacher check first
+        if (handleCustomQA(subQuery, lower)) return true;
+
         if (handleUserProfile(subQuery, lower)) return true;
         if (handleAlarmAndTimer(subQuery, lower)) return true;
         if (handleDateTime(lower)) return true;
@@ -186,6 +189,7 @@ public class OfflineIntentRouter {
         if (handleFlashlight(lower)) return true;
         if (handleNavigation(subQuery, lower)) return true;
         if (handleMusic(subQuery, lower)) return true;
+        if (handleInstallApp(subQuery, lower)) return true;
         if (handleApps(subQuery, lower)) return true;
         if (handleVoiceProfile(subQuery, lower)) return true;
         if (handleTimeScheduler(subQuery, lower)) return true;
@@ -634,6 +638,12 @@ public class OfflineIntentRouter {
         }
 
         // CATEGORY A (Handle Locally - Fixed Tools):
+        // Step 15: Offline Teacher (Custom Knowledge Priority - Highest Precedence)
+        if (handleCustomQA(command, lower)) {
+            Log.i(TAG, "[HYBRID ROUTER] Solved OFFLINE (Custom Knowledge): " + command);
+            return true;
+        }
+
         // 0. User Profile & Local Vault (e.g., "mera location Delhi hai", "Mom ka number X save karo")
         if (handleUserProfile(command, lower)) {
             Log.i(TAG, "[HYBRID ROUTER] Solved OFFLINE (Fixed Tools - User Profile): " + command);
@@ -723,6 +733,10 @@ public class OfflineIntentRouter {
         }
         if (handleMusic(command, lower)) {
             Log.i(TAG, "[HYBRID ROUTER] Solved OFFLINE (Fixed Tools - Music): " + command);
+            return true;
+        }
+        if (handleInstallApp(command, lower)) {
+            Log.i(TAG, "[HYBRID ROUTER] Solved OFFLINE (Fixed Tools - Install App): " + command);
             return true;
         }
         if (handleApps(command, lower)) {
@@ -1097,6 +1111,25 @@ public class OfflineIntentRouter {
         Intent intent = null;
         String actionTitle = null;
 
+        // Step 15: Open Native Marvo Settings (Voice Profile, Active Time, Teach AI)
+        if (lower.equals("marvo settings") || lower.equals("open settings") || lower.equals("settings") ||
+            lower.contains("marvo setting") || lower.contains("marvo ki setting") ||
+            lower.equals("assistant settings") || lower.equals("open marvo settings") ||
+            lower.equals("marvo settings kholo") || lower.equals("settings kholo") ||
+            lower.contains("teach ai") || lower.contains("teach marvo")) {
+            try {
+                Intent sIntent = new Intent(activity, NativeSettingsActivity.class);
+                sIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                activity.startActivity(sIntent);
+                activity.showDynamicPill("Marvo Settings", android.R.drawable.ic_menu_preferences);
+                activity.showResponse("Marvo Settings open kar raha hoon.", true);
+                activity.setOrbState("IDLE");
+                return true;
+            } catch (Exception e) {
+                Log.e(TAG, "Error opening NativeSettingsActivity: " + e.getMessage());
+            }
+        }
+
         if (lower.contains("wifi") || lower.contains("wi-fi") || lower.contains("turn on wifi") || lower.contains("wifi on") || lower.contains("open wifi") || lower.contains("wifi kholo")) {
             intent = new Intent(Settings.ACTION_WIFI_SETTINGS);
             actionTitle = "Wi-Fi Settings";
@@ -1112,8 +1145,8 @@ public class OfflineIntentRouter {
         } else if (lower.contains("sound settings") || lower.contains("volume settings") || lower.contains("audio settings")) {
             intent = new Intent(Settings.ACTION_SOUND_SETTINGS);
             actionTitle = "Sound Settings";
-        } else if (lower.equals("open settings") || lower.equals("phone settings") || lower.equals("device settings") ||
-                   lower.equals("settings") || lower.equals("settings open") || lower.contains("settings kholo")) {
+        } else if (lower.equals("phone settings") || lower.equals("device settings") || lower.equals("system settings") ||
+                   lower.equals("phone settings open") || lower.contains("phone setting kholo")) {
             intent = new Intent(Settings.ACTION_SETTINGS);
             actionTitle = "Settings";
         }
@@ -2119,6 +2152,7 @@ public class OfflineIntentRouter {
                 if (launchIntent != null) {
                     launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
                     activity.startActivity(launchIntent);
+                    activity.startFloatingOrbService(); // Step 15: Always-on-top floating Marvo
                     String capName = cleanApp.length() > 0 ? (cleanApp.substring(0, 1).toUpperCase() + cleanApp.substring(1)) : "App";
                     activity.showDynamicPill(capName + " Opened", android.R.drawable.ic_menu_compass);
                     activity.showResponse(capName + " khol raha hoon.", true);
@@ -2133,6 +2167,76 @@ public class OfflineIntentRouter {
         // 2. Full fuzzy search across all installed applications on the device
         activity.launchAppByName(appName);
         return true;
+    }
+
+    /**
+     * Step 15: Offline Teacher Routing (Custom Knowledge Priority).
+     * Checks taught Q&A pairs in MemoryVault before hitting online AI or fixed tools.
+     * Uses fuzzy matching (String.contains()). If matched, speaks taught answer and terminates flow.
+     */
+    private boolean handleCustomQA(String command, String lower) {
+        if (activity == null || command == null || command.trim().isEmpty()) return false;
+        String answer = MemoryVault.getCustomQAAnswer(activity, command);
+        if (answer != null && !answer.trim().isEmpty()) {
+            Log.i(TAG, "[OFFLINE TEACHER] Custom QA matched for query: " + command + " -> " + answer);
+            activity.showDynamicPill("Taught Knowledge", android.R.drawable.ic_dialog_info);
+            activity.showResponse(answer, true);
+            activity.setOrbState("SPEAKING");
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Step 15: App Installation Smart Router.
+     * Routes "install [app]" or "download [app]" commands directly to Google Play Store.
+     * Launches Play Store with market://search?q=[appName] and starts FloatingOrbService.
+     */
+    private boolean handleInstallApp(String command, String lower) {
+        boolean isInstall = lower.startsWith("install ") || lower.startsWith("download ") ||
+                            lower.contains(" install karo") || lower.contains(" download karo") ||
+                            lower.contains(" install kar do") || lower.contains(" download kar do") ||
+                            lower.endsWith(" install") || lower.endsWith(" download");
+        if (!isInstall) return false;
+
+        String appName = command.replaceAll("(?i)\\b(install karo|download karo|install kar do|download kar do|install|download|karo|kar do|app|application)\\b", "").trim();
+        if (appName.isEmpty()) {
+            activity.showDynamicPill("Play Store", android.R.drawable.ic_menu_search);
+            activity.showResponse("Aap kaun sa app install karna chahte hain?", true);
+            activity.setOrbState("IDLE");
+            return true;
+        }
+
+        try {
+            Intent playStoreIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("market://search?q=" + Uri.encode(appName)));
+            playStoreIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            activity.startActivity(playStoreIntent);
+            activity.startFloatingOrbService();
+
+            String capName = appName.length() > 0 ? (Character.toUpperCase(appName.charAt(0)) + appName.substring(1)) : "App";
+            activity.showDynamicPill("Play Store: " + capName, android.R.drawable.ic_menu_compass);
+            activity.showResponse(capName + " install karne ke liye Play Store open kar raha hoon.", true);
+            activity.setOrbState("IDLE");
+            return true;
+        } catch (ActivityNotFoundException anfe) {
+            try {
+                Intent webIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/search?q=" + Uri.encode(appName)));
+                webIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                activity.startActivity(webIntent);
+                activity.startFloatingOrbService();
+
+                String capName = appName.length() > 0 ? (Character.toUpperCase(appName.charAt(0)) + appName.substring(1)) : "App";
+                activity.showDynamicPill("Play Store Web", android.R.drawable.ic_menu_compass);
+                activity.showResponse(capName + " install karne ke liye browser open kar raha hoon.", true);
+                activity.setOrbState("IDLE");
+                return true;
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to open web Play Store: " + e.getMessage());
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error opening Play Store for " + appName + ": " + e.getMessage(), e);
+        }
+        return false;
     }
 
     /**
@@ -2728,10 +2832,12 @@ public class OfflineIntentRouter {
             s.contains("answer call") || s.contains("receive call") || s.contains("call uthao") ||
             s.contains("phone uthao") || s.contains("pick up") || s.contains("call answer")) return true;
 
-        // App Launching
+        // App Launching & Installation
         if (s.startsWith("open ") || s.startsWith("launch ") || s.startsWith("kholo ") ||
             s.endsWith(" kholo") || s.endsWith(" open karo") || s.endsWith(" launch karo") ||
-            s.endsWith(" chalu karo") || s.contains(" app kholo") || s.contains(" app open karo")) return true;
+            s.endsWith(" chalu karo") || s.contains(" app kholo") || s.contains(" app open karo") ||
+            s.startsWith("install ") || s.startsWith("download ") || s.contains(" install karo") ||
+            s.contains(" download karo") || s.endsWith(" install") || s.endsWith(" download")) return true;
 
         // Voice Profile & Active Time Scheduler
         if (s.contains("change voice") || s.contains("switch voice") || s.contains("voice profile") ||
@@ -2829,6 +2935,13 @@ public class OfflineIntentRouter {
             if (handleDateTime(lower)) {
                 return;
             }
+        }
+
+        // App Installation Fallback
+        if (lower.startsWith("install ") || lower.startsWith("download ") ||
+            lower.contains("install karo") || lower.contains("download karo")) {
+            handleInstallApp(command, lower);
+            return;
         }
 
         // App Launcher Fallback
