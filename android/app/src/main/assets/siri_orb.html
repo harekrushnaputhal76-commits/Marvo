@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Marvo Siri Orb</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; }
+canvas { display: block; width: 100%; height: 100%; background: transparent; }
+</style>
+</head>
+<body>
+<canvas id="orbCanvas"></canvas>
+<script>
+// ============================================================
+// MARVO FLUID ORB — WebGL Siri-Style Mesh Gradient
+// States: IDLE, LISTENING, THINKING, SPEAKING
+// ============================================================
+
+const canvas = document.getElementById('orbCanvas');
+const gl = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: false, antialias: true });
+
+let currentState = 'IDLE';
+let amplitude = 0.0;
+let targetAmplitude = 0.0;
+let startTime = performance.now();
+
+// External API for Java bridge
+window.setOrbState = function(state) {
+    currentState = state.toUpperCase();
+};
+window.setAmplitude = function(val) {
+    targetAmplitude = Math.min(1.0, Math.max(0.0, val));
+};
+
+// ---- Shader sources ----
+const vertexShaderSrc = `
+    attribute vec2 a_position;
+    void main() {
+        gl_Position = vec4(a_position, 0.0, 1.0);
+    }
+`;
+
+const fragmentShaderSrc = `
+    precision highp float;
+    uniform float u_time;
+    uniform vec2 u_resolution;
+    uniform float u_amplitude;
+    uniform int u_state; // 0=IDLE, 1=LISTENING, 2=THINKING, 3=SPEAKING
+
+    // Simplex-style noise
+    vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+    vec2 mod289v2(vec2 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+    vec3 permute(vec3 x) { return mod289(((x * 34.0) + 1.0) * x); }
+
+    float snoise(vec2 v) {
+        const vec4 C = vec4(0.211324865405187, 0.366025403784439,
+                           -0.577350269189626, 0.024390243902439);
+        vec2 i = floor(v + dot(v, C.yy));
+        vec2 x0 = v - i + dot(i, C.xx);
+        vec2 i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+        vec4 x12 = x0.xyxy + C.xxzz;
+        x12.xy -= i1;
+        i = mod289v2(i);
+        vec3 p = permute(permute(i.y + vec3(0.0, i1.y, 1.0)) + i.x + vec3(0.0, i1.x, 1.0));
+        vec3 m = max(0.5 - vec3(dot(x0, x0), dot(x12.xy, x12.xy), dot(x12.zw, x12.zw)), 0.0);
+        m = m * m;
+        m = m * m;
+        vec3 x = 2.0 * fract(p * C.www) - 1.0;
+        vec3 h = abs(x) - 0.5;
+        vec3 ox = floor(x + 0.5);
+        vec3 a0 = x - ox;
+        m *= 1.79284291400159 - 0.85373472095314 * (a0 * a0 + h * h);
+        vec3 g;
+        g.x = a0.x * x0.x + h.x * x0.y;
+        g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+        return 130.0 * dot(m, g);
+    }
+
+    void main() {
+        vec2 uv = gl_FragCoord.xy / u_resolution;
+        vec2 center = vec2(0.5, 0.5);
+        vec2 pos = uv - center;
+        float dist = length(pos);
+        float angle = atan(pos.y, pos.x);
+
+        // --- State-dependent parameters ---
+        float speed = 0.4;
+        float noiseScale = 2.5;
+        float noiseStrength = 0.06;
+        float breathScale = 0.02;
+        float glowIntensity = 1.0;
+        float colorShift = 0.0;
+        float spinSpeed = 0.0;
+
+        if (u_state == 0) { // IDLE
+            speed = 0.4;
+            noiseStrength = 0.04;
+            breathScale = 0.02;
+            glowIntensity = 0.85;
+        } else if (u_state == 1) { // LISTENING
+            speed = 0.8;
+            noiseStrength = 0.06 + u_amplitude * 0.12;
+            breathScale = 0.03 + u_amplitude * 0.08;
+            glowIntensity = 0.9 + u_amplitude * 0.4;
+        } else if (u_state == 2) { // THINKING
+            speed = 1.6;
+            noiseStrength = 0.08;
+            breathScale = 0.025;
+            glowIntensity = 1.3;
+            spinSpeed = 2.0;
+            colorShift = u_time * 0.5;
+        } else if (u_state == 3) { // SPEAKING
+            speed = 0.7;
+            noiseStrength = 0.05 + u_amplitude * 0.06;
+            breathScale = 0.03 + u_amplitude * 0.04;
+            glowIntensity = 1.1;
+            colorShift = 0.8;
+        }
+
+        float t = u_time * speed;
+
+        // Organic boundary distortion via noise
+        float n1 = snoise(vec2(angle * 2.0 + t, dist * 3.0 + t * 0.5));
+        float n2 = snoise(vec2(angle * 3.0 - t * 0.7, dist * 4.0 + t * 0.3));
+        float n3 = snoise(vec2(pos.x * 5.0 + t, pos.y * 5.0 - t * 0.4));
+        float totalNoise = (n1 + n2 * 0.5 + n3 * 0.25) * noiseStrength;
+
+        // Breathing animation
+        float breath = sin(u_time * (u_state == 0 ? 1.2 : 2.0)) * breathScale;
+
+        // Effective radius with noise + breathing
+        float orbRadius = 0.32 + breath + totalNoise;
+
+        // Spin for THINKING state
+        float spinAngle = angle + spinSpeed * u_time;
+
+        // --- Color channels (Siri palette) ---
+        // Cyan #00E5FF, Magenta #FF007F, Deep Violet #4B0082, White core
+        vec3 cyan = vec3(0.0, 0.898, 1.0);
+        vec3 magenta = vec3(1.0, 0.0, 0.498);
+        vec3 violet = vec3(0.294, 0.0, 0.51);
+        vec3 white = vec3(1.0, 1.0, 1.0);
+
+        // Color blending based on angle + noise
+        float colorAngle = spinAngle + colorShift;
+        float c1 = sin(colorAngle * 1.0 + t * 0.3) * 0.5 + 0.5;
+        float c2 = sin(colorAngle * 1.5 + t * 0.5 + 2.094) * 0.5 + 0.5;
+        float c3 = sin(colorAngle * 0.7 + t * 0.2 + 4.189) * 0.5 + 0.5;
+
+        vec3 meshColor = cyan * c1 + magenta * c2 + violet * c3;
+        meshColor = normalize(meshColor) * length(meshColor);
+
+        // White core blend (stronger near center)
+        float coreBlend = smoothstep(0.25, 0.0, dist) * (0.6 + 0.4 * sin(u_time * 1.5));
+        if (u_state == 2) { // THINKING = stronger white core
+            coreBlend *= 1.8;
+        }
+        meshColor = mix(meshColor, white, clamp(coreBlend, 0.0, 1.0));
+
+        // --- Shape mask with soft edge ---
+        float edgeSoftness = 0.06;
+        float shape = smoothstep(orbRadius + edgeSoftness, orbRadius - edgeSoftness, dist);
+
+        // Outer glow (extends beyond orb edge)
+        float glow = exp(-dist * 4.5) * 0.4 * glowIntensity;
+        vec3 glowColor = mix(cyan, magenta, sin(u_time * 0.3) * 0.5 + 0.5) * glow;
+
+        // Inner specular highlights (liquid glass effect)
+        float spec1 = pow(max(0.0, 1.0 - abs(dist - 0.15 + n1 * 0.03)), 12.0) * 0.3;
+        float spec2 = pow(max(0.0, 1.0 - abs(dist - 0.08 + n2 * 0.02)), 16.0) * 0.4;
+        vec3 specular = white * (spec1 + spec2);
+
+        // Combine: orb body + specular + outer glow
+        vec3 finalColor = meshColor * shape + specular * shape + glowColor * (1.0 - shape * 0.5);
+        float finalAlpha = shape * 0.95 + glow * 0.7;
+
+        // Clamp
+        finalColor = clamp(finalColor * glowIntensity, 0.0, 1.0);
+        finalAlpha = clamp(finalAlpha, 0.0, 1.0);
+
+        gl_FragColor = vec4(finalColor * finalAlpha, finalAlpha);
+    }
+`;
+
+// ---- Compile shaders ----
+function createShader(gl, type, source) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, source);
+    gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+        console.error('Shader error:', gl.getShaderInfoLog(s));
+        gl.deleteShader(s);
+        return null;
+    }
+    return s;
+}
+
+const vs = createShader(gl, gl.VERTEX_SHADER, vertexShaderSrc);
+const fs = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSrc);
+
+const program = gl.createProgram();
+gl.attachShader(program, vs);
+gl.attachShader(program, fs);
+gl.linkProgram(program);
+
+if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    console.error('Program link error:', gl.getProgramInfoLog(program));
+}
+
+gl.useProgram(program);
+
+// ---- Geometry (fullscreen quad) ----
+const posBuffer = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+    -1, -1,  1, -1,  -1, 1,
+    -1,  1,  1, -1,   1, 1
+]), gl.STATIC_DRAW);
+
+const aPos = gl.getAttribLocation(program, 'a_position');
+gl.enableVertexAttribArray(aPos);
+gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+// ---- Uniforms ----
+const uTime = gl.getUniformLocation(program, 'u_time');
+const uResolution = gl.getUniformLocation(program, 'u_resolution');
+const uAmplitude = gl.getUniformLocation(program, 'u_amplitude');
+const uState = gl.getUniformLocation(program, 'u_state');
+
+function getStateInt() {
+    switch (currentState) {
+        case 'LISTENING': return 1;
+        case 'THINKING':  return 2;
+        case 'SPEAKING':  return 3;
+        default:          return 0; // IDLE
+    }
+}
+
+// ---- Resize handler ----
+function resize() {
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = canvas.clientWidth * dpr;
+    canvas.height = canvas.clientHeight * dpr;
+    gl.viewport(0, 0, canvas.width, canvas.height);
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ---- Render loop ----
+gl.enable(gl.BLEND);
+gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+gl.clearColor(0, 0, 0, 0);
+
+function render(now) {
+    const elapsed = (now - startTime) / 1000.0;
+
+    // Smooth amplitude transition
+    amplitude += (targetAmplitude - amplitude) * 0.15;
+
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.uniform1f(uTime, elapsed);
+    gl.uniform2f(uResolution, canvas.width, canvas.height);
+    gl.uniform1f(uAmplitude, amplitude);
+    gl.uniform1i(uState, getStateInt());
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+    requestAnimationFrame(render);
+}
+requestAnimationFrame(render);
+</script>
+</body>
+</html>
+

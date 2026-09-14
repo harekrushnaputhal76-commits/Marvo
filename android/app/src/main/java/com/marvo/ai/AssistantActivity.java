@@ -30,21 +30,32 @@ import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
 import android.speech.tts.TextToSpeech;
+import android.speech.tts.UtteranceProgressListener;
 import android.telephony.SmsManager;
 import android.util.Log;
 import android.view.View;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
+import android.webkit.JavascriptInterface;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
 import android.widget.ImageView;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.BufferedReader;
 import java.io.FileReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -70,11 +81,13 @@ public class AssistantActivity extends AppCompatActivity {
     private TextView statusTextView;
     private TextView subtitleTextView;
     private ImageView orbImageView;
+    private WebView orbWebView;
     private View flashlightCard;
     private View wifiCard;
     private View bluetoothCard;
     private View airplaneCard;
     private boolean flashlightEnabled;
+    private String geminiApiKey = null;
 
     // State Management for Confirmation Protocol (Step 6 Part 5)
     private String pendingActionType = null;
@@ -90,6 +103,7 @@ public class AssistantActivity extends AppCompatActivity {
         statusTextView = findViewById(R.id.statusTextView);
         subtitleTextView = findViewById(R.id.subtitleTextView);
         orbImageView = findViewById(R.id.orbImageView);
+        orbWebView = findViewById(R.id.orbWebView);
         flashlightCard = findViewById(R.id.flashlightCard);
         wifiCard = findViewById(R.id.wifiCard);
         bluetoothCard = findViewById(R.id.bluetoothCard);
@@ -102,6 +116,11 @@ public class AssistantActivity extends AppCompatActivity {
             orbImageView.startAnimation(pulse);
             orbImageView.setColorFilter(android.graphics.Color.parseColor("#00E5FF"), android.graphics.PorterDuff.Mode.MULTIPLY);
         }
+        // Initialize WebGL Siri Fluid Orb (Step 9)
+        initOrbWebView();
+
+        // Load Gemini API Key from .env asset
+        loadGeminiApiKey();
 
         // Tap outside bottom sheet to dismiss
         View rootLayout = findViewById(R.id.assistantRootLayout);
@@ -141,6 +160,38 @@ public class AssistantActivity extends AppCompatActivity {
                         }
                         isTtsReady = true;
                         Log.d(TAG, "TTS initialized successfully");
+
+                        // Step 9: UtteranceProgressListener for orb state + auto-close
+                        tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+                            @Override
+                            public void onStart(String utteranceId) {
+                                runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        setOrbState("SPEAKING");
+                                    }
+                                });
+                            }
+                            @Override
+                            public void onDone(String utteranceId) {
+                                runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        setOrbState("IDLE");
+                                        finishDelayed(4000);
+                                    }
+                                });
+                            }
+                            @Override
+                            public void onError(String utteranceId) {
+                                runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        setOrbState("IDLE");
+                                    }
+                                });
+                            }
+                        });
                     } else {
                         Log.e(TAG, "TTS initialization failed: " + status);
                     }
@@ -936,6 +987,8 @@ public class AssistantActivity extends AppCompatActivity {
     /**
      * Step 6 Part 9: Centralized Visual State Engine.
      * Controls orb animation, color filter, status/subtitle text, and alpha
+     * Step 9: Centralized Visual State Engine (upgraded for WebGL Orb).
+     * Controls orb state via JavaScript bridge, status/subtitle text,
      * based on the current assistant lifecycle state.
      */
     private void setVisualState(String state) {
@@ -956,6 +1009,7 @@ public class AssistantActivity extends AppCompatActivity {
                     Animation pulse = AnimationUtils.loadAnimation(this, R.anim.pulse_orb);
                     orbImageView.startAnimation(pulse);
                 }
+                setOrbState("LISTENING");
                 break;
 
             case "PROCESSING":
@@ -973,6 +1027,7 @@ public class AssistantActivity extends AppCompatActivity {
                     Animation fastPulse = AnimationUtils.loadAnimation(this, R.anim.pulse_orb_fast);
                     orbImageView.startAnimation(fastPulse);
                 }
+                setOrbState("THINKING");
                 break;
 
             case "SUCCESS":
@@ -988,6 +1043,7 @@ public class AssistantActivity extends AppCompatActivity {
                     Animation successBurst = AnimationUtils.loadAnimation(this, R.anim.pulse_orb_success);
                     orbImageView.startAnimation(successBurst);
                 }
+                setOrbState("IDLE");
                 break;
 
             case "ERROR":
@@ -1004,6 +1060,7 @@ public class AssistantActivity extends AppCompatActivity {
                     orbImageView.setColorFilter(android.graphics.Color.parseColor("#FF5252"), android.graphics.PorterDuff.Mode.MULTIPLY);
                     orbImageView.animate().alpha(0.4f).scaleX(0.85f).scaleY(0.85f).setDuration(250).start();
                 }
+                setOrbState("IDLE");
                 break;
 
             default:
@@ -2214,9 +2271,239 @@ public class AssistantActivity extends AppCompatActivity {
         }
 
         // Fallback: Online AI Query
+        // Fallback: Gemini AI Brain (Step 9)
         else {
             statusTextView.setText("Action: Online AI Query");
+            queryGemini(command);
         }
+    }
+
+    // ============================================================
+    // STEP 9: WebGL Orb, Gemini AI Brain, Feedback Loop
+    // ============================================================
+
+    /**
+     * Step 9 Part 1: Initialize the transparent WebView hosting the WebGL fluid orb.
+     */
+    private void initOrbWebView() {
+        if (orbWebView == null) return;
+        try {
+            WebSettings settings = orbWebView.getSettings();
+            settings.setJavaScriptEnabled(true);
+            settings.setDomStorageEnabled(true);
+            settings.setLoadWithOverviewMode(true);
+            settings.setUseWideViewPort(true);
+            settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
+
+            // Transparent background for the glassmorphic effect
+            orbWebView.setBackgroundColor(0x00000000);
+            orbWebView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+
+            orbWebView.setWebViewClient(new WebViewClient() {
+                @Override
+                public void onPageFinished(WebView view, String url) {
+                    super.onPageFinished(view, url);
+                    // Set initial state to IDLE once loaded
+                    setOrbState("IDLE");
+                    Log.d(TAG, "WebGL Siri Orb loaded successfully");
+                }
+            });
+
+            orbWebView.loadUrl("file:///android_asset/siri_orb.html");
+        } catch (Exception e) {
+            Log.e(TAG, "Error initializing orb WebView: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Step 9: Set the orb animation state via JavaScript bridge.
+     * States: IDLE, LISTENING, THINKING, SPEAKING
+     */
+    private void setOrbState(final String state) {
+        if (orbWebView != null) {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        orbWebView.evaluateJavascript("setOrbState('" + state + "')", null);
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error setting orb state: " + e.getMessage());
+                    }
+                }
+            });
+        }
+    }
+
+    /**
+     * Step 9: Set audio amplitude for the orb's real-time reactivity.
+     * @param amplitude 0.0 to 1.0
+     */
+    private void setOrbAmplitude(final float amplitude) {
+        if (orbWebView != null) {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        orbWebView.evaluateJavascript("setAmplitude(" + amplitude + ")", null);
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error setting orb amplitude: " + e.getMessage());
+                    }
+                }
+            });
+        }
+    }
+
+    /**
+     * Step 9 Part 3: Load Gemini API key from .env asset file.
+     * Reads the file line-by-line, finds GEMINI_API_KEY=..., stores it.
+     */
+    private void loadGeminiApiKey() {
+        try {
+            InputStream is = getAssets().open(".env");
+            BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.startsWith("GEMINI_API_KEY=")) {
+                    geminiApiKey = line.substring("GEMINI_API_KEY=".length()).trim();
+                    if (geminiApiKey.isEmpty() || geminiApiKey.equals("your_gemini_api_key_here")) {
+                        geminiApiKey = null;
+                        Log.w(TAG, "Gemini API key is placeholder — AI queries disabled");
+                    } else {
+                        Log.d(TAG, "Gemini API key loaded successfully");
+                    }
+                    break;
+                }
+            }
+            reader.close();
+        } catch (Exception e) {
+            Log.e(TAG, "Error reading .env for Gemini API key: " + e.getMessage(), e);
+            geminiApiKey = null;
+        }
+    }
+
+    /**
+     * Step 9 Part 3: Query Gemini AI (gemini-2.0-flash) on a background thread.
+     * Sends the user's spoken query, parses the response, speaks it via TTS.
+     */
+    private void queryGemini(final String userQuery) {
+        if (geminiApiKey == null) {
+            showResponse("AI brain is not configured. Please add your Gemini API key to the .env file.");
+            finishDelayed(4000);
+            return;
+        }
+
+        // Show thinking state
+        setVisualState("PROCESSING");
+        if (statusTextView != null) {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    statusTextView.setText("Thinking...");
+                }
+            });
+        }
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                HttpURLConnection connection = null;
+                try {
+                    String endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + geminiApiKey;
+                    URL url = new URL(endpoint);
+                    connection = (HttpURLConnection) url.openConnection();
+                    connection.setRequestMethod("POST");
+                    connection.setRequestProperty("Content-Type", "application/json");
+                    connection.setDoOutput(true);
+                    connection.setConnectTimeout(15000);
+                    connection.setReadTimeout(30000);
+
+                    // Build request body
+                    JSONObject textPart = new JSONObject();
+                    textPart.put("text", "You are Marvo, a helpful and friendly AI voice assistant. Keep responses concise and natural for spoken delivery (under 3 sentences when possible). User says: " + userQuery);
+
+                    JSONArray partsArray = new JSONArray();
+                    partsArray.put(textPart);
+
+                    JSONObject content = new JSONObject();
+                    content.put("parts", partsArray);
+
+                    JSONArray contentsArray = new JSONArray();
+                    contentsArray.put(content);
+
+                    JSONObject requestBody = new JSONObject();
+                    requestBody.put("contents", contentsArray);
+
+                    // Send request
+                    OutputStream os = connection.getOutputStream();
+                    os.write(requestBody.toString().getBytes("UTF-8"));
+                    os.flush();
+                    os.close();
+
+                    int responseCode = connection.getResponseCode();
+                    if (responseCode == HttpURLConnection.HTTP_OK) {
+                        BufferedReader br = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+                        StringBuilder sb = new StringBuilder();
+                        String line;
+                        while ((line = br.readLine()) != null) {
+                            sb.append(line);
+                        }
+                        br.close();
+
+                        // Parse Gemini response
+                        JSONObject responseJson = new JSONObject(sb.toString());
+                        JSONArray candidates = responseJson.getJSONArray("candidates");
+                        JSONObject firstCandidate = candidates.getJSONObject(0);
+                        JSONObject responseContent = firstCandidate.getJSONObject("content");
+                        JSONArray responseParts = responseContent.getJSONArray("parts");
+                        String responseText = responseParts.getJSONObject(0).getString("text");
+
+                        // Clean up markdown formatting for spoken delivery
+                        responseText = responseText.replaceAll("\\*\\*", "")
+                                                   .replaceAll("\\*", "")
+                                                   .replaceAll("#+ ", "")
+                                                   .replaceAll("```[\\s\\S]*?```", "")
+                                                   .trim();
+
+                        Log.d(TAG, "Gemini response: " + responseText);
+                        showResponse(responseText, true);
+
+                    } else {
+                        // Read error stream
+                        BufferedReader br = new BufferedReader(new InputStreamReader(connection.getErrorStream()));
+                        StringBuilder sb = new StringBuilder();
+                        String line;
+                        while ((line = br.readLine()) != null) {
+                            sb.append(line);
+                        }
+                        br.close();
+                        Log.e(TAG, "Gemini API error (" + responseCode + "): " + sb.toString());
+                        showResponse("Sorry, I couldn't process that right now. Please try again.");
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                setVisualState("ERROR");
+                            }
+                        });
+                        finishDelayed(4000);
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Gemini query failed: " + e.getMessage(), e);
+                    showResponse("I couldn't connect to my brain. Please check your internet connection.");
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            setVisualState("ERROR");
+                        }
+                    });
+                    finishDelayed(4000);
+                } finally {
+                    if (connection != null) {
+                        connection.disconnect();
+                    }
+                }
+            }
+        }).start();
     }
 
     private void checkPermissionAndStart() {
@@ -2274,6 +2561,10 @@ public class AssistantActivity extends AppCompatActivity {
         super.onDestroy();
         if (orbImageView != null) {
             orbImageView.clearAnimation();
+        if (orbWebView != null) {
+            orbWebView.loadUrl("about:blank");
+            orbWebView.destroy();
+            orbWebView = null;
         }
         if (speechRecognizer != null) {
             speechRecognizer.destroy();

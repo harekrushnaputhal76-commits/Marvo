@@ -40,9 +40,16 @@
                 android:id="@+id/orbImageView"
                 android:layout_width="120dp"
                 android:layout_height="120dp"
+            <!-- Siri-style Fluid WebGL Orb (Step 9) -->
+            <WebView
+                android:id="@+id/orbWebView"
+                android:layout_width="140dp"
+                android:layout_height="140dp"
                 android:layout_gravity="center"
                 android:contentDescription="Marvo AI Voice Orb"
                 android:src="@drawable/siri_glowing_orb" />
+                android:background="@android:color/transparent"
+                android:layerType="hardware" />
         </FrameLayout>
 
         <!-- Main Status Label (Listening / Processing / Action) -->
@@ -53,15 +60,19 @@
             android:layout_gravity="center_horizontal"
             android:layout_marginTop="16dp"
             android:fontFamily="sans-serif-medium"
+            android:fontFamily="sans-serif-light"
             android:gravity="center"
             android:letterSpacing="0.04"
             android:shadowColor="#CC000000"
             android:shadowDx="0"
             android:shadowDy="3"
             android:shadowRadius="6"
+            android:shadowDy="4"
+            android:shadowRadius="10"
             android:text="Listening..."
             android:textColor="#FFFFFF"
             android:textSize="20sp"
+            android:textSize="22sp"
             android:textStyle="bold" />
 
         <!-- Secondary Subtitle (live transcription / command feedback) -->
