@@ -986,6 +986,85 @@ public class AssistantActivity extends AppCompatActivity {
     }
 
     /**
+     * Step 5 - Part 4: Native Turn-by-Turn Navigation Intent via Google Maps
+     */
+    private void startNavigation(String destination) {
+        if (destination == null || destination.trim().isEmpty()) return;
+        try {
+            Uri gmmIntentUri = Uri.parse("google.navigation:q=" + Uri.encode(destination.trim()));
+            Intent mapIntent = new Intent(Intent.ACTION_VIEW, gmmIntentUri);
+            mapIntent.setPackage("com.google.android.apps.maps");
+            mapIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(mapIntent);
+        } catch (ActivityNotFoundException e) {
+            Log.w(TAG, "Google Maps app not found, falling back to web navigation: " + e.getMessage());
+            try {
+                Uri webUri = Uri.parse("https://www.google.com/maps/dir/?api=1&destination=" + Uri.encode(destination.trim()));
+                Intent webIntent = new Intent(Intent.ACTION_VIEW, webUri);
+                webIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(webIntent);
+            } catch (Exception ex) {
+                Log.e(TAG, "Error opening web navigation fallback: " + ex.getMessage(), ex);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error launching navigation: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Step 5 - Part 4: Native Media & Music Playback Intent
+     */
+    private void playMedia(String query, String targetPlatform) {
+        if (query == null || query.trim().isEmpty()) query = "top songs";
+        try {
+            Intent intent = new Intent(MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH);
+            intent.putExtra(MediaStore.EXTRA_MEDIA_FOCUS, "vnd.android.cursor.item/audio");
+            intent.putExtra(SearchManager.QUERY, query);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
+            if ("spotify".equalsIgnoreCase(targetPlatform)) {
+                intent.setPackage("com.spotify.music");
+            } else if ("youtube".equalsIgnoreCase(targetPlatform)) {
+                intent.setPackage("com.google.android.youtube");
+            }
+
+            startActivity(intent);
+        } catch (ActivityNotFoundException e) {
+            Log.w(TAG, "Preferred media player not found, falling back: " + e.getMessage());
+            try {
+                Uri ytUri = Uri.parse("https://www.youtube.com/results?search_query=" + Uri.encode(query));
+                Intent fallback = new Intent(Intent.ACTION_VIEW, ytUri);
+                fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(fallback);
+            } catch (Exception ex) {
+                Log.e(TAG, "Error opening music fallback: " + ex.getMessage(), ex);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error playing media: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Step 5 - Part 4: Builds a Calendar Insert Intent.
+     */
+    private Intent buildCalendarIntent(String title, String description, long beginTimeMillis, long endTimeMillis) {
+        Intent intent = new Intent(Intent.ACTION_INSERT);
+        intent.setData(CalendarContract.Events.CONTENT_URI);
+        intent.putExtra(CalendarContract.Events.TITLE, title != null ? title : "Reminder");
+        if (description != null && !description.isEmpty()) {
+            intent.putExtra(CalendarContract.Events.DESCRIPTION, description);
+        }
+        if (beginTimeMillis > 0) {
+            intent.putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, beginTimeMillis);
+        }
+        if (endTimeMillis > 0) {
+            intent.putExtra(CalendarContract.EXTRA_EVENT_END_TIME, endTimeMillis);
+        }
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        return intent;
+    }
+
+    /**
      * Step 5 - Part 3: Double-Confirmation Security Protocol (State Machine)
      * Holds the pending Intent in memory, sets the Siri Orb to CONFIRMATION state (pulsating Amber/Gold),
      * speaks a bilingual confirmation query ("I have drafted a message to [Name] saying: [Message]. Do you want me to send it?"),
@@ -1002,7 +1081,13 @@ public class AssistantActivity extends AppCompatActivity {
 
         // Format bilingual prompt
         String promptText;
-        if (isHindi) {
+        if ("CALENDAR_DRAFT".equals(actionType)) {
+            if (isHindi) {
+                promptText = "Maine \"" + messagePayload + "\" ke liye reminder taiyar kiya hai. Kya main ise save kar doon?";
+            } else {
+                promptText = "I have set up a reminder for " + messagePayload + ". Do you want me to save it?";
+            }
+        } else if (isHindi) {
             promptText = "Maine " + recipientName + " ke liye message taiyar kiya hai: \"" + messagePayload + "\". Kya main ise bhej doon?";
         } else {
             promptText = "I have drafted a message to " + recipientName + " saying: \"" + messagePayload + "\". Do you want me to send it?";
@@ -1013,12 +1098,20 @@ public class AssistantActivity extends AppCompatActivity {
             statusTextView.setText(promptText);
         }
         if (subtitleTextView != null) {
-            subtitleTextView.setText("To: " + recipientName + " | \"" + messagePayload + "\"");
+            if ("CALENDAR_DRAFT".equals(actionType)) {
+                subtitleTextView.setText("Event: " + messagePayload);
+            } else {
+                subtitleTextView.setText("To: " + recipientName + " | \"" + messagePayload + "\"");
+            }
             subtitleTextView.setVisibility(View.VISIBLE);
         }
 
         // Show Dynamic Notification Pill
-        showDynamicPill("Confirmation: " + recipientName, android.R.drawable.ic_dialog_alert);
+        if ("CALENDAR_DRAFT".equals(actionType)) {
+            showDynamicPill("Reminder: " + messagePayload, android.R.drawable.ic_menu_my_calendar);
+        } else {
+            showDynamicPill("Confirmation: " + recipientName, android.R.drawable.ic_dialog_alert);
+        }
 
         // Speak via Android TTS
         if (tts != null && isTtsReady) {
@@ -2404,6 +2497,202 @@ public class AssistantActivity extends AppCompatActivity {
             }
         }
 
+        // 8. Maps & Navigation Native Intent Matcher
+        if (lower.startsWith("navigate to ") || lower.startsWith("take me to ") || lower.startsWith("directions to ") ||
+            lower.startsWith("direction to ") || lower.startsWith("directions for ") || lower.startsWith("route to ") ||
+            lower.startsWith("navigation to ") || lower.contains("rasta dikhao") || lower.contains("ka rasta") ||
+            lower.contains("le chalo") || lower.matches(".*\\b(navigate to|take me to|directions to|route to|rasta dikhao)\\b.*")) {
+            String destination = "";
+            String[] navPrefixes = new String[]{
+                "navigate to ", "take me to ", "directions to ", "directions for ",
+                "direction to ", "route to ", "navigation to ", "navigation for "
+            };
+            for (String np : navPrefixes) {
+                int idx = lower.indexOf(np);
+                if (idx != -1) {
+                    destination = command.substring(idx + np.length()).trim();
+                    break;
+                }
+            }
+            if (destination.isEmpty()) {
+                Matcher mHindiRasta = Pattern.compile("(?i)(.+?)\\s+ka\\s+rasta(?:\\s+dikhao)?").matcher(command);
+                if (mHindiRasta.find()) {
+                    destination = mHindiRasta.group(1).replaceAll("(?i)^(mujhe|humein|please)\\s*", "").trim();
+                } else {
+                    Matcher mHindiRasta2 = Pattern.compile("(?i)rasta\\s+dikhao(?:\\s+to)?\\s+(.+)").matcher(command);
+                    if (mHindiRasta2.find()) {
+                        destination = mHindiRasta2.group(1).trim();
+                    } else {
+                        Matcher mChalo = Pattern.compile("(?i)(?:le\\s+chalo|chalo)\\s+(?:to\\s+)?(.+)").matcher(command);
+                        if (mChalo.find()) {
+                            destination = mChalo.group(1).trim();
+                        } else {
+                            Matcher mChalo2 = Pattern.compile("(?i)(.+?)\\s+(?:le\\s+chalo|chalo)").matcher(command);
+                            if (mChalo2.find()) {
+                                destination = mChalo2.group(1).replaceAll("(?i)^(mujhe|humein|please)\\s*", "").trim();
+                            }
+                        }
+                    }
+                }
+            }
+
+            destination = destination.replaceAll("(?i)\\b(please|kripya|jaldi|now)\\b", "").trim();
+
+            if (!destination.isEmpty()) {
+                final String destFinal = destination;
+                final boolean isHindi = lower.contains("rasta") || lower.contains("chalo");
+                final String ttsMsg = isHindi ? (destFinal + " ka rasta dikha raha hoon...") : ("Navigating to " + destFinal + "...");
+                setOrbState("SPEAKING");
+                showDynamicPill("Navigating: " + destFinal, android.R.drawable.ic_dialog_map);
+                showResponse(ttsMsg, true);
+                new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        startNavigation(destFinal);
+                        finishDelayed(2500);
+                    }
+                }, 300);
+                return true;
+            }
+        }
+
+        // 9. Media & Music Playback Native Intent Matcher
+        if (!lower.contains("play store") && !lower.contains("google play") &&
+            (lower.startsWith("play ") || lower.contains("gana bajao") || lower.contains("gaana bajao") ||
+             lower.startsWith("bajao ") || lower.contains(" bajao") || lower.startsWith("music ") ||
+             lower.matches(".*\\b(play|gana bajao|gaana bajao|bajao)\\b.*(spotify|youtube|song|music)?.*"))) {
+            String platform = "";
+            if (lower.contains("spotify")) {
+                platform = "spotify";
+            } else if (lower.contains("youtube") || lower.contains("yt")) {
+                platform = "youtube";
+            }
+
+            String song = "";
+            // Pattern 1: "play [Song] on spotify/youtube"
+            Matcher mPlayOn = Pattern.compile("(?i)^play\\s+(.+?)\\s+(?:on\\s+(?:spotify|youtube|yt)|spotify\\s+par|youtube\\s+par)").matcher(command);
+            if (mPlayOn.find()) {
+                song = mPlayOn.group(1).trim();
+            }
+
+            // Pattern 2: "play [Song]"
+            if (song.isEmpty() && lower.startsWith("play ")) {
+                song = command.substring(5).replaceAll("(?i)\\s+(?:on\\s+(?:spotify|youtube|yt)|spotify\\s+par|youtube\\s+par)$", "").trim();
+            }
+
+            // Pattern 3: Hindi "gana bajao [Song]" or "[Song] gana bajao" or "bajao [Song]" or "[Song] bajao"
+            if (song.isEmpty()) {
+                Matcher mGana1 = Pattern.compile("(?i)(?:gana|gaana|song)\\s+bajao\\s+(.+)").matcher(command);
+                if (mGana1.find()) {
+                    song = mGana1.group(1).trim();
+                } else {
+                    Matcher mGana2 = Pattern.compile("(?i)(.+?)\\s+(?:gana|gaana|song)\\s+bajao").matcher(command);
+                    if (mGana2.find()) {
+                        song = mGana2.group(1).replaceAll("(?i)^(mujhe|koi|ek|please)\\s*", "").trim();
+                    } else {
+                        Matcher mBajao1 = Pattern.compile("(?i)^bajao\\s+(.+)").matcher(command);
+                        if (mBajao1.find()) {
+                            song = mBajao1.group(1).trim();
+                        } else {
+                            Matcher mBajao2 = Pattern.compile("(?i)(.+?)\\s+bajao").matcher(command);
+                            if (mBajao2.find()) {
+                                song = mBajao2.group(1).replaceAll("(?i)^(mujhe|koi|ek|please)\\s*", "").trim();
+                            }
+                        }
+                    }
+                }
+            }
+
+            song = song.replaceAll("(?i)\\b(please|kripya|song|track|music)\\b", "").trim();
+            if (song.isEmpty() && (lower.equals("play music") || lower.equals("play song") || lower.equals("gana bajao") || lower.equals("play"))) {
+                song = "top songs";
+            }
+
+            if (!song.isEmpty()) {
+                final String songFinal = song;
+                final String platformFinal = platform;
+                String targetName = "spotify".equals(platform) ? "Spotify" : ("youtube".equals(platform) ? "YouTube" : "Music");
+                String ttsMsg = "Playing " + songFinal + (platformFinal.isEmpty() ? "." : (" on " + targetName + "."));
+                setOrbState("SPEAKING");
+                showDynamicPill("Playing: " + songFinal, android.R.drawable.ic_media_play);
+                showResponse(ttsMsg, true);
+                new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        playMedia(songFinal, platformFinal);
+                        finishDelayed(2500);
+                    }
+                }, 300);
+                return true;
+            }
+        }
+
+        // 10. Calendar & Reminders Intent Matcher with Double-Confirmation Protocol
+        if (lower.startsWith("schedule a meeting") || lower.startsWith("schedule meeting") ||
+            lower.startsWith("remind me to ") || lower.startsWith("remind me that ") || lower.startsWith("remind me ") ||
+            lower.contains("meeting schedule") || lower.contains("yaad dilana") || lower.contains("yaad dila dena") ||
+            lower.contains("reminder set karo") || lower.contains("reminder lagao")) {
+
+            String eventTitle = "";
+            boolean isHindi = lower.contains("karo") || lower.contains("yaad") || lower.contains("dilana") || lower.contains("ke liye") || lower.contains("lagao");
+
+            // Pattern 1: "schedule a meeting for [Topic]" or "schedule meeting for [Topic]"
+            Matcher mMeeting = Pattern.compile("(?i)schedule\\s+(?:a\\s+)?meeting(?:\\s+for|\\s+about)?\\s+(.+)").matcher(command);
+            if (mMeeting.find()) {
+                eventTitle = mMeeting.group(1).trim();
+            }
+
+            // Pattern 2: "remind me to/that [Task]"
+            if (eventTitle.isEmpty()) {
+                Matcher mRemind = Pattern.compile("(?i)remind\\s+me\\s+(?:to|that|about)?\\s+(.+)").matcher(command);
+                if (mRemind.find()) {
+                    eventTitle = mRemind.group(1).trim();
+                }
+            }
+
+            // Pattern 3: Hindi "[Topic] ke liye meeting schedule karo" or "meeting schedule karo [Topic]"
+            if (eventTitle.isEmpty()) {
+                Matcher mHindiMeeting1 = Pattern.compile("(?i)(.+?)\\s+ke\\s+liye\\s+meeting\\s+schedule(?:\\s+karo)?").matcher(command);
+                if (mHindiMeeting1.find()) {
+                    eventTitle = mHindiMeeting1.group(1).replaceAll("(?i)^(meri|ek|please)\\s*", "").trim();
+                } else {
+                    Matcher mHindiMeeting2 = Pattern.compile("(?i)meeting\\s+schedule\\s+karo(?:\\s+for)?\\s+(.+)").matcher(command);
+                    if (mHindiMeeting2.find()) {
+                        eventTitle = mHindiMeeting2.group(1).trim();
+                    }
+                }
+            }
+
+            // Pattern 4: Hindi "[Task] yaad dilana" or "yaad dilana ki [Task]"
+            if (eventTitle.isEmpty()) {
+                Matcher mYaad1 = Pattern.compile("(?i)yaad\\s+dila(?:na|\\s+dena)(?:\\s+ki)?\\s+(.+)").matcher(command);
+                if (mYaad1.find()) {
+                    eventTitle = mYaad1.group(1).trim();
+                } else {
+                    Matcher mYaad2 = Pattern.compile("(?i)(.+?)\\s+yaad\\s+dila(?:na|\\s+dena)").matcher(command);
+                    if (mYaad2.find()) {
+                        eventTitle = mYaad2.group(1).replaceAll("(?i)^(mujhe|please)\\s*", "").trim();
+                    }
+                }
+            }
+
+            if (eventTitle.isEmpty()) {
+                eventTitle = "Important Task";
+            }
+
+            eventTitle = eventTitle.replaceAll("(?i)\\b(please|kripya|today|tomorrow|aaj|kal)\\b", "").trim();
+            if (eventTitle.isEmpty()) eventTitle = "Meeting";
+
+            // Build calendar intent starting 1 hour from now, duration 1 hour
+            long now = System.currentTimeMillis();
+            long beginTime = now + (60 * 60 * 1000L); // 1 hr from now
+            long endTime = beginTime + (60 * 60 * 1000L); // 1 hr duration
+            Intent calIntent = buildCalendarIntent(eventTitle, "Scheduled via Marvo Assistant", beginTime, endTime);
+
+            requestDoubleConfirmation("CALENDAR_DRAFT", eventTitle, eventTitle, calIntent, isHindi);
+            return true;
+        }
+
         return false;
     }
 
@@ -2445,24 +2734,42 @@ public class AssistantActivity extends AppCompatActivity {
                 return;
             }
 
-            // Step 5 - Part 3: Double-Confirmation Security Protocol for Messages & Emails
-            if ("WHATSAPP_DRAFT".equals(pendingActionType) || "EMAIL_DRAFT".equals(pendingActionType) || "SMS_DRAFT".equals(pendingActionType)) {
-                boolean isHindi = lower.contains("haan") || lower.contains("ha") || lower.contains("bhejo") || lower.contains("karo") || lower.contains("nahi") || lower.contains("mat");
+            // Step 5 - Part 3 & 4: Double-Confirmation Security Protocol for Messages, Emails, and Calendar
+            if ("WHATSAPP_DRAFT".equals(pendingActionType) || "EMAIL_DRAFT".equals(pendingActionType) || "SMS_DRAFT".equals(pendingActionType) || "CALENDAR_DRAFT".equals(pendingActionType)) {
+                boolean isHindi = lower.contains("haan") || lower.contains("ha") || lower.contains("bhejo") || lower.contains("karo") || lower.contains("nahi") || lower.contains("mat") || lower.contains("save");
                 if (lower.contains("yes") || lower.contains("haan") || lower.contains("ha") ||
                     lower.contains("send") || lower.contains("bhejo") || lower.contains("bhej do") ||
                     lower.contains("confirm") || lower.contains("karo") || lower.contains("sure") ||
+                    lower.contains("save") || lower.contains("save karo") ||
                     lower.contains("ok") || lower.contains("please")) {
-                    String displayName = pendingRecipientName != null ? pendingRecipientName : "Recipient";
-                    String successMsg = isHindi ? (displayName + " ko message bhej raha hoon...") : ("Sending message to " + displayName + "...");
-                    setOrbState("SPEAKING");
-                    showResponse(successMsg, true);
-                    showDynamicPill("Sent to " + displayName, android.R.drawable.ic_menu_send);
-                    if (pendingIntent != null) {
-                        try {
-                            startActivity(pendingIntent);
-                        } catch (Exception e) {
-                            Log.e(TAG, "Error executing confirmed intent: " + e.getMessage(), e);
-                            showResponse("Failed to launch application.", true);
+
+                    if ("CALENDAR_DRAFT".equals(pendingActionType)) {
+                        String eventTitle = pendingDraftContent != null ? pendingDraftContent : "Reminder";
+                        String successMsg = isHindi ? ("Reminder save kiya ja raha hai...") : ("Saving reminder for " + eventTitle + "...");
+                        setOrbState("SPEAKING");
+                        showResponse(successMsg, true);
+                        showDynamicPill("Saved: " + eventTitle, android.R.drawable.ic_menu_my_calendar);
+                        if (pendingIntent != null) {
+                            try {
+                                startActivity(pendingIntent);
+                            } catch (Exception e) {
+                                Log.e(TAG, "Error executing calendar intent: " + e.getMessage(), e);
+                                showResponse("Failed to open calendar.", true);
+                            }
+                        }
+                    } else {
+                        String displayName = pendingRecipientName != null ? pendingRecipientName : "Recipient";
+                        String successMsg = isHindi ? (displayName + " ko message bhej raha hoon...") : ("Sending message to " + displayName + "...");
+                        setOrbState("SPEAKING");
+                        showResponse(successMsg, true);
+                        showDynamicPill("Sent to " + displayName, android.R.drawable.ic_menu_send);
+                        if (pendingIntent != null) {
+                            try {
+                                startActivity(pendingIntent);
+                            } catch (Exception e) {
+                                Log.e(TAG, "Error executing confirmed intent: " + e.getMessage(), e);
+                                showResponse("Failed to launch application.", true);
+                            }
                         }
                     }
                     pendingActionType = null;
@@ -2473,17 +2780,28 @@ public class AssistantActivity extends AppCompatActivity {
                 } else if (lower.contains("no") || lower.contains("cancel") || lower.contains("nahi") ||
                            lower.contains("na") || lower.contains("mat") || lower.contains("stop") ||
                            lower.contains("rok") || lower.contains("don't") || lower.contains("dont")) {
-                    String cancelMsg = isHindi ? "Message cancel kar diya gaya." : "Message cancelled.";
+                    String cancelMsg;
+                    if ("CALENDAR_DRAFT".equals(pendingActionType)) {
+                        cancelMsg = isHindi ? "Reminder cancel kar diya gaya." : "Reminder cancelled.";
+                        showDynamicPill("Reminder Cancelled", android.R.drawable.ic_menu_close_clear_cancel);
+                    } else {
+                        cancelMsg = isHindi ? "Message cancel kar diya gaya." : "Message cancelled.";
+                        showDynamicPill("Message Cancelled", android.R.drawable.ic_menu_close_clear_cancel);
+                    }
                     setOrbState("SPEAKING");
                     showResponse(cancelMsg, true);
-                    showDynamicPill("Message Cancelled", android.R.drawable.ic_menu_close_clear_cancel);
                     pendingActionType = null;
                     pendingIntent = null;
                     pendingRecipientName = null;
                     pendingDraftContent = null;
                     finishDelayed(1800);
                 } else {
-                    String retryMsg = isHindi ? "Bhejne ke liye HAAN bolein ya cancel karne ke liye NAHI bolein." : "Say YES to send or NO to cancel.";
+                    String retryMsg;
+                    if ("CALENDAR_DRAFT".equals(pendingActionType)) {
+                        retryMsg = isHindi ? "Save karne ke liye HAAN bolein ya cancel karne ke liye NAHI bolein." : "Say YES to save or NO to cancel.";
+                    } else {
+                        retryMsg = isHindi ? "Bhejne ke liye HAAN bolein ya cancel karne ke liye NAHI bolein." : "Say YES to send or NO to cancel.";
+                    }
                     showResponse(retryMsg, true);
                     startListeningDelayed(1600);
                 }
@@ -2544,10 +2862,15 @@ public class AssistantActivity extends AppCompatActivity {
             return;
         }
 
-        // Step 5 - Part 2: Web Knowledge & Wikipedia Fast-Track to Online Gemini AI
+        // Step 5 - Part 2 & 4: Web Knowledge & Instant Fast-Track to Online Gemini AI
         if (lower.contains("wikipedia") || lower.startsWith("who is ") || lower.startsWith("what is ") ||
-            lower.startsWith("tell me about ") || lower.startsWith("explain ") || lower.startsWith("kya hai ") ||
-            lower.startsWith("kaun hai ")) {
+            lower.startsWith("why is ") || lower.startsWith("why do ") || lower.startsWith("why does ") ||
+            lower.startsWith("how to ") || lower.startsWith("how do ") || lower.startsWith("how does ") ||
+            lower.startsWith("how can ") || lower.startsWith("tell me about ") || lower.startsWith("explain ") ||
+            lower.startsWith("define ") || lower.startsWith("meaning of ") || lower.startsWith("what are ") ||
+            lower.startsWith("who was ") || lower.startsWith("where is ") || lower.startsWith("difference between ") ||
+            lower.startsWith("kya hai ") || lower.startsWith("kaun hai ") || lower.startsWith("kyun ") ||
+            lower.startsWith("kaise ") || lower.startsWith("kahan hai ")) {
             queryGemini(command);
             return;
         }
