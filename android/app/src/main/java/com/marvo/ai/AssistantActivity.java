@@ -4145,6 +4145,7 @@ public class AssistantActivity extends AppCompatActivity {
             public void run() {
                 HttpURLConnection conn = null;
                 try {
+                    Log.i(TAG, "[HYBRID ROUTER] Query routed to ONLINE (Gemini API): " + userQuery);
                     String apiKey = "YOUR_API_KEY_HERE";
                     if (apiKey == null || apiKey.trim().isEmpty() || "YOUR_API_KEY_HERE".equals(apiKey)) {
                         apiKey = getGeminiApiKey();
@@ -4244,6 +4245,7 @@ public class AssistantActivity extends AppCompatActivity {
                         // Clean any markdown formatting if present
                         final String cleanReply = replyText.replaceAll("[*#_`]", "").trim();
 
+                        Log.i(TAG, "[HYBRID ROUTER] Solved ONLINE (Gemini API): " + cleanReply);
                         runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
@@ -4251,21 +4253,26 @@ public class AssistantActivity extends AppCompatActivity {
                             }
                         });
                     } else {
+                        Log.w(TAG, "[HYBRID ROUTER] ONLINE (Gemini API) failed with code " + responseCode + ". Triggering natural Hindi fallback.");
+                        final String fallbackText = "Mujhe abhi internet se connect karne mein pareshani ho rahi hai, kripya dobara koshish karein.";
                         runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
-                                showResponse("Connection failed.", true);
+                                showResponse(fallbackText, true);
+                                setOrbState("IDLE");
                             }
                         });
                     }
 
                 } catch (Exception e) {
                     e.printStackTrace();
-                    Log.e(TAG, "Error in askGeminiOnline: " + e.getMessage(), e);
+                    Log.e(TAG, "[HYBRID ROUTER] Error/Timeout in askGeminiOnline: " + e.getMessage(), e);
+                    final String fallbackText = "Mujhe abhi internet se connect karne mein pareshani ho rahi hai, kripya dobara koshish karein.";
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            showResponse("Connection failed.", true);
+                            showResponse(fallbackText, true);
+                            setOrbState("IDLE");
                         }
                     });
                 } finally {

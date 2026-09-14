@@ -121,42 +121,89 @@ public class OfflineIntentRouter {
     }
 
     /**
-     * Primary Offline Routing Engine.
-     * Evaluates commands locally. If handled, executes action, provides feedback, and returns true.
-     * Returns false if the query requires online knowledge or Gemini AI.
+     * Primary Hybrid Routing Engine (Step 9: Apple Intelligence Hybrid Router Optimization).
+     * Strictly executes offline-first strategy:
+     * CATEGORY A (Handle Locally): Time, Date, Math calculations, Battery percentage,
+     * device settings (WiFi/Bluetooth), direct contact lookups (e.g., "Call Papa"), volume,
+     * hardware tools. Executes locally via native managers & triggers TTS immediately.
+     * CATEGORY B (Route to Online Gemini API): General knowledge, web facts, coding help,
+     * complex analysis.
      */
     public boolean routeOffline(String command) {
         if (command == null || command.trim().isEmpty()) return false;
         String lower = command.trim().toLowerCase();
 
-        // 1. Offline Fixed Tools & Chit-Chat in Hindi (Step 7 - Part 4)
-        if (handleChitChat(command, lower)) return true;
-        if (handleDateTime(lower)) return true;
-        if (handleMath(command, lower)) return true;
-        if (handleVolume(lower)) return true;
-        if (handleBattery(lower)) return true;
-
-        // 2. Complex Online Bypasses (Must go online to Gemini AI)
-        if (isComplexOnlineQuery(lower)) {
-            activity.askGeminiOnline(command);
+        // CATEGORY A (Handle Locally - Fixed Tools):
+        // 1. Time & Date
+        if (handleDateTime(lower)) {
+            Log.i(TAG, "[HYBRID ROUTER] Solved OFFLINE (Fixed Tools - Time/Date): " + command);
             return true;
         }
 
-        // 3. Native Hardware Tools
-        if (handleCamera(lower)) return true;
-        if (handleFlashlight(lower)) return true;
-        if (handleAlarmAndTimer(command, lower)) return true;
-        if (handleSettings(lower)) return true;
+        // 2. Math Calculations
+        if (handleMath(command, lower)) {
+            Log.i(TAG, "[HYBRID ROUTER] Solved OFFLINE (Fixed Tools - Math): " + command);
+            return true;
+        }
 
-        // 4. Smart Calling with Entity Alias Resolution
-        if (handleCalling(command, lower)) return true;
+        // 3. Battery Percentage
+        if (handleBattery(lower)) {
+            Log.i(TAG, "[HYBRID ROUTER] Solved OFFLINE (Fixed Tools - Battery): " + command);
+            return true;
+        }
 
-        // 5. OS Integrations (Navigation, Music, Apps)
-        if (handleNavigation(command, lower)) return true;
-        if (handleMusic(command, lower)) return true;
-        if (handleApps(command, lower)) return true;
+        // 4. Device Settings (WiFi, Bluetooth, etc.)
+        if (handleSettings(lower)) {
+            Log.i(TAG, "[HYBRID ROUTER] Solved OFFLINE (Fixed Tools - Device Settings): " + command);
+            return true;
+        }
 
-        // Final Step Fallback: If the query does NOT match any local offline tool, call askGeminiOnline
+        // 5. Direct Contact Lookups & Calling (e.g., "Call Papa")
+        if (handleCalling(command, lower)) {
+            Log.i(TAG, "[HYBRID ROUTER] Solved OFFLINE (Fixed Tools - Contacts/Calling): " + command);
+            return true;
+        }
+
+        // 6. Offline Hindi Chit-Chat & Identity
+        if (handleChitChat(command, lower)) {
+            Log.i(TAG, "[HYBRID ROUTER] Solved OFFLINE (Fixed Tools - ChitChat): " + command);
+            return true;
+        }
+
+        // 7. Native Hardware & System Tools (Volume, Camera, Flashlight, Alarms, Navigation, Media, Apps)
+        if (handleVolume(lower)) {
+            Log.i(TAG, "[HYBRID ROUTER] Solved OFFLINE (Fixed Tools - Volume): " + command);
+            return true;
+        }
+        if (handleCamera(lower)) {
+            Log.i(TAG, "[HYBRID ROUTER] Solved OFFLINE (Fixed Tools - Camera): " + command);
+            return true;
+        }
+        if (handleFlashlight(lower)) {
+            Log.i(TAG, "[HYBRID ROUTER] Solved OFFLINE (Fixed Tools - Flashlight): " + command);
+            return true;
+        }
+        if (handleAlarmAndTimer(command, lower)) {
+            Log.i(TAG, "[HYBRID ROUTER] Solved OFFLINE (Fixed Tools - Alarm/Timer): " + command);
+            return true;
+        }
+        if (handleNavigation(command, lower)) {
+            Log.i(TAG, "[HYBRID ROUTER] Solved OFFLINE (Fixed Tools - Navigation): " + command);
+            return true;
+        }
+        if (handleMusic(command, lower)) {
+            Log.i(TAG, "[HYBRID ROUTER] Solved OFFLINE (Fixed Tools - Music): " + command);
+            return true;
+        }
+        if (handleApps(command, lower)) {
+            Log.i(TAG, "[HYBRID ROUTER] Solved OFFLINE (Fixed Tools - Apps): " + command);
+            return true;
+        }
+
+        // CATEGORY B (Route to Online Gemini API):
+        // If query requires general knowledge, web facts, coding help, or complex analysis
+        // that the offline router cannot resolve locally, seamlessly hand it over to Gemini API.
+        Log.i(TAG, "[HYBRID ROUTER] Solved ONLINE (Gemini API): " + command);
         activity.askGeminiOnline(command);
         return true;
     }
