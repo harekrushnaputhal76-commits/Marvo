@@ -11,6 +11,7 @@ import android.content.ContentUris;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.BroadcastReceiver;
 import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
@@ -166,6 +167,33 @@ public class AssistantActivity extends AppCompatActivity {
     public int getCurrentVoiceProfile() {
         return currentVoiceProfile;
     }
+
+    /**
+     * Step 13.5: Lock Screen Security Gateway check.
+     * Returns true if the device is currently keyguard locked (PIN, pattern, password, biometric).
+     */
+    public boolean isDeviceLocked() {
+        try {
+            KeyguardManager km = (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
+            if (km != null) {
+                return km.isKeyguardLocked();
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Error checking keyguard locked state: " + e.getMessage());
+        }
+        return false;
+    }
+
+    /**
+     * Step 13.5: Cycles sequentially to the next voice profile (1 -> 2 -> 3 -> 4 -> 1).
+     */
+    public void switchVoiceProfile() {
+        int nextProfile = (currentVoiceProfile % 4) + 1;
+        setVoiceProfile(nextProfile);
+    }
+
+    // Step 13.5: Screen-Off Lifecycle Listener
+    private BroadcastReceiver screenOffReceiver = null;
 
     // Step 7 - Part 2: Offline Intent Router & 50ms Live Mic Sync
     private OfflineIntentRouter offlineIntentRouter;
@@ -612,7 +640,33 @@ public class AssistantActivity extends AppCompatActivity {
         initSpeechRecognizer();
         offlineIntentRouter = new OfflineIntentRouter(this);
         initAudioPolling();
+        registerScreenOffReceiver();
         checkPermissionAndStart();
+    }
+
+    /**
+     * Step 13.5: Dismisses AssistantActivity immediately when screen turns off.
+     */
+    private void registerScreenOffReceiver() {
+        if (screenOffReceiver != null) return;
+        screenOffReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (intent != null && Intent.ACTION_SCREEN_OFF.equals(intent.getAction())) {
+                    Log.d(TAG, "Screen off detected -> terminating AssistantActivity to conserve battery");
+                    if (speechRecognizer != null) {
+                        try { speechRecognizer.cancel(); } catch (Exception ignored) {}
+                    }
+                    if (tts != null) {
+                        try { tts.stop(); } catch (Exception ignored) {}
+                    }
+                    if (!isFinishing()) {
+                        finish();
+                    }
+                }
+            }
+        };
+        registerReceiver(screenOffReceiver, new IntentFilter(Intent.ACTION_SCREEN_OFF));
     }
 
     /**
@@ -756,7 +810,7 @@ public class AssistantActivity extends AppCompatActivity {
         switch (profileIndex) {
             case VOICE_PROFILE_MALE_ENGLISH:
                 profileName = "Male English";
-                announceMessage = "Voice switched to Male English.";
+                announceMessage = "Voice profile update kar di gayi hai.";
                 targetLocale = Locale.US;
                 seekFemale = false;
                 targetPitch = 0.85f;
@@ -764,7 +818,7 @@ public class AssistantActivity extends AppCompatActivity {
                 break;
             case VOICE_PROFILE_FEMALE_ENGLISH:
                 profileName = "Female English";
-                announceMessage = "Voice switched to Female English.";
+                announceMessage = "Voice profile update kar di gayi hai.";
                 targetLocale = Locale.US;
                 seekFemale = true;
                 targetPitch = 1.05f;
@@ -772,7 +826,7 @@ public class AssistantActivity extends AppCompatActivity {
                 break;
             case VOICE_PROFILE_FEMALE_HINDI:
                 profileName = "Female Hindi";
-                announceMessage = "Awaaz Female Hindi mein badal di gayi hai.";
+                announceMessage = "Voice profile update kar di gayi hai.";
                 targetLocale = new Locale("hi", "IN");
                 seekFemale = true;
                 targetPitch = 1.10f;
@@ -781,7 +835,7 @@ public class AssistantActivity extends AppCompatActivity {
             case VOICE_PROFILE_MALE_HINDI:
             default:
                 profileName = "Male Hindi";
-                announceMessage = "Awaaz Male Hindi mein badal di gayi hai.";
+                announceMessage = "Voice profile update kar di gayi hai.";
                 targetLocale = new Locale("hi", "IN");
                 seekFemale = false;
                 targetPitch = 0.90f;
@@ -4176,6 +4230,13 @@ public class AssistantActivity extends AppCompatActivity {
             lower.contains("ko call") || lower.contains("call lagao") ||
             lower.contains("ko phone") || lower.contains("call karo")) {
 
+            if (isDeviceLocked()) {
+                showDynamicPill("Device Locked", android.R.drawable.ic_lock_idle_lock);
+                showResponse("Is action ke liye kripya pehle apna phone unlock karein.", true);
+                setOrbState("IDLE");
+                return;
+            }
+
             String targetQuery = "";
             if (lower.startsWith("call ")) {
                 targetQuery = command.substring(5).trim();
@@ -4245,6 +4306,14 @@ public class AssistantActivity extends AppCompatActivity {
         // Step 6: The Offline Brain (Smart Native SMS & Parsing)
         if (lower.startsWith("sms ") || lower.startsWith("message ") || lower.startsWith("text ") ||
             lower.equals("sms") || lower.equals("message") || lower.equals("text")) {
+
+            if (isDeviceLocked()) {
+                showDynamicPill("Device Locked", android.R.drawable.ic_lock_idle_lock);
+                showResponse("Is action ke liye kripya pehle apna phone unlock karein.", true);
+                setOrbState("IDLE");
+                return;
+            }
+
             String[] parsed = parseSmsCommand(command);
             final String contactName = parsed[0];
             final String messageBody = parsed[1];
@@ -4302,6 +4371,13 @@ public class AssistantActivity extends AppCompatActivity {
 
         // Step 6 Part 2: Advanced Third-Party Messaging (WhatsApp Engine)
         else if (lower.startsWith("whatsapp ") || lower.equals("whatsapp")) {
+            if (isDeviceLocked()) {
+                showDynamicPill("Device Locked", android.R.drawable.ic_lock_idle_lock);
+                showResponse("Is action ke liye kripya pehle apna phone unlock karein.", true);
+                setOrbState("IDLE");
+                return;
+            }
+
             String[] parsed = parseSmsCommand(command);
             final String contactName = parsed[0];
             final String messageBody = parsed[1];
@@ -5896,6 +5972,12 @@ public class AssistantActivity extends AppCompatActivity {
             }
             tts = null;
             isTtsReady = false;
+        }
+        if (screenOffReceiver != null) {
+            try {
+                unregisterReceiver(screenOffReceiver);
+            } catch (Exception ignored) {}
+            screenOffReceiver = null;
         }
     }
 }

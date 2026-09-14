@@ -42,6 +42,9 @@ public class OfflineIntentRouter {
 
     private final AssistantActivity activity;
 
+    // Step 13.5: Lock Screen Security Gateway Message
+    public static final String LOCK_SCREEN_BLOCKED_MESSAGE = "Is action ke liye kripya pehle apna phone unlock karein.";
+
     // Entity Alias Dictionary (Smart Contacts & Relationships)
     private static final Map<String, String> ALIAS_MAP = new HashMap<>();
     private static final Map<String, String> DEFAULT_PHONE_NUMBERS = new HashMap<>();
@@ -185,6 +188,8 @@ public class OfflineIntentRouter {
         if (handleMusic(subQuery, lower)) return true;
         if (handleApps(subQuery, lower)) return true;
         if (handleVoiceProfile(subQuery, lower)) return true;
+        if (handleTimeScheduler(subQuery, lower)) return true;
+        if (handleSms(subQuery, lower)) return true;
         if (handleUrlAndClipboard(subQuery, lower)) return true;
         if (handleDeviceExpert(subQuery, lower)) return true;
 
@@ -728,6 +733,14 @@ public class OfflineIntentRouter {
             Log.i(TAG, "[HYBRID ROUTER] Solved OFFLINE (Fixed Tools - Voice Profile): " + command);
             return true;
         }
+        if (handleTimeScheduler(command, lower)) {
+            Log.i(TAG, "[HYBRID ROUTER] Solved OFFLINE (Fixed Tools - Time Scheduler): " + command);
+            return true;
+        }
+        if (handleSms(command, lower)) {
+            Log.i(TAG, "[HYBRID ROUTER] Handled SMS/Messaging: " + command);
+            return true;
+        }
         if (handleUrlAndClipboard(command, lower)) {
             Log.i(TAG, "[HYBRID ROUTER] Handled URL/Clipboard Digest: " + command);
             return true;
@@ -1140,6 +1153,14 @@ public class OfflineIntentRouter {
             lower.startsWith("phone ") || lower.startsWith("dial ") ||
             lower.contains("ko call") || lower.contains("call lagao") ||
             lower.contains("ko phone") || lower.contains("call karo")) {
+
+            // Step 13.5: Lock Screen Security Gateway (Answering allowed, dialing blocked)
+            if (activity != null && activity.isDeviceLocked()) {
+                activity.showDynamicPill("Device Locked", android.R.drawable.ic_lock_idle_lock);
+                activity.showResponse(LOCK_SCREEN_BLOCKED_MESSAGE, true);
+                activity.setOrbState("IDLE");
+                return true;
+            }
 
             String rawTarget = "";
             if (lower.startsWith("call ")) {
@@ -2071,6 +2092,14 @@ public class OfflineIntentRouter {
 
         if (!isAppCommand) return false;
 
+        // Step 13.5: Lock Screen Security Gateway (Apps blocked when device locked)
+        if (activity != null && activity.isDeviceLocked()) {
+            activity.showDynamicPill("Device Locked", android.R.drawable.ic_lock_idle_lock);
+            activity.showResponse(LOCK_SCREEN_BLOCKED_MESSAGE, true);
+            activity.setOrbState("IDLE");
+            return true;
+        }
+
         String appName = command.replaceAll("(?i)\\b(open app|launch app|start app|open application|launch application|open|launch|start|kholo|open karo|launch karo|chalu karo|start karo|app|application)\\b", "").trim();
 
         if (appName.isEmpty()) {
@@ -2118,27 +2147,29 @@ public class OfflineIntentRouter {
             return false;
         }
 
-        if (lower.contains("profile 1") || (lower.contains("male") && lower.contains("english")) ||
-            (lower.contains("ladka") && lower.contains("english")) || (lower.contains("purush") && lower.contains("english"))) {
-            activity.setVoiceProfile(AssistantActivity.VOICE_PROFILE_MALE_ENGLISH);
+        if (lower.contains("change voice to female") || lower.contains("female voice") ||
+            lower.contains("profile 4") || (lower.contains("female") && lower.contains("hindi")) ||
+            ((lower.contains("ladki ki") || lower.contains("ladki") || lower.contains("mahila")) && !lower.contains("english"))) {
+            activity.setVoiceProfile(AssistantActivity.VOICE_PROFILE_FEMALE_HINDI);
             return true;
-        } else if (lower.contains("profile 2") || (lower.contains("male") && lower.contains("hindi")) ||
-                   (lower.contains("ladke ki") || lower.contains("ladka") || lower.contains("male voice")) && !lower.contains("english")) {
+        } else if (lower.contains("change voice to male") || lower.contains("male voice") ||
+                   lower.contains("profile 2") || (lower.contains("male") && lower.contains("hindi")) ||
+                   ((lower.contains("ladke ki") || lower.contains("ladka")) && !lower.contains("english"))) {
             activity.setVoiceProfile(AssistantActivity.VOICE_PROFILE_MALE_HINDI);
+            return true;
+        } else if (lower.contains("profile 1") || (lower.contains("male") && lower.contains("english")) ||
+                   (lower.contains("ladka") && lower.contains("english")) || (lower.contains("purush") && lower.contains("english"))) {
+            activity.setVoiceProfile(AssistantActivity.VOICE_PROFILE_MALE_ENGLISH);
             return true;
         } else if (lower.contains("profile 3") || (lower.contains("female") && lower.contains("english")) ||
                    (lower.contains("ladki") && lower.contains("english")) || (lower.contains("mahila") && lower.contains("english"))) {
             activity.setVoiceProfile(AssistantActivity.VOICE_PROFILE_FEMALE_ENGLISH);
             return true;
-        } else if (lower.contains("profile 4") || (lower.contains("female") && lower.contains("hindi")) ||
-                   (lower.contains("ladki ki") || lower.contains("ladki") || lower.contains("female voice") || lower.contains("mahila")) && !lower.contains("english")) {
-            activity.setVoiceProfile(AssistantActivity.VOICE_PROFILE_FEMALE_HINDI);
-            return true;
         } else if (lower.contains("change voice") || lower.contains("switch voice") ||
                    lower.contains("voice change") || lower.contains("awaaz badlo") ||
-                   lower.contains("awaz badlo")) {
-            int nextProfile = (activity.getCurrentVoiceProfile() % 4) + 1;
-            activity.setVoiceProfile(nextProfile);
+                   lower.contains("voice badlo") || lower.contains("awaz badlo") ||
+                   lower.equals("change voice") || lower.equals("voice badlo")) {
+            activity.switchVoiceProfile();
             return true;
         }
 
@@ -2146,11 +2177,132 @@ public class OfflineIntentRouter {
     }
 
     /**
-     * Step 10: URL Content Digest & Clipboard Intelligence Engine.
+     * Step 13.5: Voice-Controlled Active Time Scheduler.
+     * Parses commands like:
+     * - "set active time from 7 am to 11 pm"
+     * - "active time subah 7 se raat 11"
+     * - "set active time from 06:00 to 23:00"
+     * - "active time 8 to 22"
+     * - "active time 9am to 9pm"
+     * Updates MemoryVault and speaks confirmation: "Active time schedule update ho gaya hai."
+     */
+    private boolean handleTimeScheduler(String command, String lower) {
+        if (!lower.contains("active time") && !lower.contains("active window") && 
+            !lower.contains("active hour") && !lower.contains("listening time") &&
+            !lower.contains("active schedule")) {
+            return false;
+        }
+
+        // Try extracting time ranges: e.g. "from [time1] to [time2]", "[time1] se [time2]"
+        Pattern schedulePattern = Pattern.compile("(?i)(?:from\\s+)?(.*?)\\s+(?:to|se|till|until|-)\\s+(.*)");
+        Matcher matcher = schedulePattern.matcher(lower);
+
+        if (matcher.find()) {
+            String part1 = matcher.group(1);
+            String part2 = matcher.group(2);
+
+            String startTime = parseTimeToHHmm(part1);
+            String endTime = parseTimeToHHmm(part2);
+
+            if (startTime != null && endTime != null) {
+                MemoryVault.setActiveStartTime(activity, startTime);
+                MemoryVault.setActiveEndTime(activity, endTime);
+                activity.showDynamicPill("Schedule: " + startTime + " - " + endTime, android.R.drawable.ic_menu_recent_history);
+                activity.showResponse("Active time schedule update ho gaya hai.", true);
+                activity.setOrbState("IDLE");
+                return true;
+            }
+        }
+
+        // Fallback for general query about active time
+        if (lower.contains("kya hai") || lower.contains("what is") || lower.contains("check")) {
+            String s = MemoryVault.getActiveStartTime(activity);
+            String e = MemoryVault.getActiveEndTime(activity);
+            activity.showDynamicPill("Schedule: " + s + " - " + e, android.R.drawable.ic_menu_recent_history);
+            activity.showResponse("Active time " + s + " se " + e + " tak set hai.", true);
+            activity.setOrbState("IDLE");
+            return true;
+        }
+
+        return false;
+    }
+
+    private String parseTimeToHHmm(String rawPart) {
+        if (rawPart == null || rawPart.trim().isEmpty()) return null;
+        String text = rawPart.toLowerCase().trim();
+        boolean isPm = text.contains("pm") || text.contains("shaam") || text.contains("raat") || text.contains("dopahar") || text.contains("evening") || text.contains("night");
+        boolean isAm = text.contains("am") || text.contains("subah") || text.contains("morning");
+
+        Matcher m = Pattern.compile("(\\d{1,2})(?::(\\d{2}))?").matcher(text);
+        if (!m.find()) return null;
+
+        try {
+            int hour = Integer.parseInt(m.group(1));
+            int minute = m.group(2) != null ? Integer.parseInt(m.group(2)) : 0;
+
+            if (isPm && hour < 12) {
+                hour += 12;
+            } else if (isAm && hour == 12) {
+                hour = 0;
+            }
+
+            if (hour < 0) hour = 0;
+            if (hour > 23) hour = 23;
+            if (minute < 0) minute = 0;
+            if (minute > 59) minute = 59;
+
+            return String.format(Locale.US, "%02d:%02d", hour, minute);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Step 13.5: Lock Screen Security Gateway check for SMS & Messaging commands.
+     */
+    private boolean handleSms(String command, String lower) {
+        if (lower.startsWith("sms ") || lower.startsWith("message ") || lower.startsWith("text ") ||
+            lower.equals("sms") || lower.equals("message") || lower.equals("text") ||
+            lower.startsWith("whatsapp ") || lower.equals("whatsapp") ||
+            lower.contains("ko message") || lower.contains("ko sms") || lower.contains("send message")) {
+            if (activity != null && activity.isDeviceLocked()) {
+                activity.showDynamicPill("Device Locked", android.R.drawable.ic_lock_idle_lock);
+                activity.showResponse(LOCK_SCREEN_BLOCKED_MESSAGE, true);
+                activity.setOrbState("IDLE");
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Step 10 & Step 13.5: URL Content Digest & Clipboard Intelligence Engine.
      * Intercepts "summarize this link", "summarize this", "read clipboard", or raw URLs,
      * routing them directly to the on-device content digest pipeline.
+     * Lock Screen Security: Blocks private clipboard & URL summarization when device is keyguard locked.
      */
     private boolean handleUrlAndClipboard(String command, String lower) {
+        boolean isUrlOrClipboard = lower.equals("summarize this") || lower.equals("summarize clipboard") ||
+            lower.equals("read clipboard") || lower.contains("clipboard padho") ||
+            lower.contains("clipboard summarize") || lower.contains("is text ko read karo") ||
+            lower.contains("is text ko summarize") || lower.contains("clipboard me kya hai") ||
+            lower.contains("what is in clipboard") || lower.contains("what's on clipboard") ||
+            lower.equals("read this") || lower.equals("summarize this text") ||
+            lower.contains("summarize this link") || lower.contains("is link ko summarize") ||
+            lower.contains("link summarize karo") || lower.contains("summarize the link") ||
+            lower.contains("summarize link") || lower.contains("url summarize") ||
+            activity.extractUrlFromText(command) != null;
+
+        if (!isUrlOrClipboard) return false;
+
+        // Step 13.5: Lock Screen Security Gateway
+        if (activity != null && activity.isDeviceLocked()) {
+            activity.showDynamicPill("Device Locked", android.R.drawable.ic_lock_idle_lock);
+            activity.showResponse(LOCK_SCREEN_BLOCKED_MESSAGE, true);
+            activity.setOrbState("IDLE");
+            return true;
+        }
+
         // 1. Explicit Clipboard Commands
         if (lower.equals("summarize this") || lower.equals("summarize clipboard") ||
             lower.equals("read clipboard") || lower.contains("clipboard padho") ||
@@ -2581,10 +2733,12 @@ public class OfflineIntentRouter {
             s.endsWith(" kholo") || s.endsWith(" open karo") || s.endsWith(" launch karo") ||
             s.endsWith(" chalu karo") || s.contains(" app kholo") || s.contains(" app open karo")) return true;
 
-        // Voice Profile
+        // Voice Profile & Active Time Scheduler
         if (s.contains("change voice") || s.contains("switch voice") || s.contains("voice profile") ||
-            s.contains("awaaz badlo") || s.contains("awaz badlo") || s.contains("female voice") ||
-            s.contains("male voice") || s.contains("ladki ki awaaz") || s.contains("ladke ki awaaz")) return true;
+            s.contains("awaaz badlo") || s.contains("awaz badlo") || s.contains("voice badlo") ||
+            s.contains("female voice") || s.contains("male voice") || s.contains("ladki ki awaaz") ||
+            s.contains("ladke ki awaaz") || s.contains("active time") || s.contains("active window") ||
+            s.contains("active hour") || s.contains("active schedule")) return true;
 
         // Step 10: URL Content Digest & Clipboard Intelligence
         if (s.contains("read clipboard") || s.contains("clipboard padho") ||
@@ -2688,6 +2842,13 @@ public class OfflineIntentRouter {
         // Voice Profile Fallback
         if (lower.contains("voice") || lower.contains("awaaz") || lower.contains("awaz")) {
             handleVoiceProfile(command, lower);
+            return;
+        }
+
+        // Active Time Scheduler Fallback
+        if (lower.contains("active time") || lower.contains("active window") ||
+            lower.contains("active hour") || lower.contains("active schedule")) {
+            handleTimeScheduler(command, lower);
             return;
         }
 

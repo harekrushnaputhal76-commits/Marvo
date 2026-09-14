@@ -6,8 +6,10 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.content.pm.ServiceInfo;
 import android.media.AudioFormat;
@@ -23,9 +25,10 @@ import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
 
 /**
- * Step 13: Battery-Optimized Wake Word Listener Foreground Service.
+ * Step 13 & Step 13.5: Battery-Optimized Screen-Aware Wake Word Listener Foreground Service.
  * Implements lightweight Voice Activity Detection (VAD) with low-complexity RMS gating.
- * Drops silent buffers and sleeps 85ms to prevent 100% CPU utilization while idling.
+ * Screen-State Aware: Stops recording immediately on ACTION_SCREEN_OFF so CPU enters 100% Deep Sleep.
+ * Resumes on ACTION_SCREEN_ON only if within MemoryVault's configured active time window.
  * On trigger ("Hey Marvo"), acquires a short-lived WakeLock and launches AssistantActivity.
  */
 public class WakeWordService extends Service {
@@ -61,6 +64,9 @@ public class WakeWordService extends Service {
     private int burstSyllableCount = 0;
     private double lastRms = 0;
 
+    // Step 13.5: Dynamic screen state awareness
+    private BroadcastReceiver screenStateReceiver = null;
+
     public static void start(Context context) {
         Intent intent = new Intent(context, WakeWordService.class);
         intent.setAction(ACTION_START);
@@ -81,6 +87,36 @@ public class WakeWordService extends Service {
     public void onCreate() {
         super.onCreate();
         createNotificationChannel();
+        registerScreenStateReceiver();
+    }
+
+    private void registerScreenStateReceiver() {
+        if (screenStateReceiver != null) return;
+        screenStateReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (intent == null || intent.getAction() == null) return;
+                String action = intent.getAction();
+                if (Intent.ACTION_SCREEN_OFF.equals(action)) {
+                    Log.i(TAG, "Screen OFF detected -> Stopping audio recording immediately for 100% CPU deep sleep");
+                    stopListening();
+                } else if (Intent.ACTION_SCREEN_ON.equals(action)) {
+                    Log.i(TAG, "Screen ON detected -> Checking active time window before listening");
+                    if (MemoryVault.isWithinActiveWindow(context)) {
+                        startListening();
+                    } else {
+                        Log.i(TAG, "Screen ON but outside active time window (" + 
+                              MemoryVault.getActiveStartTime(context) + " - " + MemoryVault.getActiveEndTime(context) + ")");
+                        stopListening();
+                    }
+                }
+            }
+        };
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(Intent.ACTION_SCREEN_ON);
+        filter.addAction(Intent.ACTION_SCREEN_OFF);
+        registerReceiver(screenStateReceiver, filter);
+        Log.i(TAG, "Dynamic Screen State BroadcastReceiver registered successfully");
     }
 
     @Override
@@ -93,7 +129,17 @@ public class WakeWordService extends Service {
         }
 
         startForegroundNotification();
-        startListening();
+
+        // Step 13.5: Screen-State Aware Wake Word - Only listen if screen is on AND within active window
+        PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        boolean isScreenOn = pm != null && pm.isInteractive();
+        if (isScreenOn && MemoryVault.isWithinActiveWindow(this)) {
+            startListening();
+        } else {
+            Log.i(TAG, "WakeWordService started, but screen is off or outside active window. Idle mode (zero CPU usage).");
+            stopListening();
+        }
+
         return START_STICKY;
     }
 
@@ -342,7 +388,14 @@ public class WakeWordService extends Service {
 
     @Override
     public void onDestroy() {
+        if (screenStateReceiver != null) {
+            try {
+                unregisterReceiver(screenStateReceiver);
+            } catch (Exception ignored) {}
+            screenStateReceiver = null;
+        }
         stopListening();
         super.onDestroy();
     }
 }
+
