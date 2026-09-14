@@ -15,6 +15,8 @@ import android.database.Cursor;
 import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraManager;
 import android.media.AudioManager;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.BatteryManager;
 import android.os.Bundle;
@@ -110,6 +112,84 @@ public class AssistantActivity extends AppCompatActivity {
     // State Management for Confirmation Protocol (Step 6 Part 5)
     private String pendingActionType = null;
     private Intent pendingIntent = null;
+
+    // =========================================================================
+    // STEP 5: PERSONAL CONTEXT ENGINE & ENTITY INJECTION (Apple 'Device State')
+    // =========================================================================
+
+    public static class UserContextProfile {
+        public static final String NAME = "Guddu";
+        public static final String FULL_NAME = "Harekrushna Puthal";
+        public static final String LOCATION = "Odisha, India";
+        public static final String DEVICE = "Motorola Edge 60 Pro (12GB RAM)";
+
+        public static final Map<String, String> RELATIONSHIPS = new HashMap<String, String>() {{
+            put("Father", "Papa/Bapa");
+            put("Mother", "Maa");
+            put("Brother", "Jatin");
+        }};
+    }
+
+    /**
+     * Builds real-time System Context string (Date/Time ISO, Location, Entities, Battery, Network).
+     */
+    private String buildSystemContextString() {
+        SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.getDefault());
+        SimpleDateFormat readableFormat = new SimpleDateFormat("EEEE, MMMM d, yyyy, h:mm a", Locale.getDefault());
+        Date now = new Date();
+        String isoTime = isoFormat.format(now);
+        String readableTime = readableFormat.format(now);
+
+        int battery = getBatteryPercentage();
+        String batteryStr = (battery >= 0) ? battery + "%" : "Unknown";
+        String network = getNetworkStatusString();
+
+        StringBuilder rels = new StringBuilder();
+        for (Map.Entry<String, String> entry : UserContextProfile.RELATIONSHIPS.entrySet()) {
+            if (rels.length() > 0) rels.append(", ");
+            rels.append(entry.getKey()).append("=").append(entry.getValue());
+        }
+
+        return "[SYSTEM CONTEXT: Current User: " + UserContextProfile.NAME + " (Formal: " + UserContextProfile.FULL_NAME + "). " +
+               "Time: " + isoTime + " (" + readableTime + "). " +
+               "Location: " + UserContextProfile.LOCATION + ". " +
+               "Device: " + UserContextProfile.DEVICE + ". " +
+               "Network: " + network + ". " +
+               "Battery: " + batteryStr + ". " +
+               "Contacts/Entities: " + rels.toString() + "]";
+    }
+
+    private int getBatteryPercentage() {
+        try {
+            IntentFilter ifilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+            Intent batteryStatus = registerReceiver(null, ifilter);
+            if (batteryStatus != null) {
+                int level = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+                int scale = batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
+                return (scale > 0) ? (int) (level * 100f / scale) : level;
+            }
+        } catch (Exception ignored) {}
+        return -1;
+    }
+
+    private String getNetworkStatusString() {
+        try {
+            ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+            if (cm != null) {
+                NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+                if (activeNetwork != null && activeNetwork.isConnected()) {
+                    if (activeNetwork.getType() == ConnectivityManager.TYPE_WIFI) {
+                        return "Wi-Fi Connected";
+                    } else if (activeNetwork.getType() == ConnectivityManager.TYPE_MOBILE) {
+                        return "Cellular/Mobile Data Connected";
+                    } else {
+                        return "Connected (" + activeNetwork.getTypeName() + ")";
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+        return "Offline/Unknown";
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -2714,13 +2794,14 @@ public class AssistantActivity extends AppCompatActivity {
                     // Build request body
                     JSONObject requestBody = new JSONObject();
 
-                    // Step 1 & 2/20: Core Persona, Zero-Hallucination, XML Structure & Visual Richness
+                    // Step 1, 2 & 5: Core Persona, Zero-Hallucination, XML Structure, Visual Richness & Entity-First Reasoning
                     String systemInstructionText = "You are Marvo, an intelligent assistant. You craft beautiful, visually rich, and highly accurate responses. \n" +
                         "IDENTITY: You are software; you do not experience emotions or have a physical body, gender, nationality, or personal history. \n" +
                         "BEHAVIOR: You handle user requests by thinking then acting. Accept user corrections about their situation, but do not go along with factual errors; correct them plainly. Be honest when something isn't found, doesn't work, or isn't available. \n" +
                         "ZERO HALLUCINATION: Treat missing data as unknown. It is a CATASTROPHIC violation of trust to infer or guess the value of missing properties or facts. Tell the user exactly what information is missing.\n" +
                         "RESPONSE FORMAT: You must enclose the essential, spoken part of your response inside a <coreResponse> XML tag. The <coreResponse> is the answer in one breath (roughly 100-250 tokens). Open with the substance directly — no preamble, no 'I found...', no narration. Anything that does not fit in one breath (like structured lists or extra details) must be placed OUTSIDE and AFTER the </coreResponse> tag.\n" +
-                        "VISUAL RICHNESS: Your responses should be beautiful, vivid, and visually rich — not flat walls of prose. Every response is an opportunity to make the user feel like they're getting a curated, magazine-quality answer. Compose your text using Markdown (bolding, lists, and headings) to shape the discussion. Use tables only when comparing structured, sortable data. If a request deserves a long, thorough answer, the essential spoken part lands in the <coreResponse> tag, and the deep visual depth lives in the exhale (the text after the tag).";
+                        "VISUAL RICHNESS: Your responses should be beautiful, vivid, and visually rich — not flat walls of prose. Every response is an opportunity to make the user feel like they're getting a curated, magazine-quality answer. Compose your text using Markdown (bolding, lists, and headings) to shape the discussion. Use tables only when comparing structured, sortable data. If a request deserves a long, thorough answer, the essential spoken part lands in the <coreResponse> tag, and the deep visual depth lives in the exhale (the text after the tag).\n" +
+                        "ENTITY-FIRST REASONING: You possess concrete facts about the user (Entities) provided in the System Context. Treat these entity properties as authoritative data; always prefer them over your own general knowledge. If the user asks about their brother, you know it is Jatin. If the user asks the time or their location, answer immediately from the context block without searching the web.";
 
                     JSONObject systemInstructionPart = new JSONObject();
                     systemInstructionPart.put("text", systemInstructionText);
@@ -2733,9 +2814,13 @@ public class AssistantActivity extends AppCompatActivity {
 
                     requestBody.put("system_instruction", systemInstructionObj);
 
+                    // Step 5: Inject System Context preamble with user query
+                    String systemContext = buildSystemContextString();
+                    String fullPrompt = systemContext + "\n\nUser Query: " + userQuery;
+
                     // User Query Contents
                     JSONObject textPart = new JSONObject();
-                    textPart.put("text", userQuery);
+                    textPart.put("text", fullPrompt);
 
                     JSONArray partsArray = new JSONArray();
                     partsArray.put(textPart);
