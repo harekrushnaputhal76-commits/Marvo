@@ -34,52 +34,108 @@
   <div class="sidebar-section sidebar-agents-accordion" id="agentsAccordion">
     <button class="agents-accordion-header" id="btnToggleAgents" type="button" aria-expanded="false">
       <div class="agents-accordion-title">
-        <span class="agents-title-text">🤖 All Agents</span>
+        <span class="agents-title-text">🤖 Agent Folders</span>
         <span class="agents-active-indicator" id="agentsActiveIndicator">Gemini</span>
       </div>
       <svg class="agents-chevron" viewBox="0 0 24 24" width="16" height="16"><polyline points="6 9 12 15 18 9" fill="none" stroke="currentColor" stroke-width="2"/></svg>
     </button>
     <div class="agents-accordion-content collapsed" id="agentsAccordionContent">
-      <div class="sidebar-agents-grid" id="sidebarAgentsGrid">
-        <button class="agent-chip-btn active" data-agent="gemini" type="button" title="Gemini — General Chat">
-          <div class="agent-chip-icon gemini">
-            <svg viewBox="0 0 24 24" width="16" height="16"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" fill="currentColor"/></svg>
-          </div>
-          <div class="agent-chip-info">
-            <span class="agent-chip-name">Gemini</span>
-            <span class="agent-chip-role">General Chat</span>
-          </div>
-        </button>
+      <!-- Folder: Core Models -->
+      <div class="agent-folder-group">
+        <div class="agent-folder-label">📁 CORE AI MODELS</div>
+        <div class="sidebar-agents-grid">
+          <button class="agent-chip-btn active" data-agent="gemini" type="button" title="Gemini — General Chat">
+            <div class="agent-chip-icon gemini">
+              <svg viewBox="0 0 24 24" width="16" height="16"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" fill="currentColor"/></svg>
+            </div>
+            <div class="agent-chip-info">
+              <span class="agent-chip-name">Gemini</span>
+              <span class="agent-chip-role">General Chat</span>
+            </div>
+          </button>
 
-        <button class="agent-chip-btn" data-agent="huggingface" type="button" title="Hugging Face — Pro Image Generation">
-          <div class="agent-chip-icon huggingface">
-            <svg viewBox="0 0 24 24" width="16" height="16"><rect x="3" y="3" width="18" height="18" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/><path d="M21 15l-5-5L5 21" stroke="currentColor" stroke-width="2" fill="none"/></svg>
-          </div>
-          <div class="agent-chip-info">
-            <span class="agent-chip-name">Hugging Face</span>
-            <span class="agent-chip-role">Pro Image Gen</span>
-          </div>
-        </button>
+          <button class="agent-chip-btn" data-agent="claude" type="button" title="Claude — Coding & Logic">
+            <div class="agent-chip-icon claude">
+              <svg viewBox="0 0 24 24" width="16" height="16"><polyline points="16 18 22 12 16 6" fill="none" stroke="currentColor" stroke-width="2"/><polyline points="8 6 2 12 8 18" fill="none" stroke="currentColor" stroke-width="2"/><line x1="14" y1="4" x2="10" y2="20" stroke="currentColor" stroke-width="2"/></svg>
+            </div>
+            <div class="agent-chip-info">
+              <span class="agent-chip-name">Claude</span>
+              <span class="agent-chip-role">Coding & Logic</span>
+            </div>
+          </button>
+        </div>
+      </div>
 
-        <button class="agent-chip-btn" data-agent="pollinations" type="button" title="Pollinations — Fast Image Generation">
-          <div class="agent-chip-icon pollinations">
-            <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="currentColor"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4" stroke="currentColor" stroke-width="2"/></svg>
-          </div>
-          <div class="agent-chip-info">
-            <span class="agent-chip-name">Pollinations</span>
-            <span class="agent-chip-role">Fast Image Gen</span>
-          </div>
-        </button>
+      <!-- Folder: Visual Studios -->
+      <div class="agent-folder-group">
+        <div class="agent-folder-label">🎨 VISUAL & MEDIA STUDIOS</div>
+        <div class="sidebar-agents-grid">
+          <button class="agent-chip-btn" data-agent="huggingface" type="button" title="Hugging Face — Pro Image Generation">
+            <div class="agent-chip-icon huggingface">
+              <svg viewBox="0 0 24 24" width="16" height="16"><rect x="3" y="3" width="18" height="18" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/><path d="M21 15l-5-5L5 21" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+            </div>
+            <div class="agent-chip-info">
+              <span class="agent-chip-name">Hugging Face</span>
+              <span class="agent-chip-role">SDXL 4K Pro</span>
+            </div>
+          </button>
 
-        <button class="agent-chip-btn" data-agent="claude" type="button" title="Claude — Coding & Logic">
-          <div class="agent-chip-icon claude">
-            <svg viewBox="0 0 24 24" width="16" height="16"><polyline points="16 18 22 12 16 6" fill="none" stroke="currentColor" stroke-width="2"/><polyline points="8 6 2 12 8 18" fill="none" stroke="currentColor" stroke-width="2"/><line x1="14" y1="4" x2="10" y2="20" stroke="currentColor" stroke-width="2"/></svg>
-          </div>
-          <div class="agent-chip-info">
-            <span class="agent-chip-name">Claude</span>
-            <span class="agent-chip-role">Coding & Logic</span>
-          </div>
-        </button>
+          <button class="agent-chip-btn" data-agent="pollinations" type="button" title="Pollinations — Fast Image Generation">
+            <div class="agent-chip-icon pollinations">
+              <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="currentColor"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4" stroke="currentColor" stroke-width="2"/></svg>
+            </div>
+            <div class="agent-chip-info">
+              <span class="agent-chip-name">Pollinations</span>
+              <span class="agent-chip-role">Instant Turbo</span>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Folder: Specialized Personas -->
+      <div class="agent-folder-group">
+        <div class="agent-folder-label">⚡ SPECIALIZED PERSONAS</div>
+        <div class="sidebar-agents-grid">
+          <button class="agent-chip-btn" data-agent="nexus" type="button" title="Nexus — Tech Architect">
+            <div class="agent-chip-icon" style="background:rgba(0,240,255,0.15);color:#00f0ff;">
+              <svg viewBox="0 0 24 24" width="16" height="16"><polygon points="12 2 2 7 12 12 22 7 12 2" fill="none" stroke="currentColor" stroke-width="2"/><polyline points="2 17 12 22 22 17" fill="none" stroke="currentColor" stroke-width="2"/><polyline points="2 12 12 17 22 12" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+            </div>
+            <div class="agent-chip-info">
+              <span class="agent-chip-name">Nexus</span>
+              <span class="agent-chip-role">Tech Architect</span>
+            </div>
+          </button>
+
+          <button class="agent-chip-btn" data-agent="lumina" type="button" title="Lumina — Creative Director">
+            <div class="agent-chip-icon" style="background:rgba(255,0,128,0.15);color:#ff0080;">
+              <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><line x1="12" y1="2" x2="12" y2="4" stroke="currentColor" stroke-width="2"/><line x1="12" y1="20" x2="12" y2="22" stroke="currentColor" stroke-width="2"/><line x1="2" y1="12" x2="4" y2="12" stroke="currentColor" stroke-width="2"/><line x1="20" y1="12" x2="22" y2="12" stroke="currentColor" stroke-width="2"/></svg>
+            </div>
+            <div class="agent-chip-info">
+              <span class="agent-chip-name">Lumina</span>
+              <span class="agent-chip-role">Creative Director</span>
+            </div>
+          </button>
+
+          <button class="agent-chip-btn" data-agent="orion" type="button" title="Orion — Deep Research">
+            <div class="agent-chip-icon" style="background:rgba(181,23,158,0.15);color:#b5179e;">
+              <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="11" cy="11" r="8" fill="none" stroke="currentColor" stroke-width="2"/><line x1="21" y1="21" x2="16.65" y2="16.65" stroke="currentColor" stroke-width="2"/></svg>
+            </div>
+            <div class="agent-chip-info">
+              <span class="agent-chip-name">Orion</span>
+              <span class="agent-chip-role">Deep Research</span>
+            </div>
+          </button>
+
+          <button class="agent-chip-btn" data-agent="aura" type="button" title="Aura — Everyday Companion">
+            <div class="agent-chip-icon" style="background:rgba(0,255,136,0.15);color:#00ff88;">
+              <svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="currentColor"/></svg>
+            </div>
+            <div class="agent-chip-info">
+              <span class="agent-chip-name">Aura</span>
+              <span class="agent-chip-role">Everyday Companion</span>
+            </div>
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -138,6 +194,10 @@
       <svg viewBox="0 0 24 24" width="18" height="18"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
       <span>Notebooks</span>
     </button>
+    <button class="sidebar-nav-item" id="navDownloads">
+      <svg viewBox="0 0 24 24" width="18" height="18"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" fill="none" stroke="currentColor" stroke-width="2"/><polyline points="7 10 12 15 17 10" fill="none" stroke="currentColor" stroke-width="2"/><line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2"/></svg>
+      <span>Downloads & Storage</span>
+    </button>
   </div>
 
   <!-- Scrollable Chat History -->
@@ -186,20 +246,17 @@
       </div>
     </div>
 
-    <!-- Gemini-Style Capability Toggles -->
-    <div class="capability-chips" id="modeSelector">
-      <button class="chip-btn" data-mode="fast">
-        <span class="chip-dot"></span>
+    <!-- Gemini-Style Fast vs Pro Tier Switcher -->
+    <div class="tier-switcher" id="tierSwitcher">
+      <button class="tier-btn active" data-mode="fast" id="btnTierFast" type="button" title="Fast Mode — Instant responses">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
         <span>Fast</span>
       </button>
-      <button class="chip-btn active" data-mode="medium">
-        <span class="chip-dot"></span>
-        <span>Thinking</span>
-      </button>
-      <button class="chip-btn" data-mode="high">
-        <span class="chip-dot"></span>
+      <button class="tier-btn" data-mode="pro" id="btnTierPro" type="button" title="Pro Mode — Deep reasoning & heavy model">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
         <span>Pro</span>
       </button>
+      <div class="tier-pill-indicator"></div>
     </div>
 
     <!-- Main App Menu (Top Right 3-Dots) -->
@@ -218,7 +275,7 @@
         </button>
         <button class="dropdown-item" id="btnTopHelp">
           <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" stroke="currentColor" stroke-width="2" fill="none"/><circle cx="12" cy="17" r="1" fill="currentColor"/></svg>
-          Help
+          Help & Guide
         </button>
         <button class="dropdown-item" id="btnTopShareChat">
           <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="18" cy="5" r="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="6" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="19" r="3" fill="none" stroke="currentColor" stroke-width="2"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" stroke="currentColor" stroke-width="2"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" stroke="currentColor" stroke-width="2"/></svg>
@@ -227,15 +284,11 @@
         <div class="dropdown-divider"></div>
         <button class="dropdown-item" id="btnSettings">
           <svg viewBox="0 0 24 24" width="16" height="16"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" fill="currentColor"/></svg>
-          Voice & Audio
+          Settings
         </button>
-        <button class="dropdown-item" id="btnThemeDark">
-          <svg viewBox="0 0 24 24" width="16" height="16"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-          Dark Theme
-        </button>
-        <button class="dropdown-item" id="btnThemeLight">
-          <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="2"/></svg>
-          Light Theme
+        <button class="dropdown-item" id="btnThemeMenu">
+          <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 3a9 9 0 0 0 0 18v-18z" fill="currentColor"/></svg>
+          Themes & Characters
         </button>
         <div class="dropdown-divider"></div>
         <button class="dropdown-item danger" id="btnTopDeleteChat">
@@ -286,6 +339,25 @@
       </div>
       <div class="state-label" id="stateLabel">IDLE</div>
     </div>
+
+    <!-- Reactive Character Avatar (Used in Spider-Man, Monk, Iron Man, Hulk, etc.) -->
+    <div id="characterAvatar" class="character-avatar state-idle hidden">
+      <div class="character-halo-ring"></div>
+      <div class="character-aura" id="characterAura"></div>
+      <div class="character-art-frame">
+        <img id="characterImg" class="character-img" src="assets/characters/spiderman-idle.jpg" alt="Active Character" />
+        <div class="character-expression-overlay" id="characterOverlay"></div>
+      </div>
+      <div class="character-meta">
+        <span class="character-name-badge" id="characterNameBadge">Spider-Man</span>
+        <span class="character-state-badge" id="characterStateBadge">IDLE</span>
+      </div>
+      <div class="character-ripple-waves">
+        <span class="c-ripple r1"></span>
+        <span class="c-ripple r2"></span>
+        <span class="c-ripple r3"></span>
+      </div>
+    </div>
   </div>
 
   <!-- ═══════════ CHAT AREA ═══════════ -->
@@ -295,9 +367,16 @@
     </div>
   </div>
 
-  <!-- ═══════════ INPUT BAR (Glassmorphism Dock) ═══════════ -->
+  <!-- ═══════════ INPUT BAR (Glassmorphism Multimodal Dock) ═══════════ -->
   <div class="input-bar">
+    <!-- Attachment Preview Shelf (Photos, Videos, PDFs, Files) -->
+    <div id="attachmentPreviewShelf" class="attachment-preview-shelf hidden">
+      <!-- Dynamically populated attachment chips -->
+    </div>
+
     <div class="input-glass">
+      <!-- Hidden file input supporting photos, videos, audio, pdf, documents -->
+      <input type="file" id="fileUploadInput" multiple accept="image/*,video/*,application/pdf,text/*,.doc,.docx" style="display:none;">
 
       <!-- Attachment / Quick Tools Menu (Plus Button) -->
       <div class="attach-container">
@@ -311,37 +390,35 @@
             <span class="badge-beta" style="margin-left:auto;font-size:9.5px;padding:2px 6px;background:rgba(0,240,255,0.15);color:var(--accent);border-radius:6px;">AI</span>
           </button>
           <div class="dropdown-divider"></div>
-          <button class="dropdown-item attach-item" data-type="Photo" type="button">
+          <button class="dropdown-item attach-item" id="btnAttachPhoto" data-type="Photo" type="button">
             <svg viewBox="0 0 24 24" width="16" height="16"><rect x="3" y="3" width="18" height="18" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/><path d="M21 15l-5-5L5 21" stroke="currentColor" stroke-width="2" fill="none"/></svg>
-            <span>Photo</span>
+            <span>Photo / Vision</span>
           </button>
-          <button class="dropdown-item attach-item" data-type="Files" type="button">
-            <svg viewBox="0 0 24 24" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" fill="none" stroke="currentColor" stroke-width="2"/><polyline points="14 2 14 8 20 8" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-            <span>Files</span>
+          <button class="dropdown-item attach-item" id="btnAttachVideo" data-type="Video" type="button">
+            <svg viewBox="0 0 24 24" width="16" height="16"><polygon points="23 7 16 12 23 17 23 7" fill="none" stroke="currentColor" stroke-width="2"/><rect x="1" y="5" width="15" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+            <span>Video</span>
           </button>
-          <button class="dropdown-item attach-item" data-type="PDF" type="button">
+          <button class="dropdown-item attach-item" id="btnAttachPDF" data-type="PDF" type="button">
             <svg viewBox="0 0 24 24" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" fill="none" stroke="currentColor" stroke-width="2"/><text x="7" y="16" font-size="6" font-weight="bold" fill="currentColor">PDF</text></svg>
-            <span>PDF</span>
+            <span>PDF / Document</span>
           </button>
-          <button class="dropdown-item attach-item" data-type="Text File" type="button">
-            <svg viewBox="0 0 24 24" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" fill="none" stroke="currentColor" stroke-width="2"/><line x1="8" y1="13" x2="16" y2="13" stroke="currentColor" stroke-width="2"/><line x1="8" y1="17" x2="13" y2="17" stroke="currentColor" stroke-width="2"/></svg>
-            <span>Text File</span>
-          </button>
-          <button class="dropdown-item attach-item" data-type="Code File" type="button">
-            <svg viewBox="0 0 24 24" width="16" height="16"><polyline points="16 18 22 12 16 6" fill="none" stroke="currentColor" stroke-width="2"/><polyline points="8 6 2 12 8 18" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-            <span>Code File</span>
+          <button class="dropdown-item attach-item" id="btnAttachFiles" data-type="Files" type="button">
+            <svg viewBox="0 0 24 24" width="16" height="16"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+            <span>Storage / Drive</span>
           </button>
         </div>
       </div>
 
-      <input type="text" id="msgInput" placeholder="Ask Marvo anything..." autocomplete="off" spellcheck="false">
+      <input type="text" id="msgInput" placeholder="Ask Marvo anything or attach files..." autocomplete="off" spellcheck="false">
 
-      <button id="btnSend" class="btn btn-send" aria-label="Send">
-        <svg viewBox="0 0 24 24" width="18" height="18"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"/></svg>
+      <!-- Multimodal Glowing Cyan Mic Button -->
+      <button id="btnMic" class="btn btn-mic btn-mic-cyan" aria-label="Voice Input" title="Voice Input">
+        <span class="mic-cyan-glow"></span>
+        <svg viewBox="0 0 24 24" width="18" height="18"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5z" fill="currentColor"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" fill="currentColor"/></svg>
       </button>
 
-      <button id="btnMic" class="btn btn-mic" aria-label="Voice">
-        <svg viewBox="0 0 24 24" width="18" height="18"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5z" fill="currentColor"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" fill="currentColor"/></svg>
+      <button id="btnSend" class="btn btn-send" aria-label="Send" title="Send Message">
+        <svg viewBox="0 0 24 24" width="18" height="18"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"/></svg>
       </button>
 
       <!-- Live Screen Share -->
@@ -356,158 +433,335 @@
 <div id="settingsModal" class="settings-modal-overlay">
   <div class="settings-modal">
     <div class="settings-header">
-      <h3 class="settings-title">App Customization</h3>
+      <div class="dialog-title-wrap">
+        <svg viewBox="0 0 24 24" width="20" height="20" style="color:var(--accent);"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" fill="currentColor"/></svg>
+        <h3 class="settings-title">Settings & Ecosystem</h3>
+      </div>
       <button id="btnCloseSettings" class="btn-icon modal-close-btn" aria-label="Close Settings">&times;</button>
     </div>
+
+    <!-- Category Tabs -->
+    <div class="settings-tab-bar" id="settingsTabBar" role="tablist">
+      <button class="settings-tab-btn active" data-tab="themes" type="button" role="tab">🎨 Themes</button>
+      <button class="settings-tab-btn" data-tab="brain" type="button" role="tab">🧠 Offline Brain</button>
+      <button class="settings-tab-btn" data-tab="voice" type="button" role="tab">🔊 Voices</button>
+      <button class="settings-tab-btn" data-tab="downloads" type="button" role="tab">📁 Storage</button>
+    </div>
+
     <div class="settings-body">
       
-      <!-- Section: Offline Brain & AI Models (Live Download Manager) -->
-      <div class="settings-section offline-brain-section">
-        <h4 class="settings-section-title">🧠 OFFLINE AI BRAIN (1.8GB)</h4>
-        <div class="offline-brain-card">
-          <div class="offline-card-header">
-            <span class="offline-model-name">Phi-3 Mini 4K Instruct</span>
-            <span id="offlineBrainStatusBadge" class="offline-status-badge status-idle">Checking...</span>
+      <!-- ════════ TAB 1: THEMES & CHARACTERS ════════ -->
+      <div class="settings-tab-panel active" id="tabPanelThemes">
+        <!-- Section: Classic 3D Eye Themes -->
+        <div class="settings-section">
+          <h4 class="settings-section-title">CLASSIC 3D EYE THEMES</h4>
+          <div class="theme-cards-grid">
+            <button class="theme-choice-card active" data-theme="dark" type="button">
+              <div class="theme-preview-orb dark-eye-preview">
+                <span class="preview-iris"></span>
+              </div>
+              <div class="theme-choice-info">
+                <span class="theme-choice-name">Dark Cyber (3D Eye)</span>
+                <span class="theme-choice-desc">Default neon-cyber dynamic 3D eye</span>
+              </div>
+            </button>
+            <button class="theme-choice-card" data-theme="light" type="button">
+              <div class="theme-preview-orb light-eye-preview">
+                <span class="preview-iris starlight"></span>
+              </div>
+              <div class="theme-choice-info">
+                <span class="theme-choice-name">Starlight White (3D Eye)</span>
+                <span class="theme-choice-desc">Pristine white mode with 3D eye</span>
+              </div>
+            </button>
           </div>
-          
-          <div class="offline-progress-track">
-            <div id="offlineProgressBar" class="offline-progress-fill" style="width: 0%;"></div>
+        </div>
+
+        <!-- Section: 10+ Reactive Character Themes -->
+        <div class="settings-section">
+          <h4 class="settings-section-title">✨ REACTIVE CHARACTER ECOSYSTEM (10+)</h4>
+          <p class="settings-subdesc">Character avatars replace the eye and dynamically react to AI Idle, Thinking, Speaking, and Error states.</p>
+          <div class="character-themes-grid" id="characterThemesGrid">
+            
+            <!-- Spider-Man (User photo) -->
+            <button class="character-card-btn" data-theme="char-spiderman" type="button">
+              <div class="char-thumb-wrap">
+                <img src="assets/characters/spiderman-idle.jpg" alt="Spider-Man" class="char-thumb" />
+                <span class="char-reactive-badge">Reactive</span>
+              </div>
+              <span class="char-card-name">Spider-Man</span>
+              <span class="char-card-role">Web-Slinger Hero</span>
+            </button>
+
+            <!-- Monk (User photo) -->
+            <button class="character-card-btn" data-theme="char-monk" type="button">
+              <div class="char-thumb-wrap">
+                <img src="assets/characters/monk-idle.jpg" alt="Monk" class="char-thumb" />
+                <span class="char-reactive-badge">Reactive</span>
+              </div>
+              <span class="char-card-name">Zen Monk</span>
+              <span class="char-card-role">Mindful Meditation</span>
+            </button>
+
+            <!-- Iron Man -->
+            <button class="character-card-btn" data-theme="char-ironman" type="button">
+              <div class="char-thumb-wrap">
+                <img src="assets/characters/ironman.svg" alt="Iron Man" class="char-thumb" />
+                <span class="char-reactive-badge">Reactive</span>
+              </div>
+              <span class="char-card-name">Iron Man</span>
+              <span class="char-card-role">Arc Reactor HUD</span>
+            </button>
+
+            <!-- Hulk -->
+            <button class="character-card-btn" data-theme="char-hulk" type="button">
+              <div class="char-thumb-wrap">
+                <img src="assets/characters/hulk.svg" alt="Hulk" class="char-thumb" />
+                <span class="char-reactive-badge">Reactive</span>
+              </div>
+              <span class="char-card-name">Hulk</span>
+              <span class="char-card-role">Gamma Energy Rage</span>
+            </button>
+
+            <!-- Batman -->
+            <button class="character-card-btn" data-theme="char-batman" type="button">
+              <div class="char-thumb-wrap">
+                <img src="assets/characters/batman.svg" alt="Batman" class="char-thumb" />
+                <span class="char-reactive-badge">Reactive</span>
+              </div>
+              <span class="char-card-name">Batman</span>
+              <span class="char-card-role">Dark Knight Stealth</span>
+            </button>
+
+            <!-- Wolverine -->
+            <button class="character-card-btn" data-theme="char-wolverine" type="button">
+              <div class="char-thumb-wrap">
+                <img src="assets/characters/wolverine.svg" alt="Wolverine" class="char-thumb" />
+                <span class="char-reactive-badge">Reactive</span>
+              </div>
+              <span class="char-card-name">Wolverine</span>
+              <span class="char-card-role">Berserker Slash</span>
+            </button>
+
+            <!-- Deadpool -->
+            <button class="character-card-btn" data-theme="char-deadpool" type="button">
+              <div class="char-thumb-wrap">
+                <img src="assets/characters/deadpool.svg" alt="Deadpool" class="char-thumb" />
+                <span class="char-reactive-badge">Reactive</span>
+              </div>
+              <span class="char-card-name">Deadpool</span>
+              <span class="char-card-role">Merc with a Mouth</span>
+            </button>
+
+            <!-- Naruto -->
+            <button class="character-card-btn" data-theme="char-naruto" type="button">
+              <div class="char-thumb-wrap">
+                <img src="assets/characters/naruto.svg" alt="Naruto" class="char-thumb" />
+                <span class="char-reactive-badge">Reactive</span>
+              </div>
+              <span class="char-card-name">Naruto</span>
+              <span class="char-card-role">Sage Chakra Flame</span>
+            </button>
+
+            <!-- Goku -->
+            <button class="character-card-btn" data-theme="char-goku" type="button">
+              <div class="char-thumb-wrap">
+                <img src="assets/characters/goku.svg" alt="Goku" class="char-thumb" />
+                <span class="char-reactive-badge">Reactive</span>
+              </div>
+              <span class="char-card-name">Goku</span>
+              <span class="char-card-role">Ultra Instinct Ki</span>
+            </button>
+
+            <!-- Cyberpunk -->
+            <button class="character-card-btn" data-theme="char-cyberpunk" type="button">
+              <div class="char-thumb-wrap">
+                <img src="assets/characters/cyberpunk.svg" alt="Cyberpunk" class="char-thumb" />
+                <span class="char-reactive-badge">Reactive</span>
+              </div>
+              <span class="char-card-name">Cyberpunk</span>
+              <span class="char-card-role">Netrunner Visor</span>
+            </button>
+
           </div>
-          
-          <div class="offline-progress-info">
-            <span id="offlineProgressText" class="offline-progress-text">0 MB / 1800 MB (0%)</span>
-            <span class="offline-storage-tag">Internal: /models/</span>
+        </div>
+
+        <!-- Section: 3D Eye Color Customization (For Eye Themes) -->
+        <div class="settings-section" id="eyeColorSection">
+          <h4 class="settings-section-title">3D EYE COLOR (CLASSIC THEMES)</h4>
+          <div class="color-swatches-grid" id="colorSwatchesGrid">
+            <button class="color-swatch-btn active" data-color="neon-blue" title="Neon Blue">
+              <span class="swatch-circle" style="background:#00f0ff;box-shadow:0 0 10px #00f0ff;"></span>
+              <span>Neon Blue</span>
+            </button>
+            <button class="color-swatch-btn" data-color="cyber-red" title="Cyber Red">
+              <span class="swatch-circle" style="background:#ff0055;box-shadow:0 0 10px #ff0055;"></span>
+              <span>Cyber Red</span>
+            </button>
+            <button class="color-swatch-btn" data-color="emerald" title="Emerald">
+              <span class="swatch-circle" style="background:#00ff88;box-shadow:0 0 10px #00ff88;"></span>
+              <span>Emerald</span>
+            </button>
+            <button class="color-swatch-btn" data-color="amethyst" title="Amethyst">
+              <span class="swatch-circle" style="background:#b5179e;box-shadow:0 0 10px #b5179e;"></span>
+              <span>Amethyst</span>
+            </button>
+            <button class="color-swatch-btn" data-color="white" title="Starlight">
+              <span class="swatch-circle" style="background:#ffffff;box-shadow:0 0 10px #ffffff;"></span>
+              <span>Starlight</span>
+            </button>
           </div>
-          
-          <div class="offline-action-row">
-            <button id="btnDownloadBrain" class="btn-offline-action primary" type="button">Download Offline Brain</button>
-            <button id="btnPauseBrain" class="btn-offline-action secondary" type="button" style="display:none;">Pause</button>
-            <button id="btnCancelBrain" class="btn-offline-action danger" type="button" style="display:none;">Cancel</button>
+        </div>
+
+        <!-- Section: Expression Playground -->
+        <div class="settings-section">
+          <h4 class="settings-section-title">EXPRESSION PLAYGROUND</h4>
+          <div class="expression-playground-grid" id="expressionPlaygroundGrid">
+            <button class="btn-exp-play" data-exp="state-idle">Idle</button>
+            <button class="btn-exp-play" data-exp="state-thinking">Thinking</button>
+            <button class="btn-exp-play" data-exp="state-speaking">Speaking</button>
+            <button class="btn-exp-play" data-exp="state-winking">Winking</button>
+            <button class="btn-exp-play" data-exp="state-surprised">Surprised</button>
+            <button class="btn-exp-play" data-exp="state-laughing">Laughing</button>
+            <button class="btn-exp-play" data-exp="state-sleepy">Sleepy</button>
+            <button class="btn-exp-play" data-exp="state-crying">Crying</button>
+            <button class="btn-exp-play" data-exp="state-angry">Angry</button>
+            <button class="btn-exp-play" data-exp="state-suspicious">Suspicious</button>
+            <button class="btn-exp-play" data-exp="state-dizzy">Dizzy</button>
+            <button class="btn-exp-play" data-exp="state-heart-eyes">Heart-Eyes</button>
+            <button class="btn-exp-play" data-exp="state-confused">Confused</button>
+            <button class="btn-exp-play" data-exp="state-focused">Focused</button>
+            <button class="btn-exp-play" data-exp="state-scared">Scared</button>
+            <button class="btn-exp-play" data-exp="state-glitch">Glitch</button>
+            <button class="btn-exp-play" data-exp="state-stargazing">Stargazing</button>
+            <button class="btn-exp-play" data-exp="state-dead">Dead / Offline</button>
+            <button class="btn-exp-play" data-exp="state-error">Error</button>
           </div>
         </div>
       </div>
 
-      <!-- Section: Eye Color Customization -->
-      <div class="settings-section">
-        <h4 class="settings-section-title">3D EYE COLOR</h4>
-        <div class="color-swatches-grid" id="colorSwatchesGrid">
-          <button class="color-swatch-btn active" data-color="neon-blue" title="Neon Blue">
-            <span class="swatch-circle" style="background:#00f0ff;box-shadow:0 0 10px #00f0ff;"></span>
-            <span>Neon Blue</span>
-          </button>
-          <button class="color-swatch-btn" data-color="cyber-red" title="Cyber Red">
-            <span class="swatch-circle" style="background:#ff0055;box-shadow:0 0 10px #ff0055;"></span>
-            <span>Cyber Red</span>
-          </button>
-          <button class="color-swatch-btn" data-color="emerald" title="Emerald">
-            <span class="swatch-circle" style="background:#00ff88;box-shadow:0 0 10px #00ff88;"></span>
-            <span>Emerald</span>
-          </button>
-          <button class="color-swatch-btn" data-color="amethyst" title="Amethyst">
-            <span class="swatch-circle" style="background:#b5179e;box-shadow:0 0 10px #b5179e;"></span>
-            <span>Amethyst</span>
-          </button>
-          <button class="color-swatch-btn" data-color="white" title="Starlight">
-            <span class="swatch-circle" style="background:#ffffff;box-shadow:0 0 10px #ffffff;"></span>
-            <span>Starlight</span>
-          </button>
+      <!-- ════════ TAB 2: OFFLINE BRAIN ════════ -->
+      <div class="settings-tab-panel" id="tabPanelBrain">
+        <div class="settings-section offline-brain-section">
+          <h4 class="settings-section-title">🧠 OFFLINE AI BRAIN (1.8GB)</h4>
+          <p class="settings-subdesc">High-intelligence offline LLM capable of complex Q&A and phone actions without internet.</p>
+          <div class="offline-brain-card">
+            <div class="offline-card-header">
+              <span class="offline-model-name">Phi-3 Mini 4K Instruct</span>
+              <span id="offlineBrainStatusBadge" class="offline-status-badge status-idle">Checking...</span>
+            </div>
+            
+            <div class="offline-progress-track">
+              <div id="offlineProgressBar" class="offline-progress-fill" style="width: 0%;"></div>
+            </div>
+            
+            <div class="offline-progress-info">
+              <span id="offlineProgressText" class="offline-progress-text">0 MB / 1800 MB (0%)</span>
+              <span class="offline-storage-tag">Internal: /models/</span>
+            </div>
+            
+            <div class="offline-action-row">
+              <button id="btnDownloadBrain" class="btn-offline-action primary" type="button">Download Offline Brain</button>
+              <button id="btnPauseBrain" class="btn-offline-action secondary" type="button" style="display:none;">Pause</button>
+              <button id="btnCancelBrain" class="btn-offline-action danger" type="button" style="display:none;">Cancel</button>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- Section: Expression Playground -->
-      <div class="settings-section">
-        <h4 class="settings-section-title">EXPRESSION PLAYGROUND</h4>
-        <div class="expression-playground-grid" id="expressionPlaygroundGrid">
-          <button class="btn-exp-play" data-exp="state-idle">Idle</button>
-          <button class="btn-exp-play" data-exp="state-thinking">Thinking</button>
-          <button class="btn-exp-play" data-exp="state-speaking">Speaking</button>
-          <button class="btn-exp-play" data-exp="state-winking">Winking</button>
-          <button class="btn-exp-play" data-exp="state-surprised">Surprised</button>
-          <button class="btn-exp-play" data-exp="state-laughing">Laughing</button>
-          <button class="btn-exp-play" data-exp="state-sleepy">Sleepy</button>
-          <button class="btn-exp-play" data-exp="state-crying">Crying</button>
-          <button class="btn-exp-play" data-exp="state-angry">Angry</button>
-          <button class="btn-exp-play" data-exp="state-suspicious">Suspicious</button>
-          <button class="btn-exp-play" data-exp="state-dizzy">Dizzy</button>
-          <button class="btn-exp-play" data-exp="state-heart-eyes">Heart-Eyes</button>
-          <button class="btn-exp-play" data-exp="state-confused">Confused</button>
-          <button class="btn-exp-play" data-exp="state-focused">Focused</button>
-          <button class="btn-exp-play" data-exp="state-scared">Scared</button>
-          <button class="btn-exp-play" data-exp="state-glitch">Glitch</button>
-          <button class="btn-exp-play" data-exp="state-stargazing">Stargazing</button>
-          <button class="btn-exp-play" data-exp="state-dead">Dead / Offline</button>
-          <button class="btn-exp-play" data-exp="state-eyeroll">Eyeroll</button>
-          <button class="btn-exp-play" data-exp="state-hypnotized">Hypnotized</button>
-          <button class="btn-exp-play" data-exp="state-scanning">Scanning</button>
-          <button class="btn-exp-play" data-exp="state-bored">Bored</button>
-          <button class="btn-exp-play" data-exp="state-ninja">Ninja</button>
-          <button class="btn-exp-play" data-exp="state-overheating">Overheating</button>
-          <button class="btn-exp-play" data-exp="state-error">Error</button>
+      <!-- ════════ TAB 3: VOICES & AUDIO ════════ -->
+      <div class="settings-tab-panel" id="tabPanelVoice">
+        <div class="settings-section">
+          <h4 class="settings-section-title">TTS VOICES</h4>
+          <p class="settings-subdesc">Select your preferred voice for assistant speech responses.</p>
+          <div class="voice-options-list">
+            
+            <label class="voice-option-item" for="voice_1">
+              <input type="radio" id="voice_1" name="marvoVoiceRadio" value="voice_1">
+              <div class="voice-info">
+                <span class="voice-name">Swara</span>
+                <span class="voice-desc">Sweet Female (Hindi)</span>
+              </div>
+              <button type="button" class="btn-voice-sample" data-voice="voice_1" aria-label="Play Sample" title="Play Sample">
+                <svg viewBox="0 0 24 24" width="16" height="16"><polygon points="6 4 20 12 6 20 6 4" fill="currentColor"/></svg>
+              </button>
+            </label>
+
+            <label class="voice-option-item" for="voice_2">
+              <input type="radio" id="voice_2" name="marvoVoiceRadio" value="voice_2">
+              <div class="voice-info">
+                <span class="voice-name">Madhur</span>
+                <span class="voice-desc">Professional Male (Hindi)</span>
+              </div>
+              <button type="button" class="btn-voice-sample" data-voice="voice_2" aria-label="Play Sample" title="Play Sample">
+                <svg viewBox="0 0 24 24" width="16" height="16"><polygon points="6 4 20 12 6 20 6 4" fill="currentColor"/></svg>
+              </button>
+            </label>
+
+            <label class="voice-option-item" for="voice_3">
+              <input type="radio" id="voice_3" name="marvoVoiceRadio" value="voice_3">
+              <div class="voice-info">
+                <span class="voice-name">Aria</span>
+                <span class="voice-desc">Smart Female (US English)</span>
+              </div>
+              <button type="button" class="btn-voice-sample" data-voice="voice_3" aria-label="Play Sample" title="Play Sample">
+                <svg viewBox="0 0 24 24" width="16" height="16"><polygon points="6 4 20 12 6 20 6 4" fill="currentColor"/></svg>
+              </button>
+            </label>
+
+            <label class="voice-option-item" for="voice_4">
+              <input type="radio" id="voice_4" name="marvoVoiceRadio" value="voice_4">
+              <div class="voice-info">
+                <span class="voice-name">Ryan</span>
+                <span class="voice-desc">Deep Male (UK English)</span>
+              </div>
+              <button type="button" class="btn-voice-sample" data-voice="voice_4" aria-label="Play Sample" title="Play Sample">
+                <svg viewBox="0 0 24 24" width="16" height="16"><polygon points="6 4 20 12 6 20 6 4" fill="currentColor"/></svg>
+              </button>
+            </label>
+
+            <label class="voice-option-item" for="voice_5">
+              <input type="radio" id="voice_5" name="marvoVoiceRadio" value="voice_5">
+              <div class="voice-info">
+                <span class="voice-name">Natasha</span>
+                <span class="voice-desc">Energetic Female (AU English)</span>
+              </div>
+              <button type="button" class="btn-voice-sample" data-voice="voice_5" aria-label="Play Sample" title="Play Sample">
+                <svg viewBox="0 0 24 24" width="16" height="16"><polygon points="6 4 20 12 6 20 6 4" fill="currentColor"/></svg>
+              </button>
+            </label>
+
+          </div>
         </div>
       </div>
 
-      <!-- Section: Voices -->
-      <div class="settings-section">
-        <h4 class="settings-section-title">VOICES</h4>
-        <div class="voice-options-list">
-          
-          <label class="voice-option-item" for="voice_1">
-            <input type="radio" id="voice_1" name="marvoVoiceRadio" value="voice_1">
-            <div class="voice-info">
-              <span class="voice-name">Swara</span>
-              <span class="voice-desc">Sweet Female (Hindi)</span>
+      <!-- ════════ TAB 4: DOWNLOADS & STORAGE ════════ -->
+      <div class="settings-tab-panel" id="tabPanelDownloads">
+        <div class="settings-section">
+          <h4 class="settings-section-title">📁 UNIFIED DOWNLOADS DIRECTORY</h4>
+          <div class="storage-info-card">
+            <div class="storage-header">
+              <svg viewBox="0 0 24 24" width="22" height="22" style="color:var(--accent);"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+              <div>
+                <div class="storage-path-title">Accessible Storage Path</div>
+                <div class="storage-path-code">/storage/emulated/0/Download/Marvo/</div>
+              </div>
             </div>
-            <button type="button" class="btn-voice-sample" data-voice="voice_1" aria-label="Play Sample" title="Play Sample">
-              <svg viewBox="0 0 24 24" width="16" height="16"><polygon points="6 4 20 12 6 20 6 4" fill="currentColor"/></svg>
-            </button>
-          </label>
-
-          <label class="voice-option-item" for="voice_2">
-            <input type="radio" id="voice_2" name="marvoVoiceRadio" value="voice_2">
-            <div class="voice-info">
-              <span class="voice-name">Madhur</span>
-              <span class="voice-desc">Professional Male (Hindi)</span>
+            <p class="storage-desc">All AI image creations, PDF transcripts, and downloaded models are saved here and automatically indexed in Android Gallery & Files app.</p>
+            <div class="storage-actions-row">
+              <button id="btnOpenStorageFolder" class="btn-offline-action primary" type="button">Open Marvo Downloads</button>
             </div>
-            <button type="button" class="btn-voice-sample" data-voice="voice_2" aria-label="Play Sample" title="Play Sample">
-              <svg viewBox="0 0 24 24" width="16" height="16"><polygon points="6 4 20 12 6 20 6 4" fill="currentColor"/></svg>
-            </button>
-          </label>
+          </div>
 
-          <label class="voice-option-item" for="voice_3">
-            <input type="radio" id="voice_3" name="marvoVoiceRadio" value="voice_3">
-            <div class="voice-info">
-              <span class="voice-name">Aria</span>
-              <span class="voice-desc">Smart Female (US English)</span>
+          <div class="recent-downloads-section">
+            <h5 class="recent-downloads-title">Generated Images & Files</h5>
+            <div id="downloadsHistoryList" class="downloads-history-list">
+              <div class="downloads-empty-hint">No saved files yet. Generate an image or export a chat to see it here!</div>
             </div>
-            <button type="button" class="btn-voice-sample" data-voice="voice_3" aria-label="Play Sample" title="Play Sample">
-              <svg viewBox="0 0 24 24" width="16" height="16"><polygon points="6 4 20 12 6 20 6 4" fill="currentColor"/></svg>
-            </button>
-          </label>
-
-          <label class="voice-option-item" for="voice_4">
-            <input type="radio" id="voice_4" name="marvoVoiceRadio" value="voice_4">
-            <div class="voice-info">
-              <span class="voice-name">Ryan</span>
-              <span class="voice-desc">Deep Male (UK English)</span>
-            </div>
-            <button type="button" class="btn-voice-sample" data-voice="voice_4" aria-label="Play Sample" title="Play Sample">
-              <svg viewBox="0 0 24 24" width="16" height="16"><polygon points="6 4 20 12 6 20 6 4" fill="currentColor"/></svg>
-            </button>
-          </label>
-
-          <label class="voice-option-item" for="voice_5">
-            <input type="radio" id="voice_5" name="marvoVoiceRadio" value="voice_5">
-            <div class="voice-info">
-              <span class="voice-name">Natasha</span>
-              <span class="voice-desc">Energetic Female (AU English)</span>
-            </div>
-            <button type="button" class="btn-voice-sample" data-voice="voice_5" aria-label="Play Sample" title="Play Sample">
-              <svg viewBox="0 0 24 24" width="16" height="16"><polygon points="6 4 20 12 6 20 6 4" fill="currentColor"/></svg>
-            </button>
-          </label>
-
+          </div>
         </div>
       </div>
+
     </div>
   </div>
 </div>

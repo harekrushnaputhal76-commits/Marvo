@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <radialGradient id="poolGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ff3838" stop-opacity="0.7"/>
+      <stop offset="65%" stop-color="#711e1e" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="poolRed" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ff3838"/>
+      <stop offset="100%" stop-color="#b71540"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <circle cx="100" cy="100" r="95" fill="url(#poolGlow)"/>
+  <circle cx="100" cy="100" r="88" fill="#140809" stroke="#ff3838" stroke-width="1.5" stroke-opacity="0.4"/>
+  
+  <!-- Red Mask Head with Tail at Top -->
+  <path d="M96,28 C98,22 102,22 104,28 L103,42 C145,44 148,80 148,115 C148,150 130,172 100,175 C70,172 52,150 52,115 C52,80 55,44 97,42 Z" fill="url(#poolRed)" stroke="#ff4d4d" stroke-width="2"/>
+  
+  <!-- Black Eye Patches (Asymmetric Expressive Merc) -->
+  <!-- Left Eye Patch (Squinting/Winking sarcastic) -->
+  <ellipse cx="78" cy="108" rx="20" ry="24" transform="rotate(-5 78 108)" fill="#18181a" stroke="#0c0c0e" stroke-width="2"/>
+  <!-- Right Eye Patch (Raised brow / surprised) -->
+  <ellipse cx="122" cy="106" rx="20" ry="25" transform="rotate(5 122 106)" fill="#18181a" stroke="#0c0c0e" stroke-width="2"/>
+  
+  <!-- Expressive White Eyes -->
+  <!-- Left eye: Narrow amused squint -->
+  <path d="M68,110 Q78,103 88,110 Q78,116 68,110 Z" fill="#ffffff"/>
+  <!-- Right eye: Big wide white circle -->
+  <ellipse cx="122" cy="106" rx="9" ry="12" fill="#ffffff"/>
+  
+  <!-- Center Seam Line -->
+  <path d="M100,42 L100,175" stroke="#711e1e" stroke-width="2" stroke-dasharray="4,4"/>
+  
+  <!-- Collar / Shoulder hints -->
+  <path d="M60,170 L40,195 L160,195 L140,170 Z" fill="#18181a" stroke="#ff3838" stroke-width="1.5"/>
+</svg>

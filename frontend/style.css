@@ -2209,4 +2209,970 @@ body.chat-active .face{
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   STEP 24: ULTIMATE ECOSYSTEM OVERHAUL STYLES
+   - Tier Switcher (Fast vs Pro)
+   - Categorized Agent Folders
+   - Multimodal Input & Glowing Cyan Mic
+   - 10+ Reactive Character Ecosystem & Avatars
+   - Tabbed Settings UI & Unified Downloads Cards
+   - Hardware-Accelerated Performance Optimizations
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── 1. FAST VS PRO TIER SWITCHER ── */
+.tier-switcher {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  padding: 3px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  z-index: 10;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  user-select: none;
+}
+
+.tier-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  z-index: 2;
+  transition: color 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  touch-action: manipulation;
+}
+
+.tier-btn svg {
+  transition: transform 0.22s ease;
+}
+
+.tier-btn.active {
+  color: #ffffff;
+}
+
+.tier-btn.active svg {
+  transform: scale(1.1);
+}
+
+.tier-btn[data-mode="fast"].active {
+  color: #00f0ff;
+  text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+}
+
+.tier-btn[data-mode="pro"].active {
+  color: #ffbb00;
+  text-shadow: 0 0 10px rgba(255, 187, 0, 0.5);
+}
+
+.tier-pill-indicator {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc(50% - 3px);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 18px;
+  z-index: 1;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), background 0.25s ease, border-color 0.25s ease;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.tier-switcher.tier-pro .tier-pill-indicator {
+  transform: translateX(100%);
+  background: rgba(255, 187, 0, 0.15);
+  border-color: rgba(255, 187, 0, 0.35);
+  box-shadow: 0 0 14px rgba(255, 187, 0, 0.2);
+}
+
+.tier-switcher.tier-fast .tier-pill-indicator {
+  transform: translateX(0%);
+  background: rgba(0, 240, 255, 0.15);
+  border-color: rgba(0, 240, 255, 0.35);
+  box-shadow: 0 0 14px rgba(0, 240, 255, 0.2);
+}
+
+/* ── 2. SIDEBAR AGENT FOLDERS ── */
+.agent-folder-group {
+  margin-bottom: 14px;
+}
+
+.agent-folder-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  color: var(--accent);
+  padding: 4px 6px;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  opacity: 0.9;
+}
+
+/* ── 3. MULTIMODAL INPUT BAR & ATTACHMENT PREVIEWS ── */
+.attachment-preview-shelf {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  margin-bottom: 8px;
+  background: rgba(18, 20, 28, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  overflow-x: auto;
+  max-width: 100%;
+  scrollbar-width: thin;
+  animation: slideUpFade 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.attachment-preview-shelf.hidden {
+  display: none !important;
+}
+
+.attachment-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  padding: 4px 10px 4px 6px;
+  font-size: 11.5px;
+  color: #fff;
+  flex-shrink: 0;
+  max-width: 220px;
+  user-select: none;
+}
+
+.attachment-chip-thumb {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.attachment-chip-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(0, 240, 255, 0.15);
+  color: var(--accent);
+}
+
+.attachment-chip-info {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.attachment-chip-name {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.attachment-chip-size {
+  font-size: 9.5px;
+  color: var(--text-dim);
+}
+
+.attachment-chip-remove {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+  cursor: pointer;
+  border-radius: 50%;
+  margin-left: 2px;
+  transition: color 0.15s ease;
+}
+
+.attachment-chip-remove:hover {
+  color: #ff3838;
+}
+
+/* Central Glowing Cyan Mic */
+.btn-mic-cyan {
+  position: relative;
+  background: rgba(0, 240, 255, 0.12) !important;
+  color: #00f0ff !important;
+  border: 1px solid rgba(0, 240, 255, 0.35) !important;
+  box-shadow: 0 0 14px rgba(0, 240, 255, 0.25) !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.btn-mic-cyan:hover, .btn-mic-cyan:active {
+  background: rgba(0, 240, 255, 0.25) !important;
+  box-shadow: 0 0 24px rgba(0, 240, 255, 0.55) !important;
+  transform: scale(1.06);
+}
+
+.btn-mic-cyan.listening {
+  background: rgba(0, 240, 255, 0.35) !important;
+  border-color: #00f0ff !important;
+  box-shadow: 0 0 32px rgba(0, 240, 255, 0.8) !important;
+  animation: micPulseCyan 1.4s infinite cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes micPulseCyan {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 240, 255, 0.7), 0 0 15px rgba(0, 240, 255, 0.5);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 14px rgba(0, 240, 255, 0), 0 0 25px rgba(0, 240, 255, 0.8);
+    transform: scale(1.08);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 240, 255, 0), 0 0 15px rgba(0, 240, 255, 0.5);
+    transform: scale(1);
+  }
+}
+
+/* ── 4. REACTIVE CHARACTER AVATAR ECOSYSTEM ── */
+.character-avatar {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 140px;
+  height: 140px;
+  margin: 0 auto;
+  user-select: none;
+  cursor: pointer;
+  will-change: transform;
+}
+
+.character-avatar.hidden {
+  display: none !important;
+}
+
+/* Dynamic Halo Ring */
+.character-halo-ring {
+  position: absolute;
+  inset: -12px;
+  border-radius: 50%;
+  border: 2px dashed rgba(0, 240, 255, 0.4);
+  pointer-events: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+
+/* Character Aura */
+.character-aura {
+  position: absolute;
+  inset: -20px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0, 240, 255, 0.35) 0%, rgba(0, 240, 255, 0) 70%);
+  filter: blur(14px);
+  pointer-events: none;
+  transition: all 0.35s ease;
+  z-index: 0;
+  will-change: transform, opacity;
+}
+
+/* Art Frame */
+.character-art-frame {
+  position: relative;
+  width: 124px;
+  height: 124px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2.5px solid rgba(0, 240, 255, 0.6);
+  background: #0d0f18;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), inset 0 0 20px rgba(0, 240, 255, 0.2);
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.3s ease;
+}
+
+.character-avatar:hover .character-art-frame,
+.character-avatar:active .character-art-frame {
+  transform: scale(1.05);
+}
+
+.character-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease, filter 0.3s ease;
+}
+
+.character-expression-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle, transparent 50%, rgba(0,0,0,0.4) 100%);
+  mix-blend-mode: overlay;
+  transition: background 0.3s ease;
+}
+
+/* Meta info below character */
+.character-meta {
+  position: absolute;
+  bottom: -32px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 2;
+  white-space: nowrap;
+}
+
+.character-name-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 3px 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  letter-spacing: 0.4px;
+}
+
+.character-state-badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #00f0ff;
+  background: rgba(0, 240, 255, 0.15);
+  padding: 3px 7px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  transition: all 0.2s ease;
+}
+
+/* Reactive Audio Ripple Waves */
+.character-ripple-waves {
+  position: absolute;
+  inset: -10px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.c-ripple {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1.5px solid rgba(0, 240, 255, 0.5);
+  opacity: 0;
+  transform: scale(1);
+  will-change: transform, opacity;
+}
+
+/* ── STATES FOR REACTIVE CHARACTERS ── */
+
+/* IDLE STATE */
+.character-avatar.state-idle .character-art-frame {
+  animation: charBreathe 4s ease-in-out infinite;
+}
+@keyframes charBreathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.025); }
+}
+
+/* THINKING STATE */
+.character-avatar.state-thinking .character-halo-ring {
+  border-style: solid;
+  border-color: #ffbb00 transparent #ffbb00 transparent;
+  animation: charSpin 2s linear infinite;
+}
+.character-avatar.state-thinking .character-aura {
+  background: radial-gradient(circle, rgba(255, 187, 0, 0.4) 0%, rgba(255, 187, 0, 0) 70%);
+  animation: charPulse 1.5s ease-in-out infinite;
+}
+.character-avatar.state-thinking .character-state-badge {
+  color: #ffbb00;
+  background: rgba(255, 187, 0, 0.15);
+  border-color: rgba(255, 187, 0, 0.35);
+}
+
+/* SPEAKING STATE */
+.character-avatar.state-speaking .character-art-frame {
+  animation: charSpeakScale 1.2s ease-in-out infinite alternate;
+}
+.character-avatar.state-speaking .c-ripple.r1 {
+  animation: charRipple 1.6s ease-out infinite;
+}
+.character-avatar.state-speaking .c-ripple.r2 {
+  animation: charRipple 1.6s ease-out 0.5s infinite;
+}
+.character-avatar.state-speaking .c-ripple.r3 {
+  animation: charRipple 1.6s ease-out 1.0s infinite;
+}
+.character-avatar.state-speaking .character-state-badge {
+  color: #00ff88;
+  background: rgba(0, 255, 136, 0.15);
+  border-color: rgba(0, 255, 136, 0.35);
+}
+
+@keyframes charSpeakScale {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.045); }
+}
+
+@keyframes charRipple {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1.55);
+    opacity: 0;
+  }
+}
+
+@keyframes charSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes charPulse {
+  0%, 100% { transform: scale(1); opacity: 0.7; }
+  50% { transform: scale(1.15); opacity: 1; }
+}
+
+/* ERROR STATE */
+.character-avatar.state-error .character-art-frame {
+  border-color: #ff3366;
+  box-shadow: 0 0 24px rgba(255, 51, 102, 0.6);
+  animation: charGlitch 0.4s ease-in-out 3;
+}
+.character-avatar.state-error .character-aura {
+  background: radial-gradient(circle, rgba(255, 51, 102, 0.5) 0%, rgba(255, 51, 102, 0) 70%);
+}
+.character-avatar.state-error .character-state-badge {
+  color: #ff3366;
+  background: rgba(255, 51, 102, 0.15);
+  border-color: rgba(255, 51, 102, 0.35);
+}
+
+@keyframes charGlitch {
+  0%, 100% { transform: translate(0, 0); }
+  20% { transform: translate(-3px, 2px); }
+  40% { transform: translate(3px, -2px); }
+  60% { transform: translate(-2px, -1px); }
+  80% { transform: translate(2px, 1px); }
+}
+
+/* ── INDIVIDUAL CHARACTER THEME PALETTES ── */
+/* Spider-Man */
+body.theme-char-spiderman .character-art-frame {
+  border-color: #ff1744;
+  box-shadow: 0 0 25px rgba(255, 23, 68, 0.4), inset 0 0 15px rgba(0, 240, 255, 0.3);
+}
+body.theme-char-spiderman .character-halo-ring {
+  border-color: rgba(255, 23, 68, 0.5);
+}
+body.theme-char-spiderman .character-aura {
+  background: radial-gradient(circle, rgba(255, 23, 68, 0.35) 0%, rgba(0, 240, 255, 0.15) 50%, transparent 70%);
+}
+
+/* Zen Monk */
+body.theme-char-monk .character-art-frame {
+  border-color: #ff9f1a;
+  box-shadow: 0 0 25px rgba(255, 159, 26, 0.4), inset 0 0 15px rgba(255, 221, 89, 0.3);
+}
+body.theme-char-monk .character-halo-ring {
+  border-color: rgba(255, 159, 26, 0.5);
+}
+body.theme-char-monk .character-aura {
+  background: radial-gradient(circle, rgba(255, 159, 26, 0.4) 0%, rgba(255, 221, 89, 0.15) 50%, transparent 70%);
+}
+
+/* Iron Man */
+body.theme-char-ironman .character-art-frame {
+  border-color: #ff3838;
+  box-shadow: 0 0 25px rgba(0, 240, 255, 0.5), inset 0 0 20px rgba(255, 187, 0, 0.3);
+}
+body.theme-char-ironman .character-halo-ring {
+  border-color: rgba(0, 240, 255, 0.6);
+}
+body.theme-char-ironman .character-aura {
+  background: radial-gradient(circle, rgba(0, 240, 255, 0.45) 0%, rgba(255, 56, 56, 0.2) 60%, transparent 75%);
+}
+
+/* Hulk */
+body.theme-char-hulk .character-art-frame {
+  border-color: #00ff66;
+  box-shadow: 0 0 30px rgba(0, 255, 102, 0.5), inset 0 0 15px rgba(0, 255, 102, 0.3);
+}
+body.theme-char-hulk .character-halo-ring {
+  border-color: rgba(0, 255, 102, 0.6);
+}
+body.theme-char-hulk .character-aura {
+  background: radial-gradient(circle, rgba(0, 255, 102, 0.4) 0%, transparent 70%);
+}
+
+/* Batman */
+body.theme-char-batman .character-art-frame {
+  border-color: #4a69bd;
+  box-shadow: 0 0 25px rgba(74, 105, 189, 0.4), inset 0 0 15px rgba(30, 39, 46, 0.5);
+}
+body.theme-char-batman .character-halo-ring {
+  border-color: rgba(74, 105, 189, 0.5);
+}
+body.theme-char-batman .character-aura {
+  background: radial-gradient(circle, rgba(74, 105, 189, 0.35) 0%, transparent 70%);
+}
+
+/* Wolverine */
+body.theme-char-wolverine .character-art-frame {
+  border-color: #ffd32a;
+  box-shadow: 0 0 25px rgba(255, 211, 42, 0.4), inset 0 0 15px rgba(255, 94, 87, 0.3);
+}
+body.theme-char-wolverine .character-halo-ring {
+  border-color: rgba(255, 211, 42, 0.5);
+}
+body.theme-char-wolverine .character-aura {
+  background: radial-gradient(circle, rgba(255, 211, 42, 0.35) 0%, transparent 70%);
+}
+
+/* Deadpool */
+body.theme-char-deadpool .character-art-frame {
+  border-color: #ff3838;
+  box-shadow: 0 0 25px rgba(255, 56, 56, 0.5), inset 0 0 15px rgba(24, 24, 26, 0.5);
+}
+body.theme-char-deadpool .character-halo-ring {
+  border-color: rgba(255, 56, 56, 0.6);
+}
+body.theme-char-deadpool .character-aura {
+  background: radial-gradient(circle, rgba(255, 56, 56, 0.4) 0%, transparent 70%);
+}
+
+/* Naruto */
+body.theme-char-naruto .character-art-frame {
+  border-color: #ff9f1a;
+  box-shadow: 0 0 25px rgba(255, 159, 26, 0.5), inset 0 0 15px rgba(255, 242, 0, 0.3);
+}
+body.theme-char-naruto .character-halo-ring {
+  border-color: rgba(255, 159, 26, 0.6);
+}
+body.theme-char-naruto .character-aura {
+  background: radial-gradient(circle, rgba(255, 159, 26, 0.45) 0%, rgba(255, 56, 56, 0.2) 60%, transparent 75%);
+}
+
+/* Goku */
+body.theme-char-goku .character-art-frame {
+  border-color: #00d2d3;
+  box-shadow: 0 0 30px rgba(0, 210, 211, 0.6), inset 0 0 20px rgba(84, 160, 255, 0.4);
+}
+body.theme-char-goku .character-halo-ring {
+  border-color: rgba(0, 210, 211, 0.7);
+}
+body.theme-char-goku .character-aura {
+  background: radial-gradient(circle, rgba(0, 210, 211, 0.5) 0%, rgba(84, 160, 255, 0.25) 50%, transparent 75%);
+}
+
+/* Cyberpunk */
+body.theme-char-cyberpunk .character-art-frame {
+  border-color: #ff007f;
+  box-shadow: 0 0 25px rgba(255, 0, 127, 0.5), inset 0 0 15px rgba(0, 240, 255, 0.4);
+}
+body.theme-char-cyberpunk .character-halo-ring {
+  border-color: rgba(0, 240, 255, 0.7);
+}
+body.theme-char-cyberpunk .character-aura {
+  background: radial-gradient(circle, rgba(255, 0, 127, 0.4) 0%, rgba(0, 240, 255, 0.25) 50%, transparent 75%);
+}
+
+/* ── 5. SETTINGS TABS & CHARACTER SELECTOR ── */
+.settings-tab-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: rgba(0, 0, 0, 0.25);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.settings-tab-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.settings-tab-btn {
+  padding: 8px 14px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  touch-action: manipulation;
+}
+
+.settings-tab-btn.active {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+.settings-tab-panel {
+  display: none;
+}
+
+.settings-tab-panel.active {
+  display: block;
+}
+
+/* Theme Choice Cards */
+.theme-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.theme-choice-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s ease;
+  touch-action: manipulation;
+}
+
+.theme-choice-card.active {
+  background: rgba(0, 240, 255, 0.1);
+  border-color: var(--accent);
+  box-shadow: 0 0 16px rgba(0, 240, 255, 0.2);
+}
+
+.theme-preview-orb {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #08090d;
+  border: 2px solid rgba(0, 240, 255, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.preview-iris {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #00f0ff;
+  box-shadow: 0 0 8px #00f0ff;
+}
+
+.preview-iris.starlight {
+  background: #ffffff;
+  box-shadow: 0 0 8px #ffffff;
+}
+
+.theme-choice-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.theme-choice-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.theme-choice-desc {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+/* Character Themes Grid */
+.character-themes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(135px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.character-card-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  touch-action: manipulation;
+}
+
+.character-card-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px);
+}
+
+.character-card-btn.active {
+  background: rgba(0, 240, 255, 0.12);
+  border-color: var(--accent);
+  box-shadow: 0 0 16px rgba(0, 240, 255, 0.25);
+  transform: scale(1.02);
+}
+
+.char-thumb-wrap {
+  position: relative;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  overflow: hidden;
+  margin-bottom: 8px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  background: #000;
+}
+
+.character-card-btn.active .char-thumb-wrap {
+  border-color: var(--accent);
+  box-shadow: 0 0 12px var(--accent);
+}
+
+.char-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.char-reactive-badge {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.75);
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  padding: 1px 0;
+  letter-spacing: 0.4px;
+}
+
+.char-card-name {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 2px;
+}
+
+.char-card-role {
+  font-size: 10px;
+  color: var(--text-dim);
+  line-height: 1.2;
+}
+
+/* ── 6. UNIFIED STORAGE & DOWNLOADS CARDS ── */
+.storage-info-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 18px;
+}
+
+.storage-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.storage-path-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.storage-path-code {
+  font-family: monospace;
+  font-size: 11.5px;
+  color: var(--accent);
+  margin-top: 2px;
+}
+
+.storage-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin-bottom: 14px;
+}
+
+.storage-actions-row {
+  display: flex;
+  gap: 10px;
+}
+
+.recent-downloads-section {
+  margin-top: 14px;
+}
+
+.recent-downloads-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.downloads-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.downloads-empty-hint {
+  text-align: center;
+  padding: 24px 12px;
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+
+.download-history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+}
+
+.download-item-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.download-item-time {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+/* ── 7. MODERN CHAT CARD FOR IMAGE GENERATION ── */
+.chat-img-card {
+  position: relative;
+  background: rgba(18, 20, 28, 0.7);
+  border: 1px solid rgba(0, 240, 255, 0.25);
+  border-radius: 16px;
+  overflow: hidden;
+  margin-top: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+}
+
+.chat-img-wrap {
+  position: relative;
+  width: 100%;
+  max-height: 380px;
+  overflow: hidden;
+  cursor: pointer;
+  background: #000;
+}
+
+.chat-img-wrap img {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: cover;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.chat-img-wrap:hover img {
+  transform: scale(1.02);
+}
+
+.chat-img-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(10, 11, 16, 0.95);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.btn-card-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(0, 240, 255, 0.12);
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  border-radius: 8px;
+  color: var(--accent);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  touch-action: manipulation;
+}
+
+.btn-card-action:hover, .btn-card-action:active {
+  background: rgba(0, 240, 255, 0.25);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.btn-card-action.secondary {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--text-dim);
+}
+
+.btn-card-action.secondary:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* ── 8. HARDWARE-ACCELERATED PERFORMANCE FIXES ── */
+.face, .character-avatar, .voice-visualizer-container, .input-bar, .topbar {
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* Low power / hidden tab throttling */
+body.page-paused * {
+  animation-play-state: paused !important;
+}
+
+
 

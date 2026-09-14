@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <radialGradient id="ironGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#00f0ff" stop-opacity="0.8"/>
+      <stop offset="60%" stop-color="#ff3b30" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="goldPlate" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffe259"/>
+      <stop offset="100%" stop-color="#ffa751"/>
+    </linearGradient>
+    <linearGradient id="crimsonPlate" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ff1744"/>
+      <stop offset="100%" stop-color="#8b0000"/>
+    </linearGradient>
+    <filter id="neonArc" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <!-- Background Glow -->
+  <circle cx="100" cy="100" r="95" fill="url(#ironGlow)"/>
+  <circle cx="100" cy="100" r="88" fill="#120508" stroke="#ff3b30" stroke-width="2" stroke-opacity="0.4"/>
+  
+  <!-- Outer Helmet Silhouette (Crimson) -->
+  <path d="M55,65 C55,30 145,30 145,65 L150,115 C150,145 130,170 100,175 C70,170 50,145 50,115 Z" fill="url(#crimsonPlate)" stroke="#ff4d4d" stroke-width="2"/>
+  
+  <!-- Faceplate (Gold) -->
+  <path d="M68,75 L132,75 L136,112 C136,132 120,152 100,156 C80,152 64,132 64,112 Z" fill="url(#goldPlate)" stroke="#e67e22" stroke-width="1.5"/>
+  <path d="M80,75 L75,105 L88,110 L100,102 L112,110 L125,105 L120,75 Z" fill="#b71c1c" opacity="0.3"/>
+  
+  <!-- Brow & Cheek Lines -->
+  <polygon points="70,95 100,103 130,95 126,88 100,94 74,88" fill="#d35400"/>
+  <line x1="72" y1="125" x2="90" y2="135" stroke="#d35400" stroke-width="2"/>
+  <line x1="128" y1="125" x2="110" y2="135" stroke="#d35400" stroke-width="2"/>
+  
+  <!-- Glowing Eye Slits (Cyan Arc Reactor Tech) -->
+  <g filter="url(#neonArc)">
+    <polygon points="72,106 94,112 92,117 74,112" fill="#ffffff" stroke="#00f0ff" stroke-width="2"/>
+    <polygon points="128,106 106,112 108,117 126,112" fill="#ffffff" stroke="#00f0ff" stroke-width="2"/>
+  </g>
+  
+  <!-- Mouth Slit -->
+  <line x1="88" y1="145" x2="112" y2="145" stroke="#5d4037" stroke-width="2.5" stroke-linecap="round"/>
+</svg>

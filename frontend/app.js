@@ -53,6 +53,9 @@ const DOM = {
   agentsActiveIndicator:  $('#agentsActiveIndicator'),
 
   // Top Bar & Menus
+  tierSwitcher:       $('#tierSwitcher'),
+  btnTierFast:        $('#btnTierFast'),
+  btnTierPro:         $('#btnTierPro'),
   btnAppMenu:         $('#btnAppMenu'),
   appDropdown:        $('#appDropdown'),
   btnAddToNotebook:   $('#btnAddToNotebook'),
@@ -62,9 +65,16 @@ const DOM = {
   btnTopDeleteChat:   $('#btnTopDeleteChat'),
   btnThemeDark:       $('#btnThemeDark'),
   btnThemeLight:      $('#btnThemeLight'),
+  btnThemeMenu:       $('#btnThemeMenu'),
   btnSettings:        $('#btnSettings'),
   settingsModal:      $('#settingsModal'),
   btnCloseSettings:   $('#btnCloseSettings'),
+  settingsTabBar:     $('#settingsTabBar'),
+  btnOpenStorageFolder: $('#btnOpenStorageFolder'),
+  downloadsHistoryList: $('#downloadsHistoryList'),
+  navDownloads:       $('#navDownloads'),
+  eyeColorSection:    $('#eyeColorSection'),
+  characterThemesGrid: $('#characterThemesGrid'),
   topbarTitle:        $('#topbarTitle'),
 
   // Phase 5 Modals
@@ -100,17 +110,28 @@ const DOM = {
   btnClearProject:      $('#btnClearProject'),
   navImageGen:          $('#navImageGen'),
 
-  // Avatar & 3D Eyes
+  // Avatar & 3D Eyes & Reactive Characters
   avatarZone:         $('#avatarZone'),
   face:               $('#face'),
   stateLabel:         $('#stateLabel'),
+  characterAvatar:    $('#characterAvatar'),
+  characterImg:       $('#characterImg'),
+  characterNameBadge: $('#characterNameBadge'),
+  characterStateBadge:$('#characterStateBadge'),
+  characterAura:      $('#characterAura'),
 
-  // Chat Area & Input
+  // Chat Area & Multimodal Input
   chatArea:           $('#chatArea'),
   chatMessages:       $('#chatMessages'),
+  attachmentPreviewShelf: $('#attachmentPreviewShelf'),
+  fileUploadInput:    $('#fileUploadInput'),
   btnAttach:          $('#btnAttach'),
   attachMenu:         $('#attachMenu'),
   btnAttachImageGen:  $('#btnAttachImageGen'),
+  btnAttachPhoto:     $('#btnAttachPhoto'),
+  btnAttachVideo:     $('#btnAttachVideo'),
+  btnAttachPDF:       $('#btnAttachPDF'),
+  btnAttachFiles:     $('#btnAttachFiles'),
   msgInput:           $('#msgInput'),
   btnSend:            $('#btnSend'),
   btnMic:             $('#btnMic'),
@@ -327,22 +348,102 @@ const AGENT_DISPLAY_NAMES = {
 };
 
 function getActiveModeName() {
-  const activeBtn = DOM.modeSelector?.querySelector('.chip-btn.active');
-  if (activeBtn) {
-    const text = activeBtn.querySelector('span:last-child')?.textContent?.trim();
-    if (text) return text;
-  }
-  if (selectedMode === 'fast') return 'Fast';
-  if (selectedMode === 'high' || selectedMode === 'Pro') return 'Pro';
-  return 'Thinking';
+  return (selectedMode === 'pro' || selectedMode === 'high') ? 'Pro' : 'Fast';
 }
 
-/* Eye Expression Trigger */
+const CHARACTER_PROFILES = {
+  'char-spiderman': {
+    name: 'Spider-Man',
+    idleImg: 'assets/characters/spiderman-idle.jpg',
+    activeImg: 'assets/characters/spiderman-active.jpg',
+    thinkingImg: 'assets/characters/spiderman-idle.jpg',
+  },
+  'char-monk': {
+    name: 'Zen Monk',
+    idleImg: 'assets/characters/monk-idle.jpg',
+    activeImg: 'assets/characters/monk-active.jpg',
+    thinkingImg: 'assets/characters/monk-vista.jpg',
+  },
+  'char-ironman': {
+    name: 'Iron Man',
+    idleImg: 'assets/characters/ironman.svg',
+    activeImg: 'assets/characters/ironman.svg',
+    thinkingImg: 'assets/characters/ironman.svg',
+  },
+  'char-hulk': {
+    name: 'Hulk',
+    idleImg: 'assets/characters/hulk.svg',
+    activeImg: 'assets/characters/hulk.svg',
+    thinkingImg: 'assets/characters/hulk.svg',
+  },
+  'char-batman': {
+    name: 'Batman',
+    idleImg: 'assets/characters/batman.svg',
+    activeImg: 'assets/characters/batman.svg',
+    thinkingImg: 'assets/characters/batman.svg',
+  },
+  'char-wolverine': {
+    name: 'Wolverine',
+    idleImg: 'assets/characters/wolverine.svg',
+    activeImg: 'assets/characters/wolverine.svg',
+    thinkingImg: 'assets/characters/wolverine.svg',
+  },
+  'char-deadpool': {
+    name: 'Deadpool',
+    idleImg: 'assets/characters/deadpool.svg',
+    activeImg: 'assets/characters/deadpool.svg',
+    thinkingImg: 'assets/characters/deadpool.svg',
+  },
+  'char-naruto': {
+    name: 'Naruto',
+    idleImg: 'assets/characters/naruto.svg',
+    activeImg: 'assets/characters/naruto.svg',
+    thinkingImg: 'assets/characters/naruto.svg',
+  },
+  'char-goku': {
+    name: 'Goku',
+    idleImg: 'assets/characters/goku.svg',
+    activeImg: 'assets/characters/goku.svg',
+    thinkingImg: 'assets/characters/goku.svg',
+  },
+  'char-cyberpunk': {
+    name: 'Cyberpunk',
+    idleImg: 'assets/characters/cyberpunk.svg',
+    activeImg: 'assets/characters/cyberpunk.svg',
+    thinkingImg: 'assets/characters/cyberpunk.svg',
+  },
+};
+
+let currentTheme = 'dark';
+let currentCharacterState = 'state-idle';
+
+/* Eye & Character Reactive Expression Trigger */
 function setEyeExpression(state) {
   if (!STATES.includes(state)) return;
-  STATES.forEach(s => DOM.face.classList.remove(s));
-  DOM.face.classList.add(state);
-  DOM.stateLabel.textContent = state.replace('state-', '').toUpperCase();
+  currentCharacterState = state;
+
+  STATES.forEach(s => {
+    if (DOM.face) DOM.face.classList.remove(s);
+    if (DOM.characterAvatar) DOM.characterAvatar.classList.remove(s);
+  });
+  if (DOM.face) DOM.face.classList.add(state);
+  if (DOM.characterAvatar) DOM.characterAvatar.classList.add(state);
+
+  const stateClean = state.replace('state-', '').toUpperCase();
+  if (DOM.stateLabel) DOM.stateLabel.textContent = stateClean;
+  if (DOM.characterStateBadge) DOM.characterStateBadge.textContent = stateClean;
+
+  // React character images based on state (e.g. Spider-Man & Monk user photos)
+  if (CHARACTER_PROFILES[currentTheme] && DOM.characterImg) {
+    const prof = CHARACTER_PROFILES[currentTheme];
+    if (state === 'state-speaking') {
+      DOM.characterImg.src = prof.activeImg || prof.idleImg;
+    } else if (state === 'state-thinking') {
+      DOM.characterImg.src = prof.thinkingImg || prof.idleImg;
+    } else {
+      DOM.characterImg.src = prof.idleImg;
+    }
+  }
 }
 
 /* Contextual Keyword Detector */
@@ -403,12 +504,45 @@ function showToast(msg, duration = 2400) {
    THEME & FULLSCREEN STATUS BAR INITIALIZATION
    ═══════════════════════════════════════════════════════════════════ */
 async function setTheme(theme) {
-  if (theme === 'light') {
+  currentTheme = theme || 'dark';
+
+  // Clear all previous theme classes
+  DOM.body.classList.remove('theme-light');
+  Object.keys(CHARACTER_PROFILES).forEach(k => {
+    DOM.body.classList.remove(`theme-${k}`);
+  });
+
+  if (currentTheme === 'light') {
     DOM.body.classList.add('theme-light');
-  } else {
-    DOM.body.classList.remove('theme-light');
+    if (DOM.face) DOM.face.classList.remove('hidden');
+    if (DOM.characterAvatar) DOM.characterAvatar.classList.add('hidden');
+    if (DOM.eyeColorSection) DOM.eyeColorSection.style.display = 'block';
+  } else if (currentTheme === 'dark') {
+    if (DOM.face) DOM.face.classList.remove('hidden');
+    if (DOM.characterAvatar) DOM.characterAvatar.classList.add('hidden');
+    if (DOM.eyeColorSection) DOM.eyeColorSection.style.display = 'block';
+  } else if (CHARACTER_PROFILES[currentTheme]) {
+    const profile = CHARACTER_PROFILES[currentTheme];
+    DOM.body.classList.add(`theme-${currentTheme}`);
+    if (DOM.face) DOM.face.classList.add('hidden');
+    if (DOM.characterAvatar) {
+      DOM.characterAvatar.classList.remove('hidden');
+      if (DOM.characterImg) DOM.characterImg.src = profile.idleImg;
+      if (DOM.characterNameBadge) DOM.characterNameBadge.textContent = profile.name;
+      if (DOM.characterStateBadge) DOM.characterStateBadge.textContent = 'IDLE';
+    }
+    if (DOM.eyeColorSection) DOM.eyeColorSection.style.display = 'none';
   }
-  await NativeStorage.set(THEME_STORAGE_KEY, theme);
+
+  // Update active state in UI buttons
+  document.querySelectorAll('.theme-choice-card').forEach(c => {
+    c.classList.toggle('active', c.dataset.theme === currentTheme);
+  });
+  document.querySelectorAll('.character-card-btn').forEach(c => {
+    c.classList.toggle('active', c.dataset.theme === currentTheme);
+  });
+
+  await NativeStorage.set(THEME_STORAGE_KEY, currentTheme);
   closeAllDropdowns();
 }
 
@@ -512,19 +646,46 @@ async function clearActiveProject() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   SETTINGS MODAL & VOICE SELECTION & OFFLINE BRAIN DOWNLOADER
+   SETTINGS MODAL & CATEGORIZED TABS & OFFLINE BRAIN DOWNLOADER
    ═══════════════════════════════════════════════════════════════════ */
 let downloadPollTimer = null;
 
-function openSettingsModal() {
+function openSettingsModal(initialTab = 'themes') {
   closeAllDropdowns();
   DOM.settingsModal.classList.add('show');
-  startDownloadPolling();
+  switchSettingsTab(initialTab);
 }
 
 function closeSettingsModal() {
   DOM.settingsModal.classList.remove('show');
   stopDownloadPolling();
+}
+
+function switchSettingsTab(tabName) {
+  const tabs = document.querySelectorAll('.settings-tab-btn');
+  tabs.forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tabName);
+  });
+
+  document.querySelectorAll('.settings-tab-panel').forEach(panel => {
+    panel.classList.remove('active');
+  });
+
+  const panelId = `tabPanel${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`;
+  const targetPanel = document.getElementById(panelId);
+  if (targetPanel) {
+    targetPanel.classList.add('active');
+  }
+
+  if (tabName === 'brain') {
+    startDownloadPolling();
+  } else {
+    stopDownloadPolling();
+  }
+
+  if (tabName === 'downloads') {
+    renderDownloadsHistory();
+  }
 }
 
 async function startDownloadPolling() {
@@ -568,6 +729,7 @@ async function updateDownloadCard() {
         btnDl.disabled = true;
         if (btnPause) btnPause.style.display = 'none';
         if (btnCancel) btnCancel.style.display = 'none';
+        stopDownloadPolling();
       } else if (status === 'downloading') {
         badge.textContent = `Downloading... (${progress}%)`;
         badge.className = 'offline-status-badge status-downloading';
@@ -855,8 +1017,81 @@ function activateChatMode() {
   }
 }
 
-function clearChat() {
-  DOM.chatMessages.innerHTML = '';
+/* ═══════════════════════════════════════════════════════════════════
+   UNIFIED DOWNLOADS & STORAGE (/storage/emulated/0/Download/Marvo/)
+   ═══════════════════════════════════════════════════════════════════ */
+const DOWNLOADS_STORAGE_KEY = 'marvo.downloadsHistory';
+
+async function saveFileToUnifiedFolder({ base64Data, fileName, mimeType = 'image/jpeg', textContent = null }) {
+  const safeName = fileName || `marvo_${Date.now()}.jpg`;
+  try {
+    if (window.Capacitor?.Plugins?.MarvoNativeBridge) {
+      const res = await window.Capacitor.Plugins.MarvoNativeBridge.saveToUnifiedDownloads({
+        base64Data,
+        fileName: safeName,
+        mimeType,
+        textContent
+      });
+      await recordDownloadHistory(res.fileName || safeName, res.filePath || '/storage/emulated/0/Download/Marvo/');
+      showToast('Saved to /storage/emulated/0/Download/Marvo/');
+      return true;
+    }
+  } catch (err) {
+    console.warn('[Downloads] Native bridge save error:', err);
+  }
+
+  // Web Browser fallback
+  try {
+    const a = document.createElement('a');
+    a.download = safeName;
+    a.href = base64Data || ('data:text/plain;charset=utf-8,' + encodeURIComponent(textContent || ''));
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    await recordDownloadHistory(safeName, 'Downloads/Marvo');
+    showToast('Image downloaded!');
+    return true;
+  } catch (e) {
+    console.error('[Downloads] Fallback failed:', e);
+    showToast('Failed to save file');
+    return false;
+  }
+}
+
+async function recordDownloadHistory(fileName, path) {
+  try {
+    let list = (await NativeStorage.getJSON(DOWNLOADS_STORAGE_KEY, [])) || [];
+    list.unshift({
+      name: fileName,
+      path: path || '/storage/emulated/0/Download/Marvo/',
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      timestamp: Date.now()
+    });
+    if (list.length > 50) list = list.slice(0, 50);
+    await NativeStorage.setJSON(DOWNLOADS_STORAGE_KEY, list);
+    renderDownloadsHistory();
+  } catch (e) {
+    console.warn('[Downloads] History error:', e);
+  }
+}
+
+async function renderDownloadsHistory() {
+  const container = DOM.downloadsHistoryList || document.getElementById('downloadsHistoryList');
+  if (!container) return;
+  const list = (await NativeStorage.getJSON(DOWNLOADS_STORAGE_KEY, [])) || [];
+  if (!list.length) {
+    container.innerHTML = '<div class="downloads-empty-hint">No saved files yet. Generate an image or export a chat to see it here!</div>';
+    return;
+  }
+  container.innerHTML = list.slice(0, 10).map(item => `
+    <div class="download-history-item">
+      <div style="display:flex;flex-direction:column;">
+        <span class="download-item-title">${escapeHtml(item.name)}</span>
+        <span class="download-item-time">${escapeHtml(item.time)} • ${escapeHtml(item.path)}</span>
+      </div>
+      <span style="font-size:11px;color:var(--accent);font-weight:600;">Saved</span>
+    </div>
+  `).join('');
 }
 
 /* Instant Image Generation Parsing & Card Rendering */
@@ -988,31 +1223,30 @@ function renderImageMessageCard(promptText, imageUrl) {
   downloadBtn?.addEventListener('click', async (e) => {
     e.stopPropagation();
     try {
-      showToast('Downloading image...');
+      showToast('Saving to Marvo storage...');
       const filename = `marvo-art-${Date.now()}.jpg`;
+
       if (imageUrl.startsWith('data:')) {
-        const a = document.createElement('a');
-        a.href = imageUrl;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        showToast('Image saved!');
+        await saveFileToUnifiedFolder({
+          base64Data: imageUrl,
+          fileName: filename,
+          mimeType: 'image/jpeg'
+        });
       } else {
         const resp = await fetch(imageUrl);
         const blob = await resp.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = blobUrl;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
-        showToast('Image downloaded!');
+        const reader = new FileReader();
+        reader.onload = async () => {
+          await saveFileToUnifiedFolder({
+            base64Data: reader.result,
+            fileName: filename,
+            mimeType: 'image/jpeg'
+          });
+        };
+        reader.readAsDataURL(blob);
       }
     } catch (err) {
-      console.warn('Direct blob fetch failed, opening download link', err);
+      console.warn('Direct save failed, fallback to download link', err);
       const a = document.createElement('a');
       a.href = imageUrl;
       a.download = `marvo-art-${Date.now()}.jpg`;
@@ -1026,11 +1260,172 @@ function renderImageMessageCard(promptText, imageUrl) {
   return card;
 }
 
-function addMessage(text, sender) {
+let attachedFiles = [];
+
+function initMultimodalAttachments() {
+  const input = DOM.fileUploadInput;
+  if (!input) return;
+
+  input.addEventListener('change', async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    for (const file of files) {
+      await processAttachment(file);
+    }
+    renderAttachmentShelf();
+    input.value = '';
+  });
+
+  DOM.btnAttachPhoto?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeAllDropdowns();
+    if (input) {
+      input.accept = 'image/*';
+      input.click();
+    }
+  });
+
+  DOM.btnAttachVideo?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeAllDropdowns();
+    if (input) {
+      input.accept = 'video/*';
+      input.click();
+    }
+  });
+
+  DOM.btnAttachPDF?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeAllDropdowns();
+    if (input) {
+      input.accept = 'application/pdf';
+      input.click();
+    }
+  });
+
+  DOM.btnAttachFiles?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeAllDropdowns();
+    if (input) {
+      input.accept = '*/*';
+      input.click();
+    }
+  });
+}
+
+async function processAttachment(file) {
+  return new Promise((resolve) => {
+    const isImg = file.type.startsWith('image/');
+    const isVid = file.type.startsWith('video/');
+    const isPdf = file.type === 'application/pdf';
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      attachedFiles.push({
+        name: file.name,
+        size: formatFileSize(file.size),
+        type: file.type || 'file',
+        dataUrl: evt.target.result,
+        isImage: isImg,
+        isVideo: isVid,
+        isPdf: isPdf
+      });
+      resolve();
+    };
+    reader.onerror = () => resolve();
+    reader.readAsDataURL(file);
+  });
+}
+
+function formatFileSize(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function renderAttachmentShelf() {
+  const shelf = DOM.attachmentPreviewShelf;
+  if (!shelf) return;
+  shelf.innerHTML = '';
+
+  if (attachedFiles.length === 0) {
+    shelf.classList.add('hidden');
+    return;
+  }
+
+  shelf.classList.remove('hidden');
+  attachedFiles.forEach((file, index) => {
+    const chip = document.createElement('div');
+    chip.className = 'attachment-chip';
+
+    if (file.isImage) {
+      chip.innerHTML = `
+        <img src="${file.dataUrl}" class="attachment-chip-thumb" alt="${escapeHtml(file.name)}" />
+        <div class="attachment-chip-info">
+          <span class="attachment-chip-name">${escapeHtml(file.name)}</span>
+          <span class="attachment-chip-size">${file.size}</span>
+        </div>
+        <button type="button" class="attachment-chip-remove" data-index="${index}" aria-label="Remove">&times;</button>
+      `;
+    } else {
+      const icon = file.isPdf ? 'PDF' : (file.isVideo ? 'VID' : 'FILE');
+      chip.innerHTML = `
+        <div class="attachment-chip-icon">
+          <span style="font-size:9.5px;font-weight:700;">${icon}</span>
+        </div>
+        <div class="attachment-chip-info">
+          <span class="attachment-chip-name">${escapeHtml(file.name)}</span>
+          <span class="attachment-chip-size">${file.size}</span>
+        </div>
+        <button type="button" class="attachment-chip-remove" data-index="${index}" aria-label="Remove">&times;</button>
+      `;
+    }
+    shelf.appendChild(chip);
+  });
+
+  shelf.querySelectorAll('.attachment-chip-remove').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const idx = parseInt(btn.dataset.index, 10);
+      if (!isNaN(idx)) {
+        attachedFiles.splice(idx, 1);
+        renderAttachmentShelf();
+      }
+    });
+  });
+}
+
+function addMessage(text, sender, attachments = []) {
   if (sender === 'user') {
     const el = document.createElement('div');
     el.className = 'msg msg-user';
-    el.textContent = text;
+
+    if (attachments && attachments.length > 0) {
+      const attachWrap = document.createElement('div');
+      attachWrap.className = 'msg-user-attachments';
+      attachments.forEach(att => {
+        if (att.isImage) {
+          const img = document.createElement('img');
+          img.src = att.dataUrl;
+          img.className = 'user-attached-thumb';
+          img.style.cssText = 'max-width:180px;max-height:140px;border-radius:10px;margin-bottom:6px;display:block;';
+          attachWrap.appendChild(img);
+        } else {
+          const doc = document.createElement('div');
+          doc.style.cssText = 'font-size:11px;opacity:0.85;margin-bottom:4px;display:flex;align-items:center;gap:4px;';
+          doc.innerHTML = `<span>📎</span><strong>${escapeHtml(att.name)}</strong> (${att.size})`;
+          attachWrap.appendChild(doc);
+        }
+      });
+      el.appendChild(attachWrap);
+    }
+
+    if (text && text.trim()) {
+      const textSpan = document.createElement('div');
+      textSpan.textContent = text;
+      el.appendChild(textSpan);
+    }
     DOM.chatMessages.appendChild(el);
     scrollToBottom();
     return el;
@@ -1121,30 +1516,35 @@ function showLoading() {
    CONTEXT-AWARE BACKEND COMMUNICATION (Time, Project, & Agents Pipeline)
    ═══════════════════════════════════════════════════════════════════ */
 async function sendMessage(userText) {
-  if (!userText || !userText.trim() || isBusy) return;
-  const cleanInput = userText.trim();
+  const cleanInput = (userText || '').trim();
+  const currentAttachments = [...attachedFiles];
+  if (!cleanInput && currentAttachments.length === 0) return;
+  if (isBusy) return;
+
   lastUserMessage = cleanInput;
   isBusy = true;
   const requestSessionId = currentSessionId;
   const requestVersion   = sessionVersion;
 
   activateChatMode();
-  addMessage(cleanInput, 'user');
-  await saveLocalMessage(requestSessionId, 'user', cleanInput);
-  await saveLocalSession(requestSessionId, cleanInput);
-  updateHistorySidebar(cleanInput, requestSessionId);
+  addMessage(cleanInput, 'user', currentAttachments);
+  await saveLocalMessage(requestSessionId, 'user', cleanInput || `[${currentAttachments.length} Attachment(s)]`);
+  await saveLocalSession(requestSessionId, cleanInput || `[${currentAttachments.length} Attachment(s)]`);
+  updateHistorySidebar(cleanInput || 'Attachment Query', requestSessionId);
 
   DOM.msgInput.value = '';
+  attachedFiles = [];
+  renderAttachmentShelf();
   DOM.btnSend.disabled = true;
 
   const dots = showLoading();
   const isImageRequest = parseImageGenerationPrompt(cleanInput);
   const activeModeName = getActiveModeName();
-  const isHighQualityMode = activeModeName === 'Thinking' || activeModeName === 'Pro';
+  const isHighQualityMode = activeModeName === 'Pro';
 
   if (isImageRequest) {
     const loadingLabel = isHighQualityMode
-      ? 'Orchestrating high-quality generation... This may take up to 60 seconds.'
+      ? 'Orchestrating high-quality generation with SDXL 4K...'
       : 'Generating instant visual with Pollinations...';
 
     dots.innerHTML = `
@@ -1166,7 +1566,7 @@ async function sendMessage(userText) {
         loadingMsgEl.innerHTML = `
           <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary);">
             <span style="width:8px;height:8px;border-radius:50%;background:var(--accent);animation:sound-wave 1s infinite alternate;"></span>
-            <span>Thinking deeply with ${activeModeName} reasoning...</span>
+            <span>Thinking deeply with Pro model...</span>
           </div>
         `;
       }
@@ -1178,8 +1578,13 @@ async function sendMessage(userText) {
 
   // Silently prepend custom instructions if an Anthropic Claude-style Project is active
   let payloadMessage = cleanInput;
+  if (currentAttachments.length > 0) {
+    const attachMeta = currentAttachments.map(f => `[Attached ${f.type || 'file'}: ${f.name} (${f.size})]`).join('\n');
+    payloadMessage = `${attachMeta}\n\n${payloadMessage}`;
+  }
+
   if (activeProject && activeProject.instructions && activeProject.instructions.trim()) {
-    payloadMessage = `[System Instructions / Persona for Project "${activeProject.name}":\n${activeProject.instructions.trim()}]\n\n[User Local Time: ${deviceTime}]\n\nUser Question: ${cleanInput}`;
+    payloadMessage = `[System Instructions / Persona for Project "${activeProject.name}":\n${activeProject.instructions.trim()}]\n\n[User Local Time: ${deviceTime}]\n\nUser Question: ${payloadMessage}`;
   }
 
   try {
@@ -1729,13 +2134,75 @@ document.addEventListener('keydown', (e) => {
 });
 
 // Settings & Theme
-DOM.btnSettings.addEventListener('click', openSettingsModal);
-DOM.btnCloseSettings.addEventListener('click', closeSettingsModal);
-DOM.btnThemeDark.addEventListener('click', () => setTheme('dark'));
-DOM.btnThemeLight.addEventListener('click', () => setTheme('light'));
+DOM.btnSettings?.addEventListener('click', () => openSettingsModal('themes'));
+DOM.btnCloseSettings?.addEventListener('click', closeSettingsModal);
+DOM.btnThemeDark?.addEventListener('click', () => setTheme('dark'));
+DOM.btnThemeLight?.addEventListener('click', () => setTheme('light'));
+DOM.btnThemeMenu?.addEventListener('click', () => {
+  closeAllDropdowns();
+  openSettingsModal('themes');
+});
+DOM.navDownloads?.addEventListener('click', () => {
+  closeSidebar();
+  openSettingsModal('downloads');
+});
 
-// Capability Chips ("Fast", "Thinking", "Pro")
-DOM.modeSelector.addEventListener('click', (e) => {
+// Settings Tab Bar Navigation
+DOM.settingsTabBar?.addEventListener('click', (e) => {
+  const btn = e.target.closest('.settings-tab-btn');
+  if (btn && btn.dataset.tab) {
+    switchSettingsTab(btn.dataset.tab);
+  }
+});
+
+// Theme Choice Cards (3D Eye - Dark/Light)
+document.querySelectorAll('.theme-choice-card').forEach(card => {
+  card.addEventListener('click', () => {
+    const th = card.dataset.theme;
+    if (th) {
+      setTheme(th);
+      showToast(`${th.charAt(0).toUpperCase() + th.slice(1)} 3D Eye Theme active`);
+    }
+  });
+});
+
+// Character Theme Cards (10+ Reactive Avatars)
+document.querySelectorAll('.character-card-btn').forEach(card => {
+  card.addEventListener('click', () => {
+    const charKey = card.dataset.char;
+    if (charKey) {
+      setTheme(`char-${charKey}`);
+      const charName = card.querySelector('.char-card-name')?.textContent || charKey;
+      showToast(`${charName} character theme active`);
+    }
+  });
+});
+
+// Fast vs Pro Tier Switcher
+DOM.tierSwitcher?.addEventListener('click', (e) => {
+  const btn = e.target.closest('.tier-btn');
+  if (btn && (btn.dataset.tier || btn.dataset.mode)) {
+    const tier = btn.dataset.tier || btn.dataset.mode;
+    setMode(tier);
+    showToast(`${tier.charAt(0).toUpperCase() + tier.slice(1)} mode active`);
+  }
+});
+
+// Open Unified Storage Folder
+DOM.btnOpenStorageFolder?.addEventListener('click', async () => {
+  try {
+    if (window.Capacitor?.Plugins?.MarvoNativeBridge?.openUnifiedDownloadsFolder) {
+      await window.Capacitor.Plugins.MarvoNativeBridge.openUnifiedDownloadsFolder();
+    } else {
+      showToast('Path: /storage/emulated/0/Download/Marvo/');
+    }
+  } catch (err) {
+    showToast('Path: /storage/emulated/0/Download/Marvo/');
+  }
+});
+
+// Capability Chips ("Fast", "Thinking", "Pro") backward compatibility
+DOM.modeSelector?.addEventListener('click', (e) => {
   const btn = e.target.closest('.chip-btn');
   if (btn && btn.dataset.mode) {
     setMode(btn.dataset.mode);
@@ -2037,13 +2504,29 @@ function closeModal(modalEl) {
    CREATIVE AGENTS PERSONAS CONTROLLER
    ═══════════════════════════════════════════════════════════════════ */
 function setMode(modeKey) {
-  let normalized = modeKey;
-  if (normalized === 'Fast') normalized = 'fast';
-  if (normalized === 'Thinking') normalized = 'medium';
-  if (normalized === 'Pro') normalized = 'high';
+  let normalized = (modeKey || 'fast').toLowerCase();
+  if (normalized === 'fast') normalized = 'fast';
+  else if (normalized === 'pro' || normalized === 'high') normalized = 'high';
+  else if (normalized === 'thinking' || normalized === 'medium') normalized = 'high';
+  else normalized = 'fast';
 
   selectedMode = normalized;
   NativeStorage.set(MODE_STORAGE_KEY, selectedMode);
+
+  const isFast = (normalized === 'fast');
+  if (DOM.tierSwitcher) {
+    DOM.tierSwitcher.classList.toggle('tier-fast', isFast);
+    DOM.tierSwitcher.classList.toggle('tier-pro', !isFast);
+  }
+  if (DOM.btnTierFast) {
+    DOM.btnTierFast.classList.toggle('active', isFast);
+    DOM.btnTierFast.setAttribute('aria-checked', isFast ? 'true' : 'false');
+  }
+  if (DOM.btnTierPro) {
+    DOM.btnTierPro.classList.toggle('active', !isFast);
+    DOM.btnTierPro.setAttribute('aria-checked', !isFast ? 'true' : 'false');
+  }
+
   if (DOM.modeSelector) {
     DOM.modeSelector.querySelectorAll('.chip-btn').forEach(b => {
       if (b.dataset.mode === normalized) {
@@ -2279,6 +2762,8 @@ async function initApp() {
   await initEyeCustomization();
   await initAgents();
   await initModeSelection();
+  initMultimodalAttachments();
+  await renderDownloadsHistory();
   setupQuickNoteListeners();
   initInteractiveEyes();
   await initVoiceSelection();
@@ -2290,6 +2775,22 @@ async function initApp() {
   await restoreCurrentSession();
   DOM.msgInput.focus();
 }
+
+// ── Anti-Overheating & Battery Conservation: Pause heavy rendering & polling on background ──
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    document.body.classList.add('page-paused');
+    stopDownloadPolling();
+  } else {
+    document.body.classList.remove('page-paused');
+    if (DOM.settingsModal?.classList.contains('show')) {
+      const activeTab = document.querySelector('.settings-tab-btn.active')?.dataset.tab;
+      if (activeTab === 'brain') {
+        startDownloadPolling();
+      }
+    }
+  }
+});
 
 initApp();
 
