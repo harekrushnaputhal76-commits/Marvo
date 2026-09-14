@@ -92,9 +92,35 @@ import org.json.JSONObject;
 public class AssistantActivity extends AppCompatActivity {
     private static final String TAG = "MarvoAssistant";
     private static final int PERMISSION_REQUEST_RECORD_AUDIO = 101;
-    private static final int PERMISSION_REQUEST_CONTACTS_CALL = 102;
+    public static final int PERMISSION_REQUEST_CONTACTS_CALL = 102;
     private static final int PERMISSION_REQUEST_SMS = 103;
     private static final String PREFS_NAME = "MarvoBusinessPrefs";
+
+    // Step 9 - Part 5: Apple-Style Structured Error Handling Engine
+    public enum ErrorCategory {
+        NETWORK_UNAVAILABLE,
+        NETWORK_TIMEOUT,
+        API_ERROR,
+        PERMISSION_REQUIRED,
+        ACTION_NOT_FOUND,
+        INTERNAL_ERROR
+    }
+
+    public void handleStructuredError(final ErrorCategory category, final String spokenMessage, final String pillMessage) {
+        if (spokenMessage == null) return;
+        Log.w(TAG, "[STRUCTURED ERROR] Category: " + category + ", Message: " + spokenMessage);
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                setVisualState("ERROR");
+                setOrbState("IDLE");
+                if (pillMessage != null && !pillMessage.isEmpty()) {
+                    showDynamicPill(pillMessage, android.R.drawable.ic_dialog_alert);
+                }
+                showResponse(spokenMessage, true);
+            }
+        });
+    }
 
     private SpeechRecognizer speechRecognizer;
     private Intent speechRecognizerIntent;
@@ -788,6 +814,10 @@ public class AssistantActivity extends AppCompatActivity {
      */
     void showDynamicPill(final String message, final int iconResId) {
         if (message == null) return;
+        if (offlineIntentRouter != null && offlineIntentRouter.isCompoundRunning()) {
+            offlineIntentRouter.recordCompoundPill(message);
+            return;
+        }
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
@@ -1985,6 +2015,10 @@ public class AssistantActivity extends AppCompatActivity {
      */
     void showResponse(final String message, final boolean shouldSpeak) {
         if (message == null) return;
+        if (offlineIntentRouter != null && offlineIntentRouter.isCompoundRunning()) {
+            offlineIntentRouter.recordCompoundSpeech(message);
+            return;
+        }
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
@@ -2013,11 +2047,13 @@ public class AssistantActivity extends AppCompatActivity {
                 }
                 if (shouldSpeak && tts != null && isTtsReady) {
                     try {
+                        tts.stop();
                         Bundle params = new Bundle();
                         params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "MarvoTTS");
                         tts.speak(message.replace('\n', ' '), TextToSpeech.QUEUE_FLUSH, params, "MarvoTTS");
                     } catch (Exception e) {
                         try {
+                            tts.stop();
                             tts.speak(message.replace('\n', ' '), TextToSpeech.QUEUE_FLUSH, null);
                         } catch (Exception ignored) {}
                     }
@@ -2064,6 +2100,7 @@ public class AssistantActivity extends AppCompatActivity {
                 setOrbState("CONFIRMATION");
                 if (tts != null && isTtsReady) {
                     try {
+                        tts.stop();
                         Bundle params = new Bundle();
                         String uId = "SPEAK_AND_LISTEN_" + (pendingActionId != null ? pendingActionId : "DEFAULT");
                         params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, uId);
@@ -2073,6 +2110,7 @@ public class AssistantActivity extends AppCompatActivity {
                         }
                     } catch (Exception e) {
                         try {
+                            tts.stop();
                             tts.speak(text.replace('\n', ' '), TextToSpeech.QUEUE_FLUSH, null);
                         } catch (Exception ignored) {}
                         startListeningDelayed(2000);
@@ -4574,29 +4612,278 @@ public class AssistantActivity extends AppCompatActivity {
                                 speakAndListen(cleanReply);
                             }
                         });
+                    } else if (responseCode == 401 || responseCode == 403) {
+                        Log.w(TAG, "[HYBRID ROUTER] Gemini API authentication failed (" + responseCode + ")");
+                        handleStructuredError(
+                            ErrorCategory.API_ERROR,
+                            "API key invalid ya unauthorized hai. Kripya settings mein check karein.",
+                            "API Key Error"
+                        );
+                    } else if (responseCode == 429) {
+                        Log.w(TAG, "[HYBRID ROUTER] Gemini API rate limit hit (429)");
+                        handleStructuredError(
+                            ErrorCategory.API_ERROR,
+                            "API request limit poori ho gayi hai. Kripya thodi der baad prayas karein.",
+                            "Rate Limit Exceeded"
+                        );
                     } else {
                         Log.w(TAG, "[HYBRID ROUTER] ONLINE (Gemini API) failed with code " + responseCode + ". Triggering natural Hindi fallback.");
-                        final String fallbackText = "Mujhe abhi internet se connect karne mein pareshani ho rahi hai, kripya dobara koshish karein.";
+                        handleStructuredError(
+                            ErrorCategory.NETWORK_UNAVAILABLE,
+                            "Mujhe abhi internet se connect karne mein pareshani ho rahi hai, kripya dobara koshish karein.",
+                            "Connection Error"
+                        );
+                    }
+
+                } catch (java.net.SocketTimeoutException e) {
+                    Log.e(TAG, "[HYBRID ROUTER] Network Timeout in askGeminiOnline: " + e.getMessage(), e);
+                    handleStructuredError(
+                        ErrorCategory.NETWORK_TIMEOUT,
+                        "Internet connection slow hai, request time out ho gayi. Kripya dobara koshish karein.",
+                        "Network Timeout"
+                    );
+                } catch (java.net.UnknownHostException | java.net.ConnectException e) {
+                    Log.e(TAG, "[HYBRID ROUTER] Network Unavailable in askGeminiOnline: " + e.getMessage(), e);
+                    handleStructuredError(
+                        ErrorCategory.NETWORK_UNAVAILABLE,
+                        "Aapka device internet se jud nahi pa raha hai. Kripya connection check karein.",
+                        "No Internet"
+                    );
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    Log.e(TAG, "[HYBRID ROUTER] Error in askGeminiOnline: " + e.getMessage(), e);
+                    handleStructuredError(
+                        ErrorCategory.INTERNAL_ERROR,
+                        "Mujhe abhi connect karne mein pareshani ho rahi hai, kripya dobara koshish karein.",
+                        "Connection Error"
+                    );
+                } finally {
+                    if (conn != null) {
+                        try {
+                            conn.disconnect();
+                        } catch (Exception ignored) {}
+                    }
+                }
+            }
+        }).start();
+    }
+
+    /**
+     * Step 9 - Part 5: Hybrid Sequential Orchestration with Prefix Output.
+     * Used when a compound request contains offline actions followed by an online Gemini query.
+     * Prepends the completed offline tasks to the spoken response and dynamic pill.
+     */
+    public void askGeminiOnlineWithPrefix(final String prefixSpeech, final String prefixPill, final String userQuery, final String domain) {
+        if (userQuery == null || userQuery.trim().isEmpty()) {
+            if (prefixSpeech != null && !prefixSpeech.isEmpty()) {
+                showResponse(prefixSpeech);
+                if (prefixPill != null && !prefixPill.isEmpty()) {
+                    showDynamicPill(prefixPill, android.R.drawable.ic_dialog_info);
+                }
+            }
+            return;
+        }
+
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                setOrbState("THINKING");
+                if (statusTextView != null) {
+                    statusTextView.setVisibility(View.VISIBLE);
+                    statusTextView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18.0f);
+                    statusTextView.setTextColor(android.graphics.Color.WHITE);
+                    statusTextView.setText("Thinking...");
+                }
+                if (subtitleTextView != null) {
+                    subtitleTextView.setVisibility(View.GONE);
+                }
+            }
+        });
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                HttpURLConnection conn = null;
+                try {
+                    final String activeDomain = (domain != null && !domain.trim().isEmpty())
+                        ? domain.trim()
+                        : OfflineIntentRouter.detectDomain(userQuery);
+
+                    Log.i(TAG, "[HYBRID ROUTER] Compound query routed to ONLINE (Gemini API - " + activeDomain + "): " + userQuery);
+                    String apiKey = "YOUR_API_KEY_HERE";
+                    if (apiKey == null || apiKey.trim().isEmpty() || "YOUR_API_KEY_HERE".equals(apiKey)) {
+                        apiKey = getGeminiApiKey();
+                    }
+
+                    String[] models = new String[]{"gemini-3.6-flash", "gemini-1.5-flash"};
+                    int responseCode = -1;
+                    String responseStr = "";
+
+                    for (String modelName : models) {
+                        if (conn != null) {
+                            try { conn.disconnect(); } catch (Exception ignored) {}
+                        }
+
+                        String endpoint = "https://generativelanguage.googleapis.com/v1beta/models/" + modelName + ":generateContent?key=" + apiKey;
+                        URL url = new URL(endpoint);
+                        conn = (HttpURLConnection) url.openConnection();
+                        conn.setRequestMethod("POST");
+                        conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+                        conn.setDoOutput(true);
+                        conn.setConnectTimeout(15000);
+                        conn.setReadTimeout(30000);
+
+                        String baseSystemPrompt = "You are Marvo's Deep Reasoning Engine, operating with Apple Intelligence-level precision. "
+                            + "When presented with deep research, scientific, or analytical questions, break down your response into logical, structured sections: "
+                            + "1. Core Summary, 2. Key Insights/Data Points, and 3. Practical Implications. "
+                            + "When the user asks for News or Wikipedia facts, provide concise, accurate, and up-to-date summaries. "
+                            + "When the user asks for Study/Research material, present structured educational bullet points. "
+                            + "When the user asks for Jokes or Stories, be highly engaging, witty, and creative. "
+                            + "Always maintain a conversational Hindi/Hinglish voice tone suitable for TTS speech output. "
+                            + "Avoid outputting messy raw markdown links, asterisks, bullet marks, or unpronounceable symbols that sound awkward when read aloud by the TTS engine. "
+                            + "Instead, structure the text into clean, digestible summaries and natural spoken references.";
+
+                        String domainDirective = "";
+                        if ("DEEP_REASONING".equalsIgnoreCase(activeDomain)) {
+                            domainDirective = " [Reasoning Framework: Analytical breakdown - 1. Core Summary, 2. Key Insights/Data Points, 3. Practical Implications in spoken Hindi/Hinglish.]";
+                        } else if ("COMEDY_AND_JOKES".equalsIgnoreCase(activeDomain)) {
+                            domainDirective = " [Category: Comedy & Jokes - Deliver a genuinely funny, witty, and clean joke in conversational Hindi/Hinglish.]";
+                        } else if ("STORIES".equalsIgnoreCase(activeDomain)) {
+                            domainDirective = " [Category: Stories - Narrate an engaging, imaginative, and captivating short story in vivid Hindi/Hinglish.]";
+                        } else if ("NEWS".equalsIgnoreCase(activeDomain)) {
+                            domainDirective = " [Category: News & Headlines - Provide a concise, accurate summary of current events and headlines in fluent Hindi/Hinglish without raw URLs.]";
+                        } else if ("STUDY_AND_RESEARCH".equalsIgnoreCase(activeDomain)) {
+                            domainDirective = " [Category: Study & Research - Break down into 1. Core Summary, 2. Key Insights/Data Points, and 3. Practical Implications in conversational Hindi/Hinglish.]";
+                        } else if ("WIKIPEDIA_AND_KNOWLEDGE".equalsIgnoreCase(activeDomain)) {
+                            domainDirective = " [Category: Wikipedia & General Knowledge - Provide an accurate, comprehensive yet concise factual summary in clear Hindi/Hinglish.]";
+                        }
+
+                        String promptText = "[SYSTEM: " + baseSystemPrompt + domainDirective + "] User Query: " + userQuery;
+
+                        JSONObject partObj = new JSONObject();
+                        partObj.put("text", promptText);
+                        JSONArray partsArr = new JSONArray();
+                        partsArr.put(partObj);
+                        JSONObject contentObj = new JSONObject();
+                        contentObj.put("parts", partsArr);
+                        JSONArray contentsArr = new JSONArray();
+                        contentsArr.put(contentObj);
+                        JSONObject requestBody = new JSONObject();
+                        requestBody.put("contents", contentsArr);
+
+                        OutputStream os = conn.getOutputStream();
+                        os.write(requestBody.toString().getBytes("UTF-8"));
+                        os.flush();
+                        os.close();
+
+                        responseCode = conn.getResponseCode();
+                        if (responseCode == 200) {
+                            BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
+                            StringBuilder sb = new StringBuilder();
+                            String line;
+                            while ((line = br.readLine()) != null) {
+                                sb.append(line);
+                            }
+                            br.close();
+                            responseStr = sb.toString();
+                            break;
+                        } else if (responseCode == 404) {
+                            InputStream errStream = conn.getErrorStream();
+                            if (errStream != null) {
+                                BufferedReader errBr = new BufferedReader(new InputStreamReader(errStream, "UTF-8"));
+                                StringBuilder errSb = new StringBuilder();
+                                String errLine;
+                                while ((errLine = errBr.readLine()) != null) {
+                                    errSb.append(errLine);
+                                }
+                                errBr.close();
+                                Log.w(TAG, "Model " + modelName + " returned 404: " + errSb.toString());
+                            }
+                        } else {
+                            InputStream errStream = conn.getErrorStream();
+                            if (errStream != null) {
+                                BufferedReader errBr = new BufferedReader(new InputStreamReader(errStream, "UTF-8"));
+                                StringBuilder errSb = new StringBuilder();
+                                String errLine;
+                                while ((errLine = errBr.readLine()) != null) {
+                                    errSb.append(errLine);
+                                }
+                                errBr.close();
+                                Log.e(TAG, "Gemini API error (" + responseCode + "): " + errSb.toString());
+                            }
+                            break;
+                        }
+                    }
+
+                    if (responseCode == 200 && !responseStr.isEmpty()) {
+                        JSONObject jsonResponse = new JSONObject(responseStr);
+                        JSONArray candidates = jsonResponse.getJSONArray("candidates");
+                        String replyText = candidates.getJSONObject(0)
+                            .getJSONObject("content")
+                            .getJSONArray("parts")
+                            .getJSONObject(0)
+                            .getString("text");
+
+                        String cleaned = replyText.replaceAll("[*#_`]", "").trim();
+                        cleaned = cleaned.replaceAll("https?://\\S+", "").replaceAll("\\s{2,}", " ").trim();
+
+                        final String finalReply;
+                        if (prefixSpeech != null && !prefixSpeech.trim().isEmpty()) {
+                            finalReply = prefixSpeech.trim().replaceAll("\\.+$", "") + ", aur " + cleaned;
+                        } else {
+                            finalReply = cleaned;
+                        }
+
+                        final String finalPill;
+                        if (prefixPill != null && !prefixPill.trim().isEmpty()) {
+                            finalPill = prefixPill.trim() + " | Done";
+                        } else {
+                            finalPill = "Sequential Task Completed";
+                        }
+
+                        Log.i(TAG, "[HYBRID ROUTER] Solved ONLINE with prefix: " + finalReply);
                         runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
-                                showResponse(fallbackText, true);
-                                setOrbState("IDLE");
+                                showDynamicPill(finalPill, android.R.drawable.ic_dialog_info);
+                                speakAndListen(finalReply);
                             }
                         });
+                    } else if (responseCode == 401 || responseCode == 403) {
+                        String err = (prefixSpeech != null && !prefixSpeech.isEmpty())
+                            ? prefixSpeech.trim().replaceAll("\\.+$", "") + ", lekin API key invalid hone ke karan online query poori nahi ho saki."
+                            : "API key invalid ya unauthorized hai. Kripya settings mein check karein.";
+                        handleStructuredError(ErrorCategory.API_ERROR, err, "API Key Error");
+                    } else if (responseCode == 429) {
+                        String err = (prefixSpeech != null && !prefixSpeech.isEmpty())
+                            ? prefixSpeech.trim().replaceAll("\\.+$", "") + ", lekin API request limit poori hone ke karan aage ki query poori nahi ho saki."
+                            : "API request limit poori ho gayi hai. Kripya thodi der baad prayas karein.";
+                        handleStructuredError(ErrorCategory.API_ERROR, err, "Rate Limit Exceeded");
+                    } else {
+                        String err = (prefixSpeech != null && !prefixSpeech.isEmpty())
+                            ? prefixSpeech.trim().replaceAll("\\.+$", "") + ", lekin internet se jankari prapt nahi ho saki."
+                            : "Mujhe abhi internet se connect karne mein pareshani ho rahi hai, kripya dobara koshish karein.";
+                        handleStructuredError(ErrorCategory.NETWORK_UNAVAILABLE, err, "Connection Error");
                     }
 
+                } catch (java.net.SocketTimeoutException e) {
+                    Log.e(TAG, "[HYBRID ROUTER] Timeout in askGeminiOnlineWithPrefix: " + e.getMessage(), e);
+                    String err = (prefixSpeech != null && !prefixSpeech.isEmpty())
+                        ? prefixSpeech.trim().replaceAll("\\.+$", "") + ", lekin server timeout hone ke karan online jankari nahi mil saki."
+                        : "Internet connection slow hai, request time out ho gayi.";
+                    handleStructuredError(ErrorCategory.NETWORK_TIMEOUT, err, "Network Timeout");
+                } catch (java.net.UnknownHostException | java.net.ConnectException e) {
+                    Log.e(TAG, "[HYBRID ROUTER] Network offline in askGeminiOnlineWithPrefix: " + e.getMessage(), e);
+                    String err = (prefixSpeech != null && !prefixSpeech.isEmpty())
+                        ? prefixSpeech.trim().replaceAll("\\.+$", "") + ", lekin offline hone ke karan online jankari nahi mil saki."
+                        : "Aapka device internet se jud nahi pa raha hai. Kripya connection check karein.";
+                    handleStructuredError(ErrorCategory.NETWORK_UNAVAILABLE, err, "No Internet");
                 } catch (Exception e) {
-                    e.printStackTrace();
-                    Log.e(TAG, "[HYBRID ROUTER] Error/Timeout in askGeminiOnline: " + e.getMessage(), e);
-                    final String fallbackText = "Mujhe abhi internet se connect karne mein pareshani ho rahi hai, kripya dobara koshish karein.";
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            showResponse(fallbackText, true);
-                            setOrbState("IDLE");
-                        }
-                    });
+                    Log.e(TAG, "[HYBRID ROUTER] Error in askGeminiOnlineWithPrefix: " + e.getMessage(), e);
+                    String err = (prefixSpeech != null && !prefixSpeech.isEmpty())
+                        ? prefixSpeech.trim().replaceAll("\\.+$", "") + ", lekin aage ka task poora karne mein dikkat aayi."
+                        : "Mujhe abhi connect karne mein pareshani ho rahi hai, kripya dobara koshish karein.";
+                    handleStructuredError(ErrorCategory.INTERNAL_ERROR, err, "Task Incomplete");
                 } finally {
                     if (conn != null) {
                         try {
@@ -4977,6 +5264,31 @@ public class AssistantActivity extends AppCompatActivity {
                     statusTextView.setText("Microphone permission needed");
                 }
             }
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (speechRecognizer != null) {
+            try {
+                speechRecognizer.cancel();
+            } catch (Exception ignored) {}
+        }
+        if (tts != null) {
+            try {
+                tts.stop();
+            } catch (Exception ignored) {}
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (speechRecognizer != null) {
+            try {
+                speechRecognizer.cancel();
+            } catch (Exception ignored) {}
         }
     }
 

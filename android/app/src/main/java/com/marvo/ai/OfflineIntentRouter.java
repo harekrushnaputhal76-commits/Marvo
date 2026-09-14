@@ -1,9 +1,11 @@
 package com.marvo.ai;
 
+import android.Manifest;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.hardware.camera2.CameraManager;
 import android.media.AudioManager;
@@ -16,7 +18,10 @@ import android.provider.ContactsContract;
 import android.provider.MediaStore;
 import android.provider.Settings;
 import android.util.Log;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.HashMap;
@@ -56,6 +61,231 @@ public class OfflineIntentRouter {
 
     public static synchronized void clearContextStack() {
         recentIntents.clear();
+    }
+
+    // Step 9 - Part 5: Compound Request Sequential Processor State
+    private volatile boolean isCompoundRunning = false;
+    private final List<String> compoundSpeeches = Collections.synchronizedList(new ArrayList<String>());
+    private final List<String> compoundPills = Collections.synchronizedList(new ArrayList<String>());
+
+    public boolean isCompoundRunning() {
+        return isCompoundRunning;
+    }
+
+    public void recordCompoundSpeech(String speech) {
+        if (speech != null && !speech.trim().isEmpty()) {
+            compoundSpeeches.add(speech.trim());
+        }
+    }
+
+    public void recordCompoundPill(String pill) {
+        if (pill != null && !pill.trim().isEmpty()) {
+            compoundPills.add(pill.trim());
+        }
+    }
+
+    /**
+     * Step 9 - Part 5: Splits compound user commands on common conjunctions.
+     * Conjunctions handled: " and ", " then ", " aur ", " and then ", " aur phir ", " ke baad ".
+     */
+    public List<String> splitCompoundCommand(String command) {
+        if (command == null || command.trim().isEmpty()) return Collections.emptyList();
+        Pattern pattern = Pattern.compile("(?i)\\s*(?:,|;)?\\s+(?:and then|aur phir|ke baad|and|then|aur)\\s+");
+        String[] tokens = pattern.split(command.trim());
+        List<String> list = new ArrayList<>();
+        for (String t : tokens) {
+            String trimmed = t.trim();
+            if (!trimmed.isEmpty()) {
+                list.add(trimmed);
+            }
+        }
+        return list;
+    }
+
+    /**
+     * Checks whether a sub-phrase has actionable semantics (command verbs, fixed tools, or query interrogatives).
+     * Guards against false splits like "difference between java and python" or "lion and mouse".
+     */
+    public boolean isActionableSubIntent(String text) {
+        if (text == null) return false;
+        String lower = text.trim().toLowerCase();
+        if (lower.isEmpty()) return false;
+
+        String[] words = lower.split("\\s+");
+        if (words.length < 2 && !lower.equals("camera") && !lower.equals("flashlight") && !lower.equals("time") && !lower.equals("date") && !lower.equals("battery")) {
+            return false;
+        }
+
+        // 1. Offline fixed tool keywords
+        if (lower.contains("time") || lower.contains("samay") || lower.contains("date") || lower.contains("tarikh") ||
+            lower.contains("battery") || lower.contains("wifi") || lower.contains("bluetooth") ||
+            lower.contains("call") || lower.contains("phone") || lower.contains("camera") ||
+            lower.contains("flashlight") || lower.contains("torch") || lower.contains("brightness") ||
+            lower.contains("volume") || lower.contains("sound") || lower.contains("awaz") ||
+            lower.contains("alarm") || lower.contains("timer") || lower.contains("navigate") ||
+            lower.contains("direction") || lower.contains("rasta") || lower.contains("play") ||
+            lower.contains("open") || lower.contains("launch") || lower.contains("kholo") ||
+            lower.contains("chalao") || lower.contains("batao") || lower.contains("on karo") ||
+            lower.contains("off karo") || lower.contains("turn on") || lower.contains("turn off") ||
+            lower.contains("set") || lower.contains("calculate") || lower.contains("plus") ||
+            lower.contains("minus") || lower.contains("multiply") || lower.contains("divide")) {
+            return true;
+        }
+
+        // 2. Online question / query keywords
+        if (lower.startsWith("who ") || lower.startsWith("what ") || lower.startsWith("why ") ||
+            lower.startsWith("how ") || lower.startsWith("where ") || lower.startsWith("when ") ||
+            lower.startsWith("kaun ") || lower.startsWith("kya ") || lower.startsWith("kyun ") ||
+            lower.startsWith("kaise ") || lower.startsWith("kahan ") || lower.startsWith("kab ") ||
+            lower.startsWith("explain ") || lower.startsWith("tell me ") || lower.startsWith("search ") ||
+            lower.startsWith("define ") || lower.contains("joke") || lower.contains("story") ||
+            lower.contains("kahani") || lower.contains("news") || lower.contains("samachar")) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Executes a single offline intent safely.
+     * Returns true if handled locally, false if it should be delegated to online AI.
+     */
+    public boolean executeSingleOfflineIntent(String subQuery) {
+        if (subQuery == null || subQuery.trim().isEmpty()) return false;
+        String lower = subQuery.trim().toLowerCase();
+
+        if (handleDateTime(lower)) return true;
+        if (handleMath(subQuery, lower)) return true;
+        if (handleBattery(lower)) return true;
+        if (handleSettings(lower)) return true;
+        if (handleCalling(subQuery, lower)) return true;
+        if (handleChitChat(subQuery, lower)) return true;
+        if (handleBrightness(lower)) return true;
+        if (handleVolume(lower)) return true;
+        if (handleCamera(lower)) return true;
+        if (handleFlashlight(lower)) return true;
+        if (handleAlarmAndTimer(subQuery, lower)) return true;
+        if (handleNavigation(subQuery, lower)) return true;
+        if (handleMusic(subQuery, lower)) return true;
+        if (handleApps(subQuery, lower)) return true;
+
+        return false;
+    }
+
+    /**
+     * Formats multiple speech parts into one fluid, grammatical sentence in Hindi/Hinglish.
+     */
+    public static String joinSpeechParts(List<String> parts) {
+        if (parts == null || parts.isEmpty()) return "";
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < parts.size(); i++) {
+            String part = parts.get(i).trim().replaceAll("\\.+$", "");
+            if (part.isEmpty()) continue;
+            if (sb.length() > 0) {
+                if (i == parts.size() - 1) {
+                    sb.append(", aur ");
+                } else {
+                    sb.append(", ");
+                }
+            }
+            sb.append(part);
+        }
+        sb.append(".");
+        return sb.toString();
+    }
+
+    /**
+     * Formats multiple dynamic pill messages into a concise status string.
+     */
+    public static String joinPillParts(List<String> parts) {
+        if (parts == null || parts.isEmpty()) return "";
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < parts.size(); i++) {
+            String part = parts.get(i).trim();
+            if (part.isEmpty()) continue;
+            if (sb.length() > 0) {
+                sb.append(" | ");
+            }
+            sb.append(part);
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Step 9 - Part 5: Sequential Compound Request Processor.
+     * Handles sequential multi-intent queries like:
+     * "Turn on flashlight and tell me the time"
+     * "Flashlight on karo aur battery batao"
+     * "Turn on flashlight and who is the prime minister of India" (hybrid)
+     */
+    public boolean handleCompoundRequest(String rawCommand, String lower) {
+        if (isCompoundRunning) return false;
+
+        List<String> subQueries = splitCompoundCommand(rawCommand);
+        if (subQueries == null || subQueries.size() < 2) return false;
+
+        int actionableCount = 0;
+        for (String sq : subQueries) {
+            if (isActionableSubIntent(sq)) {
+                actionableCount++;
+            }
+        }
+        if (actionableCount < 2) {
+            return false;
+        }
+
+        isCompoundRunning = true;
+        compoundSpeeches.clear();
+        compoundPills.clear();
+
+        try {
+            String pendingOnlineQuery = null;
+            for (int i = 0; i < subQueries.size(); i++) {
+                String subQuery = subQueries.get(i).trim();
+                if (subQuery.isEmpty()) continue;
+
+                try {
+                    boolean handledOffline = executeSingleOfflineIntent(subQuery);
+                    if (!handledOffline) {
+                        if (pendingOnlineQuery == null) {
+                            pendingOnlineQuery = subQuery;
+                        } else {
+                            pendingOnlineQuery += " and " + subQuery;
+                        }
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "[COMPOUND ROUTER] Error executing sub-intent: " + subQuery, e);
+                    recordCompoundSpeech("Koshish ki lekin " + subQuery + " poora nahi ho paya");
+                }
+            }
+
+            // Release compound flag so subsequent UI calls are not intercepted
+            isCompoundRunning = false;
+
+            if (pendingOnlineQuery != null) {
+                String prefixSpeech = joinSpeechParts(compoundSpeeches);
+                String prefixPill = joinPillParts(compoundPills);
+                String domain = detectDomain(pendingOnlineQuery);
+                Log.i(TAG, "[COMPOUND ROUTER] Hybrid execution: calling Gemini with prefix for: " + pendingOnlineQuery);
+                activity.askGeminiOnlineWithPrefix(prefixSpeech, prefixPill, pendingOnlineQuery, domain);
+                return true;
+            }
+
+            String combinedSpeech = joinSpeechParts(compoundSpeeches);
+            String combinedPill = joinPillParts(compoundPills);
+            if (combinedSpeech.isEmpty() || combinedSpeech.equals(".")) {
+                combinedSpeech = "Aapke bataye sabhi tasks poore kar diye gaye hain.";
+            }
+            if (combinedPill.isEmpty()) {
+                combinedPill = "Sequential Tasks Completed";
+            }
+
+            activity.showResponse(combinedSpeech);
+            activity.showDynamicPill(combinedPill, android.R.drawable.ic_dialog_info);
+            return true;
+        } finally {
+            isCompoundRunning = false;
+        }
     }
 
     /**
@@ -221,6 +451,13 @@ public class OfflineIntentRouter {
      */
     public boolean routeOffline(String rawCommand) {
         if (rawCommand == null || rawCommand.trim().isEmpty()) return false;
+
+        // Step 9 - Part 5: Multi-Intent Sequential Compound Request Processor
+        if (handleCompoundRequest(rawCommand, rawCommand.trim().toLowerCase())) {
+            Log.i(TAG, "[HYBRID ROUTER] Solved as SEQUENTIAL COMPOUND: " + rawCommand);
+            return true;
+        }
+
         // Step 9 - Part 3: Semantic Context Resolution
         String command = resolveContextualPronouns(rawCommand);
         pushContextIntent(rawCommand);
@@ -744,6 +981,18 @@ public class OfflineIntentRouter {
         String queryPhonetic = toPhoneticKey(searchName);
 
         // 2. Query device contacts database with Phonetic & Fuzzy evaluation
+        if (ContextCompat.checkSelfPermission(activity, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(activity,
+                new String[]{Manifest.permission.READ_CONTACTS, Manifest.permission.CALL_PHONE},
+                AssistantActivity.PERMISSION_REQUEST_CONTACTS_CALL);
+            activity.handleStructuredError(
+                AssistantActivity.ErrorCategory.PERMISSION_REQUIRED,
+                "Call karne ke liye contacts aur phone permission ki zaroorat hai.",
+                "Permission Needed"
+            );
+            return null;
+        }
+
         try {
             Uri contactUri = ContactsContract.CommonDataKinds.Phone.CONTENT_URI;
             Cursor cursor = activity.getContentResolver().query(contactUri,
