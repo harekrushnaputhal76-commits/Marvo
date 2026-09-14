@@ -138,7 +138,8 @@ public class OfflineIntentRouter {
 
         // 2. Complex Online Bypasses (Must go online to Gemini AI)
         if (isComplexOnlineQuery(lower)) {
-            return false;
+            activity.askGeminiOnline(command);
+            return true;
         }
 
         // 3. Native Hardware Tools
@@ -155,7 +156,9 @@ public class OfflineIntentRouter {
         if (handleMusic(command, lower)) return true;
         if (handleApps(command, lower)) return true;
 
-        return false;
+        // Final Step Fallback: If the query does NOT match any local offline tool, call askGeminiOnline
+        activity.askGeminiOnline(command);
+        return true;
     }
 
     /**
