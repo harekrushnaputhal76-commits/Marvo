@@ -49,7 +49,6 @@ import androidx.core.content.ContextCompat;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileWriter;
-import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -59,9 +58,14 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.json.JSONArray;
@@ -80,14 +84,24 @@ public class AssistantActivity extends AppCompatActivity {
     private boolean isTtsReady = false;
     private TextView statusTextView;
     private TextView subtitleTextView;
-    private ImageView orbImageView;
     private WebView orbWebView;
-    private View flashlightCard;
-    private View wifiCard;
-    private View bluetoothCard;
-    private View airplaneCard;
     private boolean flashlightEnabled;
     private String geminiApiKey = null;
+
+    // Step 10 Part 1: Dynamic Apple-Style Notification Pill
+    private View dynamicPillContainer;
+    private ImageView pillIcon;
+    private TextView pillText;
+    private Handler pillHandler = new Handler(Looper.getMainLooper());
+    private Runnable pillDismissRunnable;
+
+    // Step 10 Part 2 & 3: Contact Aliasing & Calling Confirmation State
+    private String pendingCallName = null;
+    private String pendingCallNumber = null;
+
+    // Step 10 Part 4: Gemini Synchronized Typewriter Engine
+    private Handler typewriterHandler = new Handler(Looper.getMainLooper());
+    private Runnable typewriterRunnable;
 
     // State Management for Confirmation Protocol (Step 6 Part 5)
     private String pendingActionType = null;
@@ -102,20 +116,11 @@ public class AssistantActivity extends AppCompatActivity {
 
         statusTextView = findViewById(R.id.statusTextView);
         subtitleTextView = findViewById(R.id.subtitleTextView);
-        orbImageView = findViewById(R.id.orbImageView);
         orbWebView = findViewById(R.id.orbWebView);
-        flashlightCard = findViewById(R.id.flashlightCard);
-        wifiCard = findViewById(R.id.wifiCard);
-        bluetoothCard = findViewById(R.id.bluetoothCard);
-        airplaneCard = findViewById(R.id.airplaneCard);
-        initQuickControls();
+        dynamicPillContainer = findViewById(R.id.dynamicPillContainer);
+        pillIcon = findViewById(R.id.pillIcon);
+        pillText = findViewById(R.id.pillText);
 
-        // Start pulsating Siri-style glowing orb animation
-        if (orbImageView != null) {
-            Animation pulse = AnimationUtils.loadAnimation(this, R.anim.pulse_orb);
-            orbImageView.startAnimation(pulse);
-            orbImageView.setColorFilter(android.graphics.Color.parseColor("#00E5FF"), android.graphics.PorterDuff.Mode.MULTIPLY);
-        }
         // Initialize WebGL Siri Fluid Orb (Step 9)
         initOrbWebView();
 
@@ -177,6 +182,9 @@ public class AssistantActivity extends AppCompatActivity {
                                 runOnUiThread(new Runnable() {
                                     @Override
                                     public void run() {
+                                        if (typewriterRunnable != null) {
+                                            typewriterHandler.removeCallbacks(typewriterRunnable);
+                                        }
                                         setOrbState("IDLE");
                                         finishDelayed(4000);
                                     }
@@ -286,42 +294,156 @@ public class AssistantActivity extends AppCompatActivity {
         });
     }
 
-    private void initQuickControls() {
-        if (flashlightCard != null) {
-            flashlightCard.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    flashlightEnabled = !flashlightEnabled;
-                    toggleFlashlight(flashlightEnabled);
-                    v.setSelected(flashlightEnabled);
-                    showResponse(flashlightEnabled ? "Flashlight turned on" : "Flashlight turned off", true);
-                }
-            });
-        }
-        configureSettingsCard(wifiCard, "Wi-Fi controls", Settings.ACTION_WIFI_SETTINGS);
-        configureSettingsCard(bluetoothCard, "Bluetooth controls", Settings.ACTION_BLUETOOTH_SETTINGS);
-        configureSettingsCard(airplaneCard, "Airplane mode controls", Settings.ACTION_AIRPLANE_MODE_SETTINGS);
-    }
+    // ============================================================
+    // STEP 10: Dynamic Apple Pill UI & Smart Contact Engine
+    // ============================================================
 
-    private void configureSettingsCard(final View card, final String label, final String settingAction) {
-        if (card == null) return;
-        card.setOnClickListener(new View.OnClickListener() {
+    /**
+     * Step 10 Part 1: Apple-style Dynamic Notification Pill.
+     * Slides down a sleek frosted translucent pill with icon and action text.
+     * Automatically slides up and dismisses after exactly 3000ms without closing the assistant activity.
+     */
+    private void showDynamicPill(final String message, final int iconResId) {
+        if (message == null) return;
+        runOnUiThread(new Runnable() {
             @Override
-            public void onClick(View v) {
-                v.setSelected(true);
-                showResponse("Opening " + label + "...");
-                openSetting(settingAction);
+            public void run() {
+                if (dynamicPillContainer == null) return;
+
+                if (pillDismissRunnable != null) {
+                    pillHandler.removeCallbacks(pillDismissRunnable);
+                }
+
+                if (pillText != null) {
+                    pillText.setText(message);
+                }
+                if (pillIcon != null) {
+                    if (iconResId != 0) {
+                        pillIcon.setImageResource(iconResId);
+                        pillIcon.setVisibility(View.VISIBLE);
+                    } else {
+                        pillIcon.setVisibility(View.GONE);
+                    }
+                }
+
+                if (dynamicPillContainer.getVisibility() != View.VISIBLE) {
+                    dynamicPillContainer.setVisibility(View.VISIBLE);
+                    Animation slideDown = AnimationUtils.loadAnimation(AssistantActivity.this, R.anim.pill_slide_down);
+                    dynamicPillContainer.startAnimation(slideDown);
+                }
+
+                pillDismissRunnable = new Runnable() {
+                    @Override
+                    public void run() {
+                        if (dynamicPillContainer != null && dynamicPillContainer.getVisibility() == View.VISIBLE) {
+                            Animation slideUp = AnimationUtils.loadAnimation(AssistantActivity.this, R.anim.pill_slide_up);
+                            slideUp.setAnimationListener(new Animation.AnimationListener() {
+                                @Override
+                                public void onAnimationStart(Animation animation) {}
+                                @Override
+                                public void onAnimationEnd(Animation animation) {
+                                    dynamicPillContainer.setVisibility(View.GONE);
+                                }
+                                @Override
+                                public void onAnimationRepeat(Animation animation) {}
+                            });
+                            dynamicPillContainer.startAnimation(slideUp);
+                        }
+                    }
+                };
+                pillHandler.postDelayed(pillDismissRunnable, 3000);
             }
         });
     }
 
+    private void showDynamicPill(final String message) {
+        showDynamicPill(message, android.R.drawable.ic_lock_silent_mode_off);
+    }
+
+    // Step 10 Part 2 & 3: Relationship Aliases & Favorites Engine
+    private static final Map<String, List<String>> RELATIONSHIP_ALIASES = new HashMap<>();
+    private static final Set<String> FAVORITE_CONTACTS = new HashSet<>(
+        Arrays.asList("papa", "bapa", "maa", "mummy", "mom", "jatin")
+    );
+
+    static {
+        List<String> papaList = Arrays.asList("papa", "bapa", "dad", "father");
+        RELATIONSHIP_ALIASES.put("dad", papaList);
+        RELATIONSHIP_ALIASES.put("father", papaList);
+        RELATIONSHIP_ALIASES.put("daddy", papaList);
+        RELATIONSHIP_ALIASES.put("papa", papaList);
+        RELATIONSHIP_ALIASES.put("bapa", papaList);
+        RELATIONSHIP_ALIASES.put("pitaji", papaList);
+
+        List<String> momList = Arrays.asList("maa", "mummy", "mom", "mother");
+        RELATIONSHIP_ALIASES.put("mom", momList);
+        RELATIONSHIP_ALIASES.put("mother", momList);
+        RELATIONSHIP_ALIASES.put("mommy", momList);
+        RELATIONSHIP_ALIASES.put("maa", momList);
+        RELATIONSHIP_ALIASES.put("mummy", momList);
+        RELATIONSHIP_ALIASES.put("mataji", momList);
+
+        List<String> brotherList = Arrays.asList("jatin", "brother", "bhai", "bhaiya");
+        RELATIONSHIP_ALIASES.put("brother", brotherList);
+        RELATIONSHIP_ALIASES.put("bro", brotherList);
+        RELATIONSHIP_ALIASES.put("bhai", brotherList);
+        RELATIONSHIP_ALIASES.put("bhaiya", brotherList);
+        RELATIONSHIP_ALIASES.put("jatin", brotherList);
+    }
+
+    public static class ContactMatch {
+        public String queryTerm;
+        public String matchedDisplayName;
+        public String phoneNumber;
+        public boolean isFavorite;
+
+        public ContactMatch(String queryTerm, String matchedDisplayName, String phoneNumber, boolean isFavorite) {
+            this.queryTerm = queryTerm;
+            this.matchedDisplayName = matchedDisplayName;
+            this.phoneNumber = phoneNumber;
+            this.isFavorite = isFavorite;
+        }
+    }
+
     /**
-     * Universal Contact Resolver (Step 6 Part 8 Hotfix):
-     * Dynamically searches ALL device contacts with case-insensitive matching.
-     * Prioritises exact match, then falls back to contains match.
+     * Cleans common query prefixes/suffixes (e.g., "my brother" -> "brother").
      */
-    private String getPhoneNumber(String contactName) {
-        if (contactName == null || contactName.trim().isEmpty()) return null;
+    private String cleanContactQuery(String raw) {
+        if (raw == null) return "";
+        String s = raw.toLowerCase().trim();
+        String[] prefixes = new String[]{
+            "to my ", "to ", "my ", "mera ", "meri ", "apne ", "apna ", "call to ", "call "
+        };
+        for (String p : prefixes) {
+            if (s.startsWith(p)) {
+                s = s.substring(p.length()).trim();
+            }
+        }
+        String[] suffixes = new String[]{
+            " ko call karo", " ko call lagao", " ko phone karo", " ko call", " ko phone", " ko", " please"
+        };
+        for (String sf : suffixes) {
+            if (s.endsWith(sf)) {
+                s = s.substring(0, s.length() - sf.length()).trim();
+            }
+        }
+        return s;
+    }
+
+    /**
+     * Resolves contact with relationship aliasing and favorites matching.
+     */
+    private ContactMatch lookupContactWithAliasing(String rawQuery) {
+        if (rawQuery == null || rawQuery.trim().isEmpty()) return null;
+
+        String cleaned = cleanContactQuery(rawQuery);
+        if (cleaned.isEmpty()) cleaned = rawQuery.trim().toLowerCase();
+
+        // Check if direct phone number (digits)
+        String digitsOnly = cleaned.replaceAll("[^0-9+]", "");
+        if (digitsOnly.length() >= 7) {
+            return new ContactMatch(cleaned, cleaned, digitsOnly, false);
+        }
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
             Log.w(TAG, "READ_CONTACTS permission not granted, requesting now");
@@ -333,8 +455,24 @@ public class AssistantActivity extends AppCompatActivity {
             return null;
         }
 
-        String phoneNumber = null;
-        String searchName = contactName.toLowerCase().trim();
+        // Determine search candidates
+        List<String> candidates;
+        if (RELATIONSHIP_ALIASES.containsKey(cleaned)) {
+            candidates = RELATIONSHIP_ALIASES.get(cleaned);
+        } else {
+            candidates = new ArrayList<>();
+            candidates.add(cleaned);
+        }
+
+        // Check if any candidate is directly marked as favorite
+        boolean candidateIsFavorite = false;
+        for (String c : candidates) {
+            if (FAVORITE_CONTACTS.contains(c.toLowerCase())) {
+                candidateIsFavorite = true;
+                break;
+            }
+        }
+
         Uri uri = ContactsContract.CommonDataKinds.Phone.CONTENT_URI;
         String[] projection = new String[]{
             ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
@@ -348,16 +486,35 @@ public class AssistantActivity extends AppCompatActivity {
                 int nameIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME);
                 int numberIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER);
 
+                // Pass 1: Check exact matches first
                 while (cursor.moveToNext()) {
-                    String name = cursor.getString(nameIndex);
+                    String dName = cursor.getString(nameIndex);
                     String number = cursor.getString(numberIndex);
+                    if (dName != null && number != null) {
+                        String lowerDName = dName.toLowerCase().trim();
+                        for (String cand : candidates) {
+                            if (lowerDName.equals(cand)) {
+                                boolean isFav = candidateIsFavorite || FAVORITE_CONTACTS.contains(lowerDName);
+                                cursor.close();
+                                return new ContactMatch(cand, dName, number, isFav);
+                            }
+                        }
+                    }
+                }
 
-                    if (name != null) {
-                        String lowerName = name.toLowerCase().trim();
-                        // Check for exact match or contains match
-                        if (lowerName.equals(searchName) || lowerName.contains(searchName)) {
-                            phoneNumber = number;
-                            break; // Found the best match
+                // Pass 2: Check contains matches
+                cursor.moveToPosition(-1);
+                while (cursor.moveToNext()) {
+                    String dName = cursor.getString(nameIndex);
+                    String number = cursor.getString(numberIndex);
+                    if (dName != null && number != null) {
+                        String lowerDName = dName.toLowerCase().trim();
+                        for (String cand : candidates) {
+                            if (lowerDName.contains(cand) || cand.contains(lowerDName)) {
+                                boolean isFav = candidateIsFavorite || FAVORITE_CONTACTS.contains(lowerDName);
+                                cursor.close();
+                                return new ContactMatch(cand, dName, number, isFav);
+                            }
                         }
                     }
                 }
@@ -365,12 +522,20 @@ public class AssistantActivity extends AppCompatActivity {
         } catch (Exception e) {
             Log.e(TAG, "Error querying contacts: " + e.getMessage(), e);
         } finally {
-            if (cursor != null) {
+            if (cursor != null && !cursor.isClosed()) {
                 cursor.close();
             }
         }
 
-        return phoneNumber;
+        return null;
+    }
+
+    /**
+     * Universal Contact Resolver: delegates to lookupContactWithAliasing.
+     */
+    private String getPhoneNumber(String contactName) {
+        ContactMatch match = lookupContactWithAliasing(contactName);
+        return match != null ? match.phoneNumber : null;
     }
 
     /**
@@ -797,6 +962,7 @@ public class AssistantActivity extends AppCompatActivity {
                 if (cameraId != null) {
                     cameraManager.setTorchMode(cameraId, state);
                     Log.d(TAG, "Flashlight torch set to: " + state);
+                    showDynamicPill(state ? "Flashlight Turned ON" : "Flashlight Turned OFF", android.R.drawable.ic_menu_camera);
                 }
             }
         } catch (Exception e) {
@@ -816,10 +982,13 @@ public class AssistantActivity extends AppCompatActivity {
             if (audioManager != null) {
                 if ("up".equalsIgnoreCase(action)) {
                     audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_RAISE, AudioManager.FLAG_SHOW_UI);
+                    showDynamicPill("Volume Increased", android.R.drawable.stat_sys_speakerphone);
                 } else if ("down".equalsIgnoreCase(action)) {
                     audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_LOWER, AudioManager.FLAG_SHOW_UI);
+                    showDynamicPill("Volume Decreased", android.R.drawable.stat_sys_speakerphone);
                 } else if ("mute".equalsIgnoreCase(action)) {
                     audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_MUTE, AudioManager.FLAG_SHOW_UI);
+                    showDynamicPill("Volume Muted", android.R.drawable.ic_lock_silent_mode);
                 }
             }
         } catch (Exception e) {
@@ -985,8 +1154,6 @@ public class AssistantActivity extends AppCompatActivity {
     }
 
     /**
-     * Step 6 Part 9: Centralized Visual State Engine.
-     * Controls orb animation, color filter, status/subtitle text, and alpha
      * Step 9: Centralized Visual State Engine (upgraded for WebGL Orb).
      * Controls orb state via JavaScript bridge, status/subtitle text,
      * based on the current assistant lifecycle state.
@@ -1002,13 +1169,6 @@ public class AssistantActivity extends AppCompatActivity {
                     subtitleTextView.setText("Speak now...");
                     subtitleTextView.setVisibility(View.VISIBLE);
                 }
-                if (orbImageView != null) {
-                    orbImageView.clearAnimation();
-                    orbImageView.setColorFilter(android.graphics.Color.parseColor("#00E5FF"), android.graphics.PorterDuff.Mode.MULTIPLY);
-                    orbImageView.animate().alpha(1.0f).scaleX(1.0f).scaleY(1.0f).setDuration(200).start();
-                    Animation pulse = AnimationUtils.loadAnimation(this, R.anim.pulse_orb);
-                    orbImageView.startAnimation(pulse);
-                }
                 setOrbState("LISTENING");
                 break;
 
@@ -1021,12 +1181,6 @@ public class AssistantActivity extends AppCompatActivity {
                     subtitleTextView.setText("Analyzing command...");
                     subtitleTextView.setVisibility(View.VISIBLE);
                 }
-                if (orbImageView != null) {
-                    orbImageView.clearAnimation();
-                    orbImageView.setColorFilter(android.graphics.Color.parseColor("#7C4DFF"), android.graphics.PorterDuff.Mode.MULTIPLY);
-                    Animation fastPulse = AnimationUtils.loadAnimation(this, R.anim.pulse_orb_fast);
-                    orbImageView.startAnimation(fastPulse);
-                }
                 setOrbState("THINKING");
                 break;
 
@@ -1036,12 +1190,6 @@ public class AssistantActivity extends AppCompatActivity {
                 }
                 if (subtitleTextView != null) {
                     subtitleTextView.setVisibility(View.GONE);
-                }
-                if (orbImageView != null) {
-                    orbImageView.clearAnimation();
-                    orbImageView.setColorFilter(android.graphics.Color.parseColor("#00E676"), android.graphics.PorterDuff.Mode.MULTIPLY);
-                    Animation successBurst = AnimationUtils.loadAnimation(this, R.anim.pulse_orb_success);
-                    orbImageView.startAnimation(successBurst);
                 }
                 setOrbState("IDLE");
                 break;
@@ -1054,11 +1202,6 @@ public class AssistantActivity extends AppCompatActivity {
                 if (subtitleTextView != null) {
                     subtitleTextView.setText("Tap to try again");
                     subtitleTextView.setVisibility(View.VISIBLE);
-                }
-                if (orbImageView != null) {
-                    orbImageView.clearAnimation();
-                    orbImageView.setColorFilter(android.graphics.Color.parseColor("#FF5252"), android.graphics.PorterDuff.Mode.MULTIPLY);
-                    orbImageView.animate().alpha(0.4f).scaleX(0.85f).scaleY(0.85f).setDuration(250).start();
                 }
                 setOrbState("IDLE");
                 break;
@@ -1623,8 +1766,36 @@ public class AssistantActivity extends AppCompatActivity {
         if (statusTextView == null) return;
         String lower = (command == null ? "" : command.trim().toLowerCase());
 
-        // Step 6 Part 5 & 6: State Management (Confirmation Protocol & Checkout Flow)
+        // Step 6 Part 5 & 6 and Step 10 Part 3: State Management (Confirmation Protocol & Calling Loop)
         if (pendingActionType != null) {
+            // Step 10 Part 3: Bilingual Calling Confirmation Protocol
+            if ("CALL_CONFIRMATION".equals(pendingActionType)) {
+                if (lower.contains("yes") || lower.contains("haan") || lower.contains("ha") ||
+                    lower.contains("confirm") || lower.contains("karo") || lower.contains("lagao") ||
+                    lower.contains("sure") || lower.contains("call") || lower.contains("ok") || lower.contains("please")) {
+                    String displayName = pendingCallName != null ? pendingCallName : "Contact";
+                    showResponse("Calling " + displayName + "...", true);
+                    showDynamicPill("Calling " + displayName, android.R.drawable.stat_sys_phone_call);
+                    makeCall(pendingCallNumber);
+                    pendingActionType = null;
+                    pendingCallName = null;
+                    pendingCallNumber = null;
+                    finishDelayed(2000);
+                } else if (lower.contains("no") || lower.contains("cancel") || lower.contains("nahi") ||
+                           lower.contains("na") || lower.contains("mat") || lower.contains("stop") || lower.contains("rok")) {
+                    showResponse("Call cancelled.", true);
+                    showDynamicPill("Call Cancelled", android.R.drawable.ic_menu_close_clear_cancel);
+                    pendingActionType = null;
+                    pendingCallName = null;
+                    pendingCallNumber = null;
+                    finishDelayed(1500);
+                } else {
+                    showResponse("Say YES to call or NO to cancel.", true);
+                    startListeningDelayed(1500);
+                }
+                return;
+            }
+
             if ("CHECKOUT_FLOW".equals(pendingActionType)) {
                 if (lower.contains("cash") || lower.contains("cod") || lower.contains("delivery")) {
                     updateUI("Alright! Selected Cash on Delivery. Please complete the final order placement on your screen.");
@@ -1674,51 +1845,101 @@ public class AssistantActivity extends AppCompatActivity {
             return; // Exit the router since we handled the confirmation
         }
 
-        // Step 5: Native Offline Contact Calling
-        if (lower.startsWith("call")) {
-            String name = "";
+        // Step 10 Part 2 & 3: Smart Contact Aliasing, Whitelist Calling & Bilingual Confirmation
+        if (lower.startsWith("call ") || lower.equals("call") ||
+            lower.startsWith("phone ") || lower.startsWith("dial ") ||
+            lower.contains("ko call") || lower.contains("call lagao") ||
+            lower.contains("ko phone") || lower.contains("call karo")) {
+
+            String targetQuery = "";
             if (lower.startsWith("call ")) {
-                name = command.substring(5).trim();
+                targetQuery = command.substring(5).trim();
+            } else if (lower.startsWith("phone ")) {
+                targetQuery = command.substring(6).trim();
+            } else if (lower.startsWith("dial ")) {
+                targetQuery = command.substring(5).trim();
+            } else if (lower.contains("ko call")) {
+                int idx = lower.indexOf("ko call");
+                targetQuery = command.substring(0, idx).trim();
+            } else if (lower.contains("call lagao")) {
+                int idx = lower.indexOf("call lagao");
+                if (idx > 0) {
+                    targetQuery = command.substring(0, idx).trim();
+                } else {
+                    targetQuery = command.substring(idx + 10).trim();
+                }
+            } else if (lower.contains("ko phone")) {
+                int idx = lower.indexOf("ko phone");
+                targetQuery = command.substring(0, idx).trim();
+            } else if (lower.contains("call karo")) {
+                int idx = lower.indexOf("call karo");
+                targetQuery = command.substring(0, idx).trim();
             } else if (command.length() > 4) {
-                name = command.substring(4).trim();
+                targetQuery = command.substring(4).trim();
             }
 
-            if (name.isEmpty()) {
-                statusTextView.setText("Who would you like to call?");
-                new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (!isFinishing()) finish();
-                    }
-                }, 2000);
+            if (targetQuery.isEmpty()) {
+                boolean isHindi = lower.contains("karo") || lower.contains("lagao") || lower.contains("kisko");
+                showResponse(isHindi ? "Aap kisko call karna chahte hain?" : "Who would you like to call?", true);
+                startListeningDelayed(2000);
                 return;
             }
 
-            statusTextView.setText("Looking for " + name + "...");
-            String number = getPhoneNumber(name);
-
-            if (number != null && !number.trim().isEmpty()) {
-                statusTextView.setText("Calling " + name + "...");
-                makeCall(number);
-                new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (!isFinishing()) {
-                            finish();
-                        }
-                    }
-                }, 1000);
-            } else {
-                statusTextView.setText("Contact not found.");
-                new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (!isFinishing()) {
-                            finish();
-                        }
-                    }
-                }, 2000);
+            ContactMatch match = lookupContactWithAliasing(targetQuery);
+            if (match == null || match.phoneNumber == null) {
+                showResponse("Contact '" + targetQuery + "' not found.", true);
+                showDynamicPill("Contact Not Found", android.R.drawable.ic_menu_close_clear_cancel);
+                finishDelayed(2500);
+                return;
             }
+
+            // Whitelist (Favorites): ["papa", "bapa", "maa", "mummy", "mom", "jatin"]
+            // IF contact is in Favorites: Execute Intent.ACTION_CALL immediately (zero prompts)
+            if (match.isFavorite) {
+                showResponse("Calling " + match.matchedDisplayName + "...", true);
+                showDynamicPill("Calling " + match.matchedDisplayName, android.R.drawable.stat_sys_phone_call);
+                makeCall(match.phoneNumber);
+                finishDelayed(2000);
+                return;
+            }
+
+            // IF contact is NOT in Favorites:
+            // 1. Display matched Name and Number on the Watermorphic UI
+            // 2. Detect query language
+            // 3. Use Android TTS to ask for confirmation in that language
+            // 4. Enter PENDING_CALL_CONFIRMATION state & listen for next voice input
+            boolean isHindi = lower.contains("ko") || lower.contains("karo") || lower.contains("lagao") ||
+                              lower.contains("chahte") || lower.contains("bhai") || lower.contains("mera") ||
+                              lower.contains("meri") || lower.contains("karna") || lower.contains("lagana");
+            String promptText = isHindi
+                ? "Kya aap " + match.matchedDisplayName + " ko call karna chahte hain?"
+                : "Do you want to call " + match.matchedDisplayName + "?";
+
+            pendingActionType = "CALL_CONFIRMATION";
+            pendingCallName = match.matchedDisplayName;
+            pendingCallNumber = match.phoneNumber;
+
+            if (statusTextView != null) {
+                statusTextView.setText(promptText);
+            }
+            if (subtitleTextView != null) {
+                subtitleTextView.setText(match.matchedDisplayName + ": " + match.phoneNumber);
+                subtitleTextView.setVisibility(View.VISIBLE);
+            }
+
+            if (tts != null && isTtsReady) {
+                try {
+                    Bundle params = new Bundle();
+                    params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "CallConfirmTTS");
+                    tts.speak(promptText, TextToSpeech.QUEUE_FLUSH, params, "CallConfirmTTS");
+                } catch (Exception e) {
+                    try {
+                        tts.speak(promptText, TextToSpeech.QUEUE_FLUSH, null);
+                    } catch (Exception ignored) {}
+                }
+            }
+
+            startListeningDelayed(2200);
             return;
         }
 
@@ -2270,10 +2491,8 @@ public class AssistantActivity extends AppCompatActivity {
             return;
         }
 
-        // Fallback: Online AI Query
         // Fallback: Gemini AI Brain (Step 9)
         else {
-            statusTextView.setText("Action: Online AI Query");
             queryGemini(command);
         }
     }
@@ -2393,16 +2612,22 @@ public class AssistantActivity extends AppCompatActivity {
             return;
         }
 
-        // Show thinking state
-        setVisualState("PROCESSING");
-        if (statusTextView != null) {
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    statusTextView.setText("Thinking...");
+        // State 1: Processing state with subtle pulse & Siri orb THINKING
+        setOrbState("THINKING");
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if (statusTextView != null) {
+                    statusTextView.setText("Processing...");
+                    statusTextView.setTextColor(android.graphics.Color.parseColor("#E0E0E0"));
+                    Animation pulse = AnimationUtils.loadAnimation(AssistantActivity.this, R.anim.pulse_orb);
+                    statusTextView.startAnimation(pulse);
                 }
-            });
-        }
+                if (subtitleTextView != null) {
+                    subtitleTextView.setVisibility(View.GONE);
+                }
+            }
+        });
 
         new Thread(new Runnable() {
             @Override
@@ -2466,7 +2691,8 @@ public class AssistantActivity extends AppCompatActivity {
                                                    .trim();
 
                         Log.d(TAG, "Gemini response: " + responseText);
-                        showResponse(responseText, true);
+                        // State 2: Response Delivery with Synchronized Typewriter & TTS
+                        deliverGeminiResponse(responseText);
 
                     } else {
                         // Read error stream
@@ -2504,6 +2730,73 @@ public class AssistantActivity extends AppCompatActivity {
                 }
             }
         }).start();
+    }
+
+    /**
+     * Step 10 Part 4: Delivers Gemini response with synchronized TTS & character-by-character typewriter.
+     */
+    private void deliverGeminiResponse(final String responseText) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if (statusTextView != null) {
+                    statusTextView.clearAnimation();
+                    statusTextView.setText("");
+                    statusTextView.setTextColor(android.graphics.Color.WHITE);
+                }
+                if (subtitleTextView != null) {
+                    subtitleTextView.setVisibility(View.GONE);
+                }
+
+                // Transition Siri Orb to SPEAKING state
+                setOrbState("SPEAKING");
+
+                // Start TTS speech at the exact same time typewriter begins
+                if (tts != null && isTtsReady) {
+                    try {
+                        Bundle params = new Bundle();
+                        params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "MarvoTTS");
+                        tts.speak(responseText.replace('\n', ' '), TextToSpeech.QUEUE_FLUSH, params, "MarvoTTS");
+                    } catch (Exception e) {
+                        try {
+                            tts.speak(responseText.replace('\n', ' '), TextToSpeech.QUEUE_FLUSH, null);
+                        } catch (Exception ignored) {}
+                    }
+                }
+
+                // Start character-by-character typewriter effect
+                startTypewriter(responseText);
+            }
+        });
+    }
+
+    /**
+     * Types out the response character-by-character on the UI thread.
+     */
+    private void startTypewriter(final String fullText) {
+        if (fullText == null || statusTextView == null) return;
+
+        if (typewriterRunnable != null) {
+            typewriterHandler.removeCallbacks(typewriterRunnable);
+        }
+
+        final int totalLen = fullText.length();
+        final long delayPerChar = totalLen > 100 ? 18 : 28;
+
+        typewriterRunnable = new Runnable() {
+            private int charIndex = 0;
+            @Override
+            public void run() {
+                if (statusTextView != null && charIndex <= totalLen) {
+                    statusTextView.setText(fullText.substring(0, charIndex));
+                    charIndex++;
+                    if (charIndex <= totalLen) {
+                        typewriterHandler.postDelayed(this, delayPerChar);
+                    }
+                }
+            }
+        };
+        typewriterHandler.post(typewriterRunnable);
     }
 
     private void checkPermissionAndStart() {
@@ -2559,8 +2852,12 @@ public class AssistantActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (orbImageView != null) {
-            orbImageView.clearAnimation();
+        if (pillDismissRunnable != null) {
+            pillHandler.removeCallbacks(pillDismissRunnable);
+        }
+        if (typewriterRunnable != null) {
+            typewriterHandler.removeCallbacks(typewriterRunnable);
+        }
         if (orbWebView != null) {
             orbWebView.loadUrl("about:blank");
             orbWebView.destroy();

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<set xmlns:android="http://schemas.android.com/apk/res/android"
+    android:interpolator="@android:anim/accelerate_interpolator">
+    <!-- Slide up smoothly above the top edge -->
+    <translate
+        android:fromYDelta="0"
+        android:toYDelta="-120%p"
+        android:duration="280" />
+    <!-- Fluid fade out -->
+    <alpha
+        android:fromAlpha="1.0"
+        android:toAlpha="0.0"
+        android:duration="240" />
+</set>
