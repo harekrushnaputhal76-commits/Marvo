@@ -2014,6 +2014,10 @@ public class AssistantActivity extends AppCompatActivity {
      * Step 8: Verbal confirmation prompt with auto-listening state machine.
      * Speaks the prompt via TTS and automatically arms SpeechRecognizer 200ms after speech ends.
      */
+    void speakAndListen(final String text) {
+        speakAndListen(text, null, null);
+    }
+
     void speakAndListen(final String text, final String pendingActionId) {
         speakAndListen(text, null, pendingActionId);
     }
@@ -4195,16 +4199,17 @@ public class AssistantActivity extends AppCompatActivity {
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            showResponse(cleanReply, true);
+                            speakAndListen(cleanReply);
                         }
                     });
 
                 } catch (Exception e) {
+                    e.printStackTrace();
                     Log.e(TAG, "Error in askGeminiOnline: " + e.getMessage(), e);
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            showResponse("Mujhe abhi connect karne mein samasya aa rahi hai.", true);
+                            showResponse("Connection failed.", true);
                         }
                     });
                 } finally {
