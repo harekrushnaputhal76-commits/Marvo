@@ -84,6 +84,13 @@ public class OfflineIntentRouter {
         }
     }
 
+    // Step 9 - Part 10: Conversational Context Stack (Multi-Turn Pending Intents)
+    private final ConversationContext conversationContext = new ConversationContext();
+
+    public ConversationContext getConversationContext() {
+        return conversationContext;
+    }
+
     /**
      * Step 9 - Part 5: Splits compound user commands on common conjunctions.
      * Conjunctions handled: " and ", " then ", " aur ", " and then ", " aur phir ", " ke baad ".
@@ -154,7 +161,10 @@ public class OfflineIntentRouter {
         if (subQuery == null || subQuery.trim().isEmpty()) return false;
         String lower = subQuery.trim().toLowerCase();
 
+        if (handleUserProfile(subQuery, lower)) return true;
+        if (handleAlarmAndTimer(subQuery, lower)) return true;
         if (handleDateTime(lower)) return true;
+        if (handleWeather(subQuery, lower)) return true;
         if (handleMath(subQuery, lower)) return true;
         if (handleBattery(lower)) return true;
         if (handleSettings(lower)) return true;
@@ -164,7 +174,6 @@ public class OfflineIntentRouter {
         if (handleVolume(lower)) return true;
         if (handleCamera(lower)) return true;
         if (handleFlashlight(lower)) return true;
-        if (handleAlarmAndTimer(subQuery, lower)) return true;
         if (handleNavigation(subQuery, lower)) return true;
         if (handleMusic(subQuery, lower)) return true;
         if (handleApps(subQuery, lower)) return true;
@@ -469,44 +478,69 @@ public class OfflineIntentRouter {
         pushContextIntent(rawCommand);
         String lower = command.trim().toLowerCase();
 
+        // Step 9 - Part 10: Multi-Turn Context Follow-Up Resolution
+        if (conversationContext.hasPendingIntent()) {
+            if (handlePendingContext(command, lower)) {
+                return true;
+            }
+        }
+
         // CATEGORY A (Handle Locally - Fixed Tools):
-        // 1. Time & Date
+        // 0. User Profile & Local Vault (e.g., "mera location Delhi hai", "Mom ka number X save karo")
+        if (handleUserProfile(command, lower)) {
+            Log.i(TAG, "[HYBRID ROUTER] Solved OFFLINE (Fixed Tools - User Profile): " + command);
+            return true;
+        }
+
+        // 1. Alarms & Timers (EVALUATED BEFORE TIME/DATE to prevent "set a timer" -> clock read clash)
+        if (handleAlarmAndTimer(command, lower)) {
+            Log.i(TAG, "[HYBRID ROUTER] Solved OFFLINE (Fixed Tools - Alarm/Timer): " + command);
+            return true;
+        }
+
+        // 2. Time & Date
         if (handleDateTime(lower)) {
             Log.i(TAG, "[HYBRID ROUTER] Solved OFFLINE (Fixed Tools - Time/Date): " + command);
             return true;
         }
 
-        // 2. Math Calculations
+        // 3. Weather & Local Forecast (Step 9 - Part 10: MemoryVault + Multi-Turn Location)
+        if (handleWeather(command, lower)) {
+            Log.i(TAG, "[HYBRID ROUTER] Solved (Weather Module): " + command);
+            return true;
+        }
+
+        // 4. Math Calculations
         if (handleMath(command, lower)) {
             Log.i(TAG, "[HYBRID ROUTER] Solved OFFLINE (Fixed Tools - Math): " + command);
             return true;
         }
 
-        // 3. Battery Percentage
+        // 5. Battery Percentage
         if (handleBattery(lower)) {
             Log.i(TAG, "[HYBRID ROUTER] Solved OFFLINE (Fixed Tools - Battery): " + command);
             return true;
         }
 
-        // 4. Device Settings (WiFi, Bluetooth, etc.)
+        // 6. Device Settings (WiFi, Bluetooth, etc.)
         if (handleSettings(lower)) {
             Log.i(TAG, "[HYBRID ROUTER] Solved OFFLINE (Fixed Tools - Device Settings): " + command);
             return true;
         }
 
-        // 5. Direct Contact Lookups & Calling (e.g., "Call Papa")
+        // 7. Direct Contact Lookups & Calling (e.g., "Call Papa")
         if (handleCalling(command, lower)) {
             Log.i(TAG, "[HYBRID ROUTER] Solved OFFLINE (Fixed Tools - Contacts/Calling): " + command);
             return true;
         }
 
-        // 6. Offline Hindi Chit-Chat & Identity
+        // 8. Offline Hindi Chit-Chat & Identity
         if (handleChitChat(command, lower)) {
             Log.i(TAG, "[HYBRID ROUTER] Solved OFFLINE (Fixed Tools - ChitChat): " + command);
             return true;
         }
 
-        // 7. Native Hardware & System Tools (Brightness, Volume, Camera, Flashlight, Alarms, Navigation, Media, Apps)
+        // 9. Native Hardware & System Tools (Brightness, Volume, Camera, Flashlight, Navigation, Media, Apps)
         if (handleBrightness(lower)) {
             Log.i(TAG, "[HYBRID ROUTER] Solved OFFLINE (Fixed Tools - Brightness): " + command);
             return true;
@@ -521,10 +555,6 @@ public class OfflineIntentRouter {
         }
         if (handleFlashlight(lower)) {
             Log.i(TAG, "[HYBRID ROUTER] Solved OFFLINE (Fixed Tools - Flashlight): " + command);
-            return true;
-        }
-        if (handleAlarmAndTimer(command, lower)) {
-            Log.i(TAG, "[HYBRID ROUTER] Solved OFFLINE (Fixed Tools - Alarm/Timer): " + command);
             return true;
         }
         if (handleNavigation(command, lower)) {
@@ -679,37 +709,34 @@ public class OfflineIntentRouter {
     }
 
     /**
-     * FLASHLIGHT TOOL: "Turn on flashlight" / "Torch on" / "Flashlight off" / "Torch jalao" / "Flash light chalu karo"
+     * FLASHLIGHT TOOL: "Turn on flashlight" / "Torch on" / "Flashlight off" / "Torch band karo" / "Flash light bujha do"
+     * Step 9 - Part 9: Explicit separation of ON vs OFF states with localized Hindi vocal feedback.
      */
     private boolean handleFlashlight(String lower) {
-        boolean isOnCommand = lower.contains("flashlight on") || lower.contains("torch on") ||
-                              lower.contains("turn on flashlight") || lower.contains("turn on torch") ||
-                              lower.contains("torch jalao") || lower.contains("light on") ||
-                              lower.contains("flash on") || lower.contains("torch chalu") ||
-                              lower.contains("flash chalu") || lower.contains("light jalao") ||
-                              lower.contains("light chalu") || lower.contains("flash light chalu") ||
-                              lower.contains("flashlight chalu") || lower.contains("flash light on") ||
-                              lower.contains("flash light jalao") || lower.contains("torch chalu karo") ||
-                              lower.equals("torch") || lower.equals("flashlight");
+        if (!lower.contains("torch") && !lower.contains("flashlight") && !lower.contains("flash light") &&
+            !lower.contains("flash") && !lower.contains("batti")) {
+            return false;
+        }
 
-        boolean isOffCommand = lower.contains("flashlight off") || lower.contains("torch off") ||
-                               lower.contains("turn off flashlight") || lower.contains("turn off torch") ||
-                               lower.contains("torch band karo") || lower.contains("torch band") ||
-                               lower.contains("light off") || lower.contains("light band") ||
-                               lower.contains("light band karo") || lower.contains("flash off") ||
-                               lower.contains("flash band") || lower.contains("flash light off") ||
-                               lower.contains("flash light band") || lower.contains("flashlight band");
+        boolean isOffCommand = lower.contains("off") || lower.contains("band") || lower.contains("bujha") ||
+                               lower.contains("bujhao") || lower.contains("turn off") || lower.contains("switch off") ||
+                               lower.contains("stop") || lower.contains("close") || lower.contains("hatao");
 
-        if (isOnCommand) {
-            activity.toggleFlashlight(true);
-            activity.showDynamicPill("Flashlight On", android.R.drawable.ic_lock_idle_charging);
-            activity.showResponse("Flashlight turned on.", true);
-            activity.setOrbState("IDLE");
-            return true;
-        } else if (isOffCommand) {
+        boolean isOnCommand = lower.contains("on") || lower.contains("jalao") || lower.contains("chalu") ||
+                              lower.contains("turn on") || lower.contains("switch on") || lower.contains("start") ||
+                              lower.contains("open") || lower.equals("torch") || lower.equals("flashlight") ||
+                              lower.equals("flash");
+
+        if (isOffCommand) {
             activity.toggleFlashlight(false);
             activity.showDynamicPill("Flashlight Off", android.R.drawable.ic_lock_idle_low_battery);
-            activity.showResponse("Flashlight turned off.", true);
+            activity.showResponse("Flashlight off kar di gayi hai.", true);
+            activity.setOrbState("IDLE");
+            return true;
+        } else if (isOnCommand) {
+            activity.toggleFlashlight(true);
+            activity.showDynamicPill("Flashlight On", android.R.drawable.ic_lock_idle_charging);
+            activity.showResponse("Flashlight on kar di gayi hai.", true);
             activity.setOrbState("IDLE");
             return true;
         }
@@ -718,6 +745,7 @@ public class OfflineIntentRouter {
 
     /**
      * ALARMS & TIMERS: "Wake me up at 7 AM" / "Set alarm for 6:30" / "Set timer for 5 minutes" / "Timer lagao"
+     * Step 9 - Part 9 & 10: Separated timer execution and conversational context arming for missing parameters.
      */
     private boolean handleAlarmAndTimer(String command, String lower) {
         // 1. Timer Detection
@@ -735,16 +763,21 @@ public class OfflineIntentRouter {
                 }
                 activity.setTimer(totalSeconds);
                 return true;
-            } else if (lower.contains("lagao") || lower.contains("set") || lower.contains("chalu") || lower.contains("start") || lower.contains("on")) {
-                activity.showResponse("Aap kitne samay ka timer lagana chahte hain?", true);
+            } else if (lower.contains("lagao") || lower.contains("set") || lower.contains("chalu") ||
+                       lower.contains("start") || lower.contains("on") || lower.equals("timer") || lower.contains("timer")) {
+                conversationContext.setPendingIntent("timer", command);
                 activity.showDynamicPill("Set Timer", android.R.drawable.ic_lock_idle_alarm);
-                activity.setOrbState("IDLE");
+                activity.speakAndListen(
+                    "Aap kitne minute ka timer lagana chahte hain?",
+                    "How many minutes for the timer?",
+                    "TIMER_DURATION"
+                );
                 return true;
             }
         }
 
         // 2. Alarm Detection
-        if (lower.contains("alarm") || lower.contains("wake me up") || lower.contains("jaga dena")) {
+        if (lower.contains("alarm") || lower.contains("wake me up") || lower.contains("jaga dena") || lower.contains("utha dena")) {
             Pattern timePattern = Pattern.compile("(\\d{1,2})(?::(\\d{2}))?\\s*(am|pm)?", Pattern.CASE_INSENSITIVE);
             Matcher matcher = timePattern.matcher(command);
             if (matcher.find()) {
@@ -761,10 +794,15 @@ public class OfflineIntentRouter {
                 }
                 activity.setAlarm(hour, minute, "Marvo Alarm");
                 return true;
-            } else if (lower.contains("lagao") || lower.contains("set") || lower.contains("wake me up") || lower.contains("jaga dena")) {
-                activity.showResponse("Aap kitne baje ka alarm lagana chahte hain?", true);
+            } else if (lower.contains("lagao") || lower.contains("set") || lower.contains("wake me up") ||
+                       lower.contains("jaga dena") || lower.equals("alarm") || lower.contains("alarm")) {
+                conversationContext.setPendingIntent("alarm", command);
                 activity.showDynamicPill("Set Alarm", android.R.drawable.ic_lock_idle_alarm);
-                activity.setOrbState("IDLE");
+                activity.speakAndListen(
+                    "Aap kitne baje ka alarm lagana chahte hain? Kripya samay batayein.",
+                    "What time for the alarm?",
+                    "ALARM_TIME"
+                );
                 return true;
             }
         }
@@ -848,12 +886,15 @@ public class OfflineIntentRouter {
             }
 
             if (rawTarget.isEmpty()) {
-                activity.showResponse("Who would you like to call?", true);
+                conversationContext.setPendingIntent("call", "");
+                activity.showDynamicPill("Call Request", android.R.drawable.ic_menu_call);
+                activity.speakAndListen("Aap kise call lagana chahte hain? Kripya naam batayein.", "Who would you like to call?", "CALL_TARGET");
                 return true;
             }
 
-            // Clean up target name
-            String cleanTarget = rawTarget.replaceAll("(?i)(please|karo|lagao|ko)\\s*", "").trim();
+            // Clean up target name (strips "my", "mere", "meri", "mera", "to", "please", etc.)
+            String cleanTarget = rawTarget.replaceAll("(?i)\\b(my|mere|meri|mera|to|please|karo|lagao|ko)\\b", "").trim();
+            if (cleanTarget.isEmpty()) cleanTarget = rawTarget.trim();
             ContactResolution resolution = resolveContact(cleanTarget);
 
             if (resolution != null && resolution.phoneNumber != null) {
@@ -996,7 +1037,20 @@ public class OfflineIntentRouter {
      */
     public ContactResolution resolveContact(String query) {
         if (query == null || query.trim().isEmpty()) return null;
-        String lowerQuery = query.trim().toLowerCase();
+        String cleanQuery = query.trim().replaceAll("(?i)\\b(my|mere|meri|mera|to|please|karo|lagao|ko)\\b", "").trim();
+        if (cleanQuery.isEmpty()) cleanQuery = query.trim();
+        String lowerQuery = cleanQuery.toLowerCase();
+
+        // Step 9 - Part 9: Strict Primary Family Relationship Mapping (Bypasses ambiguous fuzzy loops)
+        boolean isMother = lowerQuery.equals("mom") || lowerQuery.equals("maa") || lowerQuery.equals("mother") ||
+                           lowerQuery.equals("mama") || lowerQuery.equals("mummy") || lowerQuery.equals("mataji") ||
+                           lowerQuery.equals("mumma") || lowerQuery.equals("aai") || lowerQuery.contains("mom") ||
+                           lowerQuery.contains("maa") || lowerQuery.contains("mother") || lowerQuery.contains("mummy");
+
+        boolean isFather = lowerQuery.equals("papa") || lowerQuery.equals("father") || lowerQuery.equals("dad") ||
+                           lowerQuery.equals("bapa") || lowerQuery.equals("pitaji") || lowerQuery.equals("bapuji") ||
+                           lowerQuery.equals("daddy") || lowerQuery.equals("baba") || lowerQuery.contains("papa") ||
+                           lowerQuery.contains("father") || lowerQuery.contains("dad") || lowerQuery.contains("bapa");
 
         // 1. Resolve alias via Entity Dictionary
         String canonicalName = ALIAS_MAP.get(lowerQuery);
@@ -1008,13 +1062,15 @@ public class OfflineIntentRouter {
                 }
             }
         }
+        if (isMother) canonicalName = "Maa";
+        if (isFather) canonicalName = "Papa";
 
-        boolean isFav = isFamilyFavorite(canonicalName, lowerQuery);
-        String searchName = (canonicalName != null) ? canonicalName : query.trim();
-        String cleanQuery = searchName.toLowerCase().replaceAll("[^a-z0-9]", "");
+        boolean isFav = isMother || isFather || isFamilyFavorite(canonicalName, lowerQuery);
+        String searchName = (canonicalName != null) ? canonicalName : cleanQuery;
+        String cleanSearch = searchName.toLowerCase().replaceAll("[^a-z0-9]", "");
         String queryPhonetic = toPhoneticKey(searchName);
 
-        // 2. Query device contacts database with Phonetic & Fuzzy evaluation
+        // 2. Query device contacts database
         if (ContextCompat.checkSelfPermission(activity, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(activity,
                 new String[]{Manifest.permission.READ_CONTACTS, Manifest.permission.CALL_PHONE},
@@ -1050,16 +1106,23 @@ public class OfflineIntentRouter {
                     String cleanDName = lowerDName.replaceAll("[^a-z0-9]", "");
 
                     // Exact match
-                    if (cleanDName.equals(cleanQuery)) {
+                    if (cleanDName.equals(cleanSearch) ||
+                        (isMother && (cleanDName.equals("maa") || cleanDName.equals("mom") || cleanDName.equals("mother") || cleanDName.equals("mummy"))) ||
+                        (isFather && (cleanDName.equals("papa") || cleanDName.equals("dad") || cleanDName.equals("father") || cleanDName.equals("bapa")))) {
                         bestMatchName = dName;
                         bestMatchNumber = num;
                         bestScore = 2.0;
                         break;
                     }
 
+                    // If resolving primary family member, SKIP fuzzy searches across random other names
+                    if (isMother || isFather) {
+                        continue;
+                    }
+
                     // Substring match
-                    if (cleanDName.contains(cleanQuery) || cleanQuery.contains(cleanDName)) {
-                        double score = 0.90 + (cleanQuery.length() / (double) Math.max(cleanDName.length(), 1)) * 0.08;
+                    if (cleanDName.contains(cleanSearch) || cleanSearch.contains(cleanDName)) {
+                        double score = 0.90 + (cleanSearch.length() / (double) Math.max(cleanDName.length(), 1)) * 0.08;
                         if (score > bestScore) {
                             bestScore = score;
                             bestMatchName = dName;
@@ -1073,7 +1136,7 @@ public class OfflineIntentRouter {
                         String cleanToken = token.replaceAll("[^a-z0-9]", "");
                         if (cleanToken.isEmpty()) continue;
 
-                        if (cleanToken.equals(cleanQuery)) {
+                        if (cleanToken.equals(cleanSearch)) {
                             double score = 0.95;
                             if (score > bestScore) {
                                 bestScore = score;
@@ -1094,7 +1157,7 @@ public class OfflineIntentRouter {
                         }
 
                         // Fuzzy match on token
-                        double fScore = fuzzyScore(cleanQuery, cleanToken);
+                        double fScore = fuzzyScore(cleanSearch, cleanToken);
                         if (fScore >= 0.70) {
                             double combinedScore = fScore * 0.85;
                             if (!queryPhonetic.isEmpty() && fuzzyScore(queryPhonetic, tokenPhonetic) >= 0.70) {
@@ -1120,7 +1183,7 @@ public class OfflineIntentRouter {
                     }
 
                     // Whole name fuzzy
-                    double wholeFuzzy = fuzzyScore(cleanQuery, cleanDName);
+                    double wholeFuzzy = fuzzyScore(cleanSearch, cleanDName);
                     if (wholeFuzzy >= 0.70 && wholeFuzzy > bestScore) {
                         bestScore = wholeFuzzy;
                         bestMatchName = dName;
@@ -1138,7 +1201,16 @@ public class OfflineIntentRouter {
             Log.w(TAG, "Contacts query permission or error: " + e.getMessage());
         }
 
-        // 3. Fallback to default user profile numbers with fuzzy/phonetic search
+        // 3. Fallback to Local MemoryVault & Default User Profile Numbers
+        if (isMother) {
+            String momNum = MemoryVault.getMomNumber(activity);
+            return new ContactResolution("Maa", momNum != null ? momNum : DEFAULT_PHONE_NUMBERS.get("Maa"), true);
+        }
+        if (isFather) {
+            String dadNum = MemoryVault.getDadNumber(activity);
+            return new ContactResolution("Papa", dadNum != null ? dadNum : DEFAULT_PHONE_NUMBERS.get("Papa"), true);
+        }
+
         if (canonicalName != null && DEFAULT_PHONE_NUMBERS.containsKey(canonicalName)) {
             return new ContactResolution(canonicalName, DEFAULT_PHONE_NUMBERS.get(canonicalName), true);
         }
@@ -1147,7 +1219,7 @@ public class OfflineIntentRouter {
             String defName = entry.getKey();
             if (defName.equalsIgnoreCase(searchName) ||
                 toPhoneticKey(defName).equals(queryPhonetic) ||
-                fuzzyScore(cleanQuery, defName.toLowerCase()) >= 0.75) {
+                fuzzyScore(cleanSearch, defName.toLowerCase()) >= 0.75) {
                 return new ContactResolution(defName, entry.getValue(), true);
             }
         }
@@ -1253,7 +1325,15 @@ public class OfflineIntentRouter {
      * OFFLINE TIME & DATE ENGINE IN HINDI (Step 7 - Part 4 & Step 9 - Part 4)
      */
     private boolean handleDateTime(String lower) {
-        boolean isTime = lower.contains("time") || lower.contains("samay") || lower.contains("kitne baje") ||
+        if (lower == null || lower.trim().isEmpty()) return false;
+
+        // Step 9 - Part 9: Strict exclusion of Timer and Alarm commands from Time/Clock query
+        if (lower.contains("timer") || lower.contains("countdown") || lower.contains("alarm") || lower.contains("wake me")) {
+            return false;
+        }
+
+        boolean hasWordTime = Pattern.compile("\\btime\\b").matcher(lower).find();
+        boolean isTime = (hasWordTime && !lower.contains("date")) || lower.contains("samay") || lower.contains("kitne baje") ||
                          lower.contains("kya baje") || lower.contains("ghadi") || lower.contains("time batao") ||
                          lower.contains("samay batao") || lower.equals("what time is it") || lower.contains("what time") ||
                          lower.contains("what is the time") || lower.contains("whats the time") || lower.contains("current time");
@@ -1725,6 +1805,238 @@ public class OfflineIntentRouter {
     }
 
     /**
+     * Step 9 - Part 10: Multi-Turn Context Follow-Up Resolution.
+     * Resolves pending unfulfilled intents (timer, alarm, call, weather, user_location)
+     * using the conversational context memory stack.
+     */
+    public boolean handlePendingContext(String command, String lower) {
+        if (!conversationContext.hasPendingIntent()) return false;
+
+        String pending = conversationContext.getPendingIntent();
+        if (pending == null) return false;
+
+        // User cancellation guard
+        if (lower.contains("cancel") || lower.contains("chodo") || lower.contains("rehne do") ||
+            lower.contains("band karo") || lower.contains("nahi chahiye") || lower.contains("stop")) {
+            conversationContext.clear();
+            activity.showDynamicPill("Cancelled", android.R.drawable.ic_menu_close_clear_cancel);
+            activity.showResponse("Theek hai, cancel kar diya gaya hai.", true);
+            activity.setOrbState("IDLE");
+            return true;
+        }
+
+        if ("timer".equals(pending)) {
+            Pattern p = Pattern.compile("(\\d+)\\s*(second|sec|minute|min|hour|hr)?", Pattern.CASE_INSENSITIVE);
+            Matcher m = p.matcher(lower);
+            if (m.find()) {
+                int val = Integer.parseInt(m.group(1));
+                String unit = m.group(2) != null ? m.group(2).toLowerCase() : "min";
+                int totalSec = val;
+                if (unit.startsWith("min")) {
+                    totalSec = val * 60;
+                } else if (unit.startsWith("hour") || unit.startsWith("hr")) {
+                    totalSec = val * 3600;
+                } else if (unit.isEmpty()) {
+                    totalSec = val * 60; // Default to minutes
+                }
+                conversationContext.clear();
+                activity.setTimer(totalSec);
+                return true;
+            }
+        } else if ("alarm".equals(pending)) {
+            Pattern p = Pattern.compile("(\\d{1,2})(?::(\\d{2}))?\\s*(am|pm|baje)?", Pattern.CASE_INSENSITIVE);
+            Matcher m = p.matcher(lower);
+            if (m.find()) {
+                int hour = Integer.parseInt(m.group(1));
+                int minute = m.group(2) != null ? Integer.parseInt(m.group(2)) : 0;
+                String ampm = m.group(3);
+
+                if (lower.contains("shaam") || lower.contains("raat") || (ampm != null && ampm.equalsIgnoreCase("pm"))) {
+                    if (hour < 12) hour += 12;
+                } else if (lower.contains("subah") || lower.contains("dopahar") || (ampm != null && ampm.equalsIgnoreCase("am"))) {
+                    if (hour == 12) hour = 0;
+                }
+                conversationContext.clear();
+                activity.setAlarm(hour, minute, "Marvo Alarm");
+                return true;
+            }
+        } else if ("call".equals(pending)) {
+            conversationContext.clear();
+            return handleCalling("call " + command, "call " + lower);
+        } else if ("weather".equals(pending)) {
+            String location = command.replaceAll("(?i)\\b(ka|ki|weather|mausam|batao|check|temperature|aaj|today)\\b", "").trim();
+            if (!location.isEmpty()) {
+                MemoryVault.setUserLocation(activity, location);
+                conversationContext.clear();
+                activity.openWeather(location);
+                return true;
+            }
+        } else if ("user_location".equals(pending)) {
+            String location = command.replaceAll("(?i)\\b(mera|meri|location|shahar|hai|in|at)\\b", "").trim();
+            if (!location.isEmpty()) {
+                MemoryVault.setUserLocation(activity, location);
+                conversationContext.clear();
+                activity.showDynamicPill("Location Saved", android.R.drawable.ic_menu_myplaces);
+                activity.showResponse("Aapki location " + location + " save kar di gayi hai.", true);
+                activity.setOrbState("IDLE");
+                return true;
+            }
+        }
+
+        conversationContext.clear();
+        return false;
+    }
+
+    /**
+     * Step 9 - Part 10: Local Weather & Multi-Turn Location Module.
+     * Evaluates weather queries. If location is present in query, executes directly.
+     * If absent, checks MemoryVault. If vault is empty, arms ConversationContext and asks the user.
+     */
+    private boolean handleWeather(String command, String lower) {
+        if (!lower.contains("weather") && !lower.contains("mausam") &&
+            !lower.contains("temperature") && !lower.contains("tapman")) {
+            return false;
+        }
+
+        // Try extracting location from query (e.g., "weather in Delhi", "mumbai ka mausam", "bhubaneswar weather")
+        String targetLocation = "";
+        Pattern locPattern = Pattern.compile("(?i)(?:weather\\s+(?:in|of|at|for)|mausam\\s+(?:ka|in|of)|in|at)\\s+([a-zA-Z\\s]+)");
+        Matcher m = locPattern.matcher(command);
+        if (m.find()) {
+            targetLocation = m.group(1).trim();
+        } else {
+            String cleaned = lower.replaceAll("(?i)(today'?s?|aaj|ka|ki|ke|weather|forecast|mausam|temperature|tapman|kaisa hai|batao|check|karo|hai|kya)", "").trim();
+            if (!cleaned.isEmpty() && cleaned.length() > 2 && !cleaned.equals("the")) {
+                targetLocation = cleaned;
+            }
+        }
+
+        if (!targetLocation.isEmpty()) {
+            MemoryVault.saveRecentTopic(activity, targetLocation);
+            activity.openWeather(targetLocation);
+            return true;
+        }
+
+        // Check local profile vault for saved user location
+        String savedLocation = MemoryVault.getUserLocation(activity);
+        if (savedLocation != null && !savedLocation.trim().isEmpty()) {
+            activity.openWeather(savedLocation);
+            return true;
+        }
+
+        // Location unknown: Arm multi-turn conversational context stack
+        conversationContext.setPendingIntent("weather", command);
+        activity.showDynamicPill("Weather", android.R.drawable.ic_menu_compass);
+        activity.speakAndListen(
+            "Aap kis jagah ka weather jaanna chahte hain?",
+            "Which city for weather?",
+            "WEATHER_LOCATION"
+        );
+        return true;
+    }
+
+    /**
+     * Step 9 - Part 10: Local User Profile Vault Controller.
+     * Saves and queries persistent on-device user profile information:
+     * Location, Mother/Father contacts, Name, and memory reset.
+     */
+    private boolean handleUserProfile(String command, String lower) {
+        // 1. Set / Query Location
+        if (lower.contains("mera location") || lower.contains("meri location") ||
+            lower.contains("mera shahar") || lower.contains("set my location") ||
+            lower.contains("save my location") || lower.startsWith("my location is")) {
+            if (lower.contains("kya hai") || lower.contains("what is") || lower.contains("batao")) {
+                String loc = MemoryVault.getUserLocation(activity);
+                if (loc != null && !loc.isEmpty()) {
+                    activity.showDynamicPill("Location: " + loc, android.R.drawable.ic_menu_myplaces);
+                    activity.showResponse("Aapki saved location " + loc + " hai.", true);
+                } else {
+                    activity.showDynamicPill("No Location", android.R.drawable.ic_menu_myplaces);
+                    activity.showResponse("Aapne abhi tak koi location set nahi ki hai.", true);
+                }
+                activity.setOrbState("IDLE");
+                return true;
+            } else {
+                String loc = command.replaceAll("(?i).*(?:mera location|meri location|mera shahar|set my location to|save my location|my location is)\\s*(?:hai|to|is|as)?\\s*", "").replaceAll("(?i)\\s*hai$", "").trim();
+                if (!loc.isEmpty()) {
+                    MemoryVault.setUserLocation(activity, loc);
+                    activity.showDynamicPill("Location: " + loc, android.R.drawable.ic_menu_myplaces);
+                    activity.showResponse("Aapki location " + loc + " save kar di gayi hai.", true);
+                    activity.setOrbState("IDLE");
+                    return true;
+                }
+            }
+        }
+
+        // 2. Set / Query User Name
+        if (lower.contains("mera naam") || lower.startsWith("my name is") || lower.startsWith("call me ")) {
+            if (lower.contains("kya hai") || lower.contains("what is") || lower.contains("kaun hoon") || lower.contains("who am i")) {
+                String name = MemoryVault.getUserName(activity);
+                if (name != null && !name.isEmpty()) {
+                    activity.showDynamicPill("User: " + name, android.R.drawable.ic_menu_info_details);
+                    activity.showResponse("Aapka naam " + name + " hai.", true);
+                } else {
+                    activity.showDynamicPill("User", android.R.drawable.ic_menu_info_details);
+                    activity.showResponse("Mujhe abhi aapka naam nahi pata. Aap mujhe bata sakte hain.", true);
+                }
+                activity.setOrbState("IDLE");
+                return true;
+            } else {
+                String name = command.replaceAll("(?i).*(?:mera naam|my name is|call me)\\s*(?:hai|is|as)?\\s*", "").replaceAll("(?i)\\s*hai$", "").trim();
+                if (!name.isEmpty()) {
+                    MemoryVault.setUserName(activity, name);
+                    activity.showDynamicPill("Name: " + name, android.R.drawable.ic_menu_info_details);
+                    activity.showResponse("Namaste " + name + "! Maine aapka naam save kar liya hai.", true);
+                    activity.setOrbState("IDLE");
+                    return true;
+                }
+            }
+        }
+
+        // 3. Set Mom's Contact Number
+        if ((lower.contains("mom") || lower.contains("maa") || lower.contains("mummy")) &&
+            (lower.contains("number") || lower.contains("save") || lower.contains("set"))) {
+            Matcher m = Pattern.compile("(\\+?\\d{10,13})").matcher(command);
+            if (m.find()) {
+                String num = m.group(1);
+                MemoryVault.setMomNumber(activity, num);
+                activity.showDynamicPill("Mom's Number Saved", android.R.drawable.ic_menu_call);
+                activity.showResponse("Mom ka number " + num + " save kar diya gaya hai.", true);
+                activity.setOrbState("IDLE");
+                return true;
+            }
+        }
+
+        // 4. Set Dad's Contact Number
+        if ((lower.contains("papa") || lower.contains("dad") || lower.contains("father") || lower.contains("pitaji")) &&
+            (lower.contains("number") || lower.contains("save") || lower.contains("set"))) {
+            Matcher m = Pattern.compile("(\\+?\\d{10,13})").matcher(command);
+            if (m.find()) {
+                String num = m.group(1);
+                MemoryVault.setDadNumber(activity, num);
+                activity.showDynamicPill("Papa's Number Saved", android.R.drawable.ic_menu_call);
+                activity.showResponse("Papa ka number " + num + " save kar diya gaya hai.", true);
+                activity.setOrbState("IDLE");
+                return true;
+            }
+        }
+
+        // 5. Reset Memory Vault
+        if (lower.contains("reset memory") || lower.contains("clear profile") ||
+            lower.contains("memory clear") || lower.contains("vault clear") ||
+            lower.contains("profile reset")) {
+            MemoryVault.clearAll(activity);
+            conversationContext.clear();
+            activity.showDynamicPill("Memory Cleared", android.R.drawable.ic_menu_delete);
+            activity.showResponse("Aapka local profile aur context memory reset kar diya gaya hai.", true);
+            activity.setOrbState("IDLE");
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
      * Step 9 - Part 8: Strict Routing Wall.
      * Evaluates if a query belongs to device hardware/system control domains.
      * Hardware/system queries must NEVER leak to the Gemini Cloud LLM.
@@ -1775,14 +2087,16 @@ public class OfflineIntentRouter {
     private void handleDeviceUtilityFallback(String command, String lower) {
         // Flashlight / Torch
         if (lower.contains("torch") || lower.contains("flashlight") || lower.contains("flash light")) {
-            boolean turnOn = !lower.contains("off") && !lower.contains("band");
+            boolean isOff = lower.contains("off") || lower.contains("band") || lower.contains("bujha") ||
+                            lower.contains("stop") || lower.contains("close") || lower.contains("hatao");
+            boolean turnOn = !isOff;
             activity.toggleFlashlight(turnOn);
             if (turnOn) {
-                activity.showDynamicPill("Torch On", android.R.drawable.ic_menu_camera);
-                activity.showResponse("Torch on kar di gayi hai.", true);
+                activity.showDynamicPill("Flashlight On", android.R.drawable.ic_lock_idle_charging);
+                activity.showResponse("Flashlight on kar di gayi hai.", true);
             } else {
-                activity.showDynamicPill("Torch Off", android.R.drawable.ic_menu_camera);
-                activity.showResponse("Torch band kar di gayi hai.", true);
+                activity.showDynamicPill("Flashlight Off", android.R.drawable.ic_lock_idle_low_battery);
+                activity.showResponse("Flashlight off kar di gayi hai.", true);
             }
             activity.setOrbState("IDLE");
             return;
@@ -1810,17 +2124,17 @@ public class OfflineIntentRouter {
 
         // Alarm Clock
         if (lower.contains("alarm") || lower.contains("wake me up") || lower.contains("jaga dena") || lower.contains("utha dena")) {
-            activity.showDynamicPill("Alarm Clock", android.R.drawable.ic_lock_idle_alarm);
-            activity.showResponse("Aap kitne baje ka alarm lagana chahte hain? Kripya samay batayein.", true);
-            activity.setOrbState("IDLE");
+            conversationContext.setPendingIntent("alarm", command);
+            activity.showDynamicPill("Set Alarm", android.R.drawable.ic_lock_idle_alarm);
+            activity.speakAndListen("Aap kitne baje ka alarm lagana chahte hain? Kripya samay batayein.", "What time for the alarm?", "ALARM_TIME");
             return;
         }
 
         // Timer
         if (lower.contains("timer")) {
-            activity.showDynamicPill("Timer", android.R.drawable.ic_menu_recent_history);
-            activity.showResponse("Aap kitne minute ka timer lagana chahte hain?", true);
-            activity.setOrbState("IDLE");
+            conversationContext.setPendingIntent("timer", command);
+            activity.showDynamicPill("Set Timer", android.R.drawable.ic_menu_recent_history);
+            activity.speakAndListen("Aap kitne minute ka timer lagana chahte hain?", "How many minutes for the timer?", "TIMER_DURATION");
             return;
         }
 
@@ -1892,9 +2206,9 @@ public class OfflineIntentRouter {
 
         // Calling / Phone
         if (lower.contains("call") || lower.contains("phone") || lower.contains("dial")) {
+            conversationContext.setPendingIntent("call", "");
             activity.showDynamicPill("Call Request", android.R.drawable.ic_menu_call);
-            activity.showResponse("Aap kise call lagana chahte hain? Kripya naam batayein.", true);
-            activity.setOrbState("IDLE");
+            activity.speakAndListen("Aap kise call lagana chahte hain? Kripya naam batayein.", "Who would you like to call?", "CALL_TARGET");
             return;
         }
 

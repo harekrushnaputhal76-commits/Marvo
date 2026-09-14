@@ -777,16 +777,20 @@ public class AssistantActivity extends AppCompatActivity {
             @Override
             public void onError(int error) {
                 Log.w(TAG, "SpeechRecognizer onError code: " + error);
-                setVisualState("ERROR");
-                // Revert to IDLE state instead of auto-dismissing
-                new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (!isFinishing()) {
-                            setOrbState("IDLE");
+                if (error == SpeechRecognizer.ERROR_NO_MATCH || error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
+                    // Smoothly revert to IDLE state without freezing or flashing error
+                    setOrbState("IDLE");
+                } else {
+                    setVisualState("ERROR");
+                    new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (!isFinishing()) {
+                                setOrbState("IDLE");
+                            }
                         }
-                    }
-                }, 2000);
+                    }, 1500);
+                }
             }
 
             @Override
@@ -2449,7 +2453,7 @@ public class AssistantActivity extends AppCompatActivity {
     /**
      * Performs a web search on Google using ACTION_WEB_SEARCH or browser fallback.
      */
-    private void searchWeb(String query) {
+    void searchWeb(String query) {
         if (query == null || query.trim().isEmpty()) return;
         try {
             Intent intent = new Intent(Intent.ACTION_WEB_SEARCH);
@@ -2477,10 +2481,23 @@ public class AssistantActivity extends AppCompatActivity {
     }
 
     /**
-     * Opens weather forecast on Google.
+     * Opens weather forecast on Google with optional location support.
      */
-    private void openWeather() {
-        searchWeb("today's weather forecast");
+    void openWeather(String location) {
+        if (location != null && !location.trim().isEmpty()) {
+            searchWeb(location.trim() + " weather forecast");
+            showDynamicPill("Weather: " + location.trim(), android.R.drawable.ic_menu_compass);
+            showResponse(location.trim() + " ka mausam check kar raha hoon.", true);
+        } else {
+            searchWeb("today's weather forecast");
+            showDynamicPill("Weather Forecast", android.R.drawable.ic_menu_compass);
+            showResponse("Aaj ka mausam check kar raha hoon.", true);
+        }
+        setOrbState("IDLE");
+    }
+
+    void openWeather() {
+        openWeather(null);
     }
 
     /**
@@ -5224,12 +5241,23 @@ public class AssistantActivity extends AppCompatActivity {
     }
 
     void startListening() {
+        if (speechRecognizer == null) {
+            initSpeechRecognizer();
+        }
         if (speechRecognizer != null && speechRecognizerIntent != null) {
             try {
                 speechRecognizer.cancel();
                 speechRecognizer.startListening(speechRecognizerIntent);
             } catch (Exception e) {
                 Log.e(TAG, "Error starting speech recognition: " + e.getMessage(), e);
+                try {
+                    initSpeechRecognizer();
+                    if (speechRecognizer != null) {
+                        speechRecognizer.startListening(speechRecognizerIntent);
+                    }
+                } catch (Exception ex) {
+                    Log.e(TAG, "Speech recognition re-init failed: " + ex.getMessage(), ex);
+                }
             }
         }
     }
