@@ -36,6 +36,7 @@ import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
 import android.telephony.SmsManager;
 import android.util.Log;
+import android.util.TypedValue;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
@@ -293,6 +294,10 @@ public class AssistantActivity extends AppCompatActivity {
         subtitleTextView = findViewById(R.id.subtitleTextView);
         statusScrollView = findViewById(R.id.statusScrollView);
         orbWebView = findViewById(R.id.orbWebView);
+        if (orbWebView != null) {
+            orbWebView.setBackgroundColor(android.graphics.Color.TRANSPARENT);
+            orbWebView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+        }
         dynamicPillContainer = findViewById(R.id.dynamicPillContainer);
         pillIcon = findViewById(R.id.pillIcon);
         pillText = findViewById(R.id.pillText);
@@ -380,7 +385,6 @@ public class AssistantActivity extends AppCompatActivity {
                                             typewriterHandler.removeCallbacks(typewriterRunnable);
                                         }
                                         setOrbState("IDLE");
-                                        finishDelayed(4000);
                                     }
                                 });
                             }
@@ -451,12 +455,12 @@ public class AssistantActivity extends AppCompatActivity {
             public void onError(int error) {
                 Log.w(TAG, "SpeechRecognizer onError code: " + error);
                 setVisualState("ERROR");
-                // Auto dismiss on error after 2 seconds
+                // Revert to IDLE state instead of auto-dismissing
                 new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
                     @Override
                     public void run() {
                         if (!isFinishing()) {
-                            finish();
+                            setOrbState("IDLE");
                         }
                     }
                 }, 2000);
@@ -1642,6 +1646,7 @@ public class AssistantActivity extends AppCompatActivity {
         switch (state) {
             case "LISTENING":
                 if (statusTextView != null) {
+                    statusTextView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20.0f);
                     statusTextView.setText("Listening...");
                     statusTextView.setTextColor(android.graphics.Color.WHITE);
                 }
@@ -1654,6 +1659,7 @@ public class AssistantActivity extends AppCompatActivity {
 
             case "PROCESSING":
                 if (statusTextView != null) {
+                    statusTextView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20.0f);
                     statusTextView.setText("Processing...");
                     statusTextView.setTextColor(android.graphics.Color.parseColor("#B0B0B0"));
                 }
@@ -1709,6 +1715,7 @@ public class AssistantActivity extends AppCompatActivity {
                     }
                 }
                 if (statusTextView != null) {
+                    statusTextView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18.0f);
                     statusTextView.setText(message);
                 }
                 if (subtitleTextView != null) {
@@ -1747,11 +1754,13 @@ public class AssistantActivity extends AppCompatActivity {
     }
 
     private void finishDelayed(long delayMillis) {
+        // Step 6 - Part 2: Never auto-dismiss. Revert orb to IDLE state so the assistant
+        // floats gently on screen until the user manually swipes or taps outside.
         new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
             @Override
             public void run() {
                 if (!isFinishing()) {
-                    finish();
+                    setOrbState("IDLE");
                 }
             }
         }, delayMillis);
@@ -2863,6 +2872,24 @@ public class AssistantActivity extends AppCompatActivity {
             return;
         }
 
+        // Step 6 - Part 2: Siri Ultra Intents (Memory Prep, URL Content Digest & Real-time Web Search)
+        if (lower.contains("http://") || lower.contains("https://") || lower.startsWith("summarize url") ||
+            lower.startsWith("digest url") || lower.startsWith("read url") || lower.startsWith("summarize link") ||
+            lower.startsWith("digest link") || lower.startsWith("read link") || lower.startsWith("url ") ||
+            lower.contains(".com") || lower.contains(".org") || lower.contains(".net") ||
+            lower.contains(".ai") || lower.contains(".io")) {
+            queryGemini(command);
+            return;
+        }
+
+        if (lower.startsWith("search web") || lower.startsWith("web search") || lower.startsWith("search live") ||
+            lower.startsWith("live search") || lower.startsWith("real-time search") || lower.startsWith("realtime search") ||
+            lower.startsWith("google search") || lower.startsWith("search online") || lower.startsWith("online search") ||
+            lower.startsWith("search for ")) {
+            queryGemini(command);
+            return;
+        }
+
         // Step 5 - Part 2 & 4: Web Knowledge & Instant Fast-Track to Online Gemini AI
         if (lower.contains("wikipedia") || lower.startsWith("who is ") || lower.startsWith("what is ") ||
             lower.startsWith("why is ") || lower.startsWith("why do ") || lower.startsWith("why does ") ||
@@ -3546,7 +3573,7 @@ public class AssistantActivity extends AppCompatActivity {
             settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
 
             // Transparent background for the glassmorphic effect
-            orbWebView.setBackgroundColor(0x00000000);
+            orbWebView.setBackgroundColor(android.graphics.Color.TRANSPARENT);
             orbWebView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
 
             orbWebView.setWebViewClient(new WebViewClient() {
@@ -3658,8 +3685,21 @@ public class AssistantActivity extends AppCompatActivity {
      */
     private void queryGemini(final String userQuery) {
         if (geminiApiKey == null || geminiApiKey.trim().isEmpty() || geminiApiKey.equals("your_gemini_api_key_here")) {
-            showResponse("AI brain is not configured. Please add GEMINI_API_KEY to your .env file.", true);
-            finishDelayed(4000);
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    if (statusTextView != null) {
+                        statusTextView.clearAnimation();
+                        statusTextView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14.0f);
+                        statusTextView.setTextColor(android.graphics.Color.parseColor("#B0BEC5"));
+                        statusTextView.setText("GEMINI_API_KEY required in .env");
+                    }
+                    if (subtitleTextView != null) {
+                        subtitleTextView.setVisibility(View.GONE);
+                    }
+                    setOrbState("IDLE");
+                }
+            });
             return;
         }
 
@@ -3669,6 +3709,7 @@ public class AssistantActivity extends AppCompatActivity {
             @Override
             public void run() {
                 if (statusTextView != null) {
+                    statusTextView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20.0f);
                     statusTextView.setText("Processing...");
                     statusTextView.setTextColor(android.graphics.Color.parseColor("#E0E0E0"));
                     Animation pulse = AnimationUtils.loadAnimation(AssistantActivity.this, R.anim.pulse_orb);
@@ -3699,7 +3740,7 @@ public class AssistantActivity extends AppCompatActivity {
                     // Build request body
                     JSONObject requestBody = new JSONObject();
 
-                    // Step 1, 2, 5 & 5 Part 2: Core Persona, Zero-Hallucination, XML Structure, Visual Richness, Entity-First Reasoning & Web Knowledge Grounding
+                    // Step 1, 2, 5 & Step 6 Part 2: Core Persona, Zero-Hallucination, XML Structure, Visual Richness, Entity-First Reasoning, Real-time Web Knowledge & URL Content Digest
                     String systemInstructionText = "You are Marvo, an intelligent assistant. You craft beautiful, visually rich, and highly accurate responses. \n" +
                         "IDENTITY: You are software; you do not experience emotions or have a physical body, gender, nationality, or personal history. \n" +
                         "BEHAVIOR: You handle user requests by thinking then acting. Accept user corrections about their situation, but do not go along with factual errors; correct them plainly. Be honest when something isn't found, doesn't work, or isn't available. \n" +
@@ -3707,7 +3748,7 @@ public class AssistantActivity extends AppCompatActivity {
                         "RESPONSE FORMAT: You must enclose the essential, spoken part of your response inside a <coreResponse> XML tag. The <coreResponse> is the answer in one breath (roughly 100-250 tokens). Open with the substance directly — no preamble, no 'I found...', no narration. Anything that does not fit in one breath (like structured lists or extra details) must be placed OUTSIDE and AFTER the </coreResponse> tag.\n" +
                         "VISUAL RICHNESS: Your responses should be beautiful, vivid, and visually rich — not flat walls of prose. Every response is an opportunity to make the user feel like they're getting a curated, magazine-quality answer. Compose your text using Markdown (bolding, lists, and headings) to shape the discussion. Use tables only when comparing structured, sortable data. If a request deserves a long, thorough answer, the essential spoken part lands in the <coreResponse> tag, and the deep visual depth lives in the exhale (the text after the tag).\n" +
                         "ENTITY-FIRST REASONING: You possess concrete facts about the user (Entities) provided in the System Context. Treat these entity properties as authoritative data; always prefer them over your own general knowledge. If the user asks about their brother, you know it is Jatin. If the user asks the time or their location, answer immediately from the context block without searching the web.\n" +
-                        "WEB KNOWLEDGE & WIKIPEDIA RETRIEVAL: If the user asks a general knowledge, history, or factual question, you must synthesize the answer concisely as if retrieving from a web encyclopedia (like Wikipedia). Ground your facts strictly. If you do not have the data in your training, clearly state 'I need internet access to verify this fact' instead of hallucinating.";
+                        "WEB KNOWLEDGE & REAL-TIME URL DIGEST: If the user asks a general knowledge or factual question, provides a URL, or requests live/real-time web search or page digest, synthesize the answer concisely using web knowledge. Ground your facts strictly. If you do not have the data in your training, clearly state 'I need internet access to verify this fact' instead of hallucinating.";
 
                     JSONObject systemInstructionPart = new JSONObject();
                     systemInstructionPart.put("text", systemInstructionText);
@@ -3808,7 +3849,6 @@ public class AssistantActivity extends AppCompatActivity {
                                 setVisualState("ERROR");
                             }
                         });
-                        finishDelayed(4000);
                     }
                 } catch (Exception e) {
                     Log.e(TAG, "Gemini query failed: " + e.getMessage(), e);
@@ -3819,7 +3859,6 @@ public class AssistantActivity extends AppCompatActivity {
                             setVisualState("ERROR");
                         }
                     });
-                    finishDelayed(4000);
                 } finally {
                     if (connection != null) {
                         connection.disconnect();
@@ -3839,6 +3878,7 @@ public class AssistantActivity extends AppCompatActivity {
             public void run() {
                 if (statusTextView != null) {
                     statusTextView.clearAnimation();
+                    statusTextView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18.0f);
                     statusTextView.setText("");
                     statusTextView.setTextColor(android.graphics.Color.WHITE);
                 }
