@@ -34,6 +34,8 @@ import android.speech.tts.UtteranceProgressListener;
 import android.telephony.SmsManager;
 import android.util.Log;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
 import android.webkit.JavascriptInterface;
@@ -41,6 +43,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.ImageView;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -84,6 +87,7 @@ public class AssistantActivity extends AppCompatActivity {
     private boolean isTtsReady = false;
     private TextView statusTextView;
     private TextView subtitleTextView;
+    private ScrollView statusScrollView;
     private WebView orbWebView;
     private boolean flashlightEnabled;
     private String geminiApiKey = null;
@@ -119,10 +123,29 @@ public class AssistantActivity extends AppCompatActivity {
 
         statusTextView = findViewById(R.id.statusTextView);
         subtitleTextView = findViewById(R.id.subtitleTextView);
+        statusScrollView = findViewById(R.id.statusScrollView);
         orbWebView = findViewById(R.id.orbWebView);
         dynamicPillContainer = findViewById(R.id.dynamicPillContainer);
         pillIcon = findViewById(R.id.pillIcon);
         pillText = findViewById(R.id.pillText);
+
+        // Step 2/20: Anti-Shift - Constrain maximum height of response scroll container to 180dp
+        if (statusScrollView != null) {
+            final float density = getResources().getDisplayMetrics().density;
+            final int maxPx = (int) (180 * density);
+            statusScrollView.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+                @Override
+                public void onGlobalLayout() {
+                    if (statusScrollView != null && statusScrollView.getHeight() > maxPx) {
+                        ViewGroup.LayoutParams lp = statusScrollView.getLayoutParams();
+                        if (lp != null && lp.height != maxPx) {
+                            lp.height = maxPx;
+                            statusScrollView.setLayoutParams(lp);
+                        }
+                    }
+                }
+            });
+        }
 
         // Initialize WebGL Siri Fluid Orb (Step 9)
         initOrbWebView();
@@ -1166,6 +1189,13 @@ public class AssistantActivity extends AppCompatActivity {
      * based on the current assistant lifecycle state.
      */
     private void setVisualState(String state) {
+        if (statusScrollView != null) {
+            ViewGroup.LayoutParams lp = statusScrollView.getLayoutParams();
+            if (lp != null && lp.height != ViewGroup.LayoutParams.WRAP_CONTENT) {
+                lp.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+                statusScrollView.setLayoutParams(lp);
+            }
+        }
         switch (state) {
             case "LISTENING":
                 if (statusTextView != null) {
@@ -1228,6 +1258,13 @@ public class AssistantActivity extends AppCompatActivity {
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
+                if (statusScrollView != null) {
+                    ViewGroup.LayoutParams lp = statusScrollView.getLayoutParams();
+                    if (lp != null && lp.height != ViewGroup.LayoutParams.WRAP_CONTENT) {
+                        lp.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+                        statusScrollView.setLayoutParams(lp);
+                    }
+                }
                 if (statusTextView != null) {
                     statusTextView.setText(message);
                 }
@@ -2675,12 +2712,13 @@ public class AssistantActivity extends AppCompatActivity {
                     // Build request body
                     JSONObject requestBody = new JSONObject();
 
-                    // Step 1/20: Core Persona, Zero-Hallucination & XML Response Structure
+                    // Step 1 & 2/20: Core Persona, Zero-Hallucination, XML Structure & Visual Richness
                     String systemInstructionText = "You are Marvo, an intelligent assistant. You craft beautiful, visually rich, and highly accurate responses. \n" +
                         "IDENTITY: You are software; you do not experience emotions or have a physical body, gender, nationality, or personal history. \n" +
                         "BEHAVIOR: You handle user requests by thinking then acting. Accept user corrections about their situation, but do not go along with factual errors; correct them plainly. Be honest when something isn't found, doesn't work, or isn't available. \n" +
                         "ZERO HALLUCINATION: Treat missing data as unknown. It is a CATASTROPHIC violation of trust to infer or guess the value of missing properties or facts. Tell the user exactly what information is missing.\n" +
-                        "RESPONSE FORMAT: You must enclose the essential, spoken part of your response inside a <coreResponse> XML tag. The <coreResponse> is the answer in one breath (roughly 100-250 tokens). Open with the substance directly — no preamble, no 'I found...', no narration. Anything that does not fit in one breath (like structured lists or extra details) must be placed OUTSIDE and AFTER the </coreResponse> tag.";
+                        "RESPONSE FORMAT: You must enclose the essential, spoken part of your response inside a <coreResponse> XML tag. The <coreResponse> is the answer in one breath (roughly 100-250 tokens). Open with the substance directly — no preamble, no 'I found...', no narration. Anything that does not fit in one breath (like structured lists or extra details) must be placed OUTSIDE and AFTER the </coreResponse> tag.\n" +
+                        "VISUAL RICHNESS: Your responses should be beautiful, vivid, and visually rich — not flat walls of prose. Every response is an opportunity to make the user feel like they're getting a curated, magazine-quality answer. Compose your text using Markdown (bolding, lists, and headings) to shape the discussion. Use tables only when comparing structured, sortable data. If a request deserves a long, thorough answer, the essential spoken part lands in the <coreResponse> tag, and the deep visual depth lives in the exhale (the text after the tag).";
 
                     JSONObject systemInstructionPart = new JSONObject();
                     systemInstructionPart.put("text", systemInstructionText);
@@ -2875,6 +2913,14 @@ public class AssistantActivity extends AppCompatActivity {
                 if (statusTextView != null && charIndex <= totalLen) {
                     statusTextView.setText(fullText.substring(0, charIndex));
                     charIndex++;
+                    if (statusScrollView != null) {
+                        statusScrollView.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                statusScrollView.fullScroll(View.FOCUS_DOWN);
+                            }
+                        });
+                    }
                     if (charIndex <= totalLen) {
                         typewriterHandler.postDelayed(this, delayPerChar);
                     }

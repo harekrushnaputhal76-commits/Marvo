@@ -70,41 +70,51 @@
             android:layout_marginBottom="24dp"
             android:background="@drawable/drag_handle_indicator" />
 
-        <!-- Glowing Orb Container (provides extra glow padding) -->
+        <!-- Glowing Orb Container (provides extra glow padding to prevent blur clipping) -->
         <FrameLayout
             android:id="@+id/orbContainer"
-            android:layout_width="140dp"
-            android:layout_height="140dp"
+            android:layout_width="180dp"
+            android:layout_height="180dp"
             android:layout_gravity="center_horizontal">
 
-            <!-- Siri-style Fluid WebGL Orb (Step 9) -->
+            <!-- Siri-style Fluid WebGL Orb (Step 2/20: 3D Metaball Mesh) -->
             <WebView
                 android:id="@+id/orbWebView"
-                android:layout_width="140dp"
-                android:layout_height="140dp"
+                android:layout_width="180dp"
+                android:layout_height="180dp"
                 android:layout_gravity="center"
                 android:background="@android:color/transparent"
                 android:layerType="hardware" />
         </FrameLayout>
 
-        <!-- Main Status Label (Listening / Processing / Action) -->
-        <TextView
-            android:id="@+id/statusTextView"
-            android:layout_width="wrap_content"
+        <!-- Step 2/20: Response Scroll Container to prevent layout shifting or distorting the Siri Orb -->
+        <ScrollView
+            android:id="@+id/statusScrollView"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_gravity="center_horizontal"
             android:layout_marginTop="16dp"
-            android:fontFamily="sans-serif-light"
-            android:gravity="center"
-            android:letterSpacing="0.04"
-            android:shadowColor="#CC000000"
-            android:shadowDx="0"
-            android:shadowDy="4"
-            android:shadowRadius="10"
-            android:text="Listening..."
-            android:textColor="#FFFFFF"
-            android:textSize="22sp"
-            android:textStyle="bold" />
+            android:scrollbars="vertical"
+            android:fadeScrollbars="true"
+            android:overScrollMode="ifContentScrolls">
+
+            <!-- Main Status Label (Listening / Processing / Action) -->
+            <TextView
+                android:id="@+id/statusTextView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:fontFamily="sans-serif-light"
+                android:gravity="center"
+                android:letterSpacing="0.04"
+                android:shadowColor="#CC000000"
+                android:shadowDx="0"
+                android:shadowDy="4"
+                android:shadowRadius="10"
+                android:text="Listening..."
+                android:textColor="#FFFFFF"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+        </ScrollView>
 
         <!-- Secondary Subtitle (live transcription / command feedback) -->
         <TextView
