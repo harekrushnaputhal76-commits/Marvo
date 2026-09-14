@@ -1,7 +1,9 @@
 package com.marvo.ai;
 
 import android.Manifest;
+import android.app.KeyguardManager;
 import android.app.SearchManager;
+import android.telecom.TelecomManager;
 import android.content.ActivityNotFoundException;
 import android.content.ClipData;
 import android.content.ClipboardManager;
@@ -146,6 +148,7 @@ public class AssistantActivity extends AppCompatActivity {
     private Intent speechRecognizerIntent;
     private TextToSpeech tts;
     private boolean isTtsReady = false;
+    private boolean isSpeaking = false;
     private TextView statusTextView;
     private TextView subtitleTextView;
     private ScrollView statusScrollView;
@@ -521,6 +524,24 @@ public class AssistantActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // Step 13: Lock Screen Overlay & Turn Screen On Surface
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true);
+            setTurnScreenOn(true);
+            KeyguardManager km = (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
+            if (km != null) {
+                km.requestDismissKeyguard(this, null);
+            }
+        } else {
+            getWindow().addFlags(
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED |
+                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON |
+                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON |
+                WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
+            );
+        }
+
         getWindow().setBackgroundDrawableResource(android.R.color.transparent);
         getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);
         getWindow().setNavigationBarColor(android.graphics.Color.TRANSPARENT);
@@ -637,6 +658,7 @@ public class AssistantActivity extends AppCompatActivity {
                         tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
                             @Override
                             public void onStart(String utteranceId) {
+                                isSpeaking = true;
                                 runOnUiThread(new Runnable() {
                                     @Override
                                     public void run() {
@@ -646,6 +668,7 @@ public class AssistantActivity extends AppCompatActivity {
                             }
                             @Override
                             public void onDone(final String utteranceId) {
+                                isSpeaking = false;
                                 runOnUiThread(new Runnable() {
                                     @Override
                                     public void run() {
@@ -670,6 +693,7 @@ public class AssistantActivity extends AppCompatActivity {
                             }
                             @Override
                             public void onError(final String utteranceId) {
+                                isSpeaking = false;
                                 runOnUiThread(new Runnable() {
                                     @Override
                                     public void run() {
@@ -1196,6 +1220,53 @@ public class AssistantActivity extends AppCompatActivity {
             dialIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(dialIntent);
         }
+    }
+
+    /**
+     * Step 13: Voice-Controlled Incoming Call Answering using TelecomManager.
+     */
+    public void answerIncomingCall() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            TelecomManager tm = (TelecomManager) getSystemService(Context.TELECOM_SERVICE);
+            if (tm != null && ContextCompat.checkSelfPermission(this, Manifest.permission.ANSWER_PHONE_CALLS) == PackageManager.PERMISSION_GRANTED) {
+                try {
+                    tm.acceptRingingCall();
+                    showDynamicPill("Call Answered", android.R.drawable.stat_sys_phone_call);
+                    showResponse("Call receive kar liya gaya hai.", true);
+                    setOrbState("IDLE");
+                    return;
+                } catch (Exception e) {
+                    Log.e(TAG, "Error accepting ringing call: " + e.getMessage(), e);
+                }
+            } else if (ContextCompat.checkSelfPermission(this, Manifest.permission.ANSWER_PHONE_CALLS) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ANSWER_PHONE_CALLS}, 105);
+                showDynamicPill("Permission Needed", android.R.drawable.ic_dialog_alert);
+                showResponse("Call receive karne ke liye call answer permission chahiye.", true);
+                setOrbState("IDLE");
+                return;
+            }
+        }
+
+        // Fallback for devices prior to Android 8.0 or headset media button simulation
+        try {
+            AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+            if (am != null) {
+                KeyEvent downEvent = new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_HEADSETHOOK);
+                KeyEvent upEvent = new KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_HEADSETHOOK);
+                am.dispatchMediaKeyEvent(downEvent);
+                am.dispatchMediaKeyEvent(upEvent);
+                showDynamicPill("Call Answered", android.R.drawable.stat_sys_phone_call);
+                showResponse("Call receive kar liya gaya hai.", true);
+                setOrbState("IDLE");
+                return;
+            }
+        } catch (Exception ex) {
+            Log.e(TAG, "Fallback call answering failed: " + ex.getMessage(), ex);
+        }
+
+        showDynamicPill("Call Action", android.R.drawable.ic_menu_call);
+        showResponse("Koi ringing call nahi mila ya call answer nahi ho paya.", true);
+        setOrbState("IDLE");
     }
 
     /**

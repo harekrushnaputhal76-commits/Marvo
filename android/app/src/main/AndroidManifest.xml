@@ -18,6 +18,13 @@
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.READ_CALENDAR" />
     <uses-permission android:name="android.permission.READ_SMS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <uses-permission android:name="android.permission.ANSWER_PHONE_CALLS" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Android 11+ (API 30+) Package Visibility Queries -->
     <queries>
@@ -57,7 +64,11 @@
             android:taskAffinity=""
             android:launchMode="singleInstance"
             android:excludeFromRecents="true"
-            android:noHistory="false">
+            android:noHistory="false"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:showForAllUsers="true"
+            android:inheritShowWhenLocked="true">
             <intent-filter>
                 <action android:name="android.intent.action.ASSIST" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -67,6 +78,12 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
+
+        <!-- Step 13: Ultra-Low-Power Wake Word Listener Foreground Service -->
+        <service
+            android:name=".WakeWordService"
+            android:foregroundServiceType="microphone"
+            android:exported="false" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

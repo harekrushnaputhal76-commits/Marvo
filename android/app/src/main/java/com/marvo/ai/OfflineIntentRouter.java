@@ -1126,6 +1126,16 @@ public class OfflineIntentRouter {
      * Resolves aliases ("Papa", "Maa", "Jatin") and initiates offline calls instantly.
      */
     private boolean handleCalling(String command, String lower) {
+        // Step 13: Voice-Controlled Incoming Call Answering
+        if (lower.equals("answer call") || lower.equals("receive call") || lower.equals("pick up") ||
+            lower.equals("pick up call") || lower.equals("call uthao") || lower.equals("phone uthao") ||
+            lower.contains("call answer karo") || lower.contains("call receive karo") ||
+            lower.contains("phone receive karo") || lower.contains("call utha lo") || lower.contains("phone utha lo") ||
+            lower.contains("call pick karo") || lower.contains("call uthao")) {
+            activity.answerIncomingCall();
+            return true;
+        }
+
         if (lower.startsWith("call ") || lower.equals("call") ||
             lower.startsWith("phone ") || lower.startsWith("dial ") ||
             lower.contains("ko call") || lower.contains("call lagao") ||
@@ -2562,7 +2572,9 @@ public class OfflineIntentRouter {
 
         // Calling / Phone
         if (s.startsWith("call ") || s.startsWith("phone ") || s.startsWith("dial ") ||
-            s.contains("ko call karo") || s.contains("ko phone lagao") || s.contains("ko call lagao")) return true;
+            s.contains("ko call karo") || s.contains("ko phone lagao") || s.contains("ko call lagao") ||
+            s.contains("answer call") || s.contains("receive call") || s.contains("call uthao") ||
+            s.contains("phone uthao") || s.contains("pick up") || s.contains("call answer")) return true;
 
         // App Launching
         if (s.startsWith("open ") || s.startsWith("launch ") || s.startsWith("kholo ") ||
