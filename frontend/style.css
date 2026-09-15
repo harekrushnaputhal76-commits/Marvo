@@ -296,7 +296,8 @@ body.chat-active .face{
   transform:translate3d(var(--gyro-x, 0px), var(--gyro-y, 0px), 0px) rotateX(var(--gyro-rot-x, 0deg)) rotateY(var(--gyro-rot-y, 0deg));
   transform-style:preserve-3d;
   will-change:transform;
-  transition:transform .12s cubic-bezier(0.16, 1, 0.3, 1);
+  transition:transform .12s cubic-bezier(0.16, 1, 0.3, 1),filter .2s ease;
+  filter:drop-shadow(calc(var(--gyro-x, 0px) * .7) calc(10px + var(--gyro-y, 0px) * .5) 18px rgba(0,0,0,.42));
 }
 
 .eye-ambient-glow{
@@ -332,7 +333,8 @@ body.chat-active .face{
     0 0 24px var(--eye-glow),
     0 0 48px var(--accent-glow-subtle),
     inset 0 0 24px var(--eye-glow),
-    inset 0 0 44px rgba(0,30,70,.35);
+    inset 0 0 44px rgba(0,30,70,.35),
+    inset var(--gyro-shadow-x, 0px) var(--gyro-shadow-y, 0px) 18px rgba(255,255,255,.16);
   overflow:hidden;
   cursor:pointer;
   will-change:transform,box-shadow;

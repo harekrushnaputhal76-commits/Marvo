@@ -3802,6 +3802,70 @@ function initInteractiveEyes() {
   });
 }
 
+function initDeviceTilt() {
+  if (window.__marvoDeviceTiltInitialized || !DOM.face) return;
+  if (!('DeviceOrientationEvent' in window)) return;
+  window.__marvoDeviceTiltInitialized = true;
+
+  let targetPitch = 0;
+  let targetRoll = 0;
+  let pitch = 0;
+  let roll = 0;
+  let frameId = null;
+  let listening = false;
+  let boundaryState = '';
+
+  const applyTilt = () => {
+    frameId = null;
+    pitch += (targetPitch - pitch) * 0.12;
+    roll += (targetRoll - roll) * 0.12;
+    const root = document.documentElement;
+    root.style.setProperty('--gyro-rot-x', `${(-pitch * 0.28).toFixed(2)}deg`);
+    root.style.setProperty('--gyro-rot-y', `${(roll * 0.28).toFixed(2)}deg`);
+    root.style.setProperty('--gyro-x', `${(roll * 0.12).toFixed(2)}px`);
+    root.style.setProperty('--gyro-y', `${(pitch * 0.12).toFixed(2)}px`);
+    root.style.setProperty('--gyro-light-x', `${(50 + roll * 1.2).toFixed(1)}%`);
+    root.style.setProperty('--gyro-light-y', `${(35 + pitch * 1.2).toFixed(1)}%`);
+    root.style.setProperty('--gyro-shadow-x', `${(roll * 0.08).toFixed(2)}px`);
+    root.style.setProperty('--gyro-shadow-y', `${(pitch * 0.08).toFixed(2)}px`);
+    if (Math.abs(targetPitch - pitch) > 0.05 || Math.abs(targetRoll - roll) > 0.05) {
+      frameId = requestAnimationFrame(applyTilt);
+    }
+  };
+
+  const onOrientation = (event) => {
+    targetPitch = Math.max(-30, Math.min(30, Number(event.beta) || 0));
+    targetRoll = Math.max(-30, Math.min(30, Number(event.gamma) || 0));
+    const nextBoundary = Math.abs(targetPitch) > 28 || Math.abs(targetRoll) > 28
+      ? `${Math.sign(targetPitch)}:${Math.sign(targetRoll)}` : '';
+    if (nextBoundary && nextBoundary !== boundaryState && typeof navigator.vibrate === 'function') {
+      navigator.vibrate(8);
+    }
+    boundaryState = nextBoundary;
+    if (!frameId) frameId = requestAnimationFrame(applyTilt);
+  };
+
+  const stop = () => {
+    if (!listening) return;
+    window.removeEventListener('deviceorientation', onOrientation);
+    listening = false;
+    targetPitch = 0;
+    targetRoll = 0;
+    if (!frameId) frameId = requestAnimationFrame(applyTilt);
+  };
+  const start = () => {
+    if (listening || document.hidden) return;
+    window.addEventListener('deviceorientation', onOrientation, { passive: true });
+    listening = true;
+  };
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) stop();
+    else start();
+  }, { passive: true });
+  start();
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    CUSTOMIZATION SETTINGS (Eye Color Swatches & Expression Playground)
    ═══════════════════════════════════════════════════════════════════ */
@@ -4187,6 +4251,7 @@ async function initApp() {
   await renderDownloadsHistory();
   setupQuickNoteListeners();
   initInteractiveEyes();
+  initDeviceTilt();
   await initVoiceSelection();
   initDownloadCardControls();
   // Step 31: Super Student Mode (CHSE Odisha 12th Science) initialization

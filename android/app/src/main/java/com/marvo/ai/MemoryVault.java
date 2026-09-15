@@ -2,6 +2,7 @@ package com.marvo.ai;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.os.Environment;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -172,9 +173,50 @@ public class MemoryVault {
 
     public static File getModelsDir(Context context) {
         if (context == null) return null;
-        File dir = new File(context.getFilesDir(), "models");
-        if (!dir.exists()) dir.mkdirs();
+        File documents = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
+        File dir = new File(documents, "Marvo_Models");
+        if (!dir.exists() && !dir.mkdirs() && !dir.exists()) {
+            return null;
+        }
+
+        // Move models downloaded by older builds into the uninstall-resistant public location.
+        File legacyDir = new File(context.getFilesDir(), "models");
+        if (legacyDir.isDirectory()) {
+            File[] legacyFiles = legacyDir.listFiles();
+            if (legacyFiles != null) {
+                for (File legacyFile : legacyFiles) {
+                    if (!legacyFile.isFile()) continue;
+                    File migratedFile = new File(dir, legacyFile.getName());
+                    if (migratedFile.exists()) continue;
+                    try {
+                        if (!legacyFile.renameTo(migratedFile)) {
+                            copyFile(legacyFile, migratedFile);
+                            if (!legacyFile.delete()) {
+                                android.util.Log.w("MarvoStorage", "Could not remove migrated file: " + legacyFile.getName());
+                            }
+                        }
+                    } catch (Exception e) {
+                        android.util.Log.w("MarvoStorage", "Model migration failed: " + legacyFile.getName(), e);
+                    }
+                }
+            }
+        }
         return dir;
+    }
+
+    private static void copyFile(File source, File target) throws Exception {
+        FileInputStream input = new FileInputStream(source);
+        FileOutputStream output = new FileOutputStream(target);
+        try {
+            byte[] buffer = new byte[1024 * 1024];
+            int count;
+            while ((count = input.read(buffer)) != -1) {
+                output.write(buffer, 0, count);
+            }
+            output.getFD().sync();
+        } finally {
+            try { input.close(); } finally { output.close(); }
+        }
     }
 
     public static File getMemoryDir(Context context) {
