@@ -638,6 +638,18 @@ const AI_CONTROL_REGISTRY = [
           const mathBtn = $('#btnOcrMathSolve');
           if (mathBtn) mathBtn.style.display = val ? 'flex' : 'none';
         }
+      },
+      {
+        key: "marvo.vision.gyro_parallax",
+        label: "Gyroscope Parallax Effect",
+        desc: "Tilt phone to view holographic 3D eye depth perspective via HTML5 DeviceOrientation",
+        default: true,
+        onChange: (val) => {
+          if (typeof GyroParallaxManager !== 'undefined') {
+            if (val) GyroParallaxManager.start();
+            else GyroParallaxManager.stop();
+          }
+        }
       }
     ]
   },
@@ -665,6 +677,18 @@ const AI_CONTROL_REGISTRY = [
         label: "One-Breath TTS Mode",
         desc: "Only narrate the essential core answer (<coreResponse>) and skip lengthy markdown tables or lists in speech",
         default: true
+      },
+      {
+        key: "marvo.voice.smart_interrupt",
+        label: "Smart Speech Interrupt",
+        desc: "Immediately halt active TTS playback when user starts speaking a new command",
+        default: true
+      },
+      {
+        key: "marvo.voice.whisper_mode",
+        label: "Whisper Mode",
+        desc: "Detect quiet user speech and respond in a gentle, lowered volume hushed tone",
+        default: true
       }
     ]
   },
@@ -686,6 +710,12 @@ const AI_CONTROL_REGISTRY = [
             container.classList.add('hidden');
           }
         }
+      },
+      {
+        key: "marvo.math.katex_enabled",
+        label: "Beautiful Math Rendering",
+        desc: "Render textbook-quality LaTeX formulas ($$..$$ and $..$) using KaTeX engine",
+        default: true
       },
       {
         key: "marvo.chess.enabled",
@@ -1664,16 +1694,27 @@ function stripAppleXmlTags(text) {
 /* ═══════════════════════════════════════════════════════════════════
    SPEECH & AUDIO
    ═══════════════════════════════════════════════════════════════════ */
-async function playSpeech(text, btnElement = null) {
+let isWhisperDetected = false;
+
+function stopSpeech() {
   if (currentAudio) {
     try {
       currentAudio.pause();
       currentAudio.currentTime = 0;
     } catch {}
     currentAudio = null;
-    document.querySelectorAll('.playing-tts').forEach(el => el.classList.remove('playing-tts'));
-    DOM.face?.classList.remove('speaking-mode');
-    setEyeExpression('state-idle');
+  }
+  if ('speechSynthesis' in window && window.speechSynthesis.speaking) {
+    try { window.speechSynthesis.cancel(); } catch {}
+  }
+  document.querySelectorAll('.playing-tts').forEach(el => el.classList.remove('playing-tts'));
+  DOM.face?.classList.remove('speaking-mode');
+  setEyeExpression('state-idle');
+}
+
+async function playSpeech(text, btnElement = null) {
+  if (currentAudio) {
+    stopSpeech();
     return;
   }
 
@@ -1684,6 +1725,15 @@ async function playSpeech(text, btnElement = null) {
 
   const cleanText = stripAppleXmlTags(text).replace(/[*_~`#]/g, '').trim();
   if (!cleanText) return;
+
+  // Step 32: Whisper Mode Volume / Pitch adjustment
+  const isWhisperMode = ((await NativeStorage.get('marvo.voice.whisper_mode')) !== 'false') && isWhisperDetected;
+  const targetVolume = isWhisperMode ? 0.35 : 1.0;
+  const targetPitch  = isWhisperMode ? 0.85 : 1.0;
+  if (isWhisperMode) {
+    showToast('🤫 Responding in Whisper Mode');
+    isWhisperDetected = false;
+  }
 
   if (btnElement) btnElement.classList.add('playing-tts');
   setEyeExpression('state-speaking');
@@ -1697,6 +1747,9 @@ async function playSpeech(text, btnElement = null) {
         text: cleanText,
         voice_id: currentVoice,
         session_id: currentSessionId,
+        whisper: isWhisperMode,
+        volume: targetVolume,
+        pitch: targetPitch
       }),
     });
 
@@ -1705,6 +1758,7 @@ async function playSpeech(text, btnElement = null) {
 
     if (data && data.audio_base64) {
       const audio = new Audio("data:audio/mp3;base64," + data.audio_base64);
+      audio.volume = targetVolume;
       currentAudio = audio;
 
       audio.onended = () => {
@@ -1721,15 +1775,15 @@ async function playSpeech(text, btnElement = null) {
       };
       await audio.play();
     } else {
-      fallbackWebSpeech(cleanText, btnElement);
+      fallbackWebSpeech(cleanText, btnElement, targetVolume, targetPitch);
     }
   } catch (err) {
     console.warn('[Marvo] Backend TTS failed, fallback:', err);
-    fallbackWebSpeech(cleanText, btnElement);
+    fallbackWebSpeech(cleanText, btnElement, targetVolume, targetPitch);
   }
 }
 
-function fallbackWebSpeech(text, btnElement) {
+function fallbackWebSpeech(text, btnElement, volume = 1.0, pitch = 1.0) {
   if (!('speechSynthesis' in window)) {
     if (btnElement) btnElement.classList.remove('playing-tts');
     DOM.face.classList.remove('speaking-mode');
@@ -1738,6 +1792,8 @@ function fallbackWebSpeech(text, btnElement) {
   }
   window.speechSynthesis.cancel();
   const utter = new SpeechSynthesisUtterance(text);
+  utter.volume = volume;
+  utter.pitch = pitch;
   utter.onend = () => {
     if (btnElement) btnElement.classList.remove('playing-tts');
     DOM.face.classList.remove('speaking-mode');
@@ -2258,6 +2314,96 @@ async function displaySmartReplyChips(aiText, userPrompt = '') {
   }
 }
 
+// Step 32: KaTeX Mathematical & Textbook Science Typography Renderer
+function renderFormattedAiResponse(rawText) {
+  if (!rawText || typeof rawText !== 'string') return '';
+
+  const mathEnabled = localStorage.getItem('marvo.math.katex_enabled') !== 'false';
+  if (!mathEnabled) {
+    return escapeHtml(rawText).replace(/\n/g, '<br>');
+  }
+
+  let text = rawText;
+  const codeBlocks = [];
+  const mathBlocks = [];
+  const mathInlines = [];
+
+  // 1. Stash fenced code blocks (```lang ... ```)
+  text = text.replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g, (match, lang, code) => {
+    const idx = codeBlocks.length;
+    codeBlocks.push(`<pre><code class="language-${lang || 'plaintext'}">${escapeHtml(code.trim())}</code></pre>`);
+    return `%%CODEBLOCK_${idx}%%`;
+  });
+
+  // 2. Stash inline code (`code`)
+  text = text.replace(/`([^`\n]+)`/g, (match, code) => {
+    const idx = codeBlocks.length;
+    codeBlocks.push(`<code>${escapeHtml(code)}</code>`);
+    return `%%CODEBLOCK_${idx}%%`;
+  });
+
+  // 3. Stash block LaTeX: $$...$$ or \[...\]
+  text = text.replace(/(?:\$\$([\s\S]*?)\$\$|\\\[([\s\S]*?)\\\])/g, (match, tex1, tex2) => {
+    const tex = (tex1 || tex2 || '').trim();
+    const idx = mathBlocks.length;
+    let rendered = '';
+    if (window.katex && typeof window.katex.renderToString === 'function') {
+      try {
+        rendered = window.katex.renderToString(tex, { displayMode: true, throwOnError: false });
+      } catch (err) {
+        rendered = `<div class="math-fallback-block">$$${escapeHtml(tex)}$$</div>`;
+      }
+    } else {
+      rendered = `<div class="math-fallback-block">$$${escapeHtml(tex)}$$</div>`;
+    }
+    mathBlocks.push(rendered);
+    return `\n%%MATHBLOCK_${idx}%%\n`;
+  });
+
+  // 4. Stash inline LaTeX: $...$ or \(...\)
+  text = text.replace(/(?:\$([^\$\n\r]+?)\$|\\\(([\s\S]*?)\\\))/g, (match, tex1, tex2) => {
+    const tex = (tex1 || tex2 || '').trim();
+    // Exclude plain currency amounts like $50, $10.99
+    if (!tex || /^\d+(?:[.,]\d+)?$/.test(tex)) {
+      return match;
+    }
+    const idx = mathInlines.length;
+    let rendered = '';
+    if (window.katex && typeof window.katex.renderToString === 'function') {
+      try {
+        rendered = window.katex.renderToString(tex, { displayMode: false, throwOnError: false });
+      } catch (err) {
+        rendered = `<span class="math-fallback-inline">$${escapeHtml(tex)}$</span>`;
+      }
+    } else {
+      rendered = `<span class="math-fallback-inline">$${escapeHtml(tex)}$</span>`;
+    }
+    mathInlines.push(rendered);
+    return `%%MATHINLINE_${idx}%%`;
+  });
+
+  // 5. Escape HTML in surrounding text to prevent XSS
+  text = escapeHtml(text);
+
+  // 6. Safe Markdown Typography
+  text = text.replace(/^###\s+(.+)$/gm, '<h4>$1</h4>');
+  text = text.replace(/^##\s+(.+)$/gm, '<h3>$1</h3>');
+  text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  text = text.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+  text = text.replace(/^\s*[-*]\s+(.+)$/gm, '<li>$1</li>');
+  text = text.replace(/\n\n+/g, '<br><br>');
+  text = text.replace(/\n/g, '<br>');
+
+  // 7. Unpack math placeholders
+  text = text.replace(/%%MATHBLOCK_(\d+)%%/g, (match, idx) => mathBlocks[parseInt(idx, 10)] || '');
+  text = text.replace(/%%MATHINLINE_(\d+)%%/g, (match, idx) => mathInlines[parseInt(idx, 10)] || '');
+
+  // 8. Unpack code blocks
+  text = text.replace(/%%CODEBLOCK_(\d+)%%/g, (match, idx) => codeBlocks[parseInt(idx, 10)] || '');
+
+  return text;
+}
+
 function addMessage(text, sender, attachments = []) {
   if (sender === 'user') {
     const el = document.createElement('div');
@@ -2317,7 +2463,8 @@ function addMessage(text, sender, attachments = []) {
 
   const bubble = document.createElement('div');
   bubble.className = 'msg msg-ai';
-  bubble.textContent = sanitizedText;
+  // Step 32: Textbook Science KaTeX Math & Markdown Rendering
+  bubble.innerHTML = renderFormattedAiResponse(sanitizedText);
   wrapper.appendChild(bubble);
 
   const actionBar = document.createElement('div');
@@ -2736,10 +2883,38 @@ let micStream = null;
 let analyser = null;
 let visualizerAnimId = null;
 
-function initAudioVisualizer() {
+let micRmsSum = 0;
+let micRmsCount = 0;
+
+async function initAudioVisualizer() {
   const canvas = DOM.voiceWaveCanvas;
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
+
+  micRmsSum = 0;
+  micRmsCount = 0;
+
+  try {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') {
+      await audioCtx.resume();
+    }
+    if (!micStream && navigator.mediaDevices?.getUserMedia) {
+      micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    }
+    if (micStream && !analyser) {
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      const source = audioCtx.createMediaStreamSource(micStream);
+      source.connect(analyser);
+    }
+  } catch (audioErr) {
+    console.warn('[Visualizer] AudioContext mic stream error:', audioErr);
+  }
+
+  const dataArray = analyser ? new Uint8Array(analyser.frequencyBinCount) : null;
 
   function renderWave() {
     if (!isVoiceRecording) return;
@@ -2750,12 +2925,26 @@ function initAudioVisualizer() {
     const height = canvas.height;
     const time = Date.now() * 0.005;
 
+    let dynamicAmp = 14;
+    if (analyser && dataArray) {
+      analyser.getByteTimeDomainData(dataArray);
+      let sumSquares = 0;
+      for (let i = 0; i < dataArray.length; i++) {
+        const norm = (dataArray[i] - 128) / 128;
+        sumSquares += norm * norm;
+      }
+      const rms = Math.sqrt(sumSquares / dataArray.length);
+      micRmsSum += rms;
+      micRmsCount++;
+      dynamicAmp = Math.max(4, Math.min(32, rms * 80));
+    }
+
     ctx.lineWidth = 2;
     ctx.strokeStyle = '#00f0ff';
     ctx.beginPath();
 
     const freq = isVoicePaused ? 0.01 : 0.05;
-    const amp = isVoicePaused ? 2 : 14;
+    const amp = isVoicePaused ? 2 : dynamicAmp;
 
     for (let x = 0; x < width; x += 3) {
       const y = height / 2 + Math.sin(x * freq + time) * amp * Math.sin(x / width * Math.PI);
@@ -2768,19 +2957,8 @@ function initAudioVisualizer() {
 }
 
 function openVoiceDock() {
-  // Step 29: Stop any active TTS audio so speaking and listening never overlap
-  if (currentAudio) {
-    try {
-      currentAudio.pause();
-      currentAudio.currentTime = 0;
-    } catch {}
-    currentAudio = null;
-  }
-  if ('speechSynthesis' in window) {
-    try { window.speechSynthesis.cancel(); } catch {}
-  }
-  document.querySelectorAll('.playing-tts').forEach(el => el.classList.remove('playing-tts'));
-  DOM.face?.classList.remove('speaking-mode');
+  // Step 29 & 32: Stop any active TTS audio immediately
+  stopSpeech();
 
   isVoiceRecording = true;
   isVoicePaused = false;
@@ -2823,6 +3001,12 @@ function closeVoiceDock() {
   if (speechRecognizer) {
     try { speechRecognizer.stop(); } catch {}
   }
+  // Clean up mic audio stream to prevent battery drain
+  if (micStream) {
+    try { micStream.getTracks().forEach(t => t.stop()); } catch {}
+    micStream = null;
+    analyser = null;
+  }
   if (!isBusy) setEyeExpression('state-idle');
 }
 
@@ -2858,6 +3042,18 @@ function submitVoiceRecording() {
     clearTimeout(speechSilenceTimer);
     speechSilenceTimer = null;
   }
+
+  // Step 32: Detect whisper if average speech volume was very quiet (< 0.04 RMS)
+  if (micRmsCount > 10) {
+    const avgRms = micRmsSum / micRmsCount;
+    if (avgRms > 0.005 && avgRms < 0.040) {
+      isWhisperDetected = true;
+      console.log('[WhisperMode] Quiet speech detected, avg RMS:', avgRms.toFixed(4));
+    } else {
+      isWhisperDetected = false;
+    }
+  }
+
   const textToSend = currentVoiceTranscript.trim();
   closeVoiceDock();
   if (textToSend) {
@@ -2883,7 +3079,26 @@ function startSpeechRecognition() {
     speechRecognizer.interimResults = true;
     speechRecognizer.lang = 'en-US';
 
+    // Step 32: Smart Voice Interrupt on Speech Onset
+    speechRecognizer.onspeechstart = async () => {
+      const interruptEnabled = (await NativeStorage.get('marvo.voice.smart_interrupt')) !== 'false';
+      if (interruptEnabled && (currentAudio || ('speechSynthesis' in window && window.speechSynthesis.speaking))) {
+        console.log('[SmartInterrupt] Interrupting TTS on speech start');
+        stopSpeech();
+        setEyeExpression('state-listening');
+      }
+    };
+
     speechRecognizer.onresult = (e) => {
+      // Step 32: Smart Voice Interrupt on incoming results
+      NativeStorage.get('marvo.voice.smart_interrupt').then(val => {
+        if (val !== 'false' && (currentAudio || ('speechSynthesis' in window && window.speechSynthesis.speaking))) {
+          console.log('[SmartInterrupt] Interrupting TTS on speech result');
+          stopSpeech();
+          setEyeExpression('state-listening');
+        }
+      });
+
       let interim = '';
       for (let i = e.resultIndex; i < e.results.length; ++i) {
         if (e.results[i].isFinal) {

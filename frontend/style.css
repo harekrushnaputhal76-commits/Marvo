@@ -279,23 +279,29 @@ body.theme-light .topbar-title{
   position:relative;z-index:10;
   display:flex;align-items:center;justify-content:center;
   padding:32px 0 18px 0;
+  perspective:900px;
+  transform-style:preserve-3d;
   transition:transform .4s cubic-bezier(0.16, 1, 0.3, 1),padding .4s;
 }
 body.chat-active .avatar-zone{
   padding:10px 0 4px 0;
 }
 body.chat-active .face{
-  transform:scale(0.68);
+  transform:scale(0.68) translate3d(var(--gyro-x, 0px), var(--gyro-y, 0px), 0px) rotateX(var(--gyro-rot-x, 0deg)) rotateY(var(--gyro-rot-y, 0deg));
 }
 
 .face{
   position:relative;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
-  transition:transform .4s cubic-bezier(0.16, 1, 0.3, 1);
+  transform:translate3d(var(--gyro-x, 0px), var(--gyro-y, 0px), 0px) rotateX(var(--gyro-rot-x, 0deg)) rotateY(var(--gyro-rot-y, 0deg));
+  transform-style:preserve-3d;
+  will-change:transform;
+  transition:transform .12s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .eye-ambient-glow{
-  position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);
+  position:absolute;top:40%;left:50%;
+  transform:translate(-50%,-50%) translate3d(calc(var(--gyro-x, 0px) * -0.6), calc(var(--gyro-y, 0px) * -0.6), 0px);
   width:280px;height:120px;border-radius:50%;
   background:radial-gradient(ellipse, rgba(0,240,255,0.12) 0%, rgba(0,114,255,0.04) 50%, transparent 80%);
   filter:blur(32px);pointer-events:none;z-index:0;
@@ -4228,4 +4234,97 @@ body.page-paused * {
   opacity: 0.7;
   color: var(--accent);
   flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   STEP 32: KATEX MATHEMATICAL & TEXTBOOK SCIENCE TYPOGRAPHY
+   ═══════════════════════════════════════════════════════════════════ */
+.msg-ai .katex-display {
+  margin: 12px 0 !important;
+  padding: 10px 14px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(0, 240, 255, 0.2);
+  border-radius: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 240, 255, 0.35) transparent;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) inset;
+}
+
+.msg-ai .katex-display::-webkit-scrollbar {
+  height: 4px;
+}
+
+.msg-ai .katex-display::-webkit-scrollbar-thumb {
+  background: rgba(0, 240, 255, 0.35);
+  border-radius: 2px;
+}
+
+.msg-ai .katex {
+  font-size: 1.06em;
+  color: #f0f4fc;
+}
+
+.msg-ai .math-fallback-block {
+  margin: 10px 0;
+  padding: 10px 14px;
+  background: rgba(0, 0, 0, 0.4);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  font-family: "Cambria Math", "Latin Modern Math", "KaTeX_Main", serif;
+  font-size: 1.05em;
+  color: #00f0ff;
+  overflow-x: auto;
+  letter-spacing: 0.02em;
+}
+
+.msg-ai .math-fallback-inline {
+  font-family: "Cambria Math", "Latin Modern Math", "KaTeX_Main", serif;
+  color: #00f0ff;
+  padding: 0 3px;
+  font-weight: 500;
+}
+
+.msg-ai pre {
+  margin: 10px 0;
+  padding: 12px 14px;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  overflow-x: auto;
+  font-family: 'Consolas', 'Fira Code', monospace;
+  font-size: 12px;
+  color: #8be9fd;
+}
+
+.msg-ai code:not(pre code) {
+  padding: 2px 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 0.9em;
+  color: var(--accent);
+}
+
+.msg-ai ul, .msg-ai ol {
+  margin: 8px 0 8px 20px;
+  padding: 0;
+}
+
+.msg-ai li {
+  margin-bottom: 4px;
+  line-height: 1.45;
+}
+
+.msg-ai strong {
+  color: #fff;
+  font-weight: 600;
+}
+
+.msg-ai h3, .msg-ai h4 {
+  margin: 12px 0 6px 0;
+  color: var(--accent);
+  font-weight: 700;
 }
