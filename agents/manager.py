@@ -118,12 +118,14 @@ def handle_request(
     mode: str = None,
     session_id: str = "default",
     local_time: str = None,
-    agent: str = None
+    agent: str = None,
+    image_base64: str = None
 ) -> Dict[str, Any]:
     """
     Master entry point for processing incoming messages.
     Inspects user intent and routes to the appropriate specialized agent.
     Accepts mode ('Fast', 'Thinking', 'Pro') and passes to image_agent.
+    Supports multimodal image frames from Live Vision mode.
     """
     clean_message = (message or "").strip()
     agent_key = (agent or "").strip().lower()
@@ -170,6 +172,7 @@ def handle_request(
     chat_result = generate_chat_response(
         prompt=prompt_for_chat,
         thinking_mode=effective_mode.lower(),
-        session_id=session_id
+        session_id=session_id,
+        image_base64=image_base64
     )
     return chat_result

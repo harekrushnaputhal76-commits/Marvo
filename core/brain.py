@@ -197,15 +197,28 @@ def offline_fallback_response(query: str) -> tuple[str, str]:
 def think_and_respond(
     user_message: str,
     thinking_mode: str = "medium",
-    session_id: str = "default"
+    session_id: str = "default",
+    image_base64: str = None
 ) -> tuple[str, str]:
     """
     Process a user message and return (response_text, animation_state).
     Uses a multi-model failover cascade so quota exhaustion on one model
     automatically falls through to available models before going offline.
+    Supports multimodal inputs (Text + Live Vision image frames).
     """
     if not user_message or not user_message.strip():
         return ("I didn't catch that. Could you say something?", "state-idle")
+
+    raw_image_data = None
+    if image_base64:
+        try:
+            import base64
+            clean_b64 = image_base64
+            if "," in clean_b64:
+                clean_b64 = clean_b64.split(",", 1)[1]
+            raw_image_data = base64.b64decode(clean_b64)
+        except Exception as _b64_err:
+            _logger.warning(f"Failed decoding image_base64: {_b64_err}")
 
     # Try each model in the cascade
     for model_name in MODELS:
@@ -214,7 +227,12 @@ def think_and_respond(
             continue
 
         try:
-            response = chat.send_message(user_message.strip())
+            if raw_image_data:
+                part_img = types.Part.from_bytes(data=raw_image_data, mime_type="image/jpeg")
+                part_txt = types.Part.from_text(text=user_message.strip())
+                response = chat.send_message([part_img, part_txt])
+            else:
+                response = chat.send_message(user_message.strip())
             reply_text = response.text.strip() if response and response.text else ""
 
             if reply_text:

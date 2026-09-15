@@ -21,10 +21,12 @@ except Exception as err:
 def generate_chat_response(
     prompt: str,
     thinking_mode: str = "medium",
-    session_id: str = "default"
+    session_id: str = "default",
+    image_base64: str = None
 ) -> Dict[str, Any]:
     """
     Executes reasoning and text generation for user queries.
+    Supports multimodal image inputs from Live Vision mode.
     Returns:
         dict: {
             "type": "text",
@@ -37,7 +39,8 @@ def generate_chat_response(
         response_text, state = think_and_respond(
             prompt,
             thinking_mode=thinking_mode,
-            session_id=session_id
+            session_id=session_id,
+            image_base64=image_base64
         )
         return {
             "type": "text",

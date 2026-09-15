@@ -219,6 +219,593 @@ const NativeStorage = {
   }
 };
 
+/* ═══════════════════════════════════════════════════════════════════
+   STEP 30: LONG-TERM PERSONAL MEMORY SERVICE (marvo_memory.json)
+   ═══════════════════════════════════════════════════════════════════ */
+const MemoryManager = {
+  STORAGE_KEY: 'marvo_memory.json',
+  TOGGLE_KEY: 'marvo.memory.enabled',
+
+  async isEnabled() {
+    const val = await NativeStorage.get(this.TOGGLE_KEY);
+    return val === null || val === undefined || val === 'true' || val === true;
+  },
+
+  async setEnabled(enabled) {
+    await NativeStorage.set(this.TOGGLE_KEY, String(enabled));
+    if (window.Capacitor?.Plugins?.MarvoNativeBridge?.setMemoryEnabled) {
+      try {
+        await window.Capacitor.Plugins.MarvoNativeBridge.setMemoryEnabled({ enabled });
+      } catch (e) {
+        console.warn('[MemoryManager] Native bridge set error:', e);
+      }
+    }
+  },
+
+  async getMemoryStore() {
+    if (window.Capacitor?.Plugins?.MarvoNativeBridge?.getMemoryFacts) {
+      try {
+        const res = await window.Capacitor.Plugins.MarvoNativeBridge.getMemoryFacts();
+        if (res && Array.isArray(res.facts)) {
+          return {
+            version: 1,
+            updated_at: new Date().toISOString(),
+            facts: res.facts
+          };
+        }
+      } catch (e) {
+        console.warn('[MemoryManager] Native bridge get error:', e);
+      }
+    }
+    const store = await NativeStorage.getJSON(this.STORAGE_KEY, null);
+    if (store && Array.isArray(store.facts)) return store;
+    return {
+      version: 1,
+      updated_at: new Date().toISOString(),
+      facts: []
+    };
+  },
+
+  async getAllFacts() {
+    const store = await this.getMemoryStore();
+    return store.facts || [];
+  },
+
+  async saveFact(factText, category = 'personal') {
+    if (!factText || !factText.trim()) return false;
+    const cleanFact = factText.trim();
+    const enabled = await this.isEnabled();
+    if (!enabled) return false;
+
+    if (window.Capacitor?.Plugins?.MarvoNativeBridge?.saveMemoryFact) {
+      try {
+        await window.Capacitor.Plugins.MarvoNativeBridge.saveMemoryFact({ fact: cleanFact, category });
+      } catch (e) {
+        console.warn('[MemoryManager] Native save error:', e);
+      }
+    }
+
+    const store = await this.getMemoryStore();
+    const lower = cleanFact.toLowerCase();
+    const exists = store.facts.some(f => (f.fact || '').toLowerCase() === lower);
+    if (exists) return true;
+
+    store.facts.push({
+      id: `mem_${Date.now()}_${store.facts.length + 1}`,
+      fact: cleanFact,
+      category,
+      timestamp: Date.now()
+    });
+    store.updated_at = new Date().toISOString();
+    await NativeStorage.setJSON(this.STORAGE_KEY, store);
+    console.info('[MemoryManager] Permanent fact saved:', cleanFact);
+    return true;
+  },
+
+  async deleteFact(id) {
+    if (window.Capacitor?.Plugins?.MarvoNativeBridge?.deleteMemoryFact) {
+      try {
+        await window.Capacitor.Plugins.MarvoNativeBridge.deleteMemoryFact({ id });
+      } catch (e) {}
+    }
+    const store = await this.getMemoryStore();
+    store.facts = store.facts.filter(f => f.id !== id);
+    store.updated_at = new Date().toISOString();
+    await NativeStorage.setJSON(this.STORAGE_KEY, store);
+    return true;
+  },
+
+  async clearAll() {
+    if (window.Capacitor?.Plugins?.MarvoNativeBridge?.clearAllMemory) {
+      try {
+        await window.Capacitor.Plugins.MarvoNativeBridge.clearAllMemory();
+      } catch (e) {}
+    }
+    await NativeStorage.setJSON(this.STORAGE_KEY, { version: 1, updated_at: new Date().toISOString(), facts: [] });
+  },
+
+  async extractAndSaveFacts(userText) {
+    if (!userText || !(await this.isEnabled())) return;
+    const clean = userText.trim();
+
+    const patterns = [
+      /^(?:please\s+)?(?:always\s+)?remember\s+(?:that\s+|this\s*:?\s*)?(.+)$/i,
+      /^(?:note\s+that|keep\s+in\s+mind\s+that)\s+(.+)$/i,
+      /^(?:yaad\s+rakhna|dhyaan\s+rakhna)\s+(?:ki\s+)?(.+)$/i,
+      /^(?:my\s+(?:favorite|favourite|best|dog|cat|car|job|city|friend|brother|sister)\s+[^is]+is\s+)(.+)$/i,
+      /^(?:i\s+(?:live|reside|stay|work|study)\s+in\s+)(.+)$/i,
+      /^(?:i\s+(?:love|like|prefer|hate|dislike|am\s+allergic\s+to)\s+)(.+)$/i,
+      /^(?:mera\s+favourite|meri\s+favourite|mujhe)\s+(.+?)(?:\s+pasand\s+hai|\s+accha\s+lagta\s+hai)$/i
+    ];
+
+    for (const p of patterns) {
+      const match = clean.match(p);
+      if (match && match[1] && match[1].trim().length > 3) {
+        await this.saveFact(`User stated: ${clean}`, 'personal');
+        break;
+      }
+    }
+  },
+
+  async getPromptContext() {
+    const enabled = await this.isEnabled();
+    if (!enabled) return '';
+    const facts = await this.getAllFacts();
+    if (!facts.length) return '';
+
+    const list = facts.map(f => `- ${f.fact}`).join('\n');
+    return `[LONG_TERM_USER_MEMORY:\nThe following permanent facts were established by the user in previous conversations. Inherently remember and respect them without narrating source mechanisms:\n${list}\n]`;
+  }
+};
+
+/* ═══════════════════════════════════════════════════════════════════
+   STEP 30: REAL-TIME LIVE VISION MODE (Gemini Live Style)
+   ═══════════════════════════════════════════════════════════════════ */
+const LiveVisionManager = {
+  videoEl: null,
+  canvasEl: null,
+  overlayEl: null,
+  stream: null,
+  facingMode: 'environment',
+  frameInterval: null,
+  latestFrameBase64: null,
+
+  init() {
+    this.videoEl = $('#liveVisionVideo');
+    this.canvasEl = $('#liveVisionCanvas');
+    this.overlayEl = $('#liveVisionOverlay');
+
+    $('#btnFlipCamera')?.addEventListener('click', () => this.flipCamera());
+    $('#btnSnapVisionFrame')?.addEventListener('click', () => this.snapFrameManual());
+    $('#btnCloseLiveVision')?.addEventListener('click', () => this.stop());
+    $('#btnLiveVision')?.addEventListener('click', () => this.toggle());
+  },
+
+  isActive() {
+    return !!(this.stream && this.stream.active);
+  },
+
+  async toggle() {
+    if (this.isActive()) {
+      this.stop();
+    } else {
+      await this.start();
+    }
+  },
+
+  async start() {
+    try {
+      const preferredFacing = (await NativeStorage.get('marvo.camera.front_default')) === 'true' ? 'user' : this.facingMode;
+      this.facingMode = preferredFacing;
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showToast('Camera API not supported in this environment');
+        return;
+      }
+
+      this.stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: this.facingMode },
+          width: { ideal: 640 },
+          height: { ideal: 480 }
+        },
+        audio: false
+      });
+
+      if (this.videoEl) {
+        this.videoEl.srcObject = this.stream;
+        await this.videoEl.play();
+      }
+
+      if (this.overlayEl) {
+        this.overlayEl.classList.remove('hidden');
+      }
+
+      const btn = $('#btnLiveVision');
+      if (btn) {
+        btn.classList.add('active');
+      }
+
+      setEyeExpression('state-vision');
+      showToast('Live Vision Mode Active');
+
+      this.captureFrame();
+      if (this.frameInterval) clearInterval(this.frameInterval);
+      this.frameInterval = setInterval(() => {
+        this.captureFrame();
+      }, 3000);
+
+    } catch (err) {
+      console.error('[LiveVision] Camera start failed:', err);
+      showToast('Camera access denied or unavailable: ' + (err.message || 'Error'));
+      this.stop();
+    }
+  },
+
+  async flipCamera() {
+    this.facingMode = this.facingMode === 'user' ? 'environment' : 'user';
+    if (this.stream) {
+      this.stream.getTracks().forEach(t => t.stop());
+      this.stream = null;
+    }
+    await this.start();
+  },
+
+  captureFrame() {
+    if (!this.isActive() || !this.videoEl || !this.canvasEl) return null;
+    try {
+      const v = this.videoEl;
+      if (!v.videoWidth || !v.videoHeight) return null;
+
+      const c = this.canvasEl;
+      c.width = v.videoWidth;
+      c.height = v.videoHeight;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(v, 0, 0, c.width, c.height);
+
+      const dataUrl = c.toDataURL('image/jpeg', 0.6);
+      this.latestFrameBase64 = dataUrl;
+
+      const scan = $('.live-vision-scan-line');
+      if (scan) {
+        scan.classList.remove('pulse');
+        void scan.offsetWidth;
+        scan.classList.add('pulse');
+      }
+
+      return dataUrl;
+    } catch (e) {
+      console.warn('[LiveVision] Frame capture error:', e);
+      return null;
+    }
+  },
+
+  snapFrameManual() {
+    const frame = this.captureFrame();
+    if (frame) {
+      showToast('Visual frame snapped into context');
+    }
+  },
+
+  stop() {
+    if (this.frameInterval) {
+      clearInterval(this.frameInterval);
+      this.frameInterval = null;
+    }
+    if (this.stream) {
+      this.stream.getTracks().forEach(t => t.stop());
+      this.stream = null;
+    }
+    if (this.videoEl) {
+      this.videoEl.srcObject = null;
+    }
+    if (this.overlayEl) {
+      this.overlayEl.classList.add('hidden');
+    }
+    const btn = $('#btnLiveVision');
+    if (btn) {
+      btn.classList.remove('active');
+    }
+    this.latestFrameBase64 = null;
+    setEyeExpression('state-idle');
+  }
+};
+
+/* ═══════════════════════════════════════════════════════════════════
+   STEP 30: AI CONTROL ROOM DASHBOARD REGISTRY & RENDERER
+   ═══════════════════════════════════════════════════════════════════ */
+const AI_CONTROL_REGISTRY = [
+  {
+    id: "subfolder_memory_context",
+    name: "Memory & Context",
+    icon: "🧠",
+    badge: "Persistent",
+    description: "Long-term persistence, user profile recollection, and adaptive context windows",
+    toggles: [
+      {
+        key: "marvo.memory.enabled",
+        label: "Long-Term Personal Memory",
+        desc: "Automatically extract and retain permanent facts about the user in marvo_memory.json across all sessions",
+        default: true,
+        onChange: async (val) => {
+          await MemoryManager.setEnabled(val);
+        }
+      },
+      {
+        key: "marvo.context.enabled",
+        label: "Contextual Conversation History",
+        desc: "Inject rolling 10-message dialog turns into inference requests for seamless conversational continuity",
+        default: true
+      },
+      {
+        key: "marvo.privacy.boundary",
+        label: "Strict Privacy Boundary",
+        desc: "Enforce zero unprompted narration of user profile information unless explicitly requested",
+        default: true
+      }
+    ],
+    customActions: [
+      {
+        id: "btnManageMemoryDialog",
+        label: "Manage Saved Facts",
+        icon: "📋",
+        action: async () => {
+          await showMemoryManagementDialog();
+        }
+      }
+    ]
+  },
+  {
+    id: "subfolder_vision_camera",
+    name: "Vision & Camera",
+    icon: "👁️",
+    badge: "Live View",
+    description: "Real-time visual comprehension, camera viewfinders, and Gemini Live multimodal streaming",
+    toggles: [
+      {
+        key: "marvo.vision.enabled",
+        label: "Live Vision Mode",
+        desc: "Enable real-time camera viewfinder dock and periodic frame capture for visual intelligence",
+        default: true,
+        onChange: (val) => {
+          const btn = $('#btnLiveVision');
+          if (btn) btn.style.display = val ? 'flex' : 'none';
+        }
+      },
+      {
+        key: "marvo.camera.front_default",
+        label: "Default to Front Camera",
+        desc: "Prefer front selfie camera for face and reaction awareness instead of rear camera",
+        default: false
+      },
+      {
+        key: "marvo.vision.continuous",
+        label: "Continuous Frame Ingestion",
+        desc: "Periodically capture low-latency frames (every 3s) while Live Vision viewfinder is active",
+        default: true
+      }
+    ]
+  },
+  {
+    id: "subfolder_voice_output",
+    name: "Voice & Output",
+    icon: "🎙️",
+    badge: "Neural TTS",
+    description: "Speech synthesis, voice recognition sequencing, and audio response modes",
+    toggles: [
+      {
+        key: "marvo.voice.tts_enabled",
+        label: "Spoken Voice Responses (TTS)",
+        desc: "Read AI replies aloud using Piper offline neural voice or Android Speech synthesis",
+        default: true
+      },
+      {
+        key: "marvo.voice.strict_seq",
+        label: "Strict Audio Sequencing",
+        desc: "Strictly enforce Idle -> Listening -> Processing -> Speaking sequence to prevent audio overlap",
+        default: true
+      },
+      {
+        key: "marvo.voice.core_only",
+        label: "One-Breath TTS Mode",
+        desc: "Only narrate the essential core answer (<coreResponse>) and skip lengthy markdown tables or lists in speech",
+        default: true
+      }
+    ]
+  },
+  {
+    id: "subfolder_experimental_features",
+    name: "Experimental Features",
+    icon: "⚡",
+    badge: "Labs",
+    description: "Upcoming neural features, local engines, and automated background schedulers",
+    toggles: [
+      {
+        key: "marvo.chess.enabled",
+        label: "Neural Chess Engine (Preview)",
+        desc: "Enable local board state evaluation and offline chess gameplay in Playground",
+        default: false
+      },
+      {
+        key: "marvo.offline.failover",
+        label: "Offline Phi-3 Dynamic Failover",
+        desc: "Automatically route prompts to on-device GGUF neural engine when network connectivity drops",
+        default: true
+      },
+      {
+        key: "marvo.routines.enabled",
+        label: "Automated Daily Routines",
+        desc: "Enable automated morning briefings and periodic device health checks",
+        default: false
+      }
+    ]
+  }
+];
+
+async function renderAiControlRoom() {
+  const container = document.getElementById('aiControlRoomContainer');
+  if (!container) return;
+
+  container.innerHTML = '';
+
+  for (let i = 0; i < AI_CONTROL_REGISTRY.length; i++) {
+    const cat = AI_CONTROL_REGISTRY[i];
+    const isFirst = i === 0;
+
+    const card = document.createElement('div');
+    card.className = 'control-category-card';
+
+    // Header Button
+    const headerBtn = document.createElement('button');
+    headerBtn.type = 'button';
+    headerBtn.className = `category-header-btn ${isFirst ? 'expanded' : ''}`;
+    headerBtn.id = `btnToggle_${cat.id}`;
+    headerBtn.innerHTML = `
+      <div class="category-title-left">
+        <span class="category-emoji">${cat.icon}</span>
+        <span class="category-name">${cat.name}</span>
+        <span class="category-badge">${cat.badge}</span>
+      </div>
+      <svg class="category-chevron" viewBox="0 0 24 24" width="18" height="18"><polyline points="6 9 12 15 18 9" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+    `;
+
+    // Toggles Content
+    const content = document.createElement('div');
+    content.className = `category-toggles-content ${isFirst ? 'open' : ''}`;
+    content.id = `content_${cat.id}`;
+
+    const descP = document.createElement('p');
+    descP.className = 'category-subdesc';
+    descP.textContent = cat.description;
+    content.appendChild(descP);
+
+    for (const tog of cat.toggles) {
+      const row = document.createElement('div');
+      row.className = 'apple-toggle-row';
+
+      const info = document.createElement('div');
+      info.className = 'toggle-info';
+      info.innerHTML = `
+        <span class="toggle-label">${tog.label}</span>
+        <span class="toggle-desc">${tog.desc}</span>
+      `;
+
+      const switchLabel = document.createElement('label');
+      switchLabel.className = 'apple-switch';
+
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.dataset.key = tog.key;
+
+      const rawVal = await NativeStorage.get(tog.key);
+      const isChecked = rawVal === null || rawVal === undefined ? tog.default : rawVal === 'true' || rawVal === true;
+      input.checked = isChecked;
+
+      input.addEventListener('change', async () => {
+        const val = input.checked;
+        await NativeStorage.set(tog.key, String(val));
+        if (typeof tog.onChange === 'function') {
+          try { await tog.onChange(val); } catch (e) {}
+        }
+        showToast(`${tog.label}: ${val ? 'Enabled' : 'Disabled'}`);
+      });
+
+      const slider = document.createElement('span');
+      slider.className = 'apple-slider';
+
+      switchLabel.appendChild(input);
+      switchLabel.appendChild(slider);
+
+      row.appendChild(info);
+      row.appendChild(switchLabel);
+      content.appendChild(row);
+    }
+
+    if (cat.customActions && cat.customActions.length > 0) {
+      const actRow = document.createElement('div');
+      actRow.className = 'category-action-row';
+      for (const act of cat.customActions) {
+        const actBtn = document.createElement('button');
+        actBtn.type = 'button';
+        actBtn.className = 'btn-card-action';
+        actBtn.id = act.id;
+        actBtn.innerHTML = `<span>${act.icon}</span> <span>${act.label}</span>`;
+        actBtn.addEventListener('click', act.action);
+        actRow.appendChild(actBtn);
+      }
+      content.appendChild(actRow);
+    }
+
+    headerBtn.addEventListener('click', () => {
+      const isOpen = content.classList.toggle('open');
+      headerBtn.classList.toggle('expanded', isOpen);
+    });
+
+    card.appendChild(headerBtn);
+    card.appendChild(content);
+    container.appendChild(card);
+  }
+}
+
+async function showMemoryManagementDialog() {
+  const modal = document.getElementById('memoryModal');
+  const listEl = document.getElementById('memoryFactsList');
+  if (!modal || !listEl) return;
+
+  const facts = await MemoryManager.getAllFacts();
+  listEl.innerHTML = '';
+
+  if (!facts.length) {
+    listEl.innerHTML = '<div class="memory-empty-state">No permanent memories recorded yet.<br>State facts in conversation (e.g., "Remember that my favorite book is Dune") to populate this vault.</div>';
+  } else {
+    for (const f of facts) {
+      const card = document.createElement('div');
+      card.className = 'memory-fact-card';
+      const timeStr = f.timestamp ? new Date(f.timestamp).toLocaleDateString() : '';
+      card.innerHTML = `
+        <div class="fact-text-wrap">
+          <span class="fact-text">${escapeHtml(f.fact)}</span>
+          <div class="fact-meta">
+            <span class="fact-category-tag">${escapeHtml(f.category || 'personal')}</span>
+            <span class="fact-time-tag">${timeStr}</span>
+          </div>
+        </div>
+        <button class="btn-delete-fact" title="Delete this memory" data-id="${f.id}">
+          <svg viewBox="0 0 24 24" width="14" height="14"><polyline points="3 6 5 6 21 6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+        </button>
+      `;
+
+      card.querySelector('.btn-delete-fact').addEventListener('click', async () => {
+        await MemoryManager.deleteFact(f.id);
+        card.remove();
+        if (!listEl.children.length) {
+          listEl.innerHTML = '<div class="memory-empty-state">No permanent memories recorded yet.</div>';
+        }
+        showToast('Memory forgotten');
+      });
+
+      listEl.appendChild(card);
+    }
+  }
+
+  modal.classList.remove('hidden');
+}
+
+function initMemoryModalListeners() {
+  $('#btnCloseMemoryModal')?.addEventListener('click', () => {
+    $('#memoryModal')?.classList.add('hidden');
+  });
+
+  $('#btnClearAllMemories')?.addEventListener('click', async () => {
+    if (confirm('Are you sure you want Marvo to forget all permanently stored facts?')) {
+      await MemoryManager.clearAll();
+      const listEl = document.getElementById('memoryFactsList');
+      if (listEl) listEl.innerHTML = '<div class="memory-empty-state">No permanent memories recorded yet.</div>';
+      showToast('All memories cleared');
+    }
+  });
+}
+
 /* ═══════ LOCAL CHAT PERSISTENCE HELPERS ═══════ */
 async function saveLocalMessage(sessionId, role, content) {
   if (!sessionId || !content) return;
@@ -674,7 +1261,12 @@ function switchSettingsTab(tabName) {
     panel.classList.remove('active');
   });
 
-  const panelId = `tabPanel${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`;
+  let panelId;
+  if (tabName === 'ai-control') {
+    panelId = 'tabPanelAiControl';
+  } else {
+    panelId = `tabPanel${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`;
+  }
   const targetPanel = document.getElementById(panelId);
   if (targetPanel) {
     targetPanel.classList.add('active');
@@ -1805,8 +2397,31 @@ async function sendMessage(userText) {
 9. Strict Privacy Boundaries: Never narrate source mechanisms or say "Based on your...". State facts directly.
 10. Dynamic Tool Routing: Check math_calculation and device_expert needs before core generation.]`;
 
+  // Step 30: Long-Term Personal Memory Fact Extraction
+  try {
+    await MemoryManager.extractAndSaveFacts(cleanInput);
+  } catch (memErr) {
+    console.warn('[MemoryManager] Fact extraction error:', memErr);
+  }
+
+  // Step 30: Invisible Long-Term Memory Prompt Injection
+  const memoryPromptBlock = await MemoryManager.getPromptContext();
+
   // Silently prepend custom instructions if an Anthropic Claude-style Project is active
   let payloadMessage = `${deviceStateMeta}\n${appleIntelligenceDirectives}\n\n${cleanInput}`;
+  if (memoryPromptBlock) {
+    payloadMessage = `${memoryPromptBlock}\n\n${payloadMessage}`;
+  }
+
+  // Step 30: Multimodal Live Vision Feed Frame Capture
+  let activeLiveVisionFrame = null;
+  if (LiveVisionManager.isActive()) {
+    activeLiveVisionFrame = LiveVisionManager.captureFrame() || LiveVisionManager.latestFrameBase64;
+    if (activeLiveVisionFrame) {
+      payloadMessage = `[LIVE_VISION_CAMERA_FRAME_ACTIVE: A live camera viewfinder frame captured at ${new Date().toLocaleTimeString()} is attached. Look at what is visible in front of the camera and answer the user's questions about what you see.]\n\n${payloadMessage}`;
+    }
+  }
+
   if (currentAttachments.length > 0) {
     const attachMeta = currentAttachments.map(f => `[Attached ${f.type || 'file'}: ${f.name} (${f.size})]`).join('\n');
     payloadMessage = `${attachMeta}\n\n${payloadMessage}`;
@@ -1837,8 +2452,9 @@ async function sendMessage(userText) {
     payloadMessage = `[System Instructions / Persona for Project "${activeProject.name}":\n${activeProject.instructions.trim()}]\n\n[User Local Time: ${deviceTime}]\n\nUser Question: ${payloadMessage}`;
   }
 
-  // Step 27: Rolling 10 message context cache
-  const recentHistory = await getLocalMessages(requestSessionId);
+  // Step 27 & Step 30: Rolling 10 message context cache (Respected by Contextual History toggle)
+  const isContextEnabled = (await NativeStorage.get('marvo.context.enabled')) !== 'false';
+  const recentHistory = isContextEnabled ? (await getLocalMessages(requestSessionId)) : [];
   const contextHistory = (recentHistory || []).slice(-10).map(m => ({
     role: m.role,
     content: m.content
@@ -1890,6 +2506,8 @@ async function sendMessage(userText) {
         session_id:       requestSessionId,
         context_history:  contextHistory,
         is_student_mode:  isStudentActive,
+        image_base64:     activeLiveVisionFrame,
+        multimodal_image: activeLiveVisionFrame
       }),
     });
 
@@ -3226,6 +3844,11 @@ async function initApp() {
   await persistCurrentSession();
   await loadHistorySidebar();
   await restoreCurrentSession();
+
+  // Step 30: AI Control Room, Live Vision & Long-Term Memory Initializations
+  LiveVisionManager.init();
+  await renderAiControlRoom();
+  initMemoryModalListeners();
   // Step 29: Auto-focus keyboard disabled on boot
 }
 

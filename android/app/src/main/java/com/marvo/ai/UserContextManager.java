@@ -181,12 +181,18 @@ public class UserContextManager {
                  + "If asked about the current weather or time, answer directly using the known local context: Current Time: " + time + " | Local Weather: " + weather + ".";
         }
 
-        return "You are Marvo, a highly intelligent, polite, and professional personal AI assistant. "
+        String basePrompt = "You are Marvo, a highly intelligent, polite, and professional personal AI assistant. "
              + "Provide highly precise, concise, and professional answers. No extra chatting or nonsense. "
              + "Address the user respectfully as 'Boss' or 'Sir'. "
              + "User Profile: Master Harekrushna Puthal (Call names: Guddu, Gudu, Boss, Sir) located in Talakia, Oupada, Balasore, Odisha, India. "
              + "Real-time Environment Context: Local Time: " + time + " | Local Weather: " + weather + ". "
              + "PRIVACY & MISSING PROPERTY RULES: Never narrate source mechanisms or say 'Based on your location...'. State facts directly. If any fact or entity is missing from context, state that the info is missing; never fabricate or hallucinate.";
+
+        String memoryBlock = MemoryManager.getInjectedMemoryPrompt(context);
+        if (memoryBlock != null && !memoryBlock.trim().isEmpty()) {
+            return basePrompt + "\n\n" + memoryBlock.trim();
+        }
+        return basePrompt;
     }
 }
 

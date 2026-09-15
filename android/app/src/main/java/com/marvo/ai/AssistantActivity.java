@@ -726,11 +726,6 @@ public class AssistantActivity extends AppCompatActivity {
         // Step 15: Stop floating orb overlay while AssistantActivity is in foreground
         stopFloatingOrbService();
 
-        // Step 15: Release microphone from background WakeWordService before initializing SpeechRecognizer
-        try {
-            WakeWordService.stop(this);
-        } catch (Exception ignored) {}
-
         initTTS();
         initSpeechRecognizer();
         offlineIntentRouter = new OfflineIntentRouter(this);
@@ -4152,6 +4147,11 @@ public class AssistantActivity extends AppCompatActivity {
     private void routeCommand(String command) {
         if (statusTextView == null) return;
         String lower = (command == null ? "" : command.trim().toLowerCase());
+
+        // Step 30: Long-Term Personal Memory Fact Extraction
+        try {
+            MemoryManager.extractAndSaveFacts(this, command);
+        } catch (Exception ignored) {}
 
         // Step 6 Part 5 & 6 and Step 10 Part 3: State Management (Confirmation Protocol & Calling Loop)
         if (pendingActionType != null) {

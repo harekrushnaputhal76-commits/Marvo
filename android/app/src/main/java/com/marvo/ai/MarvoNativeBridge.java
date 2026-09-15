@@ -450,5 +450,81 @@ public class MarvoNativeBridge extends Plugin {
             call.reject("Failed to open downloads folder: " + e.getMessage());
         }
     }
+
+    @PluginMethod
+    public void getMemoryFacts(PluginCall call) {
+        try {
+            Context context = getContext();
+            java.util.List<JSONObject> facts = MemoryManager.getAllFacts(context);
+            JSONArray array = new JSONArray();
+            for (JSONObject f : facts) {
+                array.put(f);
+            }
+            JSObject res = new JSObject();
+            res.put("facts", JSObject.fromJSONObject(new JSONObject().put("items", array)).getJSONArray("items"));
+            res.put("enabled", MemoryManager.isMemoryEnabled(context));
+            call.resolve(res);
+        } catch (Exception e) {
+            Log.e(TAG, "Error fetching memory facts: " + e.getMessage(), e);
+            call.reject("Error fetching memory facts: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void saveMemoryFact(PluginCall call) {
+        try {
+            Context context = getContext();
+            String fact = call.getString("fact");
+            String category = call.getString("category", "personal");
+            boolean ok = MemoryManager.saveFact(context, fact, category);
+            JSObject res = new JSObject();
+            res.put("saved", ok);
+            call.resolve(res);
+        } catch (Exception e) {
+            Log.e(TAG, "Error saving memory fact: " + e.getMessage(), e);
+            call.reject("Error saving memory fact: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void deleteMemoryFact(PluginCall call) {
+        try {
+            Context context = getContext();
+            String id = call.getString("id");
+            boolean ok = MemoryManager.deleteFact(context, id);
+            JSObject res = new JSObject();
+            res.put("deleted", ok);
+            call.resolve(res);
+        } catch (Exception e) {
+            call.reject("Error deleting memory fact: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void clearAllMemory(PluginCall call) {
+        try {
+            Context context = getContext();
+            MemoryManager.clearAllFacts(context);
+            JSObject res = new JSObject();
+            res.put("cleared", true);
+            call.resolve(res);
+        } catch (Exception e) {
+            call.reject("Error clearing memory: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void setMemoryEnabled(PluginCall call) {
+        try {
+            Context context = getContext();
+            boolean enabled = call.getBoolean("enabled", true);
+            MemoryManager.setMemoryEnabled(context, enabled);
+            JSObject res = new JSObject();
+            res.put("enabled", enabled);
+            call.resolve(res);
+        } catch (Exception e) {
+            call.reject("Error updating memory state: " + e.getMessage());
+        }
+    }
 }
 

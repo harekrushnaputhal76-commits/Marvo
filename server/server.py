@@ -175,6 +175,7 @@ def chat_endpoint():
 
         local_time = data.get('local_time')
         agent_persona = data.get('agent')
+        image_base64 = data.get('image_base64') or data.get('multimodal_image')
 
         # Process the message through the Agent Manager
         result = handle_request(
@@ -183,7 +184,8 @@ def chat_endpoint():
             mode=mode_param,
             session_id=session_id,
             local_time=local_time,
-            agent=agent_persona
+            agent=agent_persona,
+            image_base64=image_base64
         )
 
         resp_type = result.get("type", "text")

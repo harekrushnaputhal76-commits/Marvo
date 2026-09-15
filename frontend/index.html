@@ -367,6 +367,12 @@
 
       <input type="text" id="msgInput" placeholder="Ask Marvo anything or attach files..." autocomplete="off" spellcheck="false">
 
+      <!-- Step 30: Live Vision Mode Button (Gemini Live Style) -->
+      <button id="btnLiveVision" class="btn btn-vision" aria-label="Live Vision Mode" title="Gemini Live Vision Mode">
+        <span class="vision-pulse-dot"></span>
+        <svg viewBox="0 0 24 24" width="18" height="18"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" fill="currentColor"/></svg>
+      </button>
+
       <!-- Multimodal Glowing Cyan Mic Button -->
       <button id="btnMic" class="btn btn-mic btn-mic-cyan" aria-label="Voice Input" title="Voice Input">
         <span class="mic-cyan-glow"></span>
@@ -385,6 +391,44 @@
   </div>
 </main>
 
+<!-- ═══════════ STEP 30: LIVE VISION OVERLAY (Gemini Live Style) ═══════════ -->
+<div id="liveVisionOverlay" class="live-vision-overlay hidden" aria-label="Live Vision Viewfinder">
+  <div class="live-vision-card">
+    <div class="live-vision-topbar">
+      <div class="vision-status-chip">
+        <span class="vision-pulse-dot"></span>
+        <span class="vision-status-label">LIVE VISION</span>
+        <span class="vision-fps-badge" id="liveVisionFps">Active</span>
+      </div>
+      <div class="vision-ctrl-group">
+        <button id="btnFlipCamera" class="vision-ctrl-btn" type="button" title="Flip Camera" aria-label="Flip Camera">
+          <svg viewBox="0 0 24 24" width="16" height="16"><path d="M20 4h-3.17L15 2H9L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-5 11.5V13H9v2.5L5.5 12 9 8.5V11h6V8.5l3.5 3.5-3.5 3.5z" fill="currentColor"/></svg>
+        </button>
+        <button id="btnSnapVisionFrame" class="vision-ctrl-btn" type="button" title="Snap Current Frame" aria-label="Snap Frame">
+          <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>
+        </button>
+        <button id="btnCloseLiveVision" class="vision-ctrl-btn close" type="button" title="Close Live Vision" aria-label="Close">
+          &times;
+        </button>
+      </div>
+    </div>
+
+    <div class="live-vision-viewport">
+      <video id="liveVisionVideo" autoplay playsinline muted></video>
+      <canvas id="liveVisionCanvas" style="display:none;"></canvas>
+      <div class="live-vision-scan-line"></div>
+      <div class="live-vision-reticle top-left"></div>
+      <div class="live-vision-reticle top-right"></div>
+      <div class="live-vision-reticle bottom-left"></div>
+      <div class="live-vision-reticle bottom-right"></div>
+    </div>
+
+    <div class="live-vision-footer">
+      <span class="vision-hint-text">Streaming visual perception to Gemini... Ask questions about what Marvo sees.</span>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════ SETTINGS MODAL (Customization & Voices) ═══════════ -->
 <div id="settingsModal" class="settings-modal-overlay">
   <div class="settings-modal">
@@ -398,7 +442,8 @@
 
     <!-- Category Tabs -->
     <div class="settings-tab-bar" id="settingsTabBar" role="tablist">
-      <button class="settings-tab-btn active" data-tab="themes" type="button" role="tab">🎨 Appearance</button>
+      <button class="settings-tab-btn active" data-tab="ai-control" type="button" role="tab">🤖 AI Assistant</button>
+      <button class="settings-tab-btn" data-tab="themes" type="button" role="tab">🎨 Appearance</button>
       <button class="settings-tab-btn" data-tab="brain" type="button" role="tab">🧠 Offline Brain</button>
       <button class="settings-tab-btn" data-tab="voice" type="button" role="tab">🔊 Voice & Audio</button>
       <button class="settings-tab-btn" data-tab="downloads" type="button" role="tab">📁 System & Storage</button>
@@ -406,8 +451,30 @@
 
     <div class="settings-body">
       
+      <!-- ════════ TAB 0: [ 🤖 AI ASSISTANT ] (THE CONTROL ROOM) ════════ -->
+      <div class="settings-tab-panel active" id="tabPanelAiControl">
+        <div class="settings-folder-group">
+          <!-- Primary Folder Banner -->
+          <div class="control-room-hero-card">
+            <div class="hero-card-left">
+              <span class="hero-card-icon">🤖</span>
+              <div>
+                <h3 class="hero-card-title">[ 🤖 AI Assistant ]</h3>
+                <p class="hero-card-desc">The Control Room: Scalable Neural Architecture & Master Toggles</p>
+              </div>
+            </div>
+            <span class="hero-card-pill">Phase 2 Active</span>
+          </div>
+
+          <!-- Sequential Dynamic Sub-Folders: a) Memory & Context, b) Vision & Camera, c) Voice & Output, d) Experimental Features -->
+          <div id="aiControlRoomContainer" class="ai-control-room-list">
+            <!-- Dynamically generated by renderAiControlRoom() from AI_CONTROL_REGISTRY -->
+          </div>
+        </div>
+      </div>
+
       <!-- ════════ TAB 1: THEMES & CHARACTERS ════════ -->
-      <div class="settings-tab-panel active" id="tabPanelThemes">
+      <div class="settings-tab-panel" id="tabPanelThemes">
         <div class="settings-folder-group">
 
           <!-- ── FOLDER 1: [ 🎭 Characters ] (AI Personas) ── -->
@@ -823,6 +890,33 @@
         </div>
       </div>
 
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ STEP 30: LONG-TERM MEMORY MANAGEMENT MODAL ═══════════ -->
+<div id="memoryModal" class="settings-modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="memoryModalTitle">
+  <div class="settings-modal memory-modal-box">
+    <div class="settings-header">
+      <div class="dialog-title-wrap">
+        <span style="font-size:22px;margin-right:8px;">🧠</span>
+        <h3 id="memoryModalTitle" class="settings-title">Long-Term Memory Vault</h3>
+      </div>
+      <button id="btnCloseMemoryModal" class="btn-icon modal-close-btn" aria-label="Close Memory Modal">&times;</button>
+    </div>
+
+    <div class="settings-dialog-body">
+      <p class="settings-subdesc">
+        Permanent personal facts Marvo has automatically learned and remembered across sessions. Stored locally on-device in <code>marvo_memory.json</code>.
+      </p>
+
+      <div id="memoryFactsList" class="memory-facts-list">
+        <!-- Dynamically rendered facts with delete action -->
+      </div>
+
+      <div class="memory-modal-footer">
+        <button id="btnClearAllMemories" class="btn-offline-action danger" type="button">Forget All Memories</button>
+      </div>
     </div>
   </div>
 </div>
