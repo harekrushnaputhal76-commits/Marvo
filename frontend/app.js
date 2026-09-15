@@ -979,6 +979,28 @@ async function persistCurrentSession() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
+   STEP 29: APPLE INTELLIGENCE XML TAG CLEANER & AUDIO SYNC
+   ═══════════════════════════════════════════════════════════════════ */
+/**
+ * Step 29: Strips raw Apple Intelligence XML tags (<coreResponse>, </coreResponse>,
+ * <image...>, </image>, <imageCollection...>, </imageCollection>, <key_entity...>, </key_entity>)
+ * before rendering text to the chat or passing it to speech engines.
+ */
+function stripAppleXmlTags(text) {
+  if (!text || typeof text !== 'string') return text || '';
+  return text
+    .replace(/<\/?coreResponse>/gi, '')
+    .replace(/<imageCollection[^>]*>/gi, '')
+    .replace(/<\/imageCollection>/gi, '')
+    .replace(/<image[^>]*\/?>/gi, '')
+    .replace(/<\/image>/gi, '')
+    .replace(/<key_entity[^>]*>/gi, '')
+    .replace(/<\/key_entity>/gi, '')
+    .replace(/^\s+/, '')
+    .trim();
+}
+
+/* ═══════════════════════════════════════════════════════════════════
    SPEECH & AUDIO
    ═══════════════════════════════════════════════════════════════════ */
 async function playSpeech(text, btnElement = null) {
@@ -989,17 +1011,22 @@ async function playSpeech(text, btnElement = null) {
     } catch {}
     currentAudio = null;
     document.querySelectorAll('.playing-tts').forEach(el => el.classList.remove('playing-tts'));
-    DOM.face.classList.remove('speaking-mode');
+    DOM.face?.classList.remove('speaking-mode');
     setEyeExpression('state-idle');
     return;
   }
 
-  const cleanText = text.replace(/[*_~`#]/g, '').trim();
+  // Ensure speech recognition never overlaps with speaking
+  if (speechRecognizer) {
+    try { speechRecognizer.stop(); } catch {}
+  }
+
+  const cleanText = stripAppleXmlTags(text).replace(/[*_~`#]/g, '').trim();
   if (!cleanText) return;
 
   if (btnElement) btnElement.classList.add('playing-tts');
   setEyeExpression('state-speaking');
-  DOM.face.classList.add('speaking-mode');
+  DOM.face?.classList.add('speaking-mode');
 
   try {
     const res = await fetch(API_SPEAK, {
@@ -1571,9 +1598,12 @@ function addMessage(text, sender, attachments = []) {
   const wrapper = document.createElement('div');
   wrapper.className = 'msg-ai-wrapper';
 
+  // Step 29: Strip raw Apple Intelligence XML tags before displaying to user
+  const sanitizedText = stripAppleXmlTags(text);
+
   const bubble = document.createElement('div');
   bubble.className = 'msg msg-ai';
-  bubble.textContent = text;
+  bubble.textContent = sanitizedText;
   wrapper.appendChild(bubble);
 
   const actionBar = document.createElement('div');
@@ -1586,7 +1616,7 @@ function addMessage(text, sender, attachments = []) {
   speakerBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
   speakerBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    playSpeech(text, speakerBtn);
+    playSpeech(sanitizedText, speakerBtn);
   });
   actionBar.appendChild(speakerBtn);
 
@@ -1597,7 +1627,7 @@ function addMessage(text, sender, attachments = []) {
   copyBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" fill="none" stroke="currentColor" stroke-width="2"/></svg>`;
   copyBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    copyToClipboard(text, copyBtn);
+    copyToClipboard(sanitizedText, copyBtn);
   });
   actionBar.appendChild(copyBtn);
 
@@ -1615,7 +1645,7 @@ function addMessage(text, sender, attachments = []) {
   wrapper.appendChild(actionBar);
 
   // Step 28 Apple Intelligence Feature 4: Smart Reply Chips
-  const chipsRow = renderSmartReplyChips(text);
+  const chipsRow = renderSmartReplyChips(sanitizedText);
   if (chipsRow) {
     wrapper.appendChild(chipsRow);
   }
@@ -1752,7 +1782,6 @@ async function sendMessage(userText) {
         setStopButtonState(false);
         currentChatAbortController = null;
         isBusy = false;
-        DOM.msgInput.focus();
         return;
       }
     } catch (intentErr) {
@@ -1761,9 +1790,23 @@ async function sendMessage(userText) {
   }
 
   const deviceTime = new Date().toLocaleString();
+  const deviceStateMeta = `[DEVICE_STATE: current_time="${deviceTime}", focused_app="Marvo AI Assistant", response_mode="${activeModeName || 'fast'}"]`;
+
+  // Step 29: Apple Intelligence 10 Directives Injection
+  const appleIntelligenceDirectives = `[APPLE_INTELLIGENCE_DIRECTIVES:
+1. One Breath: Answer the essential response in <coreResponse>...</coreResponse> (100-250 tokens).
+2. The Exhale: Place extended lists, tables, and narrative depth OUTSIDE and AFTER </coreResponse>.
+3. Visual Richness: Mark hero items with <image style="hero"> and catalog sets with <imageCollection style="catalog">.
+4. Entity Citation: Use <key_entity id="..."> tags for key data entities.
+5. Speech Disambiguation: For ambiguous requests, output ask_user_to_pick options.
+6. Missing Property Respect: If a fact is not known, explicitly state it is missing; never guess or hallucinate.
+7. Compound Request Handling: Decompose compound queries sequentially.
+8. Device State Awareness: Be aware of current_time, focused_app, and response_mode without narrating them.
+9. Strict Privacy Boundaries: Never narrate source mechanisms or say "Based on your...". State facts directly.
+10. Dynamic Tool Routing: Check math_calculation and device_expert needs before core generation.]`;
 
   // Silently prepend custom instructions if an Anthropic Claude-style Project is active
-  let payloadMessage = cleanInput;
+  let payloadMessage = `${deviceStateMeta}\n${appleIntelligenceDirectives}\n\n${cleanInput}`;
   if (currentAttachments.length > 0) {
     const attachMeta = currentAttachments.map(f => `[Attached ${f.type || 'file'}: ${f.name} (${f.size})]`).join('\n');
     payloadMessage = `${attachMeta}\n\n${payloadMessage}`;
@@ -1818,7 +1861,6 @@ async function sendMessage(userText) {
           setStopButtonState(false);
           currentChatAbortController = null;
           isBusy = false;
-          DOM.msgInput.focus();
           return;
         }
       } catch (nativeErr) {
@@ -1937,7 +1979,6 @@ async function sendMessage(userText) {
     currentChatAbortController = null;
     if (requestSessionId !== currentSessionId || requestVersion !== sessionVersion) return;
     isBusy = false;
-    DOM.msgInput.focus();
   }
 }
 
@@ -1985,6 +2026,20 @@ function initAudioVisualizer() {
 }
 
 function openVoiceDock() {
+  // Step 29: Stop any active TTS audio so speaking and listening never overlap
+  if (currentAudio) {
+    try {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+    } catch {}
+    currentAudio = null;
+  }
+  if ('speechSynthesis' in window) {
+    try { window.speechSynthesis.cancel(); } catch {}
+  }
+  document.querySelectorAll('.playing-tts').forEach(el => el.classList.remove('playing-tts'));
+  DOM.face?.classList.remove('speaking-mode');
+
   isVoiceRecording = true;
   isVoicePaused = false;
   currentVoiceTranscript = '';
@@ -2064,8 +2119,11 @@ function submitVoiceRecording() {
   const textToSend = currentVoiceTranscript.trim();
   closeVoiceDock();
   if (textToSend) {
+    // Transition: Listening -> Processing (Orb glowing/thinking)
+    setEyeExpression('state-thinking');
     sendMessage(textToSend);
   } else {
+    setEyeExpression('state-idle');
     showToast('No speech detected');
   }
 }
@@ -2273,7 +2331,6 @@ function newChat() {
   clearChat();
   highlightActiveSession();
   closeSidebar();
-  DOM.msgInput.focus();
   showToast('New Chat started');
 }
 
@@ -2480,12 +2537,27 @@ DOM.settingsTabBar?.addEventListener('click', (e) => {
   }
 });
 
-// Appearance & Personalization Subfolder (10+ Characters & Playground)
-const btnToggleAppearanceSubfolder = document.getElementById('btnToggleAppearanceSubfolder');
-const appearanceSubfolderContent = document.getElementById('appearanceSubfolderContent');
-btnToggleAppearanceSubfolder?.addEventListener('click', () => {
-  const isOpen = appearanceSubfolderContent?.classList.toggle('open');
-  btnToggleAppearanceSubfolder.classList.toggle('expanded', isOpen);
+// Step 29: Settings Nested Folders ([ 🎭 Characters ], [ 👁️ 3D Eye ], [ 🎮 Playground ])
+const folderConfigs = [
+  { btnId: 'btnToggleFolderCharacters', contentId: 'folderContentCharacters' },
+  { btnId: 'btnToggleFolderEye', contentId: 'folderContentEye' },
+  { btnId: 'btnToggleFolderPlayground', contentId: 'folderContentPlayground' },
+  // Backward compatibility
+  { btnId: 'btnToggleAppearanceSubfolder', contentId: 'appearanceSubfolderContent' }
+];
+
+folderConfigs.forEach(({ btnId, contentId }) => {
+  const btn = document.getElementById(btnId);
+  const content = document.getElementById(contentId);
+  btn?.addEventListener('click', () => {
+    const isOpen = content?.classList.toggle('open');
+    btn.classList.toggle('expanded', isOpen);
+  });
+});
+
+// Step 29: [ ♟️ Chess ] Local Engine Placeholder Action
+document.getElementById('btnPreviewChess')?.addEventListener('click', () => {
+  showToast('♟️ Local Chess Lab placeholder active. On-device Stockfish NNUE engine arriving in Step 30!');
 });
 
 // Theme Choice Cards (3D Eye - Dark/Light)
@@ -2967,7 +3039,6 @@ async function initAgents() {
 
         showToast(`${name} persona active`);
         closeSidebar();
-        DOM.msgInput.focus();
       }
     });
   }
@@ -3104,7 +3175,21 @@ async function handleShareText() {
     showToast('No messages in this chat to share');
     return;
   }
-  const transcript = msgs.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n');
+  const transcript = msgs.map(m => `${m.role.toUpperCase()}: ${stripAppleXmlTags(m.content)}`).join('\n\n');
+
+  // Step 29: Wire up @capacitor/share to trigger native Android share sheet
+  try {
+    if (window.Capacitor?.Plugins?.Share?.share) {
+      await window.Capacitor.Plugins.Share.share({
+        title: 'Marvo AI Conversation',
+        text: transcript,
+        dialogTitle: 'Share Marvo Conversation'
+      });
+      return;
+    }
+  } catch (capErr) {
+    console.warn('[Share] Capacitor Share failed, falling back to Web Share:', capErr);
+  }
 
   if (navigator.share) {
     try {
@@ -3141,7 +3226,7 @@ async function initApp() {
   await persistCurrentSession();
   await loadHistorySidebar();
   await restoreCurrentSession();
-  DOM.msgInput.focus();
+  // Step 29: Auto-focus keyboard disabled on boot
 }
 
 // ── Anti-Overheating & Battery Conservation: Pause heavy rendering & polling on background ──

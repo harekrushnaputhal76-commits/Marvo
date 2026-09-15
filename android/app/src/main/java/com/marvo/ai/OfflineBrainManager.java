@@ -222,8 +222,10 @@ public class OfflineBrainManager {
             }
         }
 
-        // 2. Format prompt with Phi-3 Instruct template
-        String phi3FormattedPrompt = "<|user|>\n" + clean + "<|end|>\n<|assistant|>\n";
+        // 2. Format prompt with Phi-3 Instruct template and Apple Intelligence directives
+        String phi3FormattedPrompt = "<|system|>\n" +
+            "APPLE_INTELLIGENCE: 1.One Breath in <coreResponse> 2.Exhale after </coreResponse> 3.Images <image style=\"hero\"> 4.Entities <key_entity id=\"...\"> 5.Disambiguation ask_user_to_pick 6.Missing Property: State missing 7.Compound: Sequential 8.Device State Aware 9.Privacy: No narration 10.Find tools before core.<|end|>\n" +
+            "<|user|>\n" + clean + "<|end|>\n<|assistant|>\n";
         Log.d(TAG, "Phi-3 formatted prompt:\n" + phi3FormattedPrompt);
 
         // 3. Attempt native JNI inference if bound
@@ -239,14 +241,53 @@ public class OfflineBrainManager {
             }
         }
 
-        // 4. Substantive On-Device Local Reasoning Engine (Never hardcoded dummy text!)
+        // 4. Substantive On-Device Local Reasoning Engine (Apple Intelligence Architecture)
 
-        // 4.1 Math & Arithmetic Solver
+        // 4.0 Compound Request Handling (Directive 7)
+        if (lower.contains(" and ") || lower.contains(" aur ") || lower.contains(" & ")) {
+            String[] parts = lower.split("\\s+(?:and|aur|&)\\s+", 2);
+            if (parts.length == 2 && !parts[0].trim().isEmpty() && !parts[1].trim().isEmpty()) {
+                String res1 = executeSingleInference(parts[0].trim(), clean);
+                String res2 = executeSingleInference(parts[1].trim(), clean);
+                String core1 = extractCoreResponse(res1);
+                String core2 = extractCoreResponse(res2);
+                String combinedCore = core1 + " Also, " + core2;
+                return "<coreResponse>" + combinedCore + "</coreResponse>\n\n" +
+                       "### ⚡ Compound Request Resolved\n\n" +
+                       "**Part 1**: " + cleanAppleXmlTags(res1) + "\n\n" +
+                       "**Part 2**: " + cleanAppleXmlTags(res2);
+            }
+        }
+
+        return executeSingleInference(lower, clean);
+    }
+
+    private String executeSingleInference(String lower, String clean) {
+        // Directive 5: Speech Disambiguation Logic
+        if (lower.equals("call him") || lower.equals("call her") || lower.equals("open it") ||
+            lower.equals("play it") || lower.equals("send it") || lower.equals("do that")) {
+            return "<coreResponse>Please select which specific item or contact you would like me to act on.</coreResponse>\n\n" +
+                   "### 🔍 Speech Disambiguation (<key_entity id=\"action\">ask_user_to_pick</key_entity>)\n\n" +
+                   "The request is ambiguous. Please select from the following actions:\n" +
+                   "1. Open recent application\n" +
+                   "2. Connect with primary contact (Jatin)\n" +
+                   "3. Resume audio playback";
+        }
+
+        // Directive 6: Missing Property Respect (Zero Hallucination)
+        if (lower.contains("flight number") || lower.contains("my password") || lower.contains("my pin") ||
+            lower.contains("bank balance") || lower.contains("credit card") || lower.contains("hotel booking")) {
+            return "<coreResponse>That information is missing from local context. Marvo does not guess private credentials.</coreResponse>\n\n" +
+                   "### ⚠️ Missing Property Respect\n\n" +
+                   "The requested fact is missing from the on-device knowledge vault. To protect privacy and prevent hallucination, this operation was halted.";
+        }
+
+        // Directive 10: Dynamic Tool Routing (Math & Device Intent Modules)
         if (isMathExpression(lower)) {
             String mathAns = solveLocalMath(lower);
             if (mathAns != null) {
                 return "<coreResponse>" + mathAns + "</coreResponse>\n\n" +
-                       "### 📐 Calculation Result\n\n" +
+                       "### 📐 Calculation Result (<key_entity id=\"tool\">math_calculation</key_entity>)\n\n" +
                        "$$\\text{" + clean.replaceAll("[?]", "") + "} = \\mathbf{" + mathAns.replaceAll("(?i)^Uttar hai\\s*", "").replaceAll("[.]", "") + "}$$\n\n" +
                        "- **Result**: " + mathAns;
             }
@@ -459,13 +500,25 @@ public class OfflineBrainManager {
         return null;
     }
 
+    public static String cleanAppleXmlTags(String text) {
+        if (text == null || text.trim().isEmpty()) return "";
+        return text.replaceAll("(?i)</?coreResponse>", "")
+                   .replaceAll("(?i)<imageCollection[^>]*>", "")
+                   .replaceAll("(?i)</imageCollection>", "")
+                   .replaceAll("(?i)<image[^>]*?/?>", "")
+                   .replaceAll("(?i)</image>", "")
+                   .replaceAll("(?i)<key_entity[^>]*>", "")
+                   .replaceAll("(?i)</key_entity>", "")
+                   .trim();
+    }
+
     private String extractCoreResponse(String rawText) {
         if (rawText == null) return "";
         Pattern pattern = Pattern.compile("<coreResponse>([\\s\\S]*?)</coreResponse>", Pattern.CASE_INSENSITIVE);
         Matcher matcher = pattern.matcher(rawText);
         if (matcher.find()) {
-            return matcher.group(1).trim();
+            return cleanAppleXmlTags(matcher.group(1).trim());
         }
-        return rawText.replaceAll("(?i)</?coreResponse>", "").trim();
+        return cleanAppleXmlTags(rawText);
     }
 }

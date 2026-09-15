@@ -219,24 +219,47 @@ public class NativeSettingsActivity extends Activity {
     }
 
     // =========================================================================
-    // SECTION 1: 🎨 APPEARANCE & 3D ORB
+    // SECTION 1: 🎨 APPEARANCE & 3D ORB (STEP 29: NESTED CATEGORIES)
     // =========================================================================
     private LinearLayout buildAppearanceSection() {
         LinearLayout section = new LinearLayout(this);
         section.setOrientation(LinearLayout.VERTICAL);
 
-        section.addView(createSectionHeader("Appearance & 3D Orb 🎨"));
+        section.addView(createSectionHeader("Appearance & Customization 🎨"));
         addSpacer(section, 6);
-        section.addView(createSectionDescription("Personalize visual aesthetics, 3D fluid orb glowing colors, and UI theme."));
+        section.addView(createSectionDescription("Select AI persona characters, customize 3D eye visuals, and access interactive playground engines."));
         addSpacer(section, 16);
 
-        // Card: 3D Eye Color
-        LinearLayout colorCard = createCardContainer();
-        colorCard.addView(createCardTitle("3D Orb Eye Glow Color"));
-        addSpacer(colorCard, 4);
-        activeColorLabel = createSubText("Current: " + MemoryVault.getEyeColor(this).toUpperCase());
-        colorCard.addView(activeColorLabel);
-        addSpacer(colorCard, 14);
+        // ── 1. [ 🎭 Characters ] (Folder for AI Personas) ──
+        LinearLayout charCard = createCardContainer();
+        charCard.addView(createCardTitle("[ 🎭 Characters ] (AI Personas)"));
+        addSpacer(charCard, 4);
+        charCard.addView(createSubText("10+ reactive character avatars that dynamically respond to AI Idle, Thinking, and Speaking states."));
+        addSpacer(charCard, 10);
+
+        TextView charListText = createSubText("Active Roster: Spider-Man, Zen Monk, Iron Man, Hulk, Batman, Wolverine, Deadpool, Naruto, Goku, Cyberpunk.");
+        charListText.setTextColor(Color.parseColor("#00F0FF"));
+        charCard.addView(charListText);
+        addSpacer(charCard, 10);
+
+        Button manageCharsBtn = createSecondaryButton("Switch Character Persona");
+        manageCharsBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Toast.makeText(NativeSettingsActivity.this, "Open main app sidebar to choose from 10+ Character Avatars.", Toast.LENGTH_SHORT).show();
+            }
+        });
+        charCard.addView(manageCharsBtn, createFullWidthParams());
+        section.addView(charCard, createFullWidthParams());
+        addSpacer(section, 16);
+
+        // ── 2. [ 👁️ 3D Eye ] (Folder for Visual Orb/Eye Configurations) ──
+        LinearLayout eyeCard = createCardContainer();
+        eyeCard.addView(createCardTitle("[ 👁️ 3D Eye ] (Orb & Visuals)"));
+        addSpacer(eyeCard, 4);
+        activeColorLabel = createSubText("Current Glow: " + MemoryVault.getEyeColor(this).toUpperCase());
+        eyeCard.addView(activeColorLabel);
+        addSpacer(eyeCard, 12);
 
         LinearLayout colorSwatchesRow = new LinearLayout(this);
         colorSwatchesRow.setOrientation(LinearLayout.HORIZONTAL);
@@ -267,7 +290,7 @@ public class NativeSettingsActivity extends Activity {
                 @Override
                 public void onClick(View v) {
                     MemoryVault.setEyeColor(NativeSettingsActivity.this, c[0]);
-                    activeColorLabel.setText("Current: " + c[2].toUpperCase());
+                    activeColorLabel.setText("Current Glow: " + c[2].toUpperCase());
                     Toast.makeText(NativeSettingsActivity.this, "Orb eye color set to " + c[2], Toast.LENGTH_SHORT).show();
                 }
             });
@@ -275,18 +298,10 @@ public class NativeSettingsActivity extends Activity {
             colorSwatchesRow.addView(swatch);
         }
 
-        colorCard.addView(colorSwatchesRow);
-        section.addView(colorCard, createFullWidthParams());
-        addSpacer(section, 16);
+        eyeCard.addView(colorSwatchesRow);
+        addSpacer(eyeCard, 14);
 
-        // Card: Floating Orb Always-On-Top
-        LinearLayout overlayCard = createCardContainer();
-        overlayCard.addView(createCardTitle("Always-On-Top Floating Assistant"));
-        addSpacer(overlayCard, 4);
-        overlayCard.addView(createSubText("Display a mini floating Marvo orb over YouTube and other external apps."));
-        addSpacer(overlayCard, 14);
-
-        Button testOverlayBtn = createSecondaryButton("Test Floating Orb Overlay");
+        Button testOverlayBtn = createSecondaryButton("Launch Floating 3D Eye Overlay");
         testOverlayBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -303,9 +318,47 @@ public class NativeSettingsActivity extends Activity {
                 }
             }
         });
-        overlayCard.addView(testOverlayBtn, createFullWidthParams());
+        eyeCard.addView(testOverlayBtn, createFullWidthParams());
+        section.addView(eyeCard, createFullWidthParams());
+        addSpacer(section, 16);
 
-        section.addView(overlayCard, createFullWidthParams());
+        // ── 3. [ 🎮 Playground ] (Interactive Labs & [ ♟️ Chess ]) ──
+        LinearLayout playCard = createCardContainer();
+        playCard.addView(createCardTitle("[ 🎮 Playground ] (Interactive Labs)"));
+        addSpacer(playCard, 4);
+        playCard.addView(createSubText("Experiment with interactive expressions, tactical AI challenges, and future engine labs."));
+        addSpacer(playCard, 12);
+
+        // Sub-item: [ ♟️ Chess ] Placeholder
+        LinearLayout chessSubItem = new LinearLayout(this);
+        chessSubItem.setOrientation(LinearLayout.VERTICAL);
+        chessSubItem.setBackground(createRoundedRectBg("#1A1B28", 12));
+        chessSubItem.setPadding(dp(12), dp(12), dp(12), dp(12));
+
+        TextView chessTitle = new TextView(this);
+        chessTitle.setText("♟️ Chess Engine (Local Stockfish Lab)");
+        chessTitle.setTextColor(Color.parseColor("#FFAA00"));
+        chessTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        chessTitle.setTypeface(null, Typeface.BOLD);
+        chessSubItem.addView(chessTitle);
+        addSpacer(chessSubItem, 4);
+
+        TextView chessDesc = createSubText("Offline neural chess engine placeholder. Prepare local board evaluations, move calculation, and on-device tactical bot.");
+        chessSubItem.addView(chessDesc);
+        addSpacer(chessSubItem, 10);
+
+        Button previewChessBtn = createSecondaryButton("♟️ Preview Chess Engine (Coming in Step 30)");
+        previewChessBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Toast.makeText(NativeSettingsActivity.this, "♟️ Local Neural Chess Engine placeholder active! Full Stockfish engine arriving in Step 30.", Toast.LENGTH_LONG).show();
+            }
+        });
+        chessSubItem.addView(previewChessBtn, createFullWidthParams());
+
+        playCard.addView(chessSubItem, createFullWidthParams());
+        section.addView(playCard, createFullWidthParams());
+
         return section;
     }
 

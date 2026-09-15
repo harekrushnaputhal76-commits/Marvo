@@ -2408,8 +2408,9 @@ public class AssistantActivity extends AppCompatActivity {
      */
     public void showResponse(final String message, final boolean shouldSpeak) {
         if (message == null) return;
+        final String cleanMessage = cleanAppleXmlTags(message);
         if (offlineIntentRouter != null && offlineIntentRouter.isCompoundRunning()) {
-            offlineIntentRouter.recordCompoundSpeech(message);
+            offlineIntentRouter.recordCompoundSpeech(cleanMessage);
             return;
         }
         runOnUiThread(new Runnable() {
@@ -2424,12 +2425,12 @@ public class AssistantActivity extends AppCompatActivity {
                 }
                 if (statusTextView != null) {
                     statusTextView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18.0f);
-                    statusTextView.setText(message);
+                    statusTextView.setText(cleanMessage);
                 }
                 if (subtitleTextView != null) {
                     subtitleTextView.setVisibility(View.GONE);
                 }
-                String lower = message.toLowerCase();
+                String lower = cleanMessage.toLowerCase();
                 boolean isActionSuccess = lower.contains("confirmed") || lower.contains("sent") || lower.contains("calling") ||
                     lower.contains("turned on") || lower.contains("turned off") || lower.contains("saved") ||
                     lower.contains("opened") || lower.contains("alright") || lower.contains("adjusting") ||
@@ -2446,17 +2447,19 @@ public class AssistantActivity extends AppCompatActivity {
                 }
 
                 if (shouldSpeak && tts != null && isTtsReady) {
+                    String spoken = extractCoreResponse(message);
+                    spoken = cleanAppleXmlTags(spoken);
                     try {
                         if (tts.isSpeaking()) {
                             tts.stop();
                         }
                         Bundle params = new Bundle();
                         params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "MarvoTTS");
-                        tts.speak(message.replace('\n', ' '), TextToSpeech.QUEUE_FLUSH, params, "MarvoTTS");
+                        tts.speak(spoken.replace('\n', ' '), TextToSpeech.QUEUE_FLUSH, params, "MarvoTTS");
                     } catch (Exception e) {
                         try {
                             if (tts != null && tts.isSpeaking()) { tts.stop(); }
-                            tts.speak(message.replace('\n', ' '), TextToSpeech.QUEUE_FLUSH, null);
+                            tts.speak(spoken.replace('\n', ' '), TextToSpeech.QUEUE_FLUSH, null);
                         } catch (Exception ignored) {}
                     }
                 } else if (shouldSpeak) {
@@ -5833,15 +5836,20 @@ public class AssistantActivity extends AppCompatActivity {
                     // Build request body
                     JSONObject requestBody = new JSONObject();
 
-                    // Step 27: UserContextManager Persona Injection (Boss/Sir, Student Mode, Real-Time Context)
+                    // Step 29: Apple Intelligence 10 Directives & Architecture Injection
                     String systemInstructionText = UserContextManager.getMasterSystemPrompt(AssistantActivity.this, false) + "\n" +
-                        "IDENTITY: You are software; you do not experience emotions or have a physical body, gender, nationality, or personal history. \n" +
-                        "BEHAVIOR: You handle user requests by thinking then acting. Accept user corrections about their situation, but do not go along with factual errors; correct them plainly. Be honest when something isn't found, doesn't work, or isn't available. \n" +
-                        "ZERO HALLUCINATION: Treat missing data as unknown. It is a CATASTROPHIC violation of trust to infer or guess the value of missing properties or facts. Tell the user exactly what information is missing.\n" +
-                        "RESPONSE FORMAT: You must enclose the essential, spoken part of your response inside a <coreResponse> XML tag. The <coreResponse> is the answer in one breath (roughly 100-250 tokens). Open with the substance directly — no preamble, no 'I found...', no narration. Anything that does not fit in one breath (like structured lists or extra details) must be placed OUTSIDE and AFTER the </coreResponse> tag.\n" +
-                        "VISUAL RICHNESS: Your responses should be beautiful, vivid, and visually rich — not flat walls of prose. Every response is an opportunity to make the user feel like they're getting a curated, magazine-quality answer. Compose your text using Markdown (bolding, lists, and headings) to shape the discussion. Use tables only when comparing structured, sortable data. If a request deserves a long, thorough answer, the essential spoken part lands in the <coreResponse> tag, and the deep visual depth lives in the exhale (the text after the tag).\n" +
-                        "ENTITY-FIRST REASONING: You possess concrete facts about the user (Entities) provided in the System Context. Treat these entity properties as authoritative data; always prefer them over your own general knowledge. If the user asks about their brother, you know it is Jatin. If the user asks the time or their location, answer immediately from the context block without searching the web.\n" +
-                        "PERSISTENT CONVERSATION MEMORY & LIVE URL DIGEST: You now have access to conversation history and live webpage content. If the user provides a link, read the [WEBPAGE CONTENT RETRIEVED] block and summarize or answer questions based strictly on it. Maintain context from previous turns naturally without narrating that you are looking at history.";
+                        "APPLE INTELLIGENCE ARCHITECTURAL DIRECTIVES:\n" +
+                        "1. THE ONE-BREATH CORE RESPONSE: You must enclose the essential, prominent spoken answer inside a <coreResponse>...</coreResponse> XML tag (roughly 100-250 tokens). Open directly with substance without preamble, meta-commentary, or narration.\n" +
+                        "2. THE EXHALE (RICH FOLLOW-UP): Detailed narrative depth, comprehensive lists, tables, and code blocks must be generated strictly OUTSIDE and AFTER the </coreResponse> tag to prevent audio-visual lag.\n" +
+                        "3. VISUAL RICHNESS (HERO & CATALOG): Structure visual content using <image style=\"hero\"> for main subjects and <imageCollection style=\"catalog\"> for comparing multiple items.\n" +
+                        "4. APP-NATIVE ENTITY SURFACES: Cite specific entity properties (contacts, places, apps) using <key_entity id=\"...\">...</key_entity> tags.\n" +
+                        "5. SPEECH DISAMBIGUATION LOGIC: If a user query is ambiguous, use an internal ask_user_to_pick state offering clear choices rather than guessing the wrong intent.\n" +
+                        "6. MISSING PROPERTY RESPECT: If a fact, property, or context is absent, explicitly state that the information is missing. Zero hallucination — never fabricate unknown data.\n" +
+                        "7. COMPOUND REQUEST HANDLING: If the user provides a compound request (e.g. calculation and a tip), decompose and process each request sequentially without failing.\n" +
+                        "8. DEVICE STATE AWARENESS: Contextualize responses using current_time, focused_app, and response_mode without explicitly reciting the environment metadata.\n" +
+                        "9. STRICT PRIVACY BOUNDARIES: NEVER narrate how you obtained information (never say 'Based on your location...', 'Looking at your phone...'). State facts directly.\n" +
+                        "10. DYNAMIC TOOL ROUTING: Evaluate if the request requires the math_calculation module or device_expert module before formulating the <coreResponse>.\n" +
+                        "IDENTITY: You are Marvo, an advanced personal AI assistant. Be direct, helpful, and concise.";
 
                     JSONObject systemInstructionPart = new JSONObject();
                     systemInstructionPart.put("text", systemInstructionText);
@@ -5910,11 +5918,9 @@ public class AssistantActivity extends AppCompatActivity {
                         JSONArray responseParts = responseContent.getJSONArray("parts");
                         String responseText = responseParts.getJSONObject(0).getString("text");
 
-                        // Step 1/20: Parse <coreResponse> XML tag for TTS, keep full text for UI/typewriter
-                        String ttsText = extractCoreResponse(responseText);
-                        String displayText = responseText.replaceAll("(?i)<coreResponse>", "")
-                                                         .replaceAll("(?i)</coreResponse>", "")
-                                                         .trim();
+                        // Step 29: Parse <coreResponse> XML tag for TTS, clean XML tags thoroughly
+                        String ttsText = cleanAppleXmlTags(extractCoreResponse(responseText));
+                        String displayText = cleanAppleXmlTags(responseText);
 
                         // Clean up markdown formatting for spoken delivery
                         ttsText = ttsText.replaceAll("\\*\\*", "")
@@ -6048,6 +6054,23 @@ public class AssistantActivity extends AppCompatActivity {
     }
 
     /**
+     * Step 29: Strips raw Apple Intelligence XML tags (<coreResponse>, </coreResponse>,
+     * <image...>, </image>, <imageCollection...>, </imageCollection>, <key_entity...>, </key_entity>)
+     * before displaying text to the user or passing to TTS.
+     */
+    public static String cleanAppleXmlTags(String text) {
+        if (text == null || text.trim().isEmpty()) return "";
+        return text.replaceAll("(?i)</?coreResponse>", "")
+                   .replaceAll("(?i)<imageCollection[^>]*>", "")
+                   .replaceAll("(?i)</imageCollection>", "")
+                   .replaceAll("(?i)<image[^>]*?/?>", "")
+                   .replaceAll("(?i)</image>", "")
+                   .replaceAll("(?i)<key_entity[^>]*>", "")
+                   .replaceAll("(?i)</key_entity>", "")
+                   .trim();
+    }
+
+    /**
      * Types out the response character-by-character on the UI thread.
      */
     private void startTypewriter(final String fullText) {
@@ -6103,6 +6126,13 @@ public class AssistantActivity extends AppCompatActivity {
     }
 
     void startListening() {
+        // Step 29: Stop any active TTS audio so speaking and listening never overlap
+        if (tts != null && tts.isSpeaking()) {
+            try {
+                tts.stop();
+            } catch (Exception ignored) {}
+            isSpeaking = false;
+        }
         if (speechRecognizer == null) {
             initSpeechRecognizer();
         }

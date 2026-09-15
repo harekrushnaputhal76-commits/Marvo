@@ -408,199 +408,248 @@
       
       <!-- ════════ TAB 1: THEMES & CHARACTERS ════════ -->
       <div class="settings-tab-panel active" id="tabPanelThemes">
-        <!-- Section: Classic 3D Eye Themes -->
-        <div class="settings-section">
-          <h4 class="settings-section-title">CLASSIC 3D EYE THEMES</h4>
-          <div class="theme-cards-grid">
-            <button class="theme-choice-card active" data-theme="dark" type="button">
-              <div class="theme-preview-orb dark-eye-preview">
-                <span class="preview-iris"></span>
+        <div class="settings-folder-group">
+
+          <!-- ── FOLDER 1: [ 🎭 Characters ] (AI Personas) ── -->
+          <button type="button" class="subfolder-toggle-btn active expanded" id="btnToggleFolderCharacters">
+            <div class="folder-title-wrap">
+              <span class="folder-emoji">🎭</span>
+              <span class="folder-name">Characters</span>
+              <span class="folder-badge">10+ Personas</span>
+            </div>
+            <svg class="subfolder-chevron" viewBox="0 0 24 24" width="18" height="18"><polyline points="6 9 12 15 18 9" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+          </button>
+          <div class="subfolder-content open" id="folderContentCharacters">
+            <div class="settings-section">
+              <h4 class="settings-section-title">✨ REACTIVE CHARACTER ECOSYSTEM (10+)</h4>
+              <p class="settings-subdesc">Character avatars replace the eye and dynamically react to AI Idle, Thinking, Speaking, and Error states.</p>
+              <div class="character-themes-grid" id="characterThemesGrid">
+                <!-- Spider-Man (User photo) -->
+                <button class="character-card-btn" data-theme="char-spiderman" type="button">
+                  <div class="char-thumb-wrap">
+                    <img src="assets/characters/spiderman-idle.jpg" alt="Spider-Man" class="char-thumb" />
+                    <span class="char-reactive-badge">Reactive</span>
+                  </div>
+                  <span class="char-card-name">Spider-Man</span>
+                  <span class="char-card-role">Web-Slinger Hero</span>
+                </button>
+
+                <!-- Monk (User photo) -->
+                <button class="character-card-btn" data-theme="char-monk" type="button">
+                  <div class="char-thumb-wrap">
+                    <img src="assets/characters/monk-idle.jpg" alt="Monk" class="char-thumb" />
+                    <span class="char-reactive-badge">Reactive</span>
+                  </div>
+                  <span class="char-card-name">Zen Monk</span>
+                  <span class="char-card-role">Mindful Meditation</span>
+                </button>
+
+                <!-- Iron Man -->
+                <button class="character-card-btn" data-theme="char-ironman" type="button">
+                  <div class="char-thumb-wrap">
+                    <img src="assets/characters/ironman.svg" alt="Iron Man" class="char-thumb" />
+                    <span class="char-reactive-badge">Reactive</span>
+                  </div>
+                  <span class="char-card-name">Iron Man</span>
+                  <span class="char-card-role">Arc Reactor HUD</span>
+                </button>
+
+                <!-- Hulk -->
+                <button class="character-card-btn" data-theme="char-hulk" type="button">
+                  <div class="char-thumb-wrap">
+                    <img src="assets/characters/hulk.svg" alt="Hulk" class="char-thumb" />
+                    <span class="char-reactive-badge">Reactive</span>
+                  </div>
+                  <span class="char-card-name">Hulk</span>
+                  <span class="char-card-role">Gamma Energy Rage</span>
+                </button>
+
+                <!-- Batman -->
+                <button class="character-card-btn" data-theme="char-batman" type="button">
+                  <div class="char-thumb-wrap">
+                    <img src="assets/characters/batman.svg" alt="Batman" class="char-thumb" />
+                    <span class="char-reactive-badge">Reactive</span>
+                  </div>
+                  <span class="char-card-name">Batman</span>
+                  <span class="char-card-role">Dark Knight Stealth</span>
+                </button>
+
+                <!-- Wolverine -->
+                <button class="character-card-btn" data-theme="char-wolverine" type="button">
+                  <div class="char-thumb-wrap">
+                    <img src="assets/characters/wolverine.svg" alt="Wolverine" class="char-thumb" />
+                    <span class="char-reactive-badge">Reactive</span>
+                  </div>
+                  <span class="char-card-name">Wolverine</span>
+                  <span class="char-card-role">Berserker Slash</span>
+                </button>
+
+                <!-- Deadpool -->
+                <button class="character-card-btn" data-theme="char-deadpool" type="button">
+                  <div class="char-thumb-wrap">
+                    <img src="assets/characters/deadpool.svg" alt="Deadpool" class="char-thumb" />
+                    <span class="char-reactive-badge">Reactive</span>
+                  </div>
+                  <span class="char-card-name">Deadpool</span>
+                  <span class="char-card-role">Merc with a Mouth</span>
+                </button>
+
+                <!-- Naruto -->
+                <button class="character-card-btn" data-theme="char-naruto" type="button">
+                  <div class="char-thumb-wrap">
+                    <img src="assets/characters/naruto.svg" alt="Naruto" class="char-thumb" />
+                    <span class="char-reactive-badge">Reactive</span>
+                  </div>
+                  <span class="char-card-name">Naruto</span>
+                  <span class="char-card-role">Sage Chakra Flame</span>
+                </button>
+
+                <!-- Goku -->
+                <button class="character-card-btn" data-theme="char-goku" type="button">
+                  <div class="char-thumb-wrap">
+                    <img src="assets/characters/goku.svg" alt="Goku" class="char-thumb" />
+                    <span class="char-reactive-badge">Reactive</span>
+                  </div>
+                  <span class="char-card-name">Goku</span>
+                  <span class="char-card-role">Ultra Instinct Ki</span>
+                </button>
+
+                <!-- Cyberpunk -->
+                <button class="character-card-btn" data-theme="char-cyberpunk" type="button">
+                  <div class="char-thumb-wrap">
+                    <img src="assets/characters/cyberpunk.svg" alt="Cyberpunk" class="char-thumb" />
+                    <span class="char-reactive-badge">Reactive</span>
+                  </div>
+                  <span class="char-card-name">Cyberpunk</span>
+                  <span class="char-card-role">Netrunner Visor</span>
+                </button>
               </div>
-              <div class="theme-choice-info">
-                <span class="theme-choice-name">Dark Cyber (3D Eye)</span>
-                <span class="theme-choice-desc">Default neon-cyber dynamic 3D eye</span>
-              </div>
-            </button>
-            <button class="theme-choice-card" data-theme="light" type="button">
-              <div class="theme-preview-orb light-eye-preview">
-                <span class="preview-iris starlight"></span>
-              </div>
-              <div class="theme-choice-info">
-                <span class="theme-choice-name">Starlight White (3D Eye)</span>
-                <span class="theme-choice-desc">Pristine white mode with 3D eye</span>
-              </div>
-            </button>
+            </div>
           </div>
-        </div>
 
-        <!-- Subfolder: Personalization & Reactive Characters -->
-        <button type="button" class="subfolder-toggle-btn" id="btnToggleAppearanceSubfolder">
-          <span>🎭 Character Avatars & Reactive Themes (10+)</span>
-          <svg class="subfolder-chevron" viewBox="0 0 24 24" width="18" height="18"><polyline points="6 9 12 15 18 9" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-        </button>
-
-        <div class="subfolder-content" id="appearanceSubfolderContent">
-          <!-- Section: 10+ Reactive Character Themes -->
-          <div class="settings-section">
-            <h4 class="settings-section-title">✨ REACTIVE CHARACTER ECOSYSTEM (10+)</h4>
-          <p class="settings-subdesc">Character avatars replace the eye and dynamically react to AI Idle, Thinking, Speaking, and Error states.</p>
-          <div class="character-themes-grid" id="characterThemesGrid">
-            
-            <!-- Spider-Man (User photo) -->
-            <button class="character-card-btn" data-theme="char-spiderman" type="button">
-              <div class="char-thumb-wrap">
-                <img src="assets/characters/spiderman-idle.jpg" alt="Spider-Man" class="char-thumb" />
-                <span class="char-reactive-badge">Reactive</span>
+          <!-- ── FOLDER 2: [ 👁️ 3D Eye ] (Visual Orb & Themes) ── -->
+          <button type="button" class="subfolder-toggle-btn" id="btnToggleFolderEye">
+            <div class="folder-title-wrap">
+              <span class="folder-emoji">👁️</span>
+              <span class="folder-name">3D Eye</span>
+              <span class="folder-badge">Orb & Colors</span>
+            </div>
+            <svg class="subfolder-chevron" viewBox="0 0 24 24" width="18" height="18"><polyline points="6 9 12 15 18 9" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+          </button>
+          <div class="subfolder-content" id="folderContentEye">
+            <!-- Section: Classic 3D Eye Themes -->
+            <div class="settings-section">
+              <h4 class="settings-section-title">CLASSIC 3D EYE THEMES</h4>
+              <div class="theme-cards-grid">
+                <button class="theme-choice-card active" data-theme="dark" type="button">
+                  <div class="theme-preview-orb dark-eye-preview">
+                    <span class="preview-iris"></span>
+                  </div>
+                  <div class="theme-choice-info">
+                    <span class="theme-choice-name">Dark Cyber (3D Eye)</span>
+                    <span class="theme-choice-desc">Default neon-cyber dynamic 3D eye</span>
+                  </div>
+                </button>
+                <button class="theme-choice-card" data-theme="light" type="button">
+                  <div class="theme-preview-orb light-eye-preview">
+                    <span class="preview-iris starlight"></span>
+                  </div>
+                  <div class="theme-choice-info">
+                    <span class="theme-choice-name">Starlight White (3D Eye)</span>
+                    <span class="theme-choice-desc">Pristine white mode with 3D eye</span>
+                  </div>
+                </button>
               </div>
-              <span class="char-card-name">Spider-Man</span>
-              <span class="char-card-role">Web-Slinger Hero</span>
-            </button>
+            </div>
 
-            <!-- Monk (User photo) -->
-            <button class="character-card-btn" data-theme="char-monk" type="button">
-              <div class="char-thumb-wrap">
-                <img src="assets/characters/monk-idle.jpg" alt="Monk" class="char-thumb" />
-                <span class="char-reactive-badge">Reactive</span>
+            <!-- Section: 3D Eye Color Customization -->
+            <div class="settings-section" id="eyeColorSection">
+              <h4 class="settings-section-title">3D EYE COLOR (CLASSIC THEMES)</h4>
+              <div class="color-swatches-grid" id="colorSwatchesGrid">
+                <button class="color-swatch-btn active" data-color="neon-blue" title="Neon Blue">
+                  <span class="swatch-circle" style="background:#00f0ff;box-shadow:0 0 10px #00f0ff;"></span>
+                  <span>Neon Blue</span>
+                </button>
+                <button class="color-swatch-btn" data-color="cyber-red" title="Cyber Red">
+                  <span class="swatch-circle" style="background:#ff0055;box-shadow:0 0 10px #ff0055;"></span>
+                  <span>Cyber Red</span>
+                </button>
+                <button class="color-swatch-btn" data-color="emerald" title="Emerald">
+                  <span class="swatch-circle" style="background:#00ff88;box-shadow:0 0 10px #00ff88;"></span>
+                  <span>Emerald</span>
+                </button>
+                <button class="color-swatch-btn" data-color="amethyst" title="Amethyst">
+                  <span class="swatch-circle" style="background:#b5179e;box-shadow:0 0 10px #b5179e;"></span>
+                  <span>Amethyst</span>
+                </button>
+                <button class="color-swatch-btn" data-color="white" title="Starlight">
+                  <span class="swatch-circle" style="background:#ffffff;box-shadow:0 0 10px #ffffff;"></span>
+                  <span>Starlight</span>
+                </button>
               </div>
-              <span class="char-card-name">Zen Monk</span>
-              <span class="char-card-role">Mindful Meditation</span>
-            </button>
-
-            <!-- Iron Man -->
-            <button class="character-card-btn" data-theme="char-ironman" type="button">
-              <div class="char-thumb-wrap">
-                <img src="assets/characters/ironman.svg" alt="Iron Man" class="char-thumb" />
-                <span class="char-reactive-badge">Reactive</span>
-              </div>
-              <span class="char-card-name">Iron Man</span>
-              <span class="char-card-role">Arc Reactor HUD</span>
-            </button>
-
-            <!-- Hulk -->
-            <button class="character-card-btn" data-theme="char-hulk" type="button">
-              <div class="char-thumb-wrap">
-                <img src="assets/characters/hulk.svg" alt="Hulk" class="char-thumb" />
-                <span class="char-reactive-badge">Reactive</span>
-              </div>
-              <span class="char-card-name">Hulk</span>
-              <span class="char-card-role">Gamma Energy Rage</span>
-            </button>
-
-            <!-- Batman -->
-            <button class="character-card-btn" data-theme="char-batman" type="button">
-              <div class="char-thumb-wrap">
-                <img src="assets/characters/batman.svg" alt="Batman" class="char-thumb" />
-                <span class="char-reactive-badge">Reactive</span>
-              </div>
-              <span class="char-card-name">Batman</span>
-              <span class="char-card-role">Dark Knight Stealth</span>
-            </button>
-
-            <!-- Wolverine -->
-            <button class="character-card-btn" data-theme="char-wolverine" type="button">
-              <div class="char-thumb-wrap">
-                <img src="assets/characters/wolverine.svg" alt="Wolverine" class="char-thumb" />
-                <span class="char-reactive-badge">Reactive</span>
-              </div>
-              <span class="char-card-name">Wolverine</span>
-              <span class="char-card-role">Berserker Slash</span>
-            </button>
-
-            <!-- Deadpool -->
-            <button class="character-card-btn" data-theme="char-deadpool" type="button">
-              <div class="char-thumb-wrap">
-                <img src="assets/characters/deadpool.svg" alt="Deadpool" class="char-thumb" />
-                <span class="char-reactive-badge">Reactive</span>
-              </div>
-              <span class="char-card-name">Deadpool</span>
-              <span class="char-card-role">Merc with a Mouth</span>
-            </button>
-
-            <!-- Naruto -->
-            <button class="character-card-btn" data-theme="char-naruto" type="button">
-              <div class="char-thumb-wrap">
-                <img src="assets/characters/naruto.svg" alt="Naruto" class="char-thumb" />
-                <span class="char-reactive-badge">Reactive</span>
-              </div>
-              <span class="char-card-name">Naruto</span>
-              <span class="char-card-role">Sage Chakra Flame</span>
-            </button>
-
-            <!-- Goku -->
-            <button class="character-card-btn" data-theme="char-goku" type="button">
-              <div class="char-thumb-wrap">
-                <img src="assets/characters/goku.svg" alt="Goku" class="char-thumb" />
-                <span class="char-reactive-badge">Reactive</span>
-              </div>
-              <span class="char-card-name">Goku</span>
-              <span class="char-card-role">Ultra Instinct Ki</span>
-            </button>
-
-            <!-- Cyberpunk -->
-            <button class="character-card-btn" data-theme="char-cyberpunk" type="button">
-              <div class="char-thumb-wrap">
-                <img src="assets/characters/cyberpunk.svg" alt="Cyberpunk" class="char-thumb" />
-                <span class="char-reactive-badge">Reactive</span>
-              </div>
-              <span class="char-card-name">Cyberpunk</span>
-              <span class="char-card-role">Netrunner Visor</span>
-            </button>
-
+            </div>
           </div>
-        </div>
 
-        <!-- Section: 3D Eye Color Customization (For Eye Themes) -->
-        <div class="settings-section" id="eyeColorSection">
-          <h4 class="settings-section-title">3D EYE COLOR (CLASSIC THEMES)</h4>
-          <div class="color-swatches-grid" id="colorSwatchesGrid">
-            <button class="color-swatch-btn active" data-color="neon-blue" title="Neon Blue">
-              <span class="swatch-circle" style="background:#00f0ff;box-shadow:0 0 10px #00f0ff;"></span>
-              <span>Neon Blue</span>
-            </button>
-            <button class="color-swatch-btn" data-color="cyber-red" title="Cyber Red">
-              <span class="swatch-circle" style="background:#ff0055;box-shadow:0 0 10px #ff0055;"></span>
-              <span>Cyber Red</span>
-            </button>
-            <button class="color-swatch-btn" data-color="emerald" title="Emerald">
-              <span class="swatch-circle" style="background:#00ff88;box-shadow:0 0 10px #00ff88;"></span>
-              <span>Emerald</span>
-            </button>
-            <button class="color-swatch-btn" data-color="amethyst" title="Amethyst">
-              <span class="swatch-circle" style="background:#b5179e;box-shadow:0 0 10px #b5179e;"></span>
-              <span>Amethyst</span>
-            </button>
-            <button class="color-swatch-btn" data-color="white" title="Starlight">
-              <span class="swatch-circle" style="background:#ffffff;box-shadow:0 0 10px #ffffff;"></span>
-              <span>Starlight</span>
-            </button>
-          </div>
-        </div>
+          <!-- ── FOLDER 3: [ 🎮 Playground ] (Labs & Chess) ── -->
+          <button type="button" class="subfolder-toggle-btn" id="btnToggleFolderPlayground">
+            <div class="folder-title-wrap">
+              <span class="folder-emoji">🎮</span>
+              <span class="folder-name">Playground</span>
+              <span class="folder-badge">Labs & Engines</span>
+            </div>
+            <svg class="subfolder-chevron" viewBox="0 0 24 24" width="18" height="18"><polyline points="6 9 12 15 18 9" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+          </button>
+          <div class="subfolder-content" id="folderContentPlayground">
+            <!-- Sub-item: [ ♟️ Chess ] Local Engine Placeholder -->
+            <div class="settings-section">
+              <h4 class="settings-section-title">CHESS INTELLIGENCE ENGINE</h4>
+              <div class="chess-engine-card" id="cardChessEngine">
+                <div class="chess-card-header">
+                  <div class="chess-card-icon">♟️</div>
+                  <div class="chess-card-info">
+                    <div class="chess-title-row">
+                      <span class="chess-card-title">Local Chess Engine</span>
+                      <span class="badge-beta" style="background:rgba(255,170,0,0.18);color:#ffaa00;border-color:rgba(255,170,0,0.35);">Placeholder Lab</span>
+                    </div>
+                    <span class="chess-card-desc">Prepare local neural chess intelligence (Stockfish NNUE + on-device evaluation).</span>
+                  </div>
+                </div>
+                <div class="chess-card-body">
+                  <p class="chess-card-subtext">Play against local on-device chess bot, analyze tactical games, and calculate move evaluations directly on your mobile hardware without server connection.</p>
+                  <button type="button" class="btn-chess-preview" id="btnPreviewChess">
+                    <span>♟️ Launch Chess Lab (Preview)</span>
+                  </button>
+                </div>
+              </div>
+            </div>
 
-        <!-- Section: Expression Playground -->
-        <div class="settings-section">
-          <h4 class="settings-section-title">EXPRESSION PLAYGROUND</h4>
-          <div class="expression-playground-grid" id="expressionPlaygroundGrid">
-            <button class="btn-exp-play" data-exp="state-idle">Idle</button>
-            <button class="btn-exp-play" data-exp="state-thinking">Thinking</button>
-            <button class="btn-exp-play" data-exp="state-speaking">Speaking</button>
-            <button class="btn-exp-play" data-exp="state-winking">Winking</button>
-            <button class="btn-exp-play" data-exp="state-surprised">Surprised</button>
-            <button class="btn-exp-play" data-exp="state-laughing">Laughing</button>
-            <button class="btn-exp-play" data-exp="state-sleepy">Sleepy</button>
-            <button class="btn-exp-play" data-exp="state-crying">Crying</button>
-            <button class="btn-exp-play" data-exp="state-angry">Angry</button>
-            <button class="btn-exp-play" data-exp="state-suspicious">Suspicious</button>
-            <button class="btn-exp-play" data-exp="state-dizzy">Dizzy</button>
-            <button class="btn-exp-play" data-exp="state-heart-eyes">Heart-Eyes</button>
-            <button class="btn-exp-play" data-exp="state-confused">Confused</button>
-            <button class="btn-exp-play" data-exp="state-focused">Focused</button>
-            <button class="btn-exp-play" data-exp="state-scared">Scared</button>
-            <button class="btn-exp-play" data-exp="state-glitch">Glitch</button>
-            <button class="btn-exp-play" data-exp="state-stargazing">Stargazing</button>
-            <button class="btn-exp-play" data-exp="state-dead">Dead / Offline</button>
-            <button class="btn-exp-play" data-exp="state-error">Error</button>
+            <!-- Section: Expression Playground -->
+            <div class="settings-section">
+              <h4 class="settings-section-title">EXPRESSION PLAYGROUND</h4>
+              <div class="expression-playground-grid" id="expressionPlaygroundGrid">
+                <button class="btn-exp-play" data-exp="state-idle">Idle</button>
+                <button class="btn-exp-play" data-exp="state-thinking">Thinking</button>
+                <button class="btn-exp-play" data-exp="state-speaking">Speaking</button>
+                <button class="btn-exp-play" data-exp="state-winking">Winking</button>
+                <button class="btn-exp-play" data-exp="state-surprised">Surprised</button>
+                <button class="btn-exp-play" data-exp="state-laughing">Laughing</button>
+                <button class="btn-exp-play" data-exp="state-sleepy">Sleepy</button>
+                <button class="btn-exp-play" data-exp="state-crying">Crying</button>
+                <button class="btn-exp-play" data-exp="state-angry">Angry</button>
+                <button class="btn-exp-play" data-exp="state-suspicious">Suspicious</button>
+                <button class="btn-exp-play" data-exp="state-dizzy">Dizzy</button>
+                <button class="btn-exp-play" data-exp="state-heart-eyes">Heart-Eyes</button>
+                <button class="btn-exp-play" data-exp="state-confused">Confused</button>
+                <button class="btn-exp-play" data-exp="state-focused">Focused</button>
+                <button class="btn-exp-play" data-exp="state-scared">Scared</button>
+                <button class="btn-exp-play" data-exp="state-glitch">Glitch</button>
+                <button class="btn-exp-play" data-exp="state-stargazing">Stargazing</button>
+                <button class="btn-exp-play" data-exp="state-dead">Dead / Offline</button>
+                <button class="btn-exp-play" data-exp="state-error">Error</button>
+              </div>
+            </div>
           </div>
-        </div>
+
         </div>
       </div>
 
