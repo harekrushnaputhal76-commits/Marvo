@@ -1022,8 +1022,8 @@ public class AssistantActivity extends AppCompatActivity {
             public void onBeginningOfSpeech() {
                 Log.d(TAG, "SpeechRecognizer onBeginningOfSpeech");
                 // Step 32: Smart Voice Interrupt - halt TTS playback immediately
-                if (textToSpeech != null && textToSpeech.isSpeaking()) {
-                    textToSpeech.stop();
+                if (tts != null && tts.isSpeaking()) {
+                    tts.stop();
                     Log.d(TAG, "[SmartInterrupt] Interrupted active TTS due to user speech onset");
                 }
             }
