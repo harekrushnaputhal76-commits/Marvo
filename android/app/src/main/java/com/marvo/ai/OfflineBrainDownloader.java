@@ -1,12 +1,16 @@
 package com.marvo.ai;
 
+import android.app.DownloadManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.database.Cursor;
 import android.net.ConnectivityManager;
 import android.net.NetworkCapabilities;
 import android.net.NetworkInfo;
+import android.net.Uri;
 import android.os.Build;
+import android.os.Environment;
 import android.util.Log;
 import java.io.File;
 import java.io.FileInputStream;
@@ -165,6 +169,10 @@ public class OfflineBrainDownloader {
         return TYPE_LLM.equals(type) ? KEY_ALLOW_METERED : (KEY_ALLOW_METERED + "_" + type);
     }
 
+    private String getDownloadIdKey(String type) {
+        return "download_id_" + (type != null ? type.toLowerCase() : TYPE_LLM);
+    }
+
     public File getModelsDir(Context context) {
         if (context == null) return null;
         File dir = MemoryVault.getModelsDir(context);
@@ -231,13 +239,13 @@ public class OfflineBrainDownloader {
     }
 
     /**
-     * Starts or resumes a download for a specific model type.
+     * Starts or resumes a download for a specific model type using native Android DownloadManager.
+     * Guarantees OS-level persistence in public Documents/Marvo_Models/ and background survival.
      */
     public synchronized boolean startDownload(final Context context, final String modelType, boolean allowMetered) {
         if (context == null) return false;
         final String type = (modelType != null) ? modelType.toLowerCase() : TYPE_LLM;
         final ModelSpec spec = getSpec(type);
-        final DownloadTaskState state = getState(type);
 
         if (isModelDownloaded(context, type)) {
             Log.d(TAG, "[" + type + "] Model already fully downloaded & verified.");
@@ -245,32 +253,48 @@ public class OfflineBrainDownloader {
             return true;
         }
 
-        if (state.isDownloading) {
-            Log.d(TAG, "[" + type + "] Download is already actively running.");
-            return true;
-        }
+        try {
+            DownloadManager dm = (DownloadManager) context.getSystemService(Context.DOWNLOAD_SERVICE);
+            if (dm == null) {
+                Log.e(TAG, "DownloadManager service unavailable");
+                return false;
+            }
 
-        getPrefs(context).edit().putBoolean(getAllowMeteredKey(type), allowMetered).apply();
-        boolean unmetered = isUnmeteredConnection(context);
-        if (!allowMetered && !unmetered) {
-            Log.d(TAG, "[" + type + "] Metered connection detected and allowMetered is false. Pausing until Wi-Fi.");
-            getPrefs(context).edit().putString(getStatusKey(type), "paused_wifi").apply();
+            // Ensure destination directory in public Documents/Marvo_Models/
+            File publicDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), "Marvo_Models");
+            if (!publicDir.exists()) {
+                publicDir.mkdirs();
+            }
+
+            // Clean up any stale download ID
+            long existingId = getPrefs(context).getLong(getDownloadIdKey(type), -1L);
+            if (existingId != -1L) {
+                try { dm.remove(existingId); } catch (Exception ignored) {}
+            }
+
+            Uri uri = Uri.parse(spec.url);
+            DownloadManager.Request req = new DownloadManager.Request(uri);
+            req.setTitle("Marvo " + spec.displayName);
+            req.setDescription("Downloading on-device AI model (~" + (spec.defaultTotalBytes / (1024 * 1024)) + " MB)");
+            req.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+            req.setAllowedOverMetered(allowMetered);
+            req.setAllowedOverRoaming(false);
+            req.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOCUMENTS, "Marvo_Models/" + spec.fileName);
+
+            long downloadId = dm.enqueue(req);
+            getPrefs(context).edit()
+                .putLong(getDownloadIdKey(type), downloadId)
+                .putString(getStatusKey(type), "downloading")
+                .putBoolean(getAllowMeteredKey(type), allowMetered)
+                .apply();
+
+            Log.i(TAG, "[" + type + "] Enqueued DownloadManager task id: " + downloadId + " -> Documents/Marvo_Models/" + spec.fileName);
+            return true;
+        } catch (Exception e) {
+            Log.e(TAG, "[" + type + "] Failed to enqueue DownloadManager: " + e.getMessage(), e);
+            getPrefs(context).edit().putString(getStatusKey(type), "failed").apply();
             return false;
         }
-
-        state.isPaused = false;
-        state.isCancelled = false;
-        state.isDownloading = true;
-
-        final Context appContext = context.getApplicationContext();
-        executor.execute(new Runnable() {
-            @Override
-            public void run() {
-                executeDownloadTask(appContext, type);
-            }
-        });
-
-        return true;
     }
 
     public synchronized boolean startDownload(final Context context, boolean allowMetered) {
@@ -524,6 +548,14 @@ public class OfflineBrainDownloader {
         try { if (state.activeConnection != null) state.activeConnection.disconnect(); } catch (Exception ignored) {}
 
         if (context != null) {
+            long downloadId = getPrefs(context).getLong(getDownloadIdKey(type), -1L);
+            if (downloadId != -1L) {
+                try {
+                    DownloadManager dm = (DownloadManager) context.getSystemService(Context.DOWNLOAD_SERVICE);
+                    if (dm != null) dm.remove(downloadId);
+                } catch (Exception ignored) {}
+                getPrefs(context).edit().remove(getDownloadIdKey(type)).apply();
+            }
             getPrefs(context).edit().putString(getStatusKey(type), "paused").apply();
         }
     }
@@ -542,6 +574,14 @@ public class OfflineBrainDownloader {
         try { if (state.activeConnection != null) state.activeConnection.disconnect(); } catch (Exception ignored) {}
 
         if (context != null) {
+            long downloadId = getPrefs(context).getLong(getDownloadIdKey(type), -1L);
+            if (downloadId != -1L) {
+                try {
+                    DownloadManager dm = (DownloadManager) context.getSystemService(Context.DOWNLOAD_SERVICE);
+                    if (dm != null) dm.remove(downloadId);
+                } catch (Exception ignored) {}
+                getPrefs(context).edit().remove(getDownloadIdKey(type)).apply();
+            }
             File partFile = getPartFile(context, type);
             if (partFile != null && partFile.exists()) partFile.delete();
             state.currentDownloadedBytes = 0L;
@@ -576,6 +616,54 @@ public class OfflineBrainDownloader {
                 res.put("downloadedBytes", len);
                 res.put("totalBytes", len);
                 return res;
+            }
+
+            // Query native Android DownloadManager if active
+            long downloadId = getPrefs(context).getLong(getDownloadIdKey(type), -1L);
+            if (downloadId != -1L) {
+                DownloadManager dm = (DownloadManager) context.getSystemService(Context.DOWNLOAD_SERVICE);
+                if (dm != null) {
+                    DownloadManager.Query query = new DownloadManager.Query();
+                    query.setFilterById(downloadId);
+                    try (Cursor cursor = dm.query(query)) {
+                        if (cursor != null && cursor.moveToFirst()) {
+                            int bytesDownloadedIdx = cursor.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR);
+                            int bytesTotalIdx = cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES);
+                            int statusIdx = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS);
+
+                            long dlBytes = bytesDownloadedIdx != -1 ? cursor.getLong(bytesDownloadedIdx) : 0L;
+                            long totBytes = bytesTotalIdx != -1 ? cursor.getLong(bytesTotalIdx) : spec.defaultTotalBytes;
+                            if (totBytes <= 0) totBytes = spec.defaultTotalBytes;
+                            int dmStatus = statusIdx != -1 ? cursor.getInt(statusIdx) : -1;
+
+                            String statusStr = "downloading";
+                            boolean isReady = false;
+                            int progress = (int) Math.min(100, totBytes > 0 ? (dlBytes * 100) / totBytes : 0);
+
+                            if (dmStatus == DownloadManager.STATUS_SUCCESSFUL) {
+                                statusStr = "completed";
+                                isReady = true;
+                                progress = 100;
+                                getPrefs(context).edit().putString(getStatusKey(type), "completed").apply();
+                            } else if (dmStatus == DownloadManager.STATUS_PAUSED) {
+                                statusStr = "paused";
+                            } else if (dmStatus == DownloadManager.STATUS_FAILED) {
+                                statusStr = "failed";
+                            } else if (dmStatus == DownloadManager.STATUS_RUNNING || dmStatus == DownloadManager.STATUS_PENDING) {
+                                statusStr = "downloading";
+                            }
+
+                            res.put("status", statusStr);
+                            res.put("progress", progress);
+                            res.put("isReady", isReady);
+                            res.put("downloadedBytes", dlBytes);
+                            res.put("totalBytes", totBytes);
+                            return res;
+                        }
+                    } catch (Exception dmErr) {
+                        Log.w(TAG, "Error querying DownloadManager: " + dmErr.getMessage());
+                    }
+                }
             }
 
             File partFile = getPartFile(context, type);

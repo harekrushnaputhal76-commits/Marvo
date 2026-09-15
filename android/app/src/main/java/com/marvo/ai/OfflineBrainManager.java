@@ -311,20 +311,14 @@ public class OfflineBrainManager {
             return codeResponse;
         }
 
-        // 4.5 General Knowledge & Entity Definitions
-        String defResponse = resolveDefinitionQuery(lower, clean);
-        if (defResponse != null) {
-            return defResponse;
+        // 4.5 Fallback when Offline and model is not ready
+        if (!isModelReady()) {
+            String offlineMsg = "You are currently offline. Connect to the internet or download the offline model in Settings to continue.";
+            return "<coreResponse>" + offlineMsg + "</coreResponse>";
         }
 
-        // 4.6 Dynamic Contextual Fallback
-        String subject = clean.replaceAll("[?.!]", "").trim();
-        String spokenAnswer = "Maine aapka sawal process kar liya hai. " + subject + " ek mahatvapurna topic hai. Aap iske specific formulas, definitions ya practical steps pooch sakte hain.";
-        return "<coreResponse>" + spokenAnswer + "</coreResponse>\n\n" +
-               "### 💡 " + subject + "\n\n" +
-               "- **Inquiry**: " + clean + "\n" +
-               "- **Overview**: Local neural engine synthesized your query.\n" +
-               "- **Follow-up**: Feel free to ask for step-by-step math, definitions, or device tasks.";
+        String offlineReadyMsg = "Offline model loaded. How can I assist you with your academic or device query?";
+        return "<coreResponse>" + offlineReadyMsg + "</coreResponse>";
     }
 
     private boolean isMathExpression(String text) {
@@ -478,22 +472,6 @@ public class OfflineBrainManager {
         return null;
     }
 
-    private String resolveDefinitionQuery(String lower, String clean) {
-        if (lower.startsWith("who is ") || lower.startsWith("what is ") || lower.startsWith("define ") || lower.startsWith("explain ")) {
-            String term = clean.replaceAll("(?i)^(who is|what is|define|explain)\\s+", "").replaceAll("[?.]", "").trim();
-            if (term.length() >= 2) {
-                String capTerm = Character.toUpperCase(term.charAt(0)) + (term.length() > 1 ? term.substring(1) : "");
-                String speech = capTerm + " ek mahatvapurna concept hai. Iski mukhya definition offline available hai, Sir.";
-                return "<coreResponse>" + speech + "</coreResponse>\n\n" +
-                       "### 📖 " + capTerm + "\n\n" +
-                       "**" + capTerm + "** refers to a fundamental entity or concept defined by its structure, functional characteristics, and contextual relationships within its domain.\n\n" +
-                       "- **Classification**: Core domain subject\n" +
-                       "- **Significance**: Plays a vital role in theoretical formulations and real-world practical applications.\n" +
-                       "- **Offline Status**: Verified and resolved via on-device Phi-3 local brain.";
-            }
-        }
-        return null;
-    }
 
     public static String cleanAppleXmlTags(String text) {
         if (text == null || text.trim().isEmpty()) return "";

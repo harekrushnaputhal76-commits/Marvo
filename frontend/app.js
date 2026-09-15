@@ -2771,7 +2771,7 @@ async function sendMessage(userText) {
       if (currentChatAbortController) {
         try { currentChatAbortController.abort('timeout'); } catch (e) {}
       }
-    }, 8000);
+    }, 35000);
 
     const res = await fetch(API_CHAT, {
       method: 'POST',
@@ -3308,6 +3308,19 @@ async function restoreCurrentSession() {
   highlightActiveSession();
 }
 
+function clearChat() {
+  if (DOM.chatMessages) {
+    DOM.chatMessages.innerHTML = '';
+  }
+  hasInteracted = false;
+  DOM.body.classList.remove('chat-active');
+  const smartContainer = document.getElementById('smartReplyContainer');
+  if (smartContainer) smartContainer.style.display = 'none';
+  if (typeof setEyeExpression === 'function') {
+    setEyeExpression('state-idle');
+  }
+}
+
 function newChat() {
   currentSessionId = generateSessionId();
   persistCurrentSession();
@@ -3334,6 +3347,10 @@ function closeAllDropdowns() {
 }
 
 document.addEventListener('click', (e) => {
+  if (e.target.closest('#btnNewChat') || e.target.closest('.btn-new-chat')) {
+    newChat();
+    return;
+  }
   if (!e.target.closest('.menu-container') && !e.target.closest('.dropdown-menu') && !e.target.closest('.attach-container')) {
     closeAllDropdowns();
   }
