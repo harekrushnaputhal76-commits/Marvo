@@ -4568,6 +4568,42 @@ body.page-paused * {
   width: 100%;
   max-width: 320px;
   height: 60px;
-  filter: drop-shadow(0 0 8px rgba(0, 240, 255, 0.45));
+  filter: drop-shadow(0 0 12px rgba(0, 240, 255, 0.55));
+}
+
+/* Apple Intelligence Actionable Item Chips */
+.apple-action-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 1px 3px;
+  padding: 1px 7px;
+  background: rgba(0, 240, 255, 0.1);
+  border: 1px solid rgba(0, 240, 255, 0.32);
+  border-radius: 6px;
+  font-size: 0.92em;
+  font-weight: 600;
+  color: #00f0ff;
+  box-shadow: 0 0 8px rgba(0, 240, 255, 0.12);
+  vertical-align: baseline;
+  user-select: text;
+}
+
+.apple-action-chip .chip-icon {
+  font-size: 10px;
+  opacity: 0.85;
+}
+
+/* Strictly Enforce Widget Z-Index Hierarchy: Voice / Siri Dock on Top */
+.voice-bottom-dock {
+  z-index: 3000 !important;
+}
+
+.settings-modal-overlay {
+  z-index: 2000 !important;
+}
+
+.live-vision-overlay {
+  z-index: 1000 !important;
 }
 

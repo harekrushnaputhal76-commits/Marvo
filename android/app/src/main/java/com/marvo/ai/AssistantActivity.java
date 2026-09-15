@@ -1012,9 +1012,9 @@ public class AssistantActivity extends AppCompatActivity {
         speechRecognizerIntent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
         speechRecognizerIntent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3);
         // Stabilize silence thresholds so mic does not cut off prematurely
-        speechRecognizerIntent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 3000L);
-        speechRecognizerIntent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 2500L);
-        speechRecognizerIntent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 2000L);
+        speechRecognizerIntent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 4000L);
+        speechRecognizerIntent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 3500L);
+        speechRecognizerIntent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 3000L);
 
         speechRecognizer.setRecognitionListener(new RecognitionListener() {
             @Override
@@ -5277,7 +5277,62 @@ public class AssistantActivity extends AppCompatActivity {
                         ? domain.trim()
                         : OfflineIntentRouter.detectDomain(userQuery);
 
-                    Log.i(TAG, "[HYBRID ROUTER] Query routed to ONLINE (Gemini API - " + activeDomain + "): " + userQuery);
+                    Log.i(TAG, "[HYBRID ROUTER] Query routed to ONLINE (Backend/Gemini API - " + activeDomain + "): " + userQuery);
+
+                    // Priority 1: Cloud Backend API (https://marvo-kshm.onrender.com/api/chat)
+                    try {
+                        URL backendUrl = new URL("https://marvo-kshm.onrender.com/api/chat");
+                        HttpURLConnection bConn = (HttpURLConnection) backendUrl.openConnection();
+                        bConn.setRequestMethod("POST");
+                        bConn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+                        bConn.setDoOutput(true);
+                        bConn.setConnectTimeout(6000);
+                        bConn.setReadTimeout(15000);
+
+                        JSONObject bBody = new JSONObject();
+                        bBody.put("message", userQuery);
+                        bBody.put("session_id", "assistant_voice");
+                        OutputStream bOs = bConn.getOutputStream();
+                        bOs.write(bBody.toString().getBytes("UTF-8"));
+                        bOs.flush();
+                        bOs.close();
+
+                        int bCode = bConn.getResponseCode();
+                        if (bCode == 200) {
+                            BufferedReader bBr = new BufferedReader(new InputStreamReader(bConn.getInputStream(), "UTF-8"));
+                            StringBuilder bSb = new StringBuilder();
+                            String bLine;
+                            while ((bLine = bBr.readLine()) != null) bSb.append(bLine);
+                            bBr.close();
+                            bConn.disconnect();
+
+                            JSONObject bJson = new JSONObject(bSb.toString());
+                            String bReply = bJson.optString("response", "");
+                            if (!bReply.trim().isEmpty()) {
+                                String cleaned = bReply.replaceAll("[*#_`]", "").trim();
+                                cleaned = cleaned.replaceAll("https?://\\S+", "").replaceAll("\\s{2,}", " ").trim();
+                                cleaned = stripAiPreamble(cleaned);
+                                final String finalReply = cleaned;
+                                Log.i(TAG, "[HYBRID ROUTER] Solved via Cloud Backend: " + finalReply);
+                                MemoryVault.saveConversationTurn(AssistantActivity.this, "user", userQuery);
+                                MemoryVault.saveConversationTurn(AssistantActivity.this, "model", finalReply);
+                                addConversationTurn("user", userQuery);
+                                addConversationTurn("model", finalReply);
+                                runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        showResponse(finalReply, true);
+                                    }
+                                });
+                                return;
+                            }
+                        }
+                        bConn.disconnect();
+                    } catch (Exception be) {
+                        Log.d(TAG, "Backend API attempt bypassed or unavailable: " + be.getMessage());
+                    }
+
+                    // Priority 2: Direct Gemini API fallback
                     String apiKey = "YOUR_API_KEY_HERE";
                     if (apiKey == null || apiKey.trim().isEmpty() || "YOUR_API_KEY_HERE".equals(apiKey)) {
                         apiKey = getGeminiApiKey();

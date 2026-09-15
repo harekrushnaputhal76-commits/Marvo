@@ -1933,10 +1933,14 @@ function cleanPromptForDisplay(raw) {
   return t || 'Visual generation';
 }
 
+const CONVERSATIONAL_GREETING_REGEX = /^(?:hi+|hello|hey+|namaste|pranam|good\s+(?:morning|afternoon|evening)|how\s+are\s+you|what\s+is|who\s+are\s+you|kya\s+haal\s+hai|kaise\s+ho)\b/i;
+
 function parseImageGenerationPrompt(input) {
   if (!input) return null;
   const trimmed = input.trim();
   if (!trimmed) return null;
+  // Strict guard: Greetings and casual banter must never trigger Image Generation
+  if (CONVERSATIONAL_GREETING_REGEX.test(trimmed)) return null;
 
   const explicitMatch = IMAGE_GENERATION_PATTERNS.some((pattern) => pattern.test(trimmed));
   if (!explicitMatch) return null;
@@ -2395,6 +2399,11 @@ function renderFormattedAiResponse(rawText) {
   text = text.replace(/^\s*[-*]\s+(.+)$/gm, '<li>$1</li>');
   text = text.replace(/\n\n+/g, '<br><br>');
   text = text.replace(/\n/g, '<br>');
+
+  // Step 33 Apple Intelligence: Smart Actionable Item Extraction
+  text = text.replace(/\b(?:(?:at\s+)?\d{1,2}(?::\d{2})?\s*(?:am|pm)|tomorrow(?:\s+morning|\s+evening|\s+night)?|today|yesterday|(?:on\s+)?(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2}(?:st|nd|rd|th)?|\b(?:remind me to|task:|reminder:)\s+[a-zA-Z0-9\s]{4,28})\b/gi, (match) => {
+    return `<span class="apple-action-chip"><span class="chip-icon">⚡</span>${match}</span>`;
+  });
 
   // 7. Unpack math placeholders
   text = text.replace(/%%MATHBLOCK_(\d+)%%/g, (match, idx) => mathBlocks[parseInt(idx, 10)] || '');
@@ -2941,19 +2950,32 @@ async function initAudioVisualizer() {
       dynamicAmp = Math.max(4, Math.min(32, rms * 80));
     }
 
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = '#00f0ff';
-    ctx.beginPath();
-
-    const freq = isVoicePaused ? 0.01 : 0.05;
+    const freq = isVoicePaused ? 0.01 : 0.045;
     const amp = isVoicePaused ? 2 : dynamicAmp;
 
-    for (let x = 0; x < width; x += 3) {
-      const y = height / 2 + Math.sin(x * freq + time) * amp * Math.sin(x / width * Math.PI);
-      if (x === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
+    // Apple Intelligence 3-Layer Fluid Harmonic Glowing Waveform
+    const waves = [
+      { color: 'rgba(0, 240, 255, 0.9)', speed: 1.0, phase: 0, ampMult: 1.0, lineWidth: 2.5 },
+      { color: 'rgba(255, 0, 128, 0.75)', speed: -1.3, phase: Math.PI / 3, ampMult: 0.7, lineWidth: 2.0 },
+      { color: 'rgba(147, 51, 234, 0.65)', speed: 0.8, phase: Math.PI / 1.5, ampMult: 0.5, lineWidth: 1.8 }
+    ];
+
+    waves.forEach(w => {
+      ctx.beginPath();
+      ctx.lineWidth = w.lineWidth;
+      ctx.strokeStyle = w.color;
+      ctx.shadowColor = w.color;
+      ctx.shadowBlur = isVoicePaused ? 2 : 8;
+
+      for (let x = 0; x < width; x += 3) {
+        const envelope = Math.sin((x / width) * Math.PI);
+        const y = height / 2 + Math.sin(x * freq + time * w.speed + w.phase) * amp * w.ampMult * envelope;
+        if (x === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    });
+    ctx.shadowBlur = 0;
   }
   renderWave();
 }

@@ -319,13 +319,12 @@ public class OfflineBrainManager {
 
         // 4.6 Dynamic Contextual Fallback
         String subject = clean.replaceAll("[?.!]", "").trim();
-        String speech = subject + " ke baare mein offline analysis taiyar hai, Sir.";
-        return "<coreResponse>" + speech + "</coreResponse>\n\n" +
+        String spokenAnswer = "Maine aapka sawal process kar liya hai. " + subject + " ek mahatvapurna topic hai. Aap iske specific formulas, definitions ya practical steps pooch sakte hain.";
+        return "<coreResponse>" + spokenAnswer + "</coreResponse>\n\n" +
                "### 💡 " + subject + "\n\n" +
-               "Here is the synthesized offline assessment for your inquiry:\n\n" +
-               "1. **Core Concept**: `" + clean + "` addresses key functional principles in its domain.\n" +
-               "2. **Detailed Analysis**: In offline operation, Marvo processes queries using local neural weights without transmitting data externally.\n" +
-               "3. **Next Step**: You can ask for mathematical derivations, specific definitions, coding examples, or device actions related to this.";
+               "- **Inquiry**: " + clean + "\n" +
+               "- **Overview**: Local neural engine synthesized your query.\n" +
+               "- **Follow-up**: Feel free to ask for step-by-step math, definitions, or device tasks.";
     }
 
     private boolean isMathExpression(String text) {

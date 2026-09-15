@@ -85,28 +85,44 @@ _ADDITIONAL_IMAGE_PATTERNS = [
 ]
 
 
+EXPLICIT_IMAGE_PATTERNS = [
+    re.compile(r"\b(?:generate|create|render|make)\s+(?:an?\s+)?(?:image|picture|photo|illustration|wallpaper|artwork|poster)\b", re.IGNORECASE),
+    re.compile(r"\b(?:draw|paint|sketch)\s+(?:an?\s+)?(?:image|picture|photo|portrait|scene|character|logo|cover)?\s*(?:of|for|with|showing)?\s+\w+", re.IGNORECASE),
+    re.compile(r"\b(?:show\s+me|give\s+me)\s+(?:an?\s+)?(?:picture|photo|image)\s+of\b", re.IGNORECASE),
+    re.compile(r"\b(?:tasveer\s+banao|photo\s+banao|drawing\s+banao|chitra\s+banao|image\s+banao)\b", re.IGNORECASE),
+]
+
+# Greetings and conversational phrases that must NEVER trigger image generation
+CONVERSATIONAL_GREETINGS = [
+    "hi", "hii", "hiii", "hello", "hey", "heyy", "namaste", "pranam",
+    "how are you", "what are you", "who are you", "kya haal hai", "kaise ho"
+]
+
 def is_image_intent(prompt: str) -> bool:
     """
-    Extremely aggressive image intent routing.
-    If ANY of ['generate', 'image', 'draw', 'photo', 'picture', 'creat', 'create', 'pic', 'paint', 'thumbnail']
-    exist anywhere in the user prompt, immediately return True.
+    Strict Intent Classification:
+    ONLY triggers Image Generation if the user's actual prompt contains explicit
+    image creation keywords (e.g. 'draw a cat', 'generate an image of mars', 'create a picture').
+    All greetings, banter, and questions are strictly routed to the Conversational LLM.
     """
     if not prompt or not isinstance(prompt, str):
         return False
 
-    clean = prompt.strip().lower()
+    # 1. Strip bracketed system metadata directives (e.g. [DEVICE_STATE:...], [APPLE_INTELLIGENCE_DIRECTIVES:...])
+    raw_user_query = re.sub(r'\[.*?\]', '', prompt, flags=re.DOTALL).strip()
+    if not raw_user_query:
+        return False
 
-    # 1. Exact match against user's required trigger word list
-    for word in IMAGE_TRIGGER_WORDS:
-        # Check both word boundary and substring match (catches typos like 'creat', 'create', 'pic', etc.)
-        if word in clean:
-            logger.info(f"[AgentManager] Aggressive image trigger matched: '{word}' in prompt: {clean[:50]}")
-            return True
+    clean = raw_user_query.lower()
 
-    # 2. Regional / auxiliary visual patterns
-    for pattern in _ADDITIONAL_IMAGE_PATTERNS:
+    # 2. Strict guard against greetings & short chat banter
+    if clean in CONVERSATIONAL_GREETINGS or re.match(r'^(?:hi+|hello|hey+|namaste|pranam)\b', clean):
+        return False
+
+    # 3. Explicit pattern matching for visual requests
+    for pattern in EXPLICIT_IMAGE_PATTERNS:
         if pattern.search(clean):
-            logger.info(f"[AgentManager] Visual pattern matched in prompt: {clean[:50]}")
+            logger.info(f"[AgentManager] Explicit image intent detected: {clean[:50]}")
             return True
 
     return False
