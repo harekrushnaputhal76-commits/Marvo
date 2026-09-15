@@ -609,7 +609,7 @@
         <div class="settings-section offline-brain-section">
           <h4 class="settings-section-title">🧠 OFFLINE AI BRAIN (2.2GB)</h4>
           <p class="settings-subdesc">High-intelligence offline LLM capable of complex Q&A and phone actions without internet.</p>
-          <div class="offline-brain-card">
+          <div class="offline-brain-card" style="margin-bottom: 16px;">
             <div class="offline-card-header">
               <span class="offline-model-name">Phi-3 Mini 4K Instruct</span>
               <span id="offlineBrainStatusBadge" class="offline-status-badge status-idle">Checking...</span>
@@ -628,6 +628,54 @@
               <button id="btnDownloadBrain" class="btn-offline-action primary" type="button">Download Offline Brain</button>
               <button id="btnPauseBrain" class="btn-offline-action secondary" type="button" style="display:none;">Pause</button>
               <button id="btnCancelBrain" class="btn-offline-action danger" type="button" style="display:none;">Cancel</button>
+            </div>
+          </div>
+
+          <h4 class="settings-section-title" style="margin-top: 20px;">🎙️ OFFLINE SPEECH RECOGNITION (150MB)</h4>
+          <p class="settings-subdesc">Whisper Tiny on-device speech-to-text model for zero-latency local voice transcription.</p>
+          <div class="offline-brain-card" style="margin-bottom: 16px;">
+            <div class="offline-card-header">
+              <span class="offline-model-name">Whisper Tiny STT</span>
+              <span id="offlineSttStatusBadge" class="offline-status-badge status-idle">Checking...</span>
+            </div>
+            
+            <div class="offline-progress-track">
+              <div id="offlineSttProgressBar" class="offline-progress-fill" style="width: 0%;"></div>
+            </div>
+            
+            <div class="offline-progress-info">
+              <span id="offlineSttProgressText" class="offline-progress-text">0 MB / 150 MB (0%)</span>
+              <span class="offline-storage-tag">Internal: /models/</span>
+            </div>
+            
+            <div class="offline-action-row">
+              <button id="btnDownloadStt" class="btn-offline-action primary" type="button">Download Whisper STT</button>
+              <button id="btnPauseStt" class="btn-offline-action secondary" type="button" style="display:none;">Pause</button>
+              <button id="btnCancelStt" class="btn-offline-action danger" type="button" style="display:none;">Cancel</button>
+            </div>
+          </div>
+
+          <h4 class="settings-section-title" style="margin-top: 20px;">🔊 OFFLINE VOICE SYNTHESIS (100MB)</h4>
+          <p class="settings-subdesc">Piper / VITS high-fidelity neural voice model for natural offline spoken responses.</p>
+          <div class="offline-brain-card">
+            <div class="offline-card-header">
+              <span class="offline-model-name">Piper Voice TTS</span>
+              <span id="offlineTtsStatusBadge" class="offline-status-badge status-idle">Checking...</span>
+            </div>
+            
+            <div class="offline-progress-track">
+              <div id="offlineTtsProgressBar" class="offline-progress-fill" style="width: 0%;"></div>
+            </div>
+            
+            <div class="offline-progress-info">
+              <span id="offlineTtsProgressText" class="offline-progress-text">0 MB / 100 MB (0%)</span>
+              <span class="offline-storage-tag">Internal: /models/</span>
+            </div>
+            
+            <div class="offline-action-row">
+              <button id="btnDownloadTts" class="btn-offline-action primary" type="button">Download Piper TTS</button>
+              <button id="btnPauseTts" class="btn-offline-action secondary" type="button" style="display:none;">Pause</button>
+              <button id="btnCancelTts" class="btn-offline-action danger" type="button" style="display:none;">Cancel</button>
             </div>
           </div>
         </div>

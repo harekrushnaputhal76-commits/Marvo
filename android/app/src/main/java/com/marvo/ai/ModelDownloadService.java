@@ -40,12 +40,15 @@ public class ModelDownloadService extends Service {
     private final Handler pollHandler = new Handler(Looper.getMainLooper());
     private boolean isPolling = false;
 
+    public static final String EXTRA_MODEL_TYPE = "extra_model_type";
+    private String currentModelType = OfflineBrainDownloader.TYPE_LLM;
+
     private final Runnable pollRunnable = new Runnable() {
         @Override
         public void run() {
             if (!isPolling) return;
             try {
-                JSONObject progress = OfflineBrainDownloader.getInstance().getDownloadProgress(ModelDownloadService.this);
+                JSONObject progress = OfflineBrainDownloader.getInstance().getDownloadProgress(ModelDownloadService.this, currentModelType);
                 String status = progress.optString("status", "idle");
                 int pct = progress.optInt("progress", 0);
                 long downloaded = progress.optLong("downloadedBytes", 0);
@@ -97,12 +100,12 @@ public class ModelDownloadService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent == null || intent.getAction() == null) {
             // Check if download was actively in progress before process kill
-            JSONObject progress = OfflineBrainDownloader.getInstance().getDownloadProgress(this);
+            JSONObject progress = OfflineBrainDownloader.getInstance().getDownloadProgress(this, currentModelType);
             String status = progress.optString("status", "idle");
             if ("downloading".equalsIgnoreCase(status)) {
                 acquireWakeLock();
                 startForegroundNotification();
-                OfflineBrainDownloader.getInstance().startDownload(this, true);
+                OfflineBrainDownloader.getInstance().startDownload(this, currentModelType, true);
                 startPolling();
                 return START_STICKY;
             }
@@ -112,22 +115,27 @@ public class ModelDownloadService extends Service {
         String action = intent.getAction();
         Log.d(TAG, "ModelDownloadService received action: " + action);
 
+        if (intent.hasExtra(EXTRA_MODEL_TYPE)) {
+            currentModelType = intent.getStringExtra(EXTRA_MODEL_TYPE);
+            if (currentModelType == null) currentModelType = OfflineBrainDownloader.TYPE_LLM;
+        }
+
         if (ACTION_START_DOWNLOAD.equals(action)) {
             boolean allowMetered = intent.getBooleanExtra(EXTRA_ALLOW_METERED, true);
             acquireWakeLock();
             startForegroundNotification();
-            OfflineBrainDownloader.getInstance().startDownload(this, allowMetered);
+            OfflineBrainDownloader.getInstance().startDownload(this, currentModelType, allowMetered);
             startPolling();
             return START_STICKY;
         } else if (ACTION_PAUSE.equals(action)) {
-            OfflineBrainDownloader.getInstance().pauseDownload(this);
+            OfflineBrainDownloader.getInstance().pauseDownload(this, currentModelType);
             releaseWakeLock();
             showPausedNotification();
             stopPolling();
             stopForeground(false);
             return START_NOT_STICKY;
         } else if (ACTION_CANCEL.equals(action)) {
-            OfflineBrainDownloader.getInstance().cancelDownload(this);
+            OfflineBrainDownloader.getInstance().cancelDownload(this, currentModelType);
             releaseWakeLock();
             stopPolling();
             stopForeground(true);

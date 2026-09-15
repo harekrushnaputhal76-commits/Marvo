@@ -809,7 +809,7 @@ public class AssistantActivity extends AppCompatActivity {
                                 runOnUiThread(new Runnable() {
                                     @Override
                                     public void run() {
-                                        setOrbState("SPEAKING");
+                                        setVisualState("SPEAKING");
                                     }
                                 });
                             }
@@ -2346,7 +2346,7 @@ public class AssistantActivity extends AppCompatActivity {
 
             case "PROCESSING":
                 processingWatchdogHandler.removeCallbacks(processingWatchdogRunnable);
-                processingWatchdogHandler.postDelayed(processingWatchdogRunnable, 15000);
+                processingWatchdogHandler.postDelayed(processingWatchdogRunnable, 10000);
                 if (statusTextView != null) {
                     statusTextView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20.0f);
                     statusTextView.setText("Processing...");
@@ -2357,6 +2357,18 @@ public class AssistantActivity extends AppCompatActivity {
                     subtitleTextView.setVisibility(View.VISIBLE);
                 }
                 setOrbState("THINKING");
+                break;
+
+            case "SPEAKING":
+                processingWatchdogHandler.removeCallbacks(processingWatchdogRunnable);
+                if (statusTextView != null) {
+                    statusTextView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18.0f);
+                    statusTextView.setTextColor(android.graphics.Color.WHITE);
+                }
+                if (subtitleTextView != null) {
+                    subtitleTextView.setVisibility(View.GONE);
+                }
+                setOrbState("SPEAKING");
                 break;
 
             case "SUCCESS":
@@ -2416,14 +2428,21 @@ public class AssistantActivity extends AppCompatActivity {
                     subtitleTextView.setVisibility(View.GONE);
                 }
                 String lower = message.toLowerCase();
-                if (lower.contains("confirmed") || lower.contains("sent") || lower.contains("calling") ||
+                boolean isActionSuccess = lower.contains("confirmed") || lower.contains("sent") || lower.contains("calling") ||
                     lower.contains("turned on") || lower.contains("turned off") || lower.contains("saved") ||
                     lower.contains("opened") || lower.contains("alright") || lower.contains("adjusting") ||
                     lower.contains("toggling") || lower.contains("launching") || lower.contains("battery") ||
                     lower.contains("order saved") || lower.contains("note saved") || lower.contains("stock updated") ||
-                    lower.contains("success")) {
+                    lower.contains("success");
+
+                if (isActionSuccess) {
                     setVisualState("SUCCESS");
+                } else if (shouldSpeak) {
+                    setVisualState("SPEAKING");
+                } else {
+                    setVisualState("IDLE");
                 }
+
                 if (shouldSpeak && tts != null && isTtsReady) {
                     try {
                         if (tts.isSpeaking()) {
@@ -2438,6 +2457,13 @@ public class AssistantActivity extends AppCompatActivity {
                             tts.speak(message.replace('\n', ' '), TextToSpeech.QUEUE_FLUSH, null);
                         } catch (Exception ignored) {}
                     }
+                } else if (shouldSpeak) {
+                    new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            setVisualState("IDLE");
+                        }
+                    }, 2500);
                 }
             }
         });

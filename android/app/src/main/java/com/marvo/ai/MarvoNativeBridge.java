@@ -95,6 +95,222 @@ public class MarvoNativeBridge extends Plugin {
     }
 
     @PluginMethod
+    public void getMultiModelProgress(PluginCall call) {
+        try {
+            Context context = getContext();
+            JSONObject allProgress = OfflineBrainDownloader.getInstance().getAllModelsProgress(context);
+            JSObject res = new JSObject();
+            if (allProgress.has(OfflineBrainDownloader.TYPE_LLM)) {
+                res.put("llm", JSObject.fromJSONObject(allProgress.getJSONObject(OfflineBrainDownloader.TYPE_LLM)));
+            }
+            if (allProgress.has(OfflineBrainDownloader.TYPE_STT)) {
+                res.put("stt", JSObject.fromJSONObject(allProgress.getJSONObject(OfflineBrainDownloader.TYPE_STT)));
+            }
+            if (allProgress.has(OfflineBrainDownloader.TYPE_TTS)) {
+                res.put("tts", JSObject.fromJSONObject(allProgress.getJSONObject(OfflineBrainDownloader.TYPE_TTS)));
+            }
+            call.resolve(res);
+        } catch (Exception e) {
+            Log.e(TAG, "Error fetching multi-model progress: " + e.getMessage(), e);
+            call.reject("Error fetching multi-model progress: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void startTypedModelDownload(PluginCall call) {
+        try {
+            Context context = getContext();
+            String modelType = call.getString("modelType", OfflineBrainDownloader.TYPE_LLM);
+            boolean allowMetered = call.getBoolean("allowMetered", true);
+            OfflineBrainDownloader.startForegroundDownloadService(context, modelType, allowMetered);
+            JSObject res = new JSObject();
+            res.put("started", true);
+            res.put("modelType", modelType);
+            call.resolve(res);
+        } catch (Exception e) {
+            Log.e(TAG, "Error starting typed model download: " + e.getMessage(), e);
+            call.reject("Failed to start typed download: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void pauseTypedModelDownload(PluginCall call) {
+        try {
+            Context context = getContext();
+            String modelType = call.getString("modelType", OfflineBrainDownloader.TYPE_LLM);
+            OfflineBrainDownloader.getInstance().pauseDownload(context, modelType);
+            JSObject res = new JSObject();
+            res.put("paused", true);
+            res.put("modelType", modelType);
+            call.resolve(res);
+        } catch (Exception e) {
+            call.reject("Error pausing typed download: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void cancelTypedModelDownload(PluginCall call) {
+        try {
+            Context context = getContext();
+            String modelType = call.getString("modelType", OfflineBrainDownloader.TYPE_LLM);
+            OfflineBrainDownloader.getInstance().cancelDownload(context, modelType);
+            JSObject res = new JSObject();
+            res.put("cancelled", true);
+            res.put("modelType", modelType);
+            call.resolve(res);
+        } catch (Exception e) {
+            call.reject("Error canceling typed download: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void executeDeviceIntent(PluginCall call) {
+        String query = call.getString("query");
+        if (query == null || query.trim().isEmpty()) {
+            JSObject res = new JSObject();
+            res.put("executed", false);
+            call.resolve(res);
+            return;
+        }
+        String clean = query.trim();
+        String lower = clean.toLowerCase();
+        Context context = getContext();
+        android.content.pm.PackageManager pm = context.getPackageManager();
+
+        try {
+            // 1. YouTube
+            if (lower.equals("open youtube") || lower.equals("youtube kholo") || lower.equals("launch youtube") || lower.equals("start youtube")) {
+                Intent intent = pm.getLaunchIntentForPackage("com.google.android.youtube");
+                if (intent != null) {
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    context.startActivity(intent);
+                    JSObject res = new JSObject();
+                    res.put("executed", true);
+                    res.put("message", "Opening YouTube...");
+                    res.put("action", "open_youtube");
+                    call.resolve(res);
+                    return;
+                }
+            }
+
+            // 2. WhatsApp
+            if (lower.equals("open whatsapp") || lower.equals("whatsapp kholo") || lower.equals("launch whatsapp") || lower.equals("open wa")) {
+                Intent intent = pm.getLaunchIntentForPackage("com.whatsapp");
+                if (intent != null) {
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    context.startActivity(intent);
+                    JSObject res = new JSObject();
+                    res.put("executed", true);
+                    res.put("message", "Opening WhatsApp...");
+                    res.put("action", "open_whatsapp");
+                    call.resolve(res);
+                    return;
+                }
+            }
+
+            // 3. Camera
+            if (lower.equals("open camera") || lower.equals("camera kholo") || lower.equals("take photo") || lower.equals("launch camera")) {
+                Intent intent = new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                context.startActivity(intent);
+                JSObject res = new JSObject();
+                res.put("executed", true);
+                res.put("message", "Opening Camera...");
+                res.put("action", "open_camera");
+                call.resolve(res);
+                return;
+            }
+
+            // 4. Settings
+            if (lower.equals("open settings") || lower.equals("settings kholo") || lower.equals("launch settings")) {
+                Intent intent = new Intent(android.provider.Settings.ACTION_SETTINGS);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                context.startActivity(intent);
+                JSObject res = new JSObject();
+                res.put("executed", true);
+                res.put("message", "Opening Settings...");
+                res.put("action", "open_settings");
+                call.resolve(res);
+                return;
+            }
+
+            // 5. Bluetooth Settings
+            if (lower.contains("bluetooth") && (lower.contains("open") || lower.contains("turn on") || lower.contains("settings") || lower.contains("kholo") || lower.contains("on karo"))) {
+                Intent intent = new Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                context.startActivity(intent);
+                JSObject res = new JSObject();
+                res.put("executed", true);
+                res.put("message", "Opening Bluetooth settings...");
+                res.put("action", "open_bluetooth");
+                call.resolve(res);
+                return;
+            }
+
+            // 6. Wi-Fi Settings
+            if ((lower.contains("wifi") || lower.contains("wi-fi")) && (lower.contains("open") || lower.contains("turn on") || lower.contains("settings") || lower.contains("kholo") || lower.contains("on karo"))) {
+                Intent intent = new Intent(android.provider.Settings.ACTION_WIFI_SETTINGS);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                context.startActivity(intent);
+                JSObject res = new JSObject();
+                res.put("executed", true);
+                res.put("message", "Opening Wi-Fi settings...");
+                res.put("action", "open_wifi");
+                call.resolve(res);
+                return;
+            }
+
+            // 7. Flashlight / Torch
+            if (lower.contains("flashlight") || lower.contains("torch")) {
+                boolean turnOn = lower.contains("on") || lower.contains("chalao") || lower.contains("kholo") || lower.contains("jalao");
+                boolean turnOff = lower.contains("off") || lower.contains("band") || lower.contains("bujhao");
+                if (turnOn || turnOff) {
+                    try {
+                        android.hardware.camera2.CameraManager camManager = (android.hardware.camera2.CameraManager) context.getSystemService(Context.CAMERA_SERVICE);
+                        if (camManager != null) {
+                            String cameraId = camManager.getCameraIdList()[0];
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                                camManager.setTorchMode(cameraId, turnOn);
+                                JSObject res = new JSObject();
+                                res.put("executed", true);
+                                res.put("message", turnOn ? "Flashlight turned on." : "Flashlight turned off.");
+                                res.put("action", "toggle_torch");
+                                call.resolve(res);
+                                return;
+                            }
+                        }
+                    } catch (Exception ignored) {}
+                }
+            }
+
+            // 8. Generic App Launcher
+            if (lower.startsWith("open ") || lower.startsWith("launch ") || lower.endsWith(" kholo")) {
+                String appTarget = lower.replaceFirst("^(?:open|launch)\\s+", "").replaceAll("\\s+kholo$", "").trim();
+                String fastPkg = OfflineIntentRouter.getAppPackage(appTarget);
+                if (fastPkg != null) {
+                    Intent intent = pm.getLaunchIntentForPackage(fastPkg);
+                    if (intent != null) {
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        context.startActivity(intent);
+                        JSObject res = new JSObject();
+                        res.put("executed", true);
+                        res.put("message", "Opening " + Character.toUpperCase(appTarget.charAt(0)) + appTarget.substring(1) + "...");
+                        res.put("action", "open_app");
+                        call.resolve(res);
+                        return;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Device action intent execution note: " + e.getMessage());
+        }
+
+        JSObject res = new JSObject();
+        res.put("executed", false);
+        call.resolve(res);
+    }
+
+    @PluginMethod
     public void getCustomQA(PluginCall call) {
         try {
             Context context = getContext();

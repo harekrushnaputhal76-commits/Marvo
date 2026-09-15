@@ -704,118 +704,187 @@ function stopDownloadPolling() {
   }
 }
 
-async function updateDownloadCard() {
-  const badge = document.getElementById('offlineBrainStatusBadge');
-  const bar = document.getElementById('offlineProgressBar');
-  const text = document.getElementById('offlineProgressText');
-  const btnDl = document.getElementById('btnDownloadBrain');
-  const btnPause = document.getElementById('btnPauseBrain');
-  const btnCancel = document.getElementById('btnCancelBrain');
+function applyCardState(cardConfig, data, defaultTotMb) {
+  const { badge, bar, text, btnDl, btnPause, btnCancel, readyLabel, idleLabel } = cardConfig;
   if (!badge || !bar || !text || !btnDl) return;
 
-  try {
-    if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.MarvoNativeBridge) {
-      const res = await window.Capacitor.Plugins.MarvoNativeBridge.getModelDownloadProgress();
-      const status = (res.status || 'idle').toLowerCase();
-      const progress = res.progress || 0;
-      const isReady = res.isReady || false;
-      const dlMb = Math.round((res.downloadedBytes || 0) / (1024 * 1024));
-      const totMb = Math.round((res.totalBytes || 0) / (1024 * 1024)) || 1800;
+  const status = ((data && data.status) || 'idle').toLowerCase();
+  const progress = (data && data.progress) || 0;
+  const isReady = (data && data.isReady) || false;
+  const dlMb = Math.round(((data && data.downloadedBytes) || 0) / (1024 * 1024));
+  const totMb = Math.round(((data && data.totalBytes) || 0) / (1024 * 1024)) || defaultTotMb;
 
-      if (isReady || status === 'completed') {
-        badge.textContent = 'Model Ready (Offline Active)';
-        badge.className = 'offline-status-badge status-ready';
-        bar.style.width = '100%';
-        bar.classList.add('ready');
-        text.textContent = `~${totMb} MB verified & active in /models/`;
-        btnDl.textContent = 'Offline Active';
-        btnDl.disabled = true;
-        if (btnPause) btnPause.style.display = 'none';
-        if (btnCancel) btnCancel.style.display = 'none';
-        stopDownloadPolling();
-      } else if (status === 'downloading') {
-        badge.textContent = `Downloading... (${progress}%)`;
-        badge.className = 'offline-status-badge status-downloading';
-        bar.style.width = progress + '%';
-        bar.classList.remove('ready');
-        text.textContent = `${dlMb} MB / ${totMb} MB (${progress}%)`;
-        btnDl.textContent = 'Downloading in Background...';
-        btnDl.disabled = false;
-        if (btnPause) { btnPause.style.display = 'inline-block'; btnPause.textContent = 'Pause'; }
-        if (btnCancel) { btnCancel.style.display = 'inline-block'; }
-      } else if (status === 'paused' || status === 'paused_wifi') {
-        badge.textContent = 'Paused';
-        badge.className = 'offline-status-badge status-paused';
-        bar.style.width = progress + '%';
-        bar.classList.remove('ready');
-        text.textContent = `${dlMb} MB / ${totMb} MB (Paused)`;
-        btnDl.textContent = 'Resume Download';
-        btnDl.disabled = false;
-        if (btnPause) { btnPause.style.display = 'none'; }
-        if (btnCancel) { btnCancel.style.display = 'inline-block'; }
-      } else {
-        badge.textContent = 'Not Downloaded';
-        badge.className = 'offline-status-badge status-idle';
-        bar.style.width = '0%';
-        bar.classList.remove('ready');
-        text.textContent = 'Requires ~1.8GB storage';
-        btnDl.textContent = 'Download Offline Brain';
-        btnDl.disabled = false;
-        if (btnPause) btnPause.style.display = 'none';
-        if (btnCancel) btnCancel.style.display = 'none';
+  if (isReady || status === 'completed') {
+    badge.textContent = 'Model Ready (Active)';
+    badge.className = 'offline-status-badge status-ready';
+    bar.style.width = '100%';
+    bar.classList.add('ready');
+    text.textContent = `~${totMb} MB verified & active in /models/`;
+    btnDl.textContent = readyLabel || 'Model Ready';
+    btnDl.disabled = true;
+    if (btnPause) btnPause.style.display = 'none';
+    if (btnCancel) btnCancel.style.display = 'none';
+  } else if (status === 'downloading') {
+    badge.textContent = `Downloading... (${progress}%)`;
+    badge.className = 'offline-status-badge status-downloading';
+    bar.style.width = progress + '%';
+    bar.classList.remove('ready');
+    text.textContent = `${dlMb} MB / ${totMb} MB (${progress}%)`;
+    btnDl.textContent = 'Downloading in Background...';
+    btnDl.disabled = false;
+    if (btnPause) { btnPause.style.display = 'inline-block'; btnPause.textContent = 'Pause'; }
+    if (btnCancel) { btnCancel.style.display = 'inline-block'; }
+  } else if (status === 'paused' || status === 'paused_wifi') {
+    badge.textContent = 'Paused';
+    badge.className = 'offline-status-badge status-paused';
+    bar.style.width = progress + '%';
+    bar.classList.remove('ready');
+    text.textContent = `${dlMb} MB / ${totMb} MB (Paused)`;
+    btnDl.textContent = 'Resume Download';
+    btnDl.disabled = false;
+    if (btnPause) { btnPause.style.display = 'none'; }
+    if (btnCancel) { btnCancel.style.display = 'inline-block'; }
+  } else {
+    badge.textContent = 'Not Downloaded';
+    badge.className = 'offline-status-badge status-idle';
+    bar.style.width = '0%';
+    bar.classList.remove('ready');
+    text.textContent = `Requires ~${defaultTotMb}MB storage`;
+    btnDl.textContent = idleLabel || 'Download Model';
+    btnDl.disabled = false;
+    if (btnPause) btnPause.style.display = 'none';
+    if (btnCancel) btnCancel.style.display = 'none';
+  }
+}
+
+async function updateDownloadCard() {
+  try {
+    if (!window.Capacitor?.Plugins?.MarvoNativeBridge) return;
+
+    let multiProgress = null;
+    if (window.Capacitor.Plugins.MarvoNativeBridge.getMultiModelProgress) {
+      try {
+        multiProgress = await window.Capacitor.Plugins.MarvoNativeBridge.getMultiModelProgress();
+      } catch (e) {
+        console.warn('[OfflineBrain] getMultiModelProgress fallback:', e);
       }
     }
+
+    // 1. LLM Model (Phi-3 Mini 4K)
+    const llmData = (multiProgress && multiProgress.llm) ||
+      (await window.Capacitor.Plugins.MarvoNativeBridge.getModelDownloadProgress());
+    applyCardState({
+      badge: document.getElementById('offlineBrainStatusBadge'),
+      bar: document.getElementById('offlineProgressBar'),
+      text: document.getElementById('offlineProgressText'),
+      btnDl: document.getElementById('btnDownloadBrain'),
+      btnPause: document.getElementById('btnPauseBrain'),
+      btnCancel: document.getElementById('btnCancelBrain'),
+      readyLabel: 'Offline Active',
+      idleLabel: 'Download Offline Brain'
+    }, llmData, 2200);
+
+    // 2. STT Model (Whisper Tiny)
+    if (multiProgress && multiProgress.stt) {
+      applyCardState({
+        badge: document.getElementById('offlineSttStatusBadge'),
+        bar: document.getElementById('offlineSttProgressBar'),
+        text: document.getElementById('offlineSttProgressText'),
+        btnDl: document.getElementById('btnDownloadStt'),
+        btnPause: document.getElementById('btnPauseStt'),
+        btnCancel: document.getElementById('btnCancelStt'),
+        readyLabel: 'STT Ready',
+        idleLabel: 'Download Whisper STT'
+      }, multiProgress.stt, 150);
+    }
+
+    // 3. TTS Model (Piper ONNX)
+    if (multiProgress && multiProgress.tts) {
+      applyCardState({
+        badge: document.getElementById('offlineTtsStatusBadge'),
+        bar: document.getElementById('offlineTtsProgressBar'),
+        text: document.getElementById('offlineTtsProgressText'),
+        btnDl: document.getElementById('btnDownloadTts'),
+        btnPause: document.getElementById('btnPauseTts'),
+        btnCancel: document.getElementById('btnCancelTts'),
+        readyLabel: 'TTS Ready',
+        idleLabel: 'Download Piper TTS'
+      }, multiProgress.tts, 100);
+    }
+
   } catch (err) {
-    // Non-native fallback
+    console.warn('[OfflineBrain] updateDownloadCard error:', err);
   }
 }
 
 function initDownloadCardControls() {
-  const btnDl = document.getElementById('btnDownloadBrain');
-  const btnPause = document.getElementById('btnPauseBrain');
-  const btnCancel = document.getElementById('btnCancelBrain');
+  const setupModelControls = (modelType, btnDlId, btnPauseId, btnCancelId, modelLabel) => {
+    const btnDl = document.getElementById(btnDlId);
+    const btnPause = document.getElementById(btnPauseId);
+    const btnCancel = document.getElementById(btnCancelId);
 
-  if (btnDl) {
-    btnDl.addEventListener('click', async () => {
-      try {
-        if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.MarvoNativeBridge) {
-          showToast('Starting Offline Brain download in background...');
-          await window.Capacitor.Plugins.MarvoNativeBridge.startModelDownload({ allowMetered: true });
-          updateDownloadCard();
+    if (btnDl) {
+      btnDl.addEventListener('click', async () => {
+        try {
+          if (window.Capacitor?.Plugins?.MarvoNativeBridge) {
+            showToast(`Starting ${modelLabel} download in background...`);
+            if (window.Capacitor.Plugins.MarvoNativeBridge.startTypedModelDownload) {
+              await window.Capacitor.Plugins.MarvoNativeBridge.startTypedModelDownload({ modelType, allowMetered: true });
+            } else {
+              await window.Capacitor.Plugins.MarvoNativeBridge.startModelDownload({ allowMetered: true });
+            }
+            startDownloadPolling();
+            updateDownloadCard();
+          }
+        } catch (e) {
+          showToast('Download error: ' + e.message);
         }
-      } catch (e) {
-        showToast('Download error: ' + e.message);
-      }
-    });
-  }
+      });
+    }
 
-  if (btnPause) {
-    btnPause.addEventListener('click', async () => {
-      try {
-        if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.MarvoNativeBridge) {
-          await window.Capacitor.Plugins.MarvoNativeBridge.pauseModelDownload();
-          showToast('Download paused.');
-          updateDownloadCard();
+    if (btnPause) {
+      btnPause.addEventListener('click', async () => {
+        try {
+          if (window.Capacitor?.Plugins?.MarvoNativeBridge) {
+            if (window.Capacitor.Plugins.MarvoNativeBridge.pauseTypedModelDownload) {
+              await window.Capacitor.Plugins.MarvoNativeBridge.pauseTypedModelDownload({ modelType });
+            } else {
+              await window.Capacitor.Plugins.MarvoNativeBridge.pauseModelDownload();
+            }
+            showToast(`${modelLabel} download paused.`);
+            updateDownloadCard();
+          }
+        } catch (e) {
+          showToast('Pause error: ' + e.message);
         }
-      } catch (e) {
-        showToast('Pause error: ' + e.message);
-      }
-    });
-  }
+      });
+    }
 
-  if (btnCancel) {
-    btnCancel.addEventListener('click', async () => {
-      try {
-        if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.MarvoNativeBridge) {
-          await window.Capacitor.Plugins.MarvoNativeBridge.cancelModelDownload();
-          showToast('Download canceled.');
-          updateDownloadCard();
+    if (btnCancel) {
+      btnCancel.addEventListener('click', async () => {
+        try {
+          if (window.Capacitor?.Plugins?.MarvoNativeBridge) {
+            if (window.Capacitor.Plugins.MarvoNativeBridge.cancelTypedModelDownload) {
+              await window.Capacitor.Plugins.MarvoNativeBridge.cancelTypedModelDownload({ modelType });
+            } else {
+              await window.Capacitor.Plugins.MarvoNativeBridge.cancelModelDownload();
+            }
+            showToast(`${modelLabel} download canceled.`);
+            updateDownloadCard();
+          }
+        } catch (e) {
+          showToast('Cancel error: ' + e.message);
         }
-      } catch (e) {
-        showToast('Cancel error: ' + e.message);
-      }
-    });
-  }
+      });
+    }
+  };
+
+  // LLM Controls
+  setupModelControls('llm', 'btnDownloadBrain', 'btnPauseBrain', 'btnCancelBrain', 'Offline Brain (Phi-3)');
+  // STT Controls
+  setupModelControls('stt', 'btnDownloadStt', 'btnPauseStt', 'btnCancelStt', 'Whisper STT');
+  // TTS Controls
+  setupModelControls('tts', 'btnDownloadTts', 'btnPauseTts', 'btnCancelTts', 'Piper TTS');
 }
 
 async function initVoiceSelection() {
@@ -1399,6 +1468,55 @@ function renderAttachmentShelf() {
   });
 }
 
+// Step 28 Apple Intelligence Feature 4: Dynamic Smart Reply Chips
+function renderSmartReplyChips(text) {
+  if (!text || typeof text !== 'string' || text.length < 8) return null;
+  const lower = text.toLowerCase();
+  let suggestions = [];
+
+  if (lower.includes('```') || lower.includes('def ') || lower.includes('function') || lower.includes('const ') || lower.includes('class ')) {
+    suggestions = ['Explain this code', 'Add code comments', 'Optimize logic'];
+  } else if (lower.includes('tl;dr') || lower.includes('key takeaways') || lower.includes('summary')) {
+    suggestions = ['Explain in detail', 'Give practical examples', 'What are next steps?'];
+  } else if (lower.includes('writing tools') || lower.includes('proofread') || lower.includes('rewritten')) {
+    suggestions = ['Make it more formal', 'Make it concise', 'Translate to Hindi'];
+  } else if (lower.includes('result') || lower.includes('equation') || lower.includes('calculation') || lower.includes('$$')) {
+    suggestions = ['Show step-by-step', 'Explain formula', 'Try another problem'];
+  } else {
+    suggestions = ['Tell me more', 'Explain simply', 'Give examples'];
+  }
+
+  const container = document.createElement('div');
+  container.className = 'smart-reply-chips-row';
+  container.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;padding:0 2px;';
+
+  suggestions.forEach(chipText => {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'smart-reply-chip';
+    chip.textContent = chipText;
+    chip.style.cssText = 'background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:4px 10px;font-size:11px;color:var(--text-secondary,#c0c0c8);cursor:pointer;transition:all 0.2s ease;font-family:inherit;';
+    chip.addEventListener('mouseenter', () => {
+      chip.style.background = 'rgba(255,255,255,0.14)';
+      chip.style.color = '#fff';
+      chip.style.transform = 'translateY(-1px)';
+    });
+    chip.addEventListener('mouseleave', () => {
+      chip.style.background = 'rgba(255,255,255,0.06)';
+      chip.style.color = 'var(--text-secondary,#c0c0c8)';
+      chip.style.transform = 'none';
+    });
+    chip.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (DOM.msgInput) DOM.msgInput.value = chipText;
+      if (!isBusy) sendMessage(chipText);
+    });
+    container.appendChild(chip);
+  });
+
+  return container;
+}
+
 function addMessage(text, sender, attachments = []) {
   if (sender === 'user') {
     const el = document.createElement('div');
@@ -1495,6 +1613,13 @@ function addMessage(text, sender, attachments = []) {
   actionBar.appendChild(retryBtn);
 
   wrapper.appendChild(actionBar);
+
+  // Step 28 Apple Intelligence Feature 4: Smart Reply Chips
+  const chipsRow = renderSmartReplyChips(text);
+  if (chipsRow) {
+    wrapper.appendChild(chipsRow);
+  }
+
   DOM.chatMessages.appendChild(wrapper);
   scrollToBottom();
   return wrapper;
@@ -1613,6 +1738,28 @@ async function sendMessage(userText) {
     setEyeExpression('state-loading');
   }
 
+  // Step 28 Apple Intelligence Feature 3: Device Action Intents (Local Android Execution)
+  if (window.Capacitor?.Plugins?.MarvoNativeBridge?.executeDeviceIntent) {
+    try {
+      const intentRes = await window.Capacitor.Plugins.MarvoNativeBridge.executeDeviceIntent({ query: cleanInput });
+      if (intentRes && intentRes.executed) {
+        dots.remove();
+        setEyeExpression('state-success');
+        const replyMsg = intentRes.message || 'Action executed successfully.';
+        addMessage(replyMsg, 'ai');
+        await saveLocalMessage(requestSessionId, 'ai', replyMsg);
+        updateHistorySidebar(cleanInput, requestSessionId);
+        setStopButtonState(false);
+        currentChatAbortController = null;
+        isBusy = false;
+        DOM.msgInput.focus();
+        return;
+      }
+    } catch (intentErr) {
+      console.warn('[DeviceIntent] Check error:', intentErr);
+    }
+  }
+
   const deviceTime = new Date().toLocaleString();
 
   // Silently prepend custom instructions if an Anthropic Claude-style Project is active
@@ -1622,7 +1769,24 @@ async function sendMessage(userText) {
     payloadMessage = `${attachMeta}\n\n${payloadMessage}`;
   }
 
-  // Step 27: Student Mode academic persona injection
+  // Step 28 Apple Intelligence Feature 1: Smart Rewrite & Proofreading
+  const isRewriteRequest = /^(?:\/rewrite|\/proofread|rewrite:|proofread:)\s*/i.test(cleanInput);
+  if (isRewriteRequest) {
+    const rawToRewrite = cleanInput.replace(/^(?:\/rewrite|\/proofread|rewrite:|proofread:)\s*/i, '').trim();
+    payloadMessage = `[Apple Intelligence Writing Tools Instruction: You are Apple Intelligence Writing Tools. Proofread and rewrite the following text for clarity, professional flow, and impeccable grammar. Output ONLY the polished rewritten text without introductory conversational commentary:\n\n${rawToRewrite}]`;
+  }
+
+  // Step 28 Apple Intelligence Feature 2: TL;DR Summarizer
+  const isExplicitTldr = /^(?:\/tldr|tl;dr:)\s*/i.test(cleanInput);
+  const wordCount = cleanInput.trim().split(/\s+/).length;
+  if (isExplicitTldr) {
+    const rawTldr = cleanInput.replace(/^(?:\/tldr|tl;dr:)\s*/i, '').trim();
+    payloadMessage = `[Apple Intelligence Instruction: Provide a structured response starting with a '### 📌 TL;DR Key Takeaways' section containing exactly 3 crisp, informative bullet points summarizing the core essence, followed by the comprehensive detailed breakdown:\n\n${rawTldr}]`;
+  } else if (wordCount > 300 && !isImageRequest && !cleanInput.includes('```') && !isRewriteRequest) {
+    payloadMessage = `[Apple Intelligence Instruction: The user prompt is extensive (${wordCount} words). Begin your response with a concise '### 📌 TL;DR Key Takeaways' section with 3 high-impact bullet points, followed by the detailed explanation.]\n\n${payloadMessage}`;
+  }
+
+  // Step 27 & 28: Contextual Privacy (Clean Slate) vs Student Mode Persona
   const isStudentActive = localStorage.getItem('marvo.studentMode') === 'true';
   if (isStudentActive) {
     payloadMessage = `[Academic Directive: You are an academic tutor for a Class 12 Higher Secondary Science student (Physics, Chemistry, Mathematics, Biology) under the CHSE Odisha board. Only discuss studies, solve problems concisely, and refuse non-academic banter. Address the user respectfully as Sir.]\n\n${payloadMessage}`;
@@ -1637,7 +1801,40 @@ async function sendMessage(userText) {
     content: m.content
   }));
 
+  // Step 28: Strict Hybrid Router Failsafe - Instant Offline Routing
+  if (!navigator.onLine && !isImageRequest) {
+    console.info('[HybridRouter] Device is offline. Bypassing network fetch and routing directly to Local GGUF Brain.');
+    if (window.Capacitor?.Plugins?.MarvoNativeBridge?.triggerOfflineQuery) {
+      setEyeExpression('state-thinking');
+      try {
+        const offRes = await window.Capacitor.Plugins.MarvoNativeBridge.triggerOfflineQuery({ query: cleanInput });
+        dots.remove();
+        if (offRes && offRes.response) {
+          const offText = offRes.response;
+          setEyeExpression('state-speaking');
+          addMessage(offText, 'ai');
+          await saveLocalMessage(requestSessionId, 'ai', offText);
+          updateHistorySidebar(cleanInput, requestSessionId);
+          setStopButtonState(false);
+          currentChatAbortController = null;
+          isBusy = false;
+          DOM.msgInput.focus();
+          return;
+        }
+      } catch (nativeErr) {
+        console.warn('[OfflineBrain] Direct offline invocation error:', nativeErr);
+      }
+    }
+  }
+
+  let chatFetchTimeout = null;
   try {
+    chatFetchTimeout = setTimeout(() => {
+      if (currentChatAbortController) {
+        try { currentChatAbortController.abort('timeout'); } catch (e) {}
+      }
+    }, 8000);
+
     const res = await fetch(API_CHAT, {
       method: 'POST',
       signal: currentChatAbortController.signal,
@@ -1653,6 +1850,8 @@ async function sendMessage(userText) {
         is_student_mode:  isStudentActive,
       }),
     });
+
+    clearTimeout(chatFetchTimeout);
 
     dots.remove();
     if (!res.ok) throw new Error(`Server responded with ${res.status}`);
@@ -1686,6 +1885,7 @@ async function sendMessage(userText) {
     }
 
   } catch (err) {
+    if (chatFetchTimeout) clearTimeout(chatFetchTimeout);
     if (requestSessionId !== currentSessionId || requestVersion !== sessionVersion) return;
     dots.remove();
 
