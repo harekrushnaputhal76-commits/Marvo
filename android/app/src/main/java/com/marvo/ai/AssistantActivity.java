@@ -1010,6 +1010,11 @@ public class AssistantActivity extends AppCompatActivity {
         speechRecognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
         speechRecognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault());
         speechRecognizerIntent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
+        speechRecognizerIntent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3);
+        // Stabilize silence thresholds so mic does not cut off prematurely
+        speechRecognizerIntent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 3000L);
+        speechRecognizerIntent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 2500L);
+        speechRecognizerIntent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 2000L);
 
         speechRecognizer.setRecognitionListener(new RecognitionListener() {
             @Override
@@ -1049,7 +1054,7 @@ public class AssistantActivity extends AppCompatActivity {
             @Override
             public void onError(int error) {
                 Log.w(TAG, "SpeechRecognizer onError code: " + error);
-                // Step 27: Always transition gracefully to IDLE on speech error or silence timeout
+                targetAudioAmplitude = 0.0f;
                 setVisualState("IDLE");
             }
 

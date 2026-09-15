@@ -199,26 +199,22 @@ public class OfflineBrainManager {
         String clean = prompt.trim();
         String lower = clean.toLowerCase();
 
-        // 1. If Phi-3 model is not downloaded, provide transparent progress status
-        boolean modelDownloaded = isModelReady();
-        if (!modelDownloaded) {
+        // Check if query is explicitly asking about offline model status or download progress
+        if (lower.contains("model download") || lower.contains("offline model status") || lower.contains("download status") || lower.contains("offline brain status")) {
+            boolean modelDownloaded = isModelReady();
             JSONObject prog = OfflineBrainDownloader.getInstance().getDownloadProgress(context, OfflineBrainDownloader.TYPE_LLM);
             String status = prog.optString("status", "idle");
             int pct = prog.optInt("progress", 0);
 
-            if ("downloading".equalsIgnoreCase(status)) {
-                String spoken = "Offline Brain model download ho raha hai (" + pct + "%). Kripya download complete hone tak wait karein ya internet connect karein.";
-                return "<coreResponse>" + spoken + "</coreResponse>\n\n### 🧠 Offline AI Brain\n\n" +
-                       "Model download in progress: **" + pct + "%** (~2.2GB Phi-3 Mini 4K).\n\n" +
-                       "Please wait for download to finish in Settings -> Offline Brain, or turn on mobile data/Wi-Fi to use online Gemini.";
+            if (modelDownloaded || "completed".equalsIgnoreCase(status)) {
+                String spoken = "Offline Brain model fully downloaded aur active hai, Sir.";
+                return "<coreResponse>" + spoken + "</coreResponse>\n\n### 🧠 Offline AI Brain\n\nModel is ready (~2.2GB verified). Native offline inference active.";
+            } else if ("downloading".equalsIgnoreCase(status)) {
+                String spoken = "Offline Brain model download ho raha hai (" + pct + "%).";
+                return "<coreResponse>" + spoken + "</coreResponse>\n\n### 🧠 Offline AI Brain\n\nModel download in progress: **" + pct + "%** (~2.2GB Phi-3 Mini 4K).";
             } else {
-                String spoken = "Offline model abhi fully download nahi hua hai. Kripya Settings mein jakar Offline Brain download karein ya internet ON karein.";
-                return "<coreResponse>" + spoken + "</coreResponse>\n\n### 🧠 Offline AI Brain Not Ready\n\n" +
-                       "The 2.2GB offline LLM model file is not yet downloaded.\n\n" +
-                       "To activate full offline intelligence:\n" +
-                       "1. Open **Settings** &rarr; **🧠 Offline Brain**\n" +
-                       "2. Tap **Download Offline Brain**\n" +
-                       "3. Alternatively, connect to Wi-Fi/data for online assistance.";
+                String spoken = "Offline model download nahi hua hai. Aap Settings mein jakar download shuru kar sakte hain.";
+                return "<coreResponse>" + spoken + "</coreResponse>\n\n### 🧠 Offline AI Brain\n\nOpen Settings &rarr; Offline Brain to start download.";
             }
         }
 
@@ -228,8 +224,8 @@ public class OfflineBrainManager {
             "<|user|>\n" + clean + "<|end|>\n<|assistant|>\n";
         Log.d(TAG, "Phi-3 formatted prompt:\n" + phi3FormattedPrompt);
 
-        // 3. Attempt native JNI inference if bound
-        if (nativeLlmSession != null && nativeGenerateMethod != null) {
+        // 3. Attempt native JNI inference if model is ready and bound
+        if (isModelReady() && nativeLlmSession != null && nativeGenerateMethod != null) {
             try {
                 Object result = nativeGenerateMethod.invoke(nativeLlmSession, phi3FormattedPrompt);
                 if (result instanceof String && !((String) result).trim().isEmpty()) {
