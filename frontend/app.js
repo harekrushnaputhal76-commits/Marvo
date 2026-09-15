@@ -1911,8 +1911,11 @@ async function renderDownloadsHistory() {
 }
 
 /* Instant Image Generation Parsing & Card Rendering */
-const IMAGE_TRIGGER_KEYWORDS = [
-  'generate', 'image', 'draw', 'photo', 'picture', 'creat', 'create', 'pic', 'paint', 'thumbnail'
+const IMAGE_GENERATION_PATTERNS = [
+  /\b(?:generate|create|make|draw|paint|render|sketch|illustrate|design)\b.*\b(?:image|picture|photo|art|poster|thumbnail|illustration|visual)\b/i,
+  /\b(?:generate|create|make|draw|paint|render|sketch|illustrate|design)\b\s+(?:a|an|the)?\s*.*\b(?:portrait|scene|character|logo|cover|banner)\b/i,
+  /\b(?:draw|paint|sketch|illustrate|create)\s+(?:a|an|the)?\s*.*\b(?:of|for|with|showing)\b/i,
+  /\b(?:image|picture|photo|art|poster|thumbnail|illustration|visual)\s+(?:of|for|showing|about)\b/i
 ];
 
 function cleanPromptForDisplay(raw) {
@@ -1933,11 +1936,10 @@ function cleanPromptForDisplay(raw) {
 function parseImageGenerationPrompt(input) {
   if (!input) return null;
   const trimmed = input.trim();
-  const lower = trimmed.toLowerCase();
+  if (!trimmed) return null;
 
-  // Check against the exact trigger list
-  const hasTrigger = IMAGE_TRIGGER_KEYWORDS.some(w => lower.includes(w));
-  if (!hasTrigger) return null;
+  const explicitMatch = IMAGE_GENERATION_PATTERNS.some((pattern) => pattern.test(trimmed));
+  if (!explicitMatch) return null;
 
   const cleaned = cleanPromptForDisplay(trimmed);
   return cleaned || 'a futuristic visual concept';
@@ -3074,6 +3076,11 @@ function startSpeechRecognition() {
   }
 
   try {
+    if (speechRecognizer) {
+      try { speechRecognizer.onend = null; speechRecognizer.stop(); } catch {}
+      speechRecognizer = null;
+    }
+
     speechRecognizer = new SpeechRec();
     speechRecognizer.continuous = true;
     speechRecognizer.interimResults = true;
@@ -3123,7 +3130,7 @@ function startSpeechRecognition() {
     };
 
     speechRecognizer.onend = () => {
-      if (isVoiceRecording && !isVoicePaused) {
+      if (isVoiceRecording && !isVoicePaused && speechRecognizer) {
         try { speechRecognizer.start(); } catch {}
       }
     };
@@ -3284,7 +3291,10 @@ function newChat() {
   persistCurrentSession();
   sessionVersion += 1;
   isBusy = false;
-  DOM.btnSend.disabled = false;
+  if (DOM.msgInput) DOM.msgInput.value = '';
+  attachedFiles = [];
+  renderAttachmentShelf();
+  if (DOM.btnSend) DOM.btnSend.disabled = false;
   clearChat();
   highlightActiveSession();
   closeSidebar();
@@ -3379,10 +3389,12 @@ $('#navStudent')?.addEventListener('click', () => {
 });
 $('#navLibrary')?.addEventListener('click', () => {
   closeSidebar();
+  openNotebookModal();
   showToast('Library opened');
 });
 $('#navNotebooks')?.addEventListener('click', () => {
   closeSidebar();
+  openNotebookModal();
   showToast('Notebooks opened');
 });
 
