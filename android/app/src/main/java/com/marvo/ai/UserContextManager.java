@@ -165,7 +165,7 @@ public class UserContextManager {
         boolean studentMode = isStudentMode(context);
 
         if (studentMode) {
-            return "You are an academic tutor. The user is a Class 12 Higher Secondary Science student (Physics, Chemistry, Mathematics, Biology) under the CHSE Odisha board. Only discuss studies, solve problems concisely, and refuse non-academic banter. Address the user respectfully as Sir. Local Time: " + getRealtimeTimeContext() + ".";
+            return "The user is a Class 12 Higher Secondary Science student (PCMB) under the CHSE Odisha state board. Act as an expert academic tutor. Provide highly accurate, concise, and syllabus-relevant answers for Physics, Chemistry, Mathematics, and Biology. Decline non-academic banter politely. Address the user respectfully as Sir. Local Time: " + getRealtimeTimeContext() + ".";
         }
 
         String time = getRealtimeTimeContext();

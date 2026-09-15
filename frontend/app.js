@@ -377,6 +377,7 @@ const LiveVisionManager = {
 
     $('#btnFlipCamera')?.addEventListener('click', () => this.flipCamera());
     $('#btnSnapVisionFrame')?.addEventListener('click', () => this.snapFrameManual());
+    $('#btnOcrMathSolve')?.addEventListener('click', () => this.scanAndSolveMath());
     $('#btnCloseLiveVision')?.addEventListener('click', () => this.stop());
     $('#btnLiveVision')?.addEventListener('click', () => this.toggle());
   },
@@ -420,6 +421,13 @@ const LiveVisionManager = {
       if (this.overlayEl) {
         this.overlayEl.classList.remove('hidden');
       }
+
+      // Step 31: Respect OCR Math reticle setting
+      const mathScannerEnabled = (await NativeStorage.get('marvo.ocr_math_scanner_enabled')) !== 'false';
+      const mathBox = $('#liveVisionMathBox');
+      if (mathBox) mathBox.classList.toggle('hidden', !mathScannerEnabled);
+      const mathBtn = $('#btnOcrMathSolve');
+      if (mathBtn) mathBtn.style.display = mathScannerEnabled ? 'flex' : 'none';
 
       const btn = $('#btnLiveVision');
       if (btn) {
@@ -487,6 +495,31 @@ const LiveVisionManager = {
     }
   },
 
+  // Step 31: Smart OCR & Math Solver (Vision Extension)
+  async scanAndSolveMath() {
+    const mathEnabled = (await NativeStorage.get('marvo.ocr_math_scanner_enabled')) !== 'false';
+    if (!mathEnabled) {
+      showToast('OCR & Math Scanner is disabled in Settings');
+      return;
+    }
+
+    const frame = this.captureFrame();
+    if (!frame) {
+      showToast('No camera frame available. Please align formula in viewfinder.');
+      return;
+    }
+
+    showToast('📐 Analyzing formula & calculating step-by-step solution...');
+    setEyeExpression('state-thinking');
+
+    // Forcefully prompt LLM with required STEM instruction
+    const mathPrompt = 'Act as an expert STEM problem solver. Transcribe and solve the handwritten or printed math/science formula shown in this image with step-by-step LaTeX formatting.';
+    this.latestFrameBase64 = frame;
+    if (typeof sendMessage === 'function') {
+      await sendMessage(mathPrompt);
+    }
+  },
+
   stop() {
     if (this.frameInterval) {
       clearInterval(this.frameInterval);
@@ -542,6 +575,16 @@ const AI_CONTROL_REGISTRY = [
         label: "Strict Privacy Boundary",
         desc: "Enforce zero unprompted narration of user profile information unless explicitly requested",
         default: true
+      },
+      {
+        key: "marvo.super_student_mode",
+        label: "Super Student Mode (CHSE Odisha 12th Science)",
+        desc: "Forcefully instruct Marvo to act as an expert PCMB academic tutor for Class 12 Higher Secondary Science (CHSE Odisha)",
+        default: false,
+        onChange: (val) => {
+          localStorage.setItem('marvo.studentMode', String(val));
+          updateStudentModeUI(val);
+        }
       }
     ],
     customActions: [
@@ -583,6 +626,18 @@ const AI_CONTROL_REGISTRY = [
         label: "Continuous Frame Ingestion",
         desc: "Periodically capture low-latency frames (every 3s) while Live Vision viewfinder is active",
         default: true
+      },
+      {
+        key: "marvo.ocr_math_scanner_enabled",
+        label: "OCR & Math Scanner",
+        desc: "Enable camera viewfinder mathematical formula detection, LaTeX formatting, and step-by-step problem solver",
+        default: true,
+        onChange: (val) => {
+          const mathBox = $('#liveVisionMathBox');
+          if (mathBox) mathBox.classList.toggle('hidden', !val);
+          const mathBtn = $('#btnOcrMathSolve');
+          if (mathBtn) mathBtn.style.display = val ? 'flex' : 'none';
+        }
       }
     ]
   },
@@ -620,6 +675,18 @@ const AI_CONTROL_REGISTRY = [
     badge: "Labs",
     description: "Upcoming neural features, local engines, and automated background schedulers",
     toggles: [
+      {
+        key: "marvo.smart_replies.enabled",
+        label: "Smart Reply Suggestions",
+        desc: "Display contextual follow-up query chips above the input bar after every AI response",
+        default: true,
+        onChange: (val) => {
+          const container = $('#smartReplyContainer');
+          if (container && !val) {
+            container.classList.add('hidden');
+          }
+        }
+      },
       {
         key: "marvo.chess.enabled",
         label: "Neural Chess Engine (Preview)",
@@ -1581,6 +1648,8 @@ async function persistCurrentSession() {
 function stripAppleXmlTags(text) {
   if (!text || typeof text !== 'string') return text || '';
   return text
+    .replace(/<suggestions>[\s\S]*?<\/suggestions>/gi, '')
+    .replace(/<\/?suggestions>/gi, '')
     .replace(/<\/?coreResponse>/gi, '')
     .replace(/<imageCollection[^>]*>/gi, '')
     .replace(/<\/imageCollection>/gi, '')
@@ -2087,53 +2156,106 @@ function renderAttachmentShelf() {
   });
 }
 
-// Step 28 Apple Intelligence Feature 4: Dynamic Smart Reply Chips
-function renderSmartReplyChips(text) {
-  if (!text || typeof text !== 'string' || text.length < 8) return null;
-  const lower = text.toLowerCase();
-  let suggestions = [];
+// Step 31: Super Student Mode UI synchronizer
+function updateStudentModeUI(isActive) {
+  const badge = document.getElementById('studentModeBadge');
+  if (badge) {
+    badge.textContent = isActive ? 'ON' : 'OFF';
+    badge.style.background = isActive ? 'rgba(0, 255, 136, 0.2)' : 'rgba(255, 255, 255, 0.1)';
+    badge.style.color = isActive ? '#00ff88' : 'var(--text-dim)';
+  }
+  const navBtn = document.getElementById('navStudent');
+  if (navBtn) {
+    navBtn.classList.toggle('active', !!isActive);
+  }
+}
 
-  if (lower.includes('```') || lower.includes('def ') || lower.includes('function') || lower.includes('const ') || lower.includes('class ')) {
-    suggestions = ['Explain this code', 'Add code comments', 'Optimize logic'];
-  } else if (lower.includes('tl;dr') || lower.includes('key takeaways') || lower.includes('summary')) {
-    suggestions = ['Explain in detail', 'Give practical examples', 'What are next steps?'];
-  } else if (lower.includes('writing tools') || lower.includes('proofread') || lower.includes('rewritten')) {
-    suggestions = ['Make it more formal', 'Make it concise', 'Translate to Hindi'];
-  } else if (lower.includes('result') || lower.includes('equation') || lower.includes('calculation') || lower.includes('$$')) {
-    suggestions = ['Show step-by-step', 'Explain formula', 'Try another problem'];
-  } else {
-    suggestions = ['Tell me more', 'Explain simply', 'Give examples'];
+// Step 31: Apple Intelligence Smart Reply Chips rendered above input bar
+async function displaySmartReplyChips(aiText, userPrompt = '') {
+  const container = document.getElementById('smartReplyContainer');
+  const chipsContainer = document.getElementById('smartReplyChips');
+  if (!container || !chipsContainer) return;
+
+  const isEnabled = (await NativeStorage.get('marvo.smart_replies.enabled')) !== 'false';
+  if (!isEnabled || !aiText) {
+    container.classList.add('hidden');
+    chipsContainer.innerHTML = '';
+    return;
   }
 
-  const container = document.createElement('div');
-  container.className = 'smart-reply-chips-row';
-  container.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;padding:0 2px;';
+  let suggestions = [];
 
-  suggestions.forEach(chipText => {
-    const chip = document.createElement('button');
-    chip.type = 'button';
-    chip.className = 'smart-reply-chip';
-    chip.textContent = chipText;
-    chip.style.cssText = 'background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:4px 10px;font-size:11px;color:var(--text-secondary,#c0c0c8);cursor:pointer;transition:all 0.2s ease;font-family:inherit;';
-    chip.addEventListener('mouseenter', () => {
-      chip.style.background = 'rgba(255,255,255,0.14)';
-      chip.style.color = '#fff';
-      chip.style.transform = 'translateY(-1px)';
-    });
-    chip.addEventListener('mouseleave', () => {
-      chip.style.background = 'rgba(255,255,255,0.06)';
-      chip.style.color = 'var(--text-secondary,#c0c0c8)';
-      chip.style.transform = 'none';
-    });
-    chip.addEventListener('click', (e) => {
+  // 1. Try to extract from <suggestions> tag in raw text before stripping
+  const suggestionsMatch = typeof aiText === 'string' ? aiText.match(/<suggestions>([\s\S]*?)<\/suggestions>/i) : null;
+  if (suggestionsMatch && suggestionsMatch[1]) {
+    try {
+      const parsed = JSON.parse(suggestionsMatch[1].trim());
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        suggestions = parsed.map(s => String(s).trim()).filter(Boolean).slice(0, 3);
+      }
+    } catch (e) {
+      const lines = suggestionsMatch[1].split('\n').map(l => l.replace(/^[-*0-9.)]+\s*/, '').trim()).filter(Boolean);
+      if (lines.length > 0) suggestions = lines.slice(0, 3);
+    }
+  }
+
+  // 2. Dynamic contextual fallback based on content and Super Student mode
+  if (suggestions.length === 0) {
+    const isStudent = (await NativeStorage.get('marvo.super_student_mode')) === 'true' || localStorage.getItem('marvo.studentMode') === 'true';
+    const lower = (String(aiText) + ' ' + (userPrompt || '')).toLowerCase();
+
+    if (isStudent) {
+      if (lower.includes('formula') || lower.includes('equation') || lower.includes('deriv') || lower.includes('calculate')) {
+        suggestions = ['Show step-by-step derivation', 'CHSE exam numerical problem', 'Explain variables & SI units'];
+      } else if (lower.includes('physics') || lower.includes('optics') || lower.includes('electric') || lower.includes('current') || lower.includes('wave') || lower.includes('magnetic')) {
+        suggestions = ['CHSE 12th Physics numerical', 'State laws & definitions', 'Important 3-mark question'];
+      } else if (lower.includes('chemistry') || lower.includes('reaction') || lower.includes('organic') || lower.includes('compound') || lower.includes('acid')) {
+        suggestions = ['Write reaction mechanism', 'IUPAC name & conditions', 'Board exam conversion'];
+      } else if (lower.includes('biology') || lower.includes('cell') || lower.includes('genetics') || lower.includes('dna') || lower.includes('plant') || lower.includes('human')) {
+        suggestions = ['Key points for 5-mark answer', 'Differentiate key terms', 'Provide labeled diagram steps'];
+      } else if (lower.includes('math') || lower.includes('calculus') || lower.includes('integral') || lower.includes('derivative') || lower.includes('matrix')) {
+        suggestions = ['Solve with full step-by-step LaTeX', 'Alternative solving method', 'Try a similar CHSE question'];
+      } else {
+        suggestions = ['Explain according to CHSE syllabus', 'Give exam-oriented example', 'Show formula breakdown'];
+      }
+    } else {
+      if (lower.includes('```') || lower.includes('def ') || lower.includes('function') || lower.includes('const ') || lower.includes('class ') || lower.includes('code')) {
+        suggestions = ['Explain this code step-by-step', 'Add comments & optimize logic', 'Show practical usage example'];
+      } else if (lower.includes('result') || lower.includes('equation') || lower.includes('calculation') || lower.includes('$$') || lower.includes('math')) {
+        suggestions = ['Show step-by-step calculation', 'Explain the underlying formula', 'Try another problem'];
+      } else if (lower.includes('tl;dr') || lower.includes('key takeaways') || lower.includes('summary')) {
+        suggestions = ['Explain in more detail', 'Give real-world applications', 'What are the next steps?'];
+      } else if (lower.includes('writing tools') || lower.includes('proofread') || lower.includes('rewritten')) {
+        suggestions = ['Make it more formal', 'Make it concise', 'Translate to Hindi / Odia'];
+      } else {
+        suggestions = ['Tell me more', 'Explain simply', 'Give an example'];
+      }
+    }
+  }
+
+  chipsContainer.innerHTML = '';
+  suggestions.slice(0, 3).forEach(chipText => {
+    const chipBtn = document.createElement('button');
+    chipBtn.type = 'button';
+    chipBtn.className = 'smart-reply-chip';
+    chipBtn.innerHTML = `
+      <svg viewBox="0 0 24 24" width="12" height="12"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="currentColor"/></svg>
+      <span>${escapeHtml(chipText)}</span>
+    `;
+    chipBtn.addEventListener('click', (e) => {
       e.stopPropagation();
+      container.classList.add('hidden');
       if (DOM.msgInput) DOM.msgInput.value = chipText;
-      if (!isBusy) sendMessage(chipText);
+      if (!isBusy) {
+        sendMessage(chipText);
+      }
     });
-    container.appendChild(chip);
+    chipsContainer.appendChild(chipBtn);
   });
 
-  return container;
+  if (suggestions.length > 0) {
+    container.classList.remove('hidden');
+  }
 }
 
 function addMessage(text, sender, attachments = []) {
@@ -2236,12 +2358,6 @@ function addMessage(text, sender, attachments = []) {
 
   wrapper.appendChild(actionBar);
 
-  // Step 28 Apple Intelligence Feature 4: Smart Reply Chips
-  const chipsRow = renderSmartReplyChips(sanitizedText);
-  if (chipsRow) {
-    wrapper.appendChild(chipsRow);
-  }
-
   DOM.chatMessages.appendChild(wrapper);
   scrollToBottom();
   return wrapper;
@@ -2305,6 +2421,10 @@ async function sendMessage(userText) {
   const currentAttachments = [...attachedFiles];
   if (!cleanInput && currentAttachments.length === 0) return;
   if (isBusy) return;
+
+  // Step 31: Hide smart reply chips on sending message
+  const smartContainer = document.getElementById('smartReplyContainer');
+  if (smartContainer) smartContainer.classList.add('hidden');
 
   lastUserMessage = cleanInput;
   isBusy = true;
@@ -2395,7 +2515,8 @@ async function sendMessage(userText) {
 7. Compound Request Handling: Decompose compound queries sequentially.
 8. Device State Awareness: Be aware of current_time, focused_app, and response_mode without narrating them.
 9. Strict Privacy Boundaries: Never narrate source mechanisms or say "Based on your...". State facts directly.
-10. Dynamic Tool Routing: Check math_calculation and device_expert needs before core generation.]`;
+10. Dynamic Tool Routing: Check math_calculation and device_expert needs before core generation.
+11. Contextual Follow-up Chips: Conclude your final response with exactly 2 or 3 short follow-up question chips wrapped inside <suggestions>["Question 1", "Question 2", "Question 3"]</suggestions>.]`;
 
   // Step 30: Long-Term Personal Memory Fact Extraction
   try {
@@ -2444,10 +2565,10 @@ async function sendMessage(userText) {
     payloadMessage = `[Apple Intelligence Instruction: The user prompt is extensive (${wordCount} words). Begin your response with a concise '### 📌 TL;DR Key Takeaways' section with 3 high-impact bullet points, followed by the detailed explanation.]\n\n${payloadMessage}`;
   }
 
-  // Step 27 & 28: Contextual Privacy (Clean Slate) vs Student Mode Persona
-  const isStudentActive = localStorage.getItem('marvo.studentMode') === 'true';
+  // Step 27 & 28 & 31: Contextual Privacy (Clean Slate) vs Super Student Mode (CHSE Odisha 12th Science)
+  const isStudentActive = (await NativeStorage.get('marvo.super_student_mode')) === 'true' || localStorage.getItem('marvo.studentMode') === 'true';
   if (isStudentActive) {
-    payloadMessage = `[Academic Directive: You are an academic tutor for a Class 12 Higher Secondary Science student (Physics, Chemistry, Mathematics, Biology) under the CHSE Odisha board. Only discuss studies, solve problems concisely, and refuse non-academic banter. Address the user respectfully as Sir.]\n\n${payloadMessage}`;
+    payloadMessage = `[Academic Directive: The user is a Class 12 Higher Secondary Science student (PCMB) under the CHSE Odisha state board. Act as an expert academic tutor. Provide highly accurate, concise, and syllabus-relevant answers for Physics, Chemistry, Mathematics, and Biology. Decline non-academic banter politely.]\n\n${payloadMessage}`;
   } else if (activeProject && activeProject.instructions && activeProject.instructions.trim()) {
     payloadMessage = `[System Instructions / Persona for Project "${activeProject.name}":\n${activeProject.instructions.trim()}]\n\n[User Local Time: ${deviceTime}]\n\nUser Question: ${payloadMessage}`;
   }
@@ -2474,6 +2595,7 @@ async function sendMessage(userText) {
           addMessage(offText, 'ai');
           await saveLocalMessage(requestSessionId, 'ai', offText);
           updateHistorySidebar(cleanInput, requestSessionId);
+          displaySmartReplyChips(offText, cleanInput);
           setStopButtonState(false);
           currentChatAbortController = null;
           isBusy = false;
@@ -2538,6 +2660,7 @@ async function sendMessage(userText) {
       addMessage(aiText, 'ai');
       await saveLocalMessage(requestSessionId, 'ai', aiText);
       updateHistorySidebar(cleanInput, requestSessionId);
+      displaySmartReplyChips(aiText, cleanInput);
 
       // Trigger contextual eye state
       const detected = detectEyeExpression(cleanInput, aiText);
@@ -2566,6 +2689,7 @@ async function sendMessage(userText) {
           addMessage(offText, 'ai');
           await saveLocalMessage(requestSessionId, 'ai', offText);
           updateHistorySidebar(cleanInput, requestSessionId);
+          displaySmartReplyChips(offText, cleanInput);
           offlineSuccess = true;
         }
       }
@@ -3838,8 +3962,22 @@ async function initApp() {
   initInteractiveEyes();
   await initVoiceSelection();
   initDownloadCardControls();
-  await loadActiveProject();
-  updateStudentModeUI(localStorage.getItem('marvo.studentMode') === 'true');
+  // Step 31: Super Student Mode (CHSE Odisha 12th Science) initialization
+  const studentVal = await NativeStorage.get('marvo.super_student_mode');
+  const isStudentActive = studentVal === 'true' || localStorage.getItem('marvo.studentMode') === 'true';
+  updateStudentModeUI(isStudentActive);
+
+  $('#navStudent')?.addEventListener('click', async () => {
+    const current = (await NativeStorage.get('marvo.super_student_mode')) === 'true' || localStorage.getItem('marvo.studentMode') === 'true';
+    const next = !current;
+    await NativeStorage.set('marvo.super_student_mode', String(next));
+    localStorage.setItem('marvo.studentMode', String(next));
+    updateStudentModeUI(next);
+    const toggleInput = document.querySelector('input[data-key="marvo.super_student_mode"]');
+    if (toggleInput) toggleInput.checked = next;
+    showToast(next ? '🎓 Super Student Mode (CHSE 12th Science) Enabled' : 'Super Student Mode Disabled');
+  });
+
   setEyeExpression('state-idle');
   await persistCurrentSession();
   await loadHistorySidebar();

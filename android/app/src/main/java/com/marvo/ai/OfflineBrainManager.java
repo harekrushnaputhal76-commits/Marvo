@@ -502,7 +502,9 @@ public class OfflineBrainManager {
 
     public static String cleanAppleXmlTags(String text) {
         if (text == null || text.trim().isEmpty()) return "";
-        return text.replaceAll("(?i)</?coreResponse>", "")
+        return text.replaceAll("(?is)<suggestions>[\\s\\S]*?</suggestions>", "")
+                   .replaceAll("(?i)</?suggestions>", "")
+                   .replaceAll("(?i)</?coreResponse>", "")
                    .replaceAll("(?i)<imageCollection[^>]*>", "")
                    .replaceAll("(?i)</imageCollection>", "")
                    .replaceAll("(?i)<image[^>]*?/?>", "")
