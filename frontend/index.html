@@ -92,51 +92,6 @@
         </div>
       </div>
 
-      <!-- Folder: Specialized Personas -->
-      <div class="agent-folder-group">
-        <div class="agent-folder-label">⚡ SPECIALIZED PERSONAS</div>
-        <div class="sidebar-agents-grid">
-          <button class="agent-chip-btn" data-agent="nexus" type="button" title="Nexus — Tech Architect">
-            <div class="agent-chip-icon" style="background:rgba(0,240,255,0.15);color:#00f0ff;">
-              <svg viewBox="0 0 24 24" width="16" height="16"><polygon points="12 2 2 7 12 12 22 7 12 2" fill="none" stroke="currentColor" stroke-width="2"/><polyline points="2 17 12 22 22 17" fill="none" stroke="currentColor" stroke-width="2"/><polyline points="2 12 12 17 22 12" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-            </div>
-            <div class="agent-chip-info">
-              <span class="agent-chip-name">Nexus</span>
-              <span class="agent-chip-role">Tech Architect</span>
-            </div>
-          </button>
-
-          <button class="agent-chip-btn" data-agent="lumina" type="button" title="Lumina — Creative Director">
-            <div class="agent-chip-icon" style="background:rgba(255,0,128,0.15);color:#ff0080;">
-              <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><line x1="12" y1="2" x2="12" y2="4" stroke="currentColor" stroke-width="2"/><line x1="12" y1="20" x2="12" y2="22" stroke="currentColor" stroke-width="2"/><line x1="2" y1="12" x2="4" y2="12" stroke="currentColor" stroke-width="2"/><line x1="20" y1="12" x2="22" y2="12" stroke="currentColor" stroke-width="2"/></svg>
-            </div>
-            <div class="agent-chip-info">
-              <span class="agent-chip-name">Lumina</span>
-              <span class="agent-chip-role">Creative Director</span>
-            </div>
-          </button>
-
-          <button class="agent-chip-btn" data-agent="orion" type="button" title="Orion — Deep Research">
-            <div class="agent-chip-icon" style="background:rgba(181,23,158,0.15);color:#b5179e;">
-              <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="11" cy="11" r="8" fill="none" stroke="currentColor" stroke-width="2"/><line x1="21" y1="21" x2="16.65" y2="16.65" stroke="currentColor" stroke-width="2"/></svg>
-            </div>
-            <div class="agent-chip-info">
-              <span class="agent-chip-name">Orion</span>
-              <span class="agent-chip-role">Deep Research</span>
-            </div>
-          </button>
-
-          <button class="agent-chip-btn" data-agent="aura" type="button" title="Aura — Everyday Companion">
-            <div class="agent-chip-icon" style="background:rgba(0,255,136,0.15);color:#00ff88;">
-              <svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="currentColor"/></svg>
-            </div>
-            <div class="agent-chip-info">
-              <span class="agent-chip-name">Aura</span>
-              <span class="agent-chip-role">Everyday Companion</span>
-            </div>
-          </button>
-        </div>
-      </div>
     </div>
   </div>
 
@@ -162,9 +117,10 @@
       <svg viewBox="0 0 24 24" width="18" height="18"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" fill="currentColor"/></svg>
       <span>Spark <span class="badge-beta">Beta</span></span>
     </button>
-    <button class="sidebar-nav-item" id="navStudent">
+    <button class="sidebar-nav-item" id="navStudent" title="Toggle CHSE Odisha Class 12 Science Tutor">
       <svg viewBox="0 0 24 24" width="18" height="18"><path d="M22 10v6M2 10l10-5 10 5-10 5z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6 12v5c0 2 3 3 6 3s6-1 6-3v-5" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-      <span>Student</span>
+      <span>Student Mode</span>
+      <span class="badge-student-toggle" id="studentModeBadge">OFF</span>
     </button>
   </div>
 
@@ -442,10 +398,10 @@
 
     <!-- Category Tabs -->
     <div class="settings-tab-bar" id="settingsTabBar" role="tablist">
-      <button class="settings-tab-btn active" data-tab="themes" type="button" role="tab">🎨 Themes</button>
+      <button class="settings-tab-btn active" data-tab="themes" type="button" role="tab">🎨 Appearance</button>
       <button class="settings-tab-btn" data-tab="brain" type="button" role="tab">🧠 Offline Brain</button>
-      <button class="settings-tab-btn" data-tab="voice" type="button" role="tab">🔊 Voices</button>
-      <button class="settings-tab-btn" data-tab="downloads" type="button" role="tab">📁 Storage</button>
+      <button class="settings-tab-btn" data-tab="voice" type="button" role="tab">🔊 Voice & Audio</button>
+      <button class="settings-tab-btn" data-tab="downloads" type="button" role="tab">📁 System & Storage</button>
     </div>
 
     <div class="settings-body">
@@ -477,9 +433,16 @@
           </div>
         </div>
 
-        <!-- Section: 10+ Reactive Character Themes -->
-        <div class="settings-section">
-          <h4 class="settings-section-title">✨ REACTIVE CHARACTER ECOSYSTEM (10+)</h4>
+        <!-- Subfolder: Personalization & Reactive Characters -->
+        <button type="button" class="subfolder-toggle-btn" id="btnToggleAppearanceSubfolder">
+          <span>🎭 Character Avatars & Reactive Themes (10+)</span>
+          <svg class="subfolder-chevron" viewBox="0 0 24 24" width="18" height="18"><polyline points="6 9 12 15 18 9" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+        </button>
+
+        <div class="subfolder-content" id="appearanceSubfolderContent">
+          <!-- Section: 10+ Reactive Character Themes -->
+          <div class="settings-section">
+            <h4 class="settings-section-title">✨ REACTIVE CHARACTER ECOSYSTEM (10+)</h4>
           <p class="settings-subdesc">Character avatars replace the eye and dynamically react to AI Idle, Thinking, Speaking, and Error states.</p>
           <div class="character-themes-grid" id="characterThemesGrid">
             
@@ -637,6 +600,7 @@
             <button class="btn-exp-play" data-exp="state-dead">Dead / Offline</button>
             <button class="btn-exp-play" data-exp="state-error">Error</button>
           </div>
+        </div>
         </div>
       </div>
 

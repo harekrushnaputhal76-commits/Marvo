@@ -3034,6 +3034,68 @@ body.theme-char-cyberpunk .character-aura {
   display: block;
 }
 
+/* Student Mode Badge in Sidebar */
+.badge-student-toggle {
+  margin-left: auto;
+  padding: 2px 7px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-dim);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  transition: all 0.2s ease;
+}
+
+.badge-student-toggle.active {
+  background: rgba(0, 255, 136, 0.2);
+  color: #00ff88;
+  border-color: rgba(0, 255, 136, 0.4);
+  box-shadow: 0 0 10px rgba(0, 255, 136, 0.25);
+}
+
+/* Appearance Subfolder Collapsible Container */
+.subfolder-toggle-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  margin: 14px 0 10px 0;
+  transition: all 0.25s ease;
+  touch-action: manipulation;
+}
+
+.subfolder-toggle-btn:hover, .subfolder-toggle-btn:focus {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: var(--accent);
+}
+
+.subfolder-chevron {
+  transition: transform 0.25s ease;
+}
+
+.subfolder-toggle-btn.expanded .subfolder-chevron {
+  transform: rotate(180deg);
+}
+
+.subfolder-content {
+  display: none;
+  animation: fadeIn 0.2s ease;
+}
+
+.subfolder-content.open {
+  display: block;
+}
+
 /* Theme Choice Cards */
 .theme-cards-grid {
   display: grid;

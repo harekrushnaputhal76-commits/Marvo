@@ -176,13 +176,13 @@ public class OfflineBrainManager {
             String subject = clean.replaceAll("(?i)^(who is|what is|define|explain)\\s+", "").replaceAll("[?.]", "").trim();
             if (!subject.isEmpty()) {
                 String capSubject = Character.toUpperCase(subject.charAt(0)) + (subject.length() > 1 ? subject.substring(1) : "");
-                String speech = capSubject + " ke baare mein offline brain se jankari: Yeh ek mahatvapurna vishay hai. Aapki poori sahayata ke liye main yahan upalabdh hoon.";
-                return "<coreResponse>" + speech + "</coreResponse>\n\n**" + capSubject + "**\n\nOffline Brain analysis completed.";
+                String speech = capSubject + " ek mahatvapurna vishay hai, Sir. Kripya is baare mein specific sawal poochein.";
+                return "<coreResponse>" + speech + "</coreResponse>\n\n**" + capSubject + "**\n\nReady for your specific inquiry, Sir.";
             }
         }
 
-        // 3. General conversational fallback (Warm & Helpful)
-        String spoken = "Main Marvo hoon, aapka helpful AI assistant. Offline mode mein bhi main aapki sahayata ke liye hamesha taiyar hoon.";
+        // 3. General conversational fallback (Warm, Precise & Respectful)
+        String spoken = "Ji Sir, main aapki sahayata ke liye taiyar hoon. Kripya apna sawal poochein.";
         return "<coreResponse>" + spoken + "</coreResponse>\n\n" + spoken;
     }
 

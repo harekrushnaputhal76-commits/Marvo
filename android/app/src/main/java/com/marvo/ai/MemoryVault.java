@@ -29,7 +29,7 @@ public class MemoryVault {
     private static final String KEY_ACTIVE_END_TIME = "active_end_time";
     private static final String KEY_CUSTOM_QA = "custom_qa_database";
     private static final String KEY_CONVERSATION_HISTORY = "conversation_history_turns";
-    private static final int MAX_SAVED_TURNS = 5;
+    private static final int MAX_SAVED_TURNS = 10;
 
     public static final String DEFAULT_MOM_NUMBER = "+919437000002";
     public static final String DEFAULT_DAD_NUMBER = "+919437000001";

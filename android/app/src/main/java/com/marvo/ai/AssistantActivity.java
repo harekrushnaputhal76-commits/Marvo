@@ -237,6 +237,21 @@ public class AssistantActivity extends AppCompatActivity {
     private Handler audioPollHandler = new Handler(Looper.getMainLooper());
     private Runnable audioPollRunnable;
 
+    // Step 27: Voice Assistant & API Stall Watchdog (Auto-resets to IDLE after 15s)
+    private final Handler processingWatchdogHandler = new Handler(Looper.getMainLooper());
+    private final Runnable processingWatchdogRunnable = new Runnable() {
+        @Override
+        public void run() {
+            Log.w(TAG, "Watchdog triggered: Assistant state timed out after 15s. Gracefully resetting to IDLE.");
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    setVisualState("IDLE");
+                }
+            });
+        }
+    };
+
     // Step 10 Part 1: Dynamic Apple-Style Notification Pill
     private View dynamicPillContainer;
     private ImageView pillIcon;
@@ -592,6 +607,25 @@ public class AssistantActivity extends AppCompatActivity {
         return "Offline/Unknown";
     }
 
+    public boolean isNetworkConnected() {
+        try {
+            ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+            if (cm == null) return false;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                android.net.Network activeNet = cm.getActiveNetwork();
+                if (activeNet == null) return false;
+                NetworkCapabilities caps = cm.getNetworkCapabilities(activeNet);
+                if (caps == null) return false;
+                return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET);
+            } else {
+                NetworkInfo ni = cm.getActiveNetworkInfo();
+                return ni != null && ni.isConnected();
+            }
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -788,18 +822,23 @@ public class AssistantActivity extends AppCompatActivity {
                                         if (typewriterRunnable != null) {
                                             typewriterHandler.removeCallbacks(typewriterRunnable);
                                         }
-                                        // Step 15: CONTINUOUS LOOP - Auto-listen after Marvo speaks
-                                        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-                                            @Override
-                                            public void run() {
-                                                if (!isFinishing()) {
-                                                    setVisualState("LISTENING");
-                                                    startListening();
-                                                } else {
-                                                    setOrbState("IDLE");
+                                        // Step 27: Auto-listen ONLY for interactive prompts expecting immediate user reply
+                                        boolean requiresReply = utteranceId != null && (utteranceId.startsWith("SPEAK_AND_LISTEN") || utteranceId.equals("DoubleConfirmTTS"));
+                                        if (requiresReply) {
+                                            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                                                @Override
+                                                public void run() {
+                                                    if (!isFinishing()) {
+                                                        setVisualState("LISTENING");
+                                                        startListening();
+                                                    } else {
+                                                        setVisualState("IDLE");
+                                                    }
                                                 }
-                                            }
-                                        }, 250);
+                                            }, 250);
+                                        } else {
+                                            setVisualState("IDLE");
+                                        }
                                     }
                                 });
                             }
@@ -809,12 +848,7 @@ public class AssistantActivity extends AppCompatActivity {
                                 runOnUiThread(new Runnable() {
                                     @Override
                                     public void run() {
-                                        if (!isFinishing()) {
-                                            setVisualState("LISTENING");
-                                            startListening();
-                                        } else {
-                                            setOrbState("IDLE");
-                                        }
+                                        setVisualState("IDLE");
                                     }
                                 });
                             }
@@ -1013,16 +1047,8 @@ public class AssistantActivity extends AppCompatActivity {
             @Override
             public void onError(int error) {
                 Log.w(TAG, "SpeechRecognizer onError code: " + error);
-                // Step 26: Silence "Didn't catch sound" auto-restart bug completely.
-                // Fail silently on speech errors and reset gracefully to IDLE without red error toasts.
-                setOrbState("IDLE");
-                if (statusTextView != null && "Didn't catch that...".equals(statusTextView.getText().toString())) {
-                    statusTextView.setText("Ready");
-                    statusTextView.setTextColor(android.graphics.Color.parseColor("#00f0ff"));
-                }
-                if (subtitleTextView != null) {
-                    subtitleTextView.setVisibility(View.GONE);
-                }
+                // Step 27: Always transition gracefully to IDLE on speech error or silence timeout
+                setVisualState("IDLE");
             }
 
             @Override
@@ -1031,9 +1057,11 @@ public class AssistantActivity extends AppCompatActivity {
                 if (matches != null && !matches.isEmpty()) {
                     String transcribed = matches.get(0);
                     Log.d(TAG, "Speech transcribed: " + transcribed);
-
+                    setVisualState("PROCESSING");
                     // Route through local intent router with persistent feedback
                     routeCommand(transcribed);
+                } else {
+                    setVisualState("IDLE");
                 }
             }
 
@@ -2289,7 +2317,21 @@ public class AssistantActivity extends AppCompatActivity {
             }
         }
         switch (state) {
+            case "IDLE":
+                processingWatchdogHandler.removeCallbacks(processingWatchdogRunnable);
+                if (statusTextView != null) {
+                    statusTextView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20.0f);
+                    statusTextView.setText("Ready");
+                    statusTextView.setTextColor(android.graphics.Color.parseColor("#00f0ff"));
+                }
+                if (subtitleTextView != null) {
+                    subtitleTextView.setVisibility(View.GONE);
+                }
+                setOrbState("IDLE");
+                break;
+
             case "LISTENING":
+                processingWatchdogHandler.removeCallbacks(processingWatchdogRunnable);
                 if (statusTextView != null) {
                     statusTextView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20.0f);
                     statusTextView.setText("Listening...");
@@ -2303,6 +2345,8 @@ public class AssistantActivity extends AppCompatActivity {
                 break;
 
             case "PROCESSING":
+                processingWatchdogHandler.removeCallbacks(processingWatchdogRunnable);
+                processingWatchdogHandler.postDelayed(processingWatchdogRunnable, 15000);
                 if (statusTextView != null) {
                     statusTextView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20.0f);
                     statusTextView.setText("Processing...");
@@ -2316,6 +2360,7 @@ public class AssistantActivity extends AppCompatActivity {
                 break;
 
             case "SUCCESS":
+                processingWatchdogHandler.removeCallbacks(processingWatchdogRunnable);
                 if (statusTextView != null) {
                     statusTextView.setTextColor(android.graphics.Color.parseColor("#00E676"));
                 }
@@ -2326,6 +2371,7 @@ public class AssistantActivity extends AppCompatActivity {
                 break;
 
             case "ERROR":
+                processingWatchdogHandler.removeCallbacks(processingWatchdogRunnable);
                 if (statusTextView != null) {
                     statusTextView.setText("Ready");
                     statusTextView.setTextColor(android.graphics.Color.parseColor("#00f0ff"));
@@ -5151,7 +5197,14 @@ public class AssistantActivity extends AppCompatActivity {
 
         if (isDeviceLocked()) {
             showResponse("Is action ke liye kripya pehle apna phone unlock karein.", true);
-            setOrbState("IDLE");
+            setVisualState("IDLE");
+            return;
+        }
+
+        // Step 27: Strict Hybrid Routing - If offline, route directly to Tier 1 Offline Brain without leaks
+        if (!isNetworkConnected()) {
+            Log.i(TAG, "[HYBRID ROUTER] Device offline. Routing strictly to Tier 1 Offline Brain.");
+            fallbackToOfflineBrain(userQuery);
             return;
         }
 
@@ -5189,8 +5242,8 @@ public class AssistantActivity extends AppCompatActivity {
                         apiKey = getGeminiApiKey();
                     }
 
-                    // Try gemini-3.6-flash (standard for modern keys) with automatic gemini-1.5-flash fallback
-                    String[] models = new String[]{"gemini-3.6-flash", "gemini-1.5-flash"};
+                    // Try gemini-2.0-flash (standard modern model) with automatic gemini-1.5-flash fallback
+                    String[] models = new String[]{"gemini-2.0-flash", "gemini-1.5-flash"};
                     int responseCode = -1;
                     String responseStr = "";
 
@@ -5208,8 +5261,8 @@ public class AssistantActivity extends AppCompatActivity {
                         conn.setConnectTimeout(15000);
                         conn.setReadTimeout(30000);
 
-                        // Step 26: Friendly, Polite & Intelligent Persona Injection
-                        String baseSystemPrompt = "You are Marvo, a highly intelligent, polite, and helpful personal AI assistant. Provide concise, optimized, and friendly answers in spoken Hindi/Hinglish. Never be rude or overly sarcastic. If the user greets you, respond warmly and ask how you can help today.";
+                        // Step 27: UserContextManager Persona Injection (Boss/Sir, Student Mode, Real-Time Context)
+                        String baseSystemPrompt = UserContextManager.getMasterSystemPrompt(AssistantActivity.this, false);
 
                         String domainDirective = "";
                         if ("CONTENT_DIGEST".equalsIgnoreCase(activeDomain)) {
@@ -5308,10 +5361,12 @@ public class AssistantActivity extends AppCompatActivity {
                         Log.i(TAG, "[HYBRID ROUTER] Solved ONLINE (Gemini API - " + activeDomain + "): " + cleanReply);
                         MemoryVault.saveConversationTurn(AssistantActivity.this, "user", userQuery);
                         MemoryVault.saveConversationTurn(AssistantActivity.this, "model", cleanReply);
+                        addConversationTurn("user", userQuery);
+                        addConversationTurn("model", cleanReply);
                         runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
-                                speakAndListen(cleanReply);
+                                showResponse(cleanReply, true);
                             }
                         });
                     } else if (responseCode == 401 || responseCode == 403) {
@@ -5360,6 +5415,13 @@ public class AssistantActivity extends AppCompatActivity {
             return;
         }
 
+        // Step 27: Strict Hybrid Routing - If offline, route directly to Offline Brain with prefix
+        if (!isNetworkConnected()) {
+            Log.i(TAG, "[HYBRID ROUTER] Device offline during compound query. Routing to Offline Brain with prefix.");
+            fallbackToOfflineBrainWithPrefix(prefixSpeech, prefixPill, userQuery);
+            return;
+        }
+
         if (userQuery == null || userQuery.trim().isEmpty()) {
             if (prefixSpeech != null && !prefixSpeech.isEmpty()) {
                 showResponse(prefixSpeech);
@@ -5401,7 +5463,7 @@ public class AssistantActivity extends AppCompatActivity {
                         apiKey = getGeminiApiKey();
                     }
 
-                    String[] models = new String[]{"gemini-3.6-flash", "gemini-1.5-flash"};
+                    String[] models = new String[]{"gemini-2.0-flash", "gemini-1.5-flash"};
                     int responseCode = -1;
                     String responseStr = "";
 
@@ -5419,8 +5481,8 @@ public class AssistantActivity extends AppCompatActivity {
                         conn.setConnectTimeout(15000);
                         conn.setReadTimeout(30000);
 
-                        // Step 26: Friendly, Polite & Intelligent Persona Injection
-                        String baseSystemPrompt = "You are Marvo, a highly intelligent, polite, and helpful personal AI assistant. Provide concise, optimized, and friendly answers in spoken Hindi/Hinglish. Never be rude or overly sarcastic. If the user greets you, respond warmly and ask how you can help today.";
+                        // Step 27: UserContextManager Persona Injection (Boss/Sir, Student Mode, Real-Time Context)
+                        String baseSystemPrompt = UserContextManager.getMasterSystemPrompt(AssistantActivity.this, false);
 
                         String domainDirective = "";
                         if ("CONTENT_DIGEST".equalsIgnoreCase(activeDomain)) {
@@ -5527,11 +5589,13 @@ public class AssistantActivity extends AppCompatActivity {
                         Log.i(TAG, "[HYBRID ROUTER] Solved ONLINE with prefix: " + finalReply);
                         MemoryVault.saveConversationTurn(AssistantActivity.this, "user", userQuery);
                         MemoryVault.saveConversationTurn(AssistantActivity.this, "model", finalReply);
+                        addConversationTurn("user", userQuery);
+                        addConversationTurn("model", finalReply);
                         runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
                                 showDynamicPill(finalPill, android.R.drawable.ic_dialog_info);
-                                speakAndListen(finalReply);
+                                showResponse(finalReply, true);
                             }
                         });
                     } else if (responseCode == 401 || responseCode == 403) {
@@ -5741,8 +5805,8 @@ public class AssistantActivity extends AppCompatActivity {
                     // Build request body
                     JSONObject requestBody = new JSONObject();
 
-                    // Step 26: Friendly, Polite & Intelligent Persona Injection
-                    String systemInstructionText = "You are Marvo, a highly intelligent, polite, and helpful personal AI assistant. You provide concise, optimized, friendly, and visually rich responses. Never be rude or overly sarcastic. If the user greets you, respond warmly and ask how you can help today.\n" +
+                    // Step 27: UserContextManager Persona Injection (Boss/Sir, Student Mode, Real-Time Context)
+                    String systemInstructionText = UserContextManager.getMasterSystemPrompt(AssistantActivity.this, false) + "\n" +
                         "IDENTITY: You are software; you do not experience emotions or have a physical body, gender, nationality, or personal history. \n" +
                         "BEHAVIOR: You handle user requests by thinking then acting. Accept user corrections about their situation, but do not go along with factual errors; correct them plainly. Be honest when something isn't found, doesn't work, or isn't available. \n" +
                         "ZERO HALLUCINATION: Treat missing data as unknown. It is a CATASTROPHIC violation of trust to infer or guess the value of missing properties or facts. Tell the user exactly what information is missing.\n" +

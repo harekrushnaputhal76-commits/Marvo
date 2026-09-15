@@ -226,8 +226,18 @@ public class OfflineBrainDownloader {
             boolean isAppendMode;
 
             if (responseCode == HttpURLConnection.HTTP_PARTIAL) { // 206 Partial Content
+                String contentRange = conn.getHeaderField("Content-Range");
+                if (contentRange != null && contentRange.contains("/")) {
+                    try {
+                        String totalStr = contentRange.substring(contentRange.lastIndexOf('/') + 1).trim();
+                        long parsedTotal = Long.parseLong(totalStr);
+                        if (parsedTotal > 0) {
+                            totalBytesExpected = parsedTotal;
+                        }
+                    } catch (Exception ignored) {}
+                }
                 long remainingContentLength = conn.getContentLengthLong();
-                if (remainingContentLength > 0) {
+                if (totalBytesExpected <= 0 && remainingContentLength > 0) {
                     totalBytesExpected = existingBytes + remainingContentLength;
                 }
                 isAppendMode = true;
@@ -323,6 +333,15 @@ public class OfflineBrainDownloader {
                 }
             }
 
+        } catch (java.net.SocketTimeoutException | java.net.ConnectException e) {
+            Log.w(TAG, "Network timeout during download: " + e.getMessage() + ". Pausing for smooth resumption.");
+            if (!isCancelled) {
+                isPaused = true;
+                getPrefs(context).edit()
+                    .putString(KEY_DOWNLOAD_STATUS, "paused")
+                    .putLong(KEY_DOWNLOADED_BYTES, partFile != null && partFile.exists() ? partFile.length() : currentDownloadedBytes)
+                    .apply();
+            }
         } catch (Exception e) {
             Log.e(TAG, "Download error encountered: " + e.getMessage(), e);
             if (!isPaused && !isCancelled) {

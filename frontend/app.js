@@ -1622,13 +1622,17 @@ async function sendMessage(userText) {
     payloadMessage = `${attachMeta}\n\n${payloadMessage}`;
   }
 
-  if (activeProject && activeProject.instructions && activeProject.instructions.trim()) {
+  // Step 27: Student Mode academic persona injection
+  const isStudentActive = localStorage.getItem('marvo.studentMode') === 'true';
+  if (isStudentActive) {
+    payloadMessage = `[Academic Directive: You are an academic tutor for a Class 12 Higher Secondary Science student (Physics, Chemistry, Mathematics, Biology) under the CHSE Odisha board. Only discuss studies, solve problems concisely, and refuse non-academic banter. Address the user respectfully as Sir.]\n\n${payloadMessage}`;
+  } else if (activeProject && activeProject.instructions && activeProject.instructions.trim()) {
     payloadMessage = `[System Instructions / Persona for Project "${activeProject.name}":\n${activeProject.instructions.trim()}]\n\n[User Local Time: ${deviceTime}]\n\nUser Question: ${payloadMessage}`;
   }
 
-  // Rolling 5-6 message context cache
+  // Step 27: Rolling 10 message context cache
   const recentHistory = await getLocalMessages(requestSessionId);
-  const contextHistory = (recentHistory || []).slice(-6).map(m => ({
+  const contextHistory = (recentHistory || []).slice(-10).map(m => ({
     role: m.role,
     content: m.content
   }));
@@ -1643,9 +1647,10 @@ async function sendMessage(userText) {
         mode:             activeModeName,
         thinking_mode:    selectedMode,
         local_time:       deviceTime,
-        agent:            activeAgent,
+        agent:            isStudentActive ? 'student' : activeAgent,
         session_id:       requestSessionId,
         context_history:  contextHistory,
+        is_student_mode:  isStudentActive,
       }),
     });
 
@@ -1796,9 +1801,25 @@ function openVoiceDock() {
   startSpeechRecognition();
 }
 
+let speechSilenceTimer = null;
+
+function resetSpeechSilenceTimer() {
+  if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
+  speechSilenceTimer = setTimeout(() => {
+    if (isVoiceRecording && !isVoicePaused && currentVoiceTranscript.trim()) {
+      console.log('[SpeechRec] 2s silence detected. Auto-submitting speech.');
+      submitVoiceRecording();
+    }
+  }, 2000);
+}
+
 function closeVoiceDock() {
   isVoiceRecording = false;
   isVoicePaused = false;
+  if (speechSilenceTimer) {
+    clearTimeout(speechSilenceTimer);
+    speechSilenceTimer = null;
+  }
   DOM.voiceOverlay.classList.remove('show');
   DOM.btnMic.classList.remove('recording');
   if (visualizerAnimId) cancelAnimationFrame(visualizerAnimId);
@@ -1813,6 +1834,10 @@ function toggleVoicePauseResume() {
   isVoicePaused = !isVoicePaused;
 
   if (isVoicePaused) {
+    if (speechSilenceTimer) {
+      clearTimeout(speechSilenceTimer);
+      speechSilenceTimer = null;
+    }
     DOM.voiceStatusText.textContent = 'Paused';
     DOM.iconVoicePause.classList.add('hidden');
     DOM.iconVoiceResume.classList.remove('hidden');
@@ -1832,6 +1857,10 @@ function toggleVoicePauseResume() {
 }
 
 function submitVoiceRecording() {
+  if (speechSilenceTimer) {
+    clearTimeout(speechSilenceTimer);
+    speechSilenceTimer = null;
+  }
   const textToSend = currentVoiceTranscript.trim();
   closeVoiceDock();
   if (textToSend) {
@@ -1866,11 +1895,16 @@ function startSpeechRecognition() {
       const display = (currentVoiceTranscript + ' ' + interim).trim();
       if (display) {
         DOM.voiceTranscriptText.textContent = display;
+        resetSpeechSilenceTimer();
       }
     };
 
     speechRecognizer.onerror = (err) => {
       console.warn('[SpeechRec] Error:', err);
+      if (err.error === 'not-allowed') {
+        showToast('Microphone access denied');
+        closeVoiceDock();
+      }
     };
 
     speechRecognizer.onend = () => {
@@ -2109,9 +2143,25 @@ $('#navSpark')?.addEventListener('click', () => {
   closeSidebar();
   showToast('Spark (Beta) neural acceleration active!');
 });
+function updateStudentModeUI(isActive) {
+  const badge = document.getElementById('studentModeBadge');
+  if (badge) {
+    badge.textContent = isActive ? 'ON' : 'OFF';
+    badge.classList.toggle('active', isActive);
+  }
+}
+
 $('#navStudent')?.addEventListener('click', () => {
+  const currentState = localStorage.getItem('marvo.studentMode') === 'true';
+  const newState = !currentState;
+  localStorage.setItem('marvo.studentMode', newState.toString());
+  updateStudentModeUI(newState);
   closeSidebar();
-  showToast('Student mode: Step-by-step reasoning enabled');
+  if (newState) {
+    showToast('🎓 Student Mode: CHSE Class 12 Science Tutor Active');
+  } else {
+    showToast('Student Mode Disabled. Standard Marvo Active');
+  }
 });
 $('#navLibrary')?.addEventListener('click', () => {
   closeSidebar();
@@ -2230,6 +2280,14 @@ DOM.settingsTabBar?.addEventListener('click', (e) => {
   }
 });
 
+// Appearance & Personalization Subfolder (10+ Characters & Playground)
+const btnToggleAppearanceSubfolder = document.getElementById('btnToggleAppearanceSubfolder');
+const appearanceSubfolderContent = document.getElementById('appearanceSubfolderContent');
+btnToggleAppearanceSubfolder?.addEventListener('click', () => {
+  const isOpen = appearanceSubfolderContent?.classList.toggle('open');
+  btnToggleAppearanceSubfolder.classList.toggle('expanded', isOpen);
+});
+
 // Theme Choice Cards (3D Eye - Dark/Light)
 document.querySelectorAll('.theme-choice-card').forEach(card => {
   card.addEventListener('click', () => {
@@ -2244,10 +2302,10 @@ document.querySelectorAll('.theme-choice-card').forEach(card => {
 // Character Theme Cards (10+ Reactive Avatars)
 document.querySelectorAll('.character-card-btn').forEach(card => {
   card.addEventListener('click', () => {
-    const charKey = card.dataset.char;
-    if (charKey) {
-      setTheme(`char-${charKey}`);
-      const charName = card.querySelector('.char-card-name')?.textContent || charKey;
+    const themeKey = card.dataset.theme || (card.dataset.char ? `char-${card.dataset.char}` : null);
+    if (themeKey) {
+      setTheme(themeKey);
+      const charName = card.querySelector('.char-card-name')?.textContent || themeKey;
       showToast(`${charName} character theme active`);
     }
   });
@@ -2878,6 +2936,7 @@ async function initApp() {
   await initVoiceSelection();
   initDownloadCardControls();
   await loadActiveProject();
+  updateStudentModeUI(localStorage.getItem('marvo.studentMode') === 'true');
   setEyeExpression('state-idle');
   await persistCurrentSession();
   await loadHistorySidebar();
