@@ -21,6 +21,8 @@ import android.hardware.camera2.CameraManager;
 import android.bluetooth.BluetoothAdapter;
 import android.media.AudioManager;
 import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
 import android.net.NetworkInfo;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
