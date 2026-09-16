@@ -1226,11 +1226,14 @@ function applyCardState(cardConfig, data, defaultTotMb) {
   const totMb = Math.round(((data && data.totalBytes) || 0) / (1024 * 1024)) || defaultTotMb;
 
   if (isReady || status === 'completed') {
+    badge.textContent = 'Model Ready (Active)';
     badge.textContent = '★ Active Engine';
     badge.className = 'offline-status-badge status-ready';
     bar.style.width = '100%';
     bar.classList.add('ready');
     text.textContent = `~${totMb} MB verified & active in /models/`;
+    btnDl.textContent = readyLabel || 'Model Ready';
+    btnDl.disabled = true;
     btnDl.textContent = 'Delete Model';
     btnDl.className = 'btn-offline-action danger';
     btnDl.disabled = false;
@@ -1242,6 +1245,8 @@ function applyCardState(cardConfig, data, defaultTotMb) {
     bar.style.width = progress + '%';
     bar.classList.remove('ready');
     text.textContent = `${dlMb} MB / ${totMb} MB (${progress}%)`;
+    btnDl.textContent = 'Downloading in Background...';
+    btnDl.disabled = false;
     btnDl.innerHTML = `<span class="spinner-inline"></span> <span>Downloading... ${progress}%</span>`;
     btnDl.className = 'btn-offline-action progress-mode';
     btnDl.disabled = true;
@@ -3883,67 +3888,55 @@ function initInteractiveEyes() {
 }
 
 function initDeviceTilt() {
-  if (window.__marvoDeviceTiltInitialized || !DOM.face) return;
+  if (window.__marvoDeviceTiltInitialized) return;
   if (!('DeviceOrientationEvent' in window)) return;
   window.__marvoDeviceTiltInitialized = true;
 
-  let targetPitch = 0;
-  let targetRoll = 0;
-  let pitch = 0;
-  let roll = 0;
-  let frameId = null;
-  let listening = false;
+  const root = document.documentElement;
   let boundaryState = '';
 
-  const applyTilt = () => {
-    frameId = null;
-    pitch += (targetPitch - pitch) * 0.12;
-    roll += (targetRoll - roll) * 0.12;
-    const root = document.documentElement;
-    root.style.setProperty('--gyro-rot-x', `${(-pitch * 0.28).toFixed(2)}deg`);
-    root.style.setProperty('--gyro-rot-y', `${(roll * 0.28).toFixed(2)}deg`);
-    root.style.setProperty('--gyro-x', `${(roll * 0.12).toFixed(2)}px`);
-    root.style.setProperty('--gyro-y', `${(pitch * 0.12).toFixed(2)}px`);
-    root.style.setProperty('--gyro-light-x', `${(50 + roll * 1.2).toFixed(1)}%`);
-    root.style.setProperty('--gyro-light-y', `${(35 + pitch * 1.2).toFixed(1)}%`);
-    root.style.setProperty('--gyro-shadow-x', `${(roll * 0.08).toFixed(2)}px`);
-    root.style.setProperty('--gyro-shadow-y', `${(pitch * 0.08).toFixed(2)}px`);
-    if (Math.abs(targetPitch - pitch) > 0.05 || Math.abs(targetRoll - roll) > 0.05) {
-      frameId = requestAnimationFrame(applyTilt);
+  const EngineClass = window.TiltEngine || (typeof TiltEngine !== 'undefined' ? TiltEngine : null);
+  if (!EngineClass) return;
+
+  const engine = new EngineClass({
+    maxTilt: 16,
+    smoothing: 6,
+    fps: 30,
+    idleMs: 1500,
+    onUpdate: ({ pitch, roll }) => {
+      // 1. Update CSS custom properties for 3D eye depth, lighting & shadows
+      root.style.setProperty('--gyro-rot-x', `${(-pitch * 0.45).toFixed(2)}deg`);
+      root.style.setProperty('--gyro-rot-y', `${(roll * 0.45).toFixed(2)}deg`);
+      root.style.setProperty('--gyro-x', `${(roll * 0.22).toFixed(2)}px`);
+      root.style.setProperty('--gyro-y', `${(pitch * 0.22).toFixed(2)}px`);
+      root.style.setProperty('--gyro-light-x', `${(50 + roll * 1.5).toFixed(1)}%`);
+      root.style.setProperty('--gyro-light-y', `${(35 + pitch * 1.5).toFixed(1)}%`);
+      root.style.setProperty('--gyro-shadow-x', `${(roll * 0.12).toFixed(2)}px`);
+      root.style.setProperty('--gyro-shadow-y', `${(pitch * 0.12).toFixed(2)}px`);
+
+      // 2. Apply 3D perspective matrix3d to avatar card if present
+      if (DOM.avatarZone && typeof window.applyTilt === 'function') {
+        window.applyTilt(DOM.avatarZone, pitch * 0.5, roll * 0.5);
+      }
+
+      // 3. Apply to any active tilt cards on screen
+      const tiltCards = document.querySelectorAll('.tilt-card');
+      if (tiltCards.length > 0 && typeof window.applyTilt === 'function') {
+        tiltCards.forEach(c => window.applyTilt(c, pitch, roll));
+      }
+
+      // 4. Subtle haptic pulse at boundary tilt
+      const nextBoundary = Math.abs(pitch) > 14 || Math.abs(roll) > 14
+        ? `${Math.sign(pitch)}:${Math.sign(roll)}` : '';
+      if (nextBoundary && nextBoundary !== boundaryState && typeof navigator.vibrate === 'function') {
+        navigator.vibrate(8);
+      }
+      boundaryState = nextBoundary;
     }
-  };
+  });
 
-  const onOrientation = (event) => {
-    targetPitch = Math.max(-30, Math.min(30, Number(event.beta) || 0));
-    targetRoll = Math.max(-30, Math.min(30, Number(event.gamma) || 0));
-    const nextBoundary = Math.abs(targetPitch) > 28 || Math.abs(targetRoll) > 28
-      ? `${Math.sign(targetPitch)}:${Math.sign(targetRoll)}` : '';
-    if (nextBoundary && nextBoundary !== boundaryState && typeof navigator.vibrate === 'function') {
-      navigator.vibrate(8);
-    }
-    boundaryState = nextBoundary;
-    if (!frameId) frameId = requestAnimationFrame(applyTilt);
-  };
-
-  const stop = () => {
-    if (!listening) return;
-    window.removeEventListener('deviceorientation', onOrientation);
-    listening = false;
-    targetPitch = 0;
-    targetRoll = 0;
-    if (!frameId) frameId = requestAnimationFrame(applyTilt);
-  };
-  const start = () => {
-    if (listening || document.hidden) return;
-    window.addEventListener('deviceorientation', onOrientation, { passive: true });
-    listening = true;
-  };
-
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) stop();
-    else start();
-  }, { passive: true });
-  start();
+  window.mainTiltEngine = engine;
+  engine.start();
 }
 
 /* ═══════════════════════════════════════════════════════════════════

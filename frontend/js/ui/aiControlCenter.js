@@ -428,8 +428,8 @@
         const isPaused = m.status === 'paused';
         const isCompleted = m.isDownloaded || m.status === 'completed' || m.progress === 100;
         const pct = m.progress || 0;
-        const speed = m.speedMBps ? `${m.speedMBps} MB/s` : '12.4 MB/s';
-        const eta = m.etaSeconds ? `ETA: ${Math.floor(m.etaSeconds / 60)}m ${m.etaSeconds % 60}s` : 'ETA: 1m 20s';
+        const speed = m.speedMBps ? `${m.speedMBps} MB/s` : '';
+        const eta = m.etaSeconds ? `ETA: ${Math.floor(m.etaSeconds / 60)}m ${m.etaSeconds % 60}s` : '';
 
         return `
           <div class="model-repo-card ${m.isActive ? 'active-engine' : ''}" id="card_model_${m.id}">
@@ -437,7 +437,7 @@
               <div>
                 <div class="model-title-row">
                   <span class="model-card-title">${m.name}</span>
-                  ${(isCompleted && m.isActive) ? '<span class="model-active-badge">★ Active Engine</span>' : ''}
+                  ${(isCompleted && m.isActive) || m.isActive ? '<span class="model-active-badge">★ Active Engine</span>' : ''}
                 </div>
                 <div class="model-vendor-tag">${m.vendor || 'On-Device GGUF'} • ${m.fileName}</div>
               </div>
@@ -447,7 +447,7 @@
             <p class="model-card-desc">${m.description || ''}</p>
 
             <div class="model-storage-row">
-              <span class="storage-label">Storage Path:</span>
+              <span class="storage-label">Storage:</span>
               <code class="storage-path" title="${m.storagePath}">${this.formatPath(m.storagePath)}</code>
             </div>
 
@@ -462,6 +462,7 @@
               </div>
             </div>
 
+            <!-- Action Buttons -->
             <!-- Action Buttons with Dynamic Progress Mode & Automatic State Transitions -->
             <div class="model-actions-row">
               ${!isCompleted && !isDownloading && !isPaused ? `
@@ -512,8 +513,8 @@
         const pct = m.progress || 0;
 
         if (fill) fill.style.width = `${pct}%`;
-        const speed = m.speedMBps ? `${m.speedMBps} MB/s • ` : '12.4 MB/s • ';
-        const eta = m.etaSeconds ? `ETA ${Math.floor(m.etaSeconds / 60)}m ${m.etaSeconds % 60}s` : 'ETA 1m 20s';
+        const speed = m.speedMBps ? `${m.speedMBps} MB/s • ` : '';
+        const eta = m.etaSeconds ? `ETA ${Math.floor(m.etaSeconds / 60)}m ${m.etaSeconds % 60}s` : '';
         if (text) text.textContent = `${pct}% • ${speed}${eta}`;
         if (btnProgText) btnProgText.textContent = `Downloading... ${pct}%`;
         if (wrap) {
@@ -598,8 +599,11 @@
             allowMetered: true
           });
         }
+        if (window.showToast) window.showToast(`Started foreground download for ${modelId}`);
+        this.refreshModels();
         if (window.showToast) window.showToast(`Started foreground download for ${m ? m.name : modelId}`);
       } catch (err) {
+        console.error('[AiControlCenter] startDownload error:', err);
         console.warn('[AiControlCenter] startDownloadModel native call:', err);
       }
 
@@ -618,6 +622,7 @@
           delete this._trackers[modelId];
         }
         if (window.showToast) window.showToast(`Paused download for ${modelId}`);
+        this.refreshModels();
         this.renderModelCards();
       } catch (err) {
         console.error('[AiControlCenter] pauseDownload error:', err);
@@ -639,6 +644,7 @@
           delete this._trackers[modelId];
         }
         if (window.showToast) window.showToast(`Cancelled download for ${modelId}`);
+        this.refreshModels();
         this.renderModelCards();
       } catch (err) {
         console.error('[AiControlCenter] cancelDownload error:', err);
@@ -660,6 +666,7 @@
         }
         this.saveLocalModelsState();
         if (window.showToast) window.showToast(`Deleted ${modelId} from disk.`);
+        this.refreshModels();
         this.renderModelCards();
         if (window.renderDownloadedStorageViewer) window.renderDownloadedStorageViewer();
       } catch (err) {
@@ -678,6 +685,7 @@
         });
         this.saveLocalModelsState();
         if (window.showToast) window.showToast(`${modelId} is now the active offline brain.`);
+        this.refreshModels();
         this.renderModelCards();
       } catch (err) {
         console.error('[AiControlCenter] setActiveModel error:', err);

@@ -135,20 +135,20 @@ ul{list-style:none}
 .topbar{
   position:relative;z-index:20;
   display:flex;flex-direction:column;align-items:center;
-  min-height:auto;
-  height:auto;
+  width:100%;
+  box-sizing:border-box;
   padding:max(var(--sat), 8px) 14px 10px;
-  background:rgba(8, 11, 18, 0.92);
+  background:rgba(8, 11, 18, 0.94);
   border-bottom:1px solid var(--border-subtle);
   backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
-  gap:10px; /* strict min 8dp vertical spacing */
-  box-sizing:border-box;
-  width:100%;
+  gap:10px; /* strict vertical spacing so topbar elements never crash */
 }
 
 .topbar-main-row{
   display:flex;align-items:center;justify-content:space-between;
   width:100%;
+  box-sizing:border-box;
+  min-height:40px;
 }
 
 .topbar-left{
@@ -1489,13 +1489,34 @@ body.theme-light .msg-action-btn:hover{
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   font-size: 11px;
   color: var(--text-dim);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+  overflow: hidden;
+}
+.offline-progress-text {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .offline-storage-tag {
   font-family: monospace;
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.5);
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 2px 6px;
+  border-radius: 4px;
+  min-width: 0;
+  text-align: right;
 }
 .offline-action-row {
   display: flex;

@@ -197,6 +197,7 @@
   font-size: 18px;
 }
 
+/* ═══════════ OFFLINE MODELS GRID ═══════════ */
 /* ═══════════ OFFLINE MODELS GRID (STRICT MOBILE SAFE CONSTRAINTS) ═══════════ */
 .models-grid {
   display: grid;
