@@ -142,7 +142,7 @@ const DOM = {
   btnMic:             $('#btnMic'),
   btnScreenShare:     $('#btnScreenShare'),
 
-  // Marvo Top-Anchored Dynamic Island & Voice UI
+  // Marvo Top-Anchored Dynamic Voice Indicator
   dynamicIsland:        $('#marvo-dynamic-island'),
   islandResponseContent:$('#island-response-content'),
   islandResponseText:   $('#islandResponseText'),
@@ -3345,6 +3345,7 @@ function initDynamicIsland() {
     marvoVoiceInstance = dynamicIslandInstance;
     window.marvoIslandInstance = dynamicIslandInstance;
     window.dynamicIslandInstance = dynamicIslandInstance;
+    window.siriOrbInstance = dynamicIslandInstance;
     window.setVoiceState = (state, volume) => dynamicIslandInstance.setVoiceState(state, volume);
   }
 }
@@ -3650,6 +3651,26 @@ function startSpeechRecognition() {
         resetSpeechSilenceTimer();
       }
     };
+
+    speechRecognizer.onerror = (err) => {
+      console.warn('[SpeechRec] Error:', err);
+      if (err.error === 'not-allowed') {
+        showToast('Microphone access denied');
+        closeVoiceDock();
+      }
+    };
+
+    speechRecognizer.onend = () => {
+      if (isVoiceRecording && !isVoicePaused && speechRecognizer) {
+        try { speechRecognizer.start(); } catch {}
+      }
+    };
+
+    speechRecognizer.start();
+  } catch (e) {
+    console.warn('[SpeechRec] Start error:', e);
+  }
+}
 
     speechRecognizer.onerror = (err) => {
       console.warn('[SpeechRec] Error:', err);
@@ -5130,6 +5151,7 @@ window.marvo = {
   openNotebookModal,
   openShareModal,
   setVoiceState: (s, v) => window.setVoiceState && window.setVoiceState(s, v),
+  get siriOrb() { return window.siriOrbInstance; },
   get activeProject() { return activeProject; },
   get activeAgent() { return activeAgent; },
   get currentVoice() { return currentVoice; },
