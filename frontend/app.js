@@ -3089,18 +3089,8 @@ class DynamicIslandManager {
     }
     document.body.classList.add('island-active');
 
-    // Liquid expansion downward from top center
-    if (this.expandTimer) clearTimeout(this.expandTimer);
-    requestAnimationFrame(() => {
-      el.classList.add('expanded', 'active');
-    });
-
     // Taptic confirmation
-    this.expandTimer = setTimeout(() => {
-      if (this.active) {
-        HapticFeedback.confirm();
-      }
-    }, 380);
+    HapticFeedback.confirm();
 
     this.setVoiceState('listening', 0);
     this._startVisualizerLoop();
@@ -3125,7 +3115,7 @@ class DynamicIslandManager {
       el.classList.add('state-idle');
       setTimeout(() => {
         if (!this.active) el.classList.remove('island-open');
-      }, 400);
+      }, 380);
     }
 
     // Restore root interface
@@ -3151,6 +3141,10 @@ class DynamicIslandManager {
     const raw = Math.min(100, Math.max(0, rms * 340));
     this.smoothVolume += (raw - this.smoothVolume) * 0.35;
     this.volume = Math.round(this.smoothVolume);
+    const el = this.getIsland();
+    if (el) {
+      el.style.setProperty('--island-volume', (this.volume / 100).toFixed(2));
+    }
   }
 
   setVoiceState(state, volume = 0) {
@@ -3167,8 +3161,31 @@ class DynamicIslandManager {
     }
 
     if (el) {
-      el.classList.remove('state-idle', 'state-listening', 'state-thinking', 'state-speaking', 'state-error');
-      el.classList.add(`state-${s}`);
+      if (s === 'idle') {
+        el.classList.remove('state-listening', 'state-thinking', 'state-speaking', 'state-error', 'island-open', 'expanded', 'active');
+        el.classList.add('state-idle');
+        this.active = false;
+        if (this.animId) {
+          cancelAnimationFrame(this.animId);
+          this.animId = null;
+        }
+        const root = this.getAppRoot();
+        if (root) root.classList.remove('island-pushed-back');
+        document.body.classList.remove('island-active');
+      } else {
+        this.active = true;
+        el.classList.remove('state-idle', 'state-listening', 'state-thinking', 'state-speaking', 'state-error');
+        el.classList.add('island-open', `state-${s}`);
+        document.body.classList.add('island-active');
+        if (!this.animId) {
+          this._startVisualizerLoop();
+        }
+      }
+
+      // Update amplitude custom property for speaking pulse
+      if (s === 'speaking') {
+        el.style.setProperty('--island-volume', `${Math.max(10, this.volume) / 100}`);
+      }
     }
 
     const stateLabels = {
@@ -3183,6 +3200,10 @@ class DynamicIslandManager {
     if (this.statusPill) {
       this.statusPill.textContent = stateLabels[s] || 'Marvo';
     }
+    const capsuleLabel = document.getElementById('capsuleLabel');
+    if (capsuleLabel) {
+      capsuleLabel.textContent = stateLabels[s] || 'Marvo';
+    }
     const legacyStatus = document.getElementById('voiceStatusText');
     if (legacyStatus) {
       legacyStatus.textContent = stateLabels[s] || 'Marvo';
@@ -3193,7 +3214,7 @@ class DynamicIslandManager {
       if (this.errorTimer) clearTimeout(this.errorTimer);
       this.errorTimer = setTimeout(() => {
         if (this.state === 'error') {
-          this.close();
+          this.setVoiceState('idle', 0);
         }
       }, 1500);
     }
@@ -3311,6 +3332,17 @@ class DynamicIslandManager {
         { color: 'rgba(255, 0, 127, 0.85)', speed: -1.3, phase: Math.PI / 3, ampMult: 0.75, width: 2.0 },
         { color: 'rgba(147, 51, 234, 0.80)', speed: 0.8, phase: Math.PI / 1.5, ampMult: 0.55, width: 1.8 }
       ];
+
+      // Compact Capsule Sound Bars (wired to real mic amplitude with smooth synthetic fallback)
+      const bars = document.querySelectorAll('#capsuleSoundBars .bar');
+      if (bars && bars.length > 0) {
+        const normVol = Math.max(0.12, this.volume / 100);
+        bars.forEach((bar, idx) => {
+          const synth = Math.sin(time * 7 + idx * 1.3) * 0.5 + 0.5;
+          const barHeight = Math.round(4 + normVol * 14 * (0.35 + 0.65 * synth));
+          bar.style.height = `${barHeight}px`;
+        });
+      }
 
       waves.forEach(w => {
         ctx.beginPath();
