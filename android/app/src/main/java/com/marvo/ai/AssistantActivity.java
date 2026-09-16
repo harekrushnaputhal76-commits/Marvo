@@ -160,7 +160,6 @@ public class AssistantActivity extends AppCompatActivity {
     private TextView statusTextView;
     private TextView subtitleTextView;
     private ScrollView statusScrollView;
-    private WebView orbWebView;
     private boolean flashlightEnabled;
     private String geminiApiKey = null;
 
@@ -674,11 +673,6 @@ public class AssistantActivity extends AppCompatActivity {
         statusTextView = findViewById(R.id.statusTextView);
         subtitleTextView = findViewById(R.id.subtitleTextView);
         statusScrollView = findViewById(R.id.statusScrollView);
-        orbWebView = findViewById(R.id.orbWebView);
-        if (orbWebView != null) {
-            orbWebView.setBackgroundColor(android.graphics.Color.TRANSPARENT);
-            orbWebView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
-        }
         dynamicPillContainer = findViewById(R.id.dynamicPillContainer);
         pillIcon = findViewById(R.id.pillIcon);
         pillText = findViewById(R.id.pillText);
