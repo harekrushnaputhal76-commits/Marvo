@@ -4926,8 +4926,6 @@ body.island-active .main {
 .island-gooey-wrapper {
   position: absolute;
   inset: -24px;
-  filter: url(#marvo-goo);
-  -webkit-filter: url(#marvo-goo);
   pointer-events: none;
   z-index: 1;
   overflow: visible;
