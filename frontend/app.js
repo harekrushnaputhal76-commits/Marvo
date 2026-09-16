@@ -3050,6 +3050,9 @@ class DynamicIslandManager {
     this.appRoot = document.getElementById('app-root') || document.querySelector('.main');
     this.statusPill = document.getElementById('islandStatusPill');
     this.responseText = document.getElementById('islandResponseText');
+    this.actionIntentCard = document.getElementById('marvo-action-intent-card');
+    this.actionIntentIcon = document.getElementById('marvo-action-intent-icon');
+    this.actionIntentText = document.getElementById('marvo-action-intent-text');
     this.canvas = document.getElementById('islandWaveCanvas');
     this.ctx = this.canvas ? this.canvas.getContext('2d') : null;
     this.state = VoiceIndicatorState.IDLE;
@@ -3061,6 +3064,7 @@ class DynamicIslandManager {
     this.touchStartY = 0;
     this.expandTimer = null;
     this.errorTimer = null;
+    this.actionIntentTimer = null;
     this.visibilityHandler = null;
     this.subscribers = new Set();
 
@@ -3096,6 +3100,46 @@ class DynamicIslandManager {
   getAppRoot() {
     if (!this.appRoot) this.appRoot = document.getElementById('app-root') || document.querySelector('.main');
     return this.appRoot;
+  }
+
+  showActionIntentCard({ intent_type, icon, text } = {}) {
+    const el = this.getIsland();
+    if (!el || !this.actionIntentCard) return false;
+
+    this.hideActionIntentCard({ restoreIdle: false });
+    if (icon !== undefined && this.actionIntentIcon) this.actionIntentIcon.textContent = String(icon);
+    if (text !== undefined && this.actionIntentText) this.actionIntentText.textContent = String(text);
+    this.actionIntentCard.dataset.intentType = intent_type || '';
+    this.actionIntentCard.hidden = false;
+    el.classList.add('action-intent-visible');
+    const width = 'var(--marvo-geo-action-card-width)';
+    const height = 'var(--marvo-geo-action-card-height)';
+    this.applyShape(width, height, { radius: 'var(--marvo-geo-expanded-radius)' });
+
+    const durationMs = parseFloat(getComputedStyle(el).getPropertyValue('--marvo-action-intent-duration')) * 1000;
+    this.actionIntentTimer = setTimeout(() => {
+      this.actionIntentTimer = null;
+      this.hideActionIntentCard();
+    }, Number.isFinite(durationMs) ? durationMs : 2000);
+    return true;
+  }
+
+  hideActionIntentCard({ restoreIdle = true } = {}) {
+    if (this.actionIntentTimer) {
+      clearTimeout(this.actionIntentTimer);
+      this.actionIntentTimer = null;
+    }
+    if (this.actionIntentCard) this.actionIntentCard.hidden = true;
+    const el = this.getIsland();
+    if (!el) return;
+    el.classList.remove('action-intent-visible');
+    if (restoreIdle) {
+      el.classList.remove('island-open');
+      el.classList.add('state-idle');
+      this.applyShape('var(--marvo-geo-idle-diameter)', 'var(--marvo-geo-height-idle)', {
+        radius: 'var(--marvo-geo-radius-idle)'
+      });
+    }
   }
 
   getStateShape(state) {
@@ -3186,6 +3230,7 @@ class DynamicIslandManager {
         if (!this.active) el.classList.remove('island-open');
       }, 380);
     }
+    this.hideActionIntentCard({ restoreIdle: false });
 
     // Restore root interface
     if (root) {
@@ -3237,6 +3282,10 @@ class DynamicIslandManager {
     const stateChanged = prevState !== s;
     this.state = s;
     this.volume = Math.max(0, Math.min(100, volume));
+
+    if (stateChanged && this.actionIntentTimer) {
+      this.hideActionIntentCard({ restoreIdle: false });
+    }
 
     if (stateChanged) {
       console.log(`[VoiceIndicatorState] State transition: ${prevState} -> ${s}`, { volume: this.volume });
@@ -3515,6 +3564,7 @@ function initDynamicIsland() {
     window.VoiceIndicatorState = VoiceIndicatorState;
     window.MarvoVoiceIndicatorState = VoiceIndicatorState;
     window.setVoiceState = (state, volume) => dynamicIslandInstance.setVoiceState(state, volume);
+    window.showActionIntentCard = (props) => dynamicIslandInstance.showActionIntentCard(props);
   }
 }
 

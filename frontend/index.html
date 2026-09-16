@@ -1195,7 +1195,13 @@
 
 <!-- ═══════════ MARVO TOP-ANCHORED IDLE VOICE INDICATOR ═══════════ -->
 <div id="marvo-liquid-filter-context" aria-hidden="true">
-  <div id="marvo-dynamic-island"></div>
+  <div id="marvo-dynamic-island">
+    <div id="marvo-action-intent-card" class="marvo-action-intent-card" hidden>
+      <!-- TODO(B14): replace this TEMP ACTION placeholder with backend intent_type data. -->
+      <span id="marvo-action-intent-icon" class="marvo-action-intent-icon" aria-hidden="true">TEMP</span>
+      <span id="marvo-action-intent-text" class="marvo-action-intent-text">TEMP ACTION CONFIRMATION</span>
+    </div>
+  </div>
 </div>
 
 <!-- Toast notification helper -->

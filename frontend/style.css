@@ -5426,6 +5426,52 @@ body.island-active .main {
   transform-origin: center;
   pointer-events: none;
 }
+.marvo-action-intent-card {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 0 var(--marvo-geo-expanded-padding-x);
+  border: 1px solid var(--marvo-glass-border-color);
+  border-radius: var(--marvo-geo-expanded-radius);
+  background: var(--marvo-glass-bg);
+  box-sizing: border-box;
+  color: var(--marvo-glass-border-highlight);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--marvo-duration-fast) var(--marvo-ease-smooth);
+}
+
+#marvo-dynamic-island.action-intent-visible .marvo-action-intent-card {
+  display: flex;
+  opacity: 1;
+}
+
+.marvo-action-intent-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--marvo-geo-radius-pill);
+  color: var(--marvo-color-cyan);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.marvo-action-intent-text {
+  min-width: 0;
+  overflow: hidden;
+  color: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 #marvo-dynamic-island.state-listening::after {
   opacity: var(--marvo-listening-intensity);
