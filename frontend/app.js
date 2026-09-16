@@ -3481,7 +3481,7 @@ function openVoiceDock() {
   isVoiceRecording = true;
   isVoicePaused = false;
   currentVoiceTranscript = '';
-  if (DOM.islandResponseText) DOM.islandResponseText.textContent = 'Listening to you...';
+  if (DOM.islandResponseText) DOM.islandResponseText.textContent = '';
   if (DOM.islandStatusPill) DOM.islandStatusPill.textContent = 'Listening...';
   if (DOM.iconIslandPause) DOM.iconIslandPause.classList.remove('hidden');
   if (DOM.iconIslandResume) DOM.iconIslandResume.classList.add('hidden');
