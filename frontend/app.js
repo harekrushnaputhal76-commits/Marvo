@@ -3027,6 +3027,7 @@ class DynamicIslandManager {
     this.touchStartY = 0;
     this.expandTimer = null;
     this.errorTimer = null;
+    this.visibilityHandler = null;
 
     this._bindTouchGestures();
     this._bindButtons();
@@ -3246,7 +3247,7 @@ class DynamicIslandManager {
   }
 
   _bindVisibility() {
-    document.addEventListener('visibilitychange', () => {
+    this.visibilityHandler = () => {
       if (document.hidden) {
         if (this.animId) {
           cancelAnimationFrame(this.animId);
@@ -3254,6 +3255,13 @@ class DynamicIslandManager {
         }
       } else if (this.active) {
         this._startVisualizerLoop();
+      }
+    };
+    document.addEventListener('visibilitychange', this.visibilityHandler);
+    window.MarvoIdleIndicatorLifecycle?.registerTeardown(() => {
+      if (this.visibilityHandler) {
+        document.removeEventListener('visibilitychange', this.visibilityHandler);
+        this.visibilityHandler = null;
       }
     });
   }
@@ -3333,7 +3341,14 @@ class DynamicIslandManager {
   stop() { this.close(); }
   activate() { this.open(); }
   deactivate() { this.close(); }
-  destroy() { this.close(); }
+  destroy() {
+    this.close();
+    window.MarvoIdleIndicatorLifecycle?.teardown();
+    if (this.visibilityHandler) {
+      document.removeEventListener('visibilitychange', this.visibilityHandler);
+      this.visibilityHandler = null;
+    }
+  }
 }
 
 let dynamicIslandInstance = null;
@@ -3351,6 +3366,7 @@ function initDynamicIsland() {
 }
 
 function initMarvoVoiceIndicator() {
+  window.MarvoIdleIndicatorLifecycle?.mount();
   initDynamicIsland();
 }
 

@@ -5414,6 +5414,13 @@ body.island-active .main {
   animation: none !important;
 }
 
+.marvo-idle-paused #marvo-liquid-filter-context,
+.marvo-idle-paused #marvo-dynamic-island::before,
+body.app-background-paused #marvo-liquid-filter-context,
+body.app-background-paused #marvo-dynamic-island::before {
+  animation-play-state: paused !important;
+}
+
 /* ================================================================
    PHASE 1: AGGRESSIVE BATTERY & BACKGROUND KILL-SWITCH
    ================================================================ */
