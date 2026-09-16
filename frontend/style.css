@@ -4600,7 +4600,6 @@ body.page-paused * {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   APPLE INTELLIGENCE FLUID WAVEFORM & SIRI GLOW
    MARVO FLUID WAVEFORM & DYNAMIC GLOW
    ═══════════════════════════════════════════════════════════════════ */
 .voice-wave-container {
@@ -5318,13 +5317,21 @@ body.island-active .main {
 
 /* Accessibility: prefers-reduced-motion */
 @media (prefers-reduced-motion: reduce) {
+  .marvo-island-goo-container,
+  .island-gooey-wrapper {
+    filter: none !important;
+    -webkit-filter: none !important;
+  }
+
   #marvo-dynamic-island,
   #marvo-camera-island,
   .island-liquid-body,
   .island-content-layer,
-  .island-plasma-edge {
+  .island-plasma-edge,
+  .island-capsule-display,
+  .capsule-sound-bars .bar {
     animation: none !important;
-    transition: opacity 0.2s ease !important;
+    transition: opacity 0.2s ease, transform 0.2s ease !important;
     filter: none !important;
     -webkit-filter: none !important;
   }

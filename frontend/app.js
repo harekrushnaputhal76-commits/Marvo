@@ -3005,7 +3005,7 @@ const MARVO_STATES = {
 };
 
 // Backward-compatibility alias
-const SIRI_STATES = MARVO_STATES;
+const MARVO_VOICE_STATES = MARVO_STATES;
 
 const HapticFeedback = {
   confirm() {
@@ -3374,12 +3374,12 @@ class DynamicIslandManager {
 }
 
 let dynamicIslandInstance = null;
-let siriOrbInstance = null;
+let marvoVoiceInstance = null;
 
 function initDynamicIsland() {
   if (!dynamicIslandInstance) {
     dynamicIslandInstance = new DynamicIslandManager();
-    siriOrbInstance = dynamicIslandInstance;
+    marvoVoiceInstance = dynamicIslandInstance;
     window.marvoIslandInstance = dynamicIslandInstance;
     window.dynamicIslandInstance = dynamicIslandInstance;
     window.siriOrbInstance = dynamicIslandInstance;
@@ -3387,7 +3387,7 @@ function initDynamicIsland() {
   }
 }
 
-function initSiriOrb() {
+function initMarvoVoiceIndicator() {
   initDynamicIsland();
 }
 
@@ -3404,7 +3404,7 @@ let micRmsSum = 0;
 let micRmsCount = 0;
 
 async function initAudioVisualizer() {
-  initSiriOrb();
+  initMarvoVoiceIndicator();
   const canvas = DOM.voiceWaveCanvas;
   const ctx = canvas ? canvas.getContext('2d') : null;
 
@@ -3450,8 +3450,7 @@ async function initAudioVisualizer() {
       micRmsCount++;
       dynamicAmp = Math.max(4, Math.min(32, rms * 80));
 
-      // Directly feed real microphone frequency/volume to Apple Siri Orb!
-      // Directly feed real microphone frequency/volume to Dynamic Island!
+      // Directly feed real microphone frequency/volume to Marvo Dynamic Island!
       if (window.dynamicIslandInstance && isVoiceRecording && !isVoicePaused) {
         window.dynamicIslandInstance.setAudioLevel(rms);
       }
@@ -4959,13 +4958,8 @@ document.addEventListener('visibilitychange', () => {
       closeVoiceDock();
     }
 
-    // 3. Halt Siri Plasma animations
-    const siriPlasma = document.getElementById('siriPlasmaContainer');
-    if (siriPlasma) siriPlasma.classList.add('siri-paused');
-    // 3. Halt Dynamic Island animations & speech
     // 3. Halt Dynamic Island animations & voice assistant
     if (window.dynamicIslandInstance) window.dynamicIslandInstance.close();
-    if (window.siriOrbInstance) window.siriOrbInstance.stop();
 
     // 4. Halt 3D Gyroscope sensor
     if (window.mainTiltEngine) {
@@ -5154,8 +5148,8 @@ async function initTrafficPoliceAndModelUI() {
     window.AiControlCenter.init();
   }
 
-  // Initialize Apple Siri Fluid Orb
-  initSiriOrb();
+  // Initialize Marvo Dynamic Island Voice Indicator
+  initMarvoVoiceIndicator();
 }
 
 window.openAiControlCenter = function() {
