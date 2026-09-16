@@ -1226,13 +1226,14 @@ function applyCardState(cardConfig, data, defaultTotMb) {
   const totMb = Math.round(((data && data.totalBytes) || 0) / (1024 * 1024)) || defaultTotMb;
 
   if (isReady || status === 'completed') {
-    badge.textContent = 'Model Ready (Active)';
+    badge.textContent = '★ Active Engine';
     badge.className = 'offline-status-badge status-ready';
     bar.style.width = '100%';
     bar.classList.add('ready');
     text.textContent = `~${totMb} MB verified & active in /models/`;
-    btnDl.textContent = readyLabel || 'Model Ready';
-    btnDl.disabled = true;
+    btnDl.textContent = 'Delete Model';
+    btnDl.className = 'btn-offline-action danger';
+    btnDl.disabled = false;
     if (btnPause) btnPause.style.display = 'none';
     if (btnCancel) btnCancel.style.display = 'none';
   } else if (status === 'downloading') {
@@ -1241,8 +1242,9 @@ function applyCardState(cardConfig, data, defaultTotMb) {
     bar.style.width = progress + '%';
     bar.classList.remove('ready');
     text.textContent = `${dlMb} MB / ${totMb} MB (${progress}%)`;
-    btnDl.textContent = 'Downloading in Background...';
-    btnDl.disabled = false;
+    btnDl.innerHTML = `<span class="spinner-inline"></span> <span>Downloading... ${progress}%</span>`;
+    btnDl.className = 'btn-offline-action progress-mode';
+    btnDl.disabled = true;
     if (btnPause) { btnPause.style.display = 'inline-block'; btnPause.textContent = 'Pause'; }
     if (btnCancel) { btnCancel.style.display = 'inline-block'; }
   } else if (status === 'paused' || status === 'paused_wifi') {
@@ -1252,6 +1254,7 @@ function applyCardState(cardConfig, data, defaultTotMb) {
     bar.classList.remove('ready');
     text.textContent = `${dlMb} MB / ${totMb} MB (Paused)`;
     btnDl.textContent = 'Resume Download';
+    btnDl.className = 'btn-offline-action primary';
     btnDl.disabled = false;
     if (btnPause) { btnPause.style.display = 'none'; }
     if (btnCancel) { btnCancel.style.display = 'inline-block'; }
@@ -1262,6 +1265,7 @@ function applyCardState(cardConfig, data, defaultTotMb) {
     bar.classList.remove('ready');
     text.textContent = `Requires ~${defaultTotMb}MB storage`;
     btnDl.textContent = idleLabel || 'Download Model';
+    btnDl.className = 'btn-offline-action primary';
     btnDl.disabled = false;
     if (btnPause) btnPause.style.display = 'none';
     if (btnCancel) btnCancel.style.display = 'none';
@@ -1336,7 +1340,26 @@ function initDownloadCardControls() {
 
     if (btnDl) {
       btnDl.addEventListener('click', async () => {
+        if (btnDl.textContent && btnDl.textContent.includes('Delete')) {
+          if (!confirm(`Delete ${modelLabel} from device storage?`)) return;
+          try {
+            if (window.Capacitor?.Plugins?.MarvoNativeBridge?.deleteOfflineModel) {
+              await window.Capacitor.Plugins.MarvoNativeBridge.deleteOfflineModel({ modelType });
+            }
+            if (window.AiControlCenter?.deleteModel) {
+              window.AiControlCenter.deleteModel(modelType === 'llm' ? 'phi-3-mini' : modelType);
+            }
+            showToast(`Deleted ${modelLabel}`);
+            updateDownloadCard();
+          } catch (e) {
+            showToast('Delete error: ' + e.message);
+          }
+          return;
+        }
+
         try {
+          btnDl.innerHTML = '<span class="spinner-inline"></span> <span>Downloading... 1%</span>';
+          btnDl.className = 'btn-offline-action progress-mode';
           if (window.Capacitor?.Plugins?.MarvoNativeBridge) {
             showToast(`Starting ${modelLabel} download in background...`);
             if (window.Capacitor.Plugins.MarvoNativeBridge.startTypedModelDownload) {
@@ -4594,19 +4617,6 @@ async function initTrafficPoliceAndModelUI() {
     window.AiControlCenter.init();
   }
 
-  // Phase 2: Cinematic 3D Zoom Splash Dismissal
-  function initCinematicSplash() {
-    const splash = document.getElementById('cinematicSplash');
-    if (!splash) return;
-    setTimeout(() => {
-      splash.classList.add('dismissed');
-      setTimeout(() => {
-        splash.style.display = 'none';
-        if (splash.parentNode) splash.parentNode.removeChild(splash);
-      }, 550);
-    }, 1600);
-  }
-  initCinematicSplash();
 }
 
 window.openAiControlCenter = function() {

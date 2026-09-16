@@ -393,15 +393,15 @@
 /* ═══════════ TOP HEADER (SAFE AREA & WINDOW INSETS) ═══════════ */
 .study-header {
   position: relative;
-  min-height: calc(76px + max(env(safe-area-inset-top, 0px), 28px));
+  min-height: auto;
   height: auto;
-  padding-top: max(env(safe-area-inset-top, 0px), 28px);
+  padding-top: max(env(safe-area-inset-top, 0px), 14px);
   padding-bottom: 12px;
   padding-left: 16px;
   padding-right: 16px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 10px; /* strict min 8dp vertical spacing between rows */
   background: rgba(8, 11, 18, 0.96);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
@@ -409,21 +409,37 @@
   box-shadow: 0 4px 25px rgba(0, 0, 0, 0.5);
   z-index: 100;
   box-sizing: border-box;
-}
-
-.study-header-main-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   width: 100%;
-  gap: 8px;
 }
 
-.study-header-left {
+/* Row 1: Back Button + Title ("Study Mode") aligned center/left */
+.study-header-row-1 {
   display: flex;
   align-items: center;
   gap: 12px;
-  min-width: 0;
+  width: 100%;
+}
+
+/* Row 2: "Live Tutor", "Focus", and "Tools" chips cleanly spaced horizontally */
+.study-header-row-2 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+
+.study-tools-menu-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* Row 3: Model Selectors ("Fast", "Thinking", "Pro Thinking") below chips */
+.study-header-row-3 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
 }
 
 .btn-study-back {

@@ -23,31 +23,6 @@
 <link rel="stylesheet" href="css/aiControlCenter.css">
 <body>
 
-<!-- ═══════════ CINEMATIC 3D ZOOM SPLASH SCREEN ═══════════ -->
-<div id="cinematicSplash" class="cinematic-splash-screen" aria-hidden="true">
-  <div class="splash-ambient-bg"></div>
-  <div class="splash-3d-scene">
-    <div class="splash-logo-container">
-      <div class="splash-logo-glow"></div>
-      <div class="splash-logo-orb">
-        <div class="splash-iris">
-          <div class="splash-pupil"></div>
-        </div>
-      </div>
-      <div class="splash-brand-text">
-        <div class="splash-title-row">
-          <h1 class="splash-title">MARVO</h1>
-          <span class="splash-badge">PRO</span>
-        </div>
-        <p class="splash-subtitle">Hybrid Intelligence • Zero-Latency Voice &amp; Vision</p>
-      </div>
-      <div class="splash-loader-bar">
-        <div class="splash-loader-progress"></div>
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- ═══════════ ADVANCED SIDEBAR DRAWER ═══════════ -->
 <aside id="sidebar" class="sidebar">
   <div class="sidebar-header">
@@ -237,19 +212,64 @@
 <!-- ═══════════ MAIN CONTAINER ═══════════ -->
 <main class="main">
 
-  <!-- Top Bar -->
+  <!-- Top Bar with Safe Area Insets & Strict Vertical Stacking (No Overlap) -->
   <header class="topbar">
-    <div class="topbar-left">
-      <button id="btnHamburger" class="hamburger" aria-label="Menu">
-        <span></span><span></span><span></span>
-      </button>
-      <div class="brand-title-wrap">
-        <span class="topbar-title" id="topbarTitle">Marvo</span>
-        <span class="topbar-status-dot"></span>
-        <div id="activeProjectBadge" class="active-project-badge hidden" title="Click to manage Project">
-          <svg viewBox="0 0 24 24" width="12" height="12"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-          <span id="activeProjectName">Project</span>
-          <button id="btnExitProject" class="btn-exit-project" title="Exit Project">&times;</button>
+    <div class="topbar-main-row">
+      <div class="topbar-left">
+        <button id="btnHamburger" class="hamburger" aria-label="Menu">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="brand-title-wrap">
+          <span class="topbar-title" id="topbarTitle">Marvo</span>
+          <span class="topbar-status-dot"></span>
+          <div id="activeProjectBadge" class="active-project-badge hidden" title="Click to manage Project">
+            <svg viewBox="0 0 24 24" width="12" height="12"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+            <span id="activeProjectName">Project</span>
+            <button id="btnExitProject" class="btn-exit-project" title="Exit Project">&times;</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main App Menu (Top Right 3-Dots) -->
+      <div class="menu-container topbar-menu-container">
+        <button id="btnAppMenu" class="btn-icon" aria-label="More Options">
+          <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="5" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="19" r="2" fill="currentColor"/></svg>
+        </button>
+        <div id="appDropdown" class="dropdown-menu app-dropdown">
+          <button class="dropdown-item" id="btnAddToNotebook">
+            <svg viewBox="0 0 24 24" width="16" height="16"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+            Add to notebook
+          </button>
+          <button class="dropdown-item" id="btnTopRenameChat">
+            <svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 20h9" stroke="currentColor" stroke-width="2"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+            Rename
+          </button>
+          <button class="dropdown-item" id="btnTopHelp">
+            <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" stroke="currentColor" stroke-width="2" fill="none"/><circle cx="12" cy="17" r="1" fill="currentColor"/></svg>
+            Help & Guide
+          </button>
+          <button class="dropdown-item" id="btnTopShareChat">
+            <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="18" cy="5" r="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="6" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="19" r="3" fill="none" stroke="currentColor" stroke-width="2"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" stroke="currentColor" stroke-width="2"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" stroke="currentColor" stroke-width="2"/></svg>
+            Share conversation
+          </button>
+          <div class="dropdown-divider"></div>
+          <button class="dropdown-item" id="btnAppAiControlCenter">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            AI Control Center
+          </button>
+          <button class="dropdown-item" id="btnSettings">
+            <svg viewBox="0 0 24 24" width="16" height="16"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" fill="currentColor"/></svg>
+            Settings
+          </button>
+          <button class="dropdown-item" id="btnThemeMenu">
+            <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 3a9 9 0 0 0 0 18v-18z" fill="currentColor"/></svg>
+            Themes & Characters
+          </button>
+          <div class="dropdown-divider"></div>
+          <button class="dropdown-item danger" id="btnTopDeleteChat">
+            <svg viewBox="0 0 24 24" width="16" height="16"><polyline points="3 6 5 6 21 6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+            Delete
+          </button>
         </div>
       </div>
     </div>
@@ -270,40 +290,6 @@
       </button>
       <div class="tier-pill-indicator"></div>
     </div>
-
-    <!-- Main App Menu (Top Right 3-Dots) -->
-    <div class="menu-container topbar-menu-container">
-      <button id="btnAppMenu" class="btn-icon" aria-label="More Options">
-        <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="5" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="19" r="2" fill="currentColor"/></svg>
-      </button>
-      <div id="appDropdown" class="dropdown-menu app-dropdown">
-        <button class="dropdown-item" id="btnAddToNotebook">
-          <svg viewBox="0 0 24 24" width="16" height="16"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-          Add to notebook
-        </button>
-        <button class="dropdown-item" id="btnTopRenameChat">
-          <svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 20h9" stroke="currentColor" stroke-width="2"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-          Rename
-        </button>
-        <button class="dropdown-item" id="btnTopHelp">
-          <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" stroke="currentColor" stroke-width="2" fill="none"/><circle cx="12" cy="17" r="1" fill="currentColor"/></svg>
-          Help & Guide
-        </button>
-        <button class="dropdown-item" id="btnTopShareChat">
-          <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="18" cy="5" r="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="6" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="19" r="3" fill="none" stroke="currentColor" stroke-width="2"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" stroke="currentColor" stroke-width="2"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" stroke="currentColor" stroke-width="2"/></svg>
-          Share conversation
-        </button>
-        <div class="dropdown-divider"></div>
-        <button class="dropdown-item" id="btnAppAiControlCenter">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-          AI Control Center
-        </button>
-        <button class="dropdown-item" id="btnSettings">
-          <svg viewBox="0 0 24 24" width="16" height="16"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" fill="currentColor"/></svg>
-          Settings
-        </button>
-        <button class="dropdown-item" id="btnThemeMenu">
-          <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 3a9 9 0 0 0 0 18v-18z" fill="currentColor"/></svg>
           Themes & Characters
         </button>
         <div class="dropdown-divider"></div>

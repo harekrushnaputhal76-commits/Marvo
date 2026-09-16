@@ -137,65 +137,67 @@ PEDAGOGICAL DIRECTIVES:
       // 2. Study Mode Main Container
       const containerHTML = `
         <div id="studyModeContainer" class="study-mode-container">
-          <!-- Top Header with Safe Area Insets -->
+          <!-- Top Header with Safe Area Insets & Strict Vertical Stacking (No Overlap) -->
           <header class="study-header">
-            <div class="study-header-main-row">
-              <div class="study-header-left">
-                <button id="btnStudyBack" class="btn-study-back" title="Exit Study Mode">
-                  <svg viewBox="0 0 24 24" width="20" height="20"><polyline points="15 18 9 12 15 6" fill="none" stroke="currentColor" stroke-width="2.5"/></svg>
-                </button>
-                <div class="study-header-title-wrap">
-                  <div class="study-header-title">
-                    <span>Study Mode</span>
-                    <span class="study-pulse-dot"></span>
-                  </div>
-                  <span class="study-header-sub" id="studySubHeader">Isolated Academic Workspace</span>
+            <!-- Row 1: Back Button + Title ("Study Mode") aligned center/left -->
+            <div class="study-header-row study-header-row-1">
+              <button id="btnStudyBack" class="btn-study-back" title="Exit Study Mode" type="button">
+                <svg viewBox="0 0 24 24" width="20" height="20"><polyline points="15 18 9 12 15 6" fill="none" stroke="currentColor" stroke-width="2.5"/></svg>
+              </button>
+              <div class="study-header-title-wrap">
+                <div class="study-header-title">
+                  <span>Study Mode</span>
+                  <span class="study-pulse-dot"></span>
                 </div>
+                <span class="study-header-sub" id="studySubHeader">Isolated Academic Workspace</span>
               </div>
+            </div>
 
-              <div class="study-header-right">
-                <!-- Live Vision Tutor Quick Button -->
-                <button id="btnHeaderLiveVision" class="btn-study-live-vision" title="Launch Gemini Live Vision Tutor" type="button">
-                  <span class="live-pulse-dot"></span>
-                  <span>Live Tutor</span>
-                </button>
+            <!-- Row 2: "Live Tutor", "Focus", and "Tools" chips cleanly spaced horizontally -->
+            <div class="study-header-row study-header-row-2">
+              <!-- Live Vision Tutor Quick Button -->
+              <button id="btnHeaderLiveVision" class="btn-study-live-vision" title="Launch Gemini Live Vision Tutor" type="button">
+                <span class="live-pulse-dot"></span>
+                <span>Live Tutor</span>
+              </button>
 
-                <!-- Isolated Focus Mode DND Toggle -->
-                <button id="btnStudyFocusToggle" class="btn-study-focus" title="Toggle Isolated Focus Mode (Do Not Disturb)">
-                  <span class="focus-dot"></span>
-                  <span id="focusToggleLabel">Focus: OFF</span>
-                </button>
+              <!-- Isolated Focus Mode DND Toggle -->
+              <button id="btnStudyFocusToggle" class="btn-study-focus" title="Toggle Isolated Focus Mode (Do Not Disturb)" type="button">
+                <span class="focus-dot"></span>
+                <span id="focusToggleLabel">Focus: OFF</span>
+              </button>
 
-                <button id="btnStudyToolsMenu" class="btn-study-tools-menu" title="Learning Tools">
+              <div class="study-tools-menu-wrap">
+                <button id="btnStudyToolsMenu" class="btn-study-tools-menu" title="Learning Tools" type="button">
                   <span>Tools</span>
                   <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="19" cy="12" r="1.5" fill="currentColor"/><circle cx="5" cy="12" r="1.5" fill="currentColor"/></svg>
                 </button>
 
                 <div id="studyToolsDropdown" class="study-tools-dropdown">
-                  <button class="study-tool-item" id="toolChatMode">
+                  <button class="study-tool-item" id="toolChatMode" type="button">
                     <span>💬</span> <span>Tutor Chat</span>
                   </button>
-                  <button class="study-tool-item live-vision-dropdown-item" id="toolLiveVisionTutor">
+                  <button class="study-tool-item live-vision-dropdown-item" id="toolLiveVisionTutor" type="button">
                     <span>👁️</span> <span>Live Vision Tutor</span>
                   </button>
-                  <button class="study-tool-item" id="toolFlashcardMode">
+                  <button class="study-tool-item" id="toolFlashcardMode" type="button">
                     <span>🗂️</span> <span>Flashcard Generator</span>
                   </button>
-                  <button class="study-tool-item" id="toolQuizMode">
+                  <button class="study-tool-item" id="toolQuizMode" type="button">
                     <span>📝</span> <span>Interactive Quiz / MCQ</span>
                   </button>
-                  <button class="study-tool-item" id="toolOcrMode">
+                  <button class="study-tool-item" id="toolOcrMode" type="button">
                     <span>📷</span> <span>On-Device Book OCR</span>
                   </button>
-                  <button class="study-tool-item" id="toolControlCenter">
+                  <button class="study-tool-item" id="toolControlCenter" type="button">
                     <span>🎛️</span> <span>AI Control Center</span>
                   </button>
                 </div>
               </div>
             </div>
 
-            <!-- Cognitive Modes Toggle Bar (Positioned strictly below with vertical spacing) -->
-            <div class="study-header-modes-row">
+            <!-- Row 3: Model Selectors ("Fast", "Thinking", "Pro Thinking") below the chips -->
+            <div class="study-header-row study-header-row-3">
               <div class="study-tier-switcher cognitive-modes-switcher" id="studyTierSwitcher">
                 <button class="study-tier-btn active" data-mode="Fast" type="button" title="Fast Mode — Instant Groq">Fast</button>
                 <button class="study-tier-btn" data-mode="Thinking" type="button" title="Thinking Mode — Gemini Reasoning">Thinking</button>
