@@ -15,376 +15,14 @@
   --study-text-muted: #8e9bb0;
 }
 
-/* ═══════════ ULTRA-PREMIUM 3D ACADEMIC JOURNAL ENTRY ANIMATION ═══════════ */
-/* ═══════════ ULTRA-PREMIUM 3D ACADEMIC JOURNAL ENTRY ANIMATION (DISABLED FOR INSTANT LAUNCH) ═══════════ */
-.study-intro-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 99998;
-  background: radial-gradient(ellipse at center, #0a1122 0%, #03060c 60%, #000205 100%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  perspective: 2200px;
-  perspective-origin: 50% 50%;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.4s ease;
-  overflow: hidden;
-  display: none !important;
-  pointer-events: none !important;
-}
-
-/* ═══════════ 3D TILT ENGINE PARALLAX CARDS ═══════════ */
-.study-hero-banner,
-.ocr-card,
-.flashcard-card-3d,
-.quiz-card,
-.tilt-card {
-  transform-style: preserve-3d;
-  will-change: transform;
-  backface-visibility: hidden;
-}
-
-.study-intro-overlay.active {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.study-journal-scene {
-  width: 250px;
-  height: 330px;
-  position: relative;
-  transform-style: preserve-3d;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.study-book-3d.academic-journal {
-  width: 240px;
-  height: 320px;
-  position: relative;
-  transform-style: preserve-3d;
-  transform: rotateX(14deg) rotateY(-24deg) scale(0.85);
-  transition: transform 1.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease;
-  will-change: transform;
-}
-
-.study-intro-overlay.opening .study-book-3d.academic-journal {
-  transform: rotateX(6deg) rotateY(-8deg) scale(1.08);
-}
-
-.study-intro-overlay.page-turning .study-book-3d.academic-journal {
-  transform: rotateX(2deg) rotateY(-3deg) scale(1.28);
-}
-
-.study-intro-overlay.zooming .study-book-3d.academic-journal {
-  transform: translate3d(0, 0, 460px) scale(2.3);
-  opacity: 0.95;
-}
-
-/* Spine with Gold Foil Ribs */
-.book-spine {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: -20px;
-  width: 28px;
-  background: linear-gradient(90deg, #050b16 0%, #0b172c 50%, #050b16 100%);
-  border-radius: 4px 0 0 4px;
-  box-shadow: inset -2px 0 6px rgba(0, 0, 0, 0.6), -4px 0 14px rgba(0, 0, 0, 0.8);
-  border-left: 1.5px solid #d4af37;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 5;
-}
-
-.spine-text {
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
-  transform: rotate(180deg);
-  font-size: 8.5px;
-  letter-spacing: 2.5px;
-  color: #f3e5ab;
-  font-weight: 700;
-  text-shadow: 0 0 4px rgba(212, 175, 55, 0.6);
-  opacity: 0.85;
-}
-
-.spine-rib {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, #aa820a, #ffd700, #aa820a);
-  box-shadow: 0 1px 2px rgba(0,0,0,0.7);
-}
-.spine-rib.rib-1 { top: 15%; }
-.spine-rib.rib-2 { top: 38%; }
-.spine-rib.rib-3 { top: 62%; }
-.spine-rib.rib-4 { top: 85%; }
-
-/* Back Hardcover */
-.book-cover-back {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, #081120 0%, #040912 100%);
-  border: 2px solid #997c23;
-  border-radius: 2px 14px 14px 2px;
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85);
-  transform: translateZ(-16px);
-}
-
-/* Volumetric Parchment Pages Stack */
-.book-pages-stack {
-  position: absolute;
-  inset: 5px 6px 5px 12px;
-  background: #fafaf7;
-  background-image: 
-    radial-gradient(ellipse at 50% 10%, rgba(212, 175, 55, 0.05) 0%, transparent 60%),
-    linear-gradient(90deg, #ede8dc 0%, #fafaf7 6%, #fafaf7 94%, #e2ddd0 100%);
-  border-radius: 2px 10px 10px 2px;
-  box-shadow: 
-    inset 3px 0 10px rgba(0, 0, 0, 0.18),
-    5px 8px 24px rgba(0, 0, 0, 0.5),
-    inset -2px 0 6px rgba(0, 0, 0, 0.08);
-  padding: 18px 16px;
-  box-sizing: border-box;
-  transform: translateZ(0px);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.academic-manuscript {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  font-family: 'Cambria', 'Georgia', serif;
-  color: #1a2233;
-}
-
-.manuscript-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 7px;
-  letter-spacing: 1px;
-  font-weight: bold;
-  color: #8b6e20;
-  border-bottom: 1px solid #dcd7ca;
-  padding-bottom: 4px;
-  margin-bottom: 8px;
-}
-
-.manuscript-title {
-  font-size: 11px;
-  font-weight: 700;
-  color: #0b1528;
-  margin-bottom: 8px;
-  text-align: center;
-  letter-spacing: 0.5px;
-}
-
-.manuscript-formula-block {
-  background: rgba(14, 25, 45, 0.04);
-  border-left: 2px solid #d4af37;
-  padding: 6px 8px;
-  border-radius: 4px;
-  margin-bottom: 8px;
-}
-
-.tex-line {
-  font-family: 'Times New Roman', 'Cambria Math', serif;
-  font-style: italic;
-  font-size: 10.5px;
-  color: #0d1e3d;
-  line-height: 1.4;
-  text-align: center;
-}
-
-.manuscript-abstract {
-  font-size: 8px;
-  line-height: 1.35;
-  color: #556277;
-  font-style: italic;
-  margin-top: auto;
-  border-top: 1px dashed #dcd7ca;
-  padding-top: 5px;
-}
-
-/* 3D Realistic Turning Page */
-.book-flipping-page {
-  position: absolute;
-  inset: 5px 6px 5px 12px;
-  background: #fdfdfb;
-  border-radius: 2px 10px 10px 2px;
-  box-shadow: inset 4px 0 8px rgba(0, 0, 0, 0.12), 4px 4px 18px rgba(0,0,0,0.3);
-  transform-origin: left center;
-  transform-style: preserve-3d;
-  transform: rotateY(0deg);
-  transition: transform 1.1s cubic-bezier(0.25, 1, 0.35, 1);
-  backface-visibility: hidden;
-  padding: 16px;
-  box-sizing: border-box;
-  z-index: 6;
-}
-
-.study-intro-overlay.page-turning .book-flipping-page {
-  transform: rotateY(-152deg);
-}
-
-.book-flipping-page .page-front,
-.book-flipping-page .page-back {
-  position: absolute;
-  inset: 0;
-  padding: 16px;
-  box-sizing: border-box;
-  backface-visibility: hidden;
-}
-
-.book-flipping-page .page-back {
-  transform: rotateY(180deg);
-  background: #f8f8f4;
-}
-
-.manuscript-formula-block.mini {
-  padding: 4px;
-  margin-bottom: 6px;
-}
-.manuscript-formula-block.mini .tex-line {
-  font-size: 9.5px;
-}
-
-.manuscript-lines {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  margin-top: 6px;
-}
-
-.m-line {
-  height: 4px;
-  background: #d8d3c5;
-  border-radius: 2px;
-  width: 90%;
-}
-.m-line.short {
-  width: 55%;
-}
-
-/* Front Hardcover with Sapphire Leather & Gold Foil */
-.book-cover-front {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, #0e1e3b 0%, #081224 45%, #040812 100%);
-  border: 2px solid #d4af37;
-  border-radius: 3px 14px 14px 3px;
-  box-shadow: 
-    0 25px 60px rgba(0, 0, 0, 0.7),
-    0 0 35px rgba(0, 240, 255, 0.18),
-    inset 0 0 20px rgba(0, 0, 0, 0.8);
-  transform-origin: left center;
-  transform-style: preserve-3d;
-  transition: transform 1.2s cubic-bezier(0.22, 1, 0.36, 1);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  backface-visibility: hidden;
-  z-index: 10;
-  padding: 14px;
-  box-sizing: border-box;
-}
-
-.study-intro-overlay.opening .book-cover-front {
-  transform: rotateY(-148deg);
-}
-
-.gold-foil-border {
-  width: 100%;
-  height: 100%;
-  border: 1px solid rgba(212, 175, 55, 0.75);
-  outline: 1px dashed rgba(212, 175, 55, 0.45);
-  outline-offset: -5px;
-  border-radius: 2px 10px 10px 2px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  padding: 12px 8px;
-  box-sizing: border-box;
-  background: radial-gradient(circle at 50% 40%, rgba(0, 240, 255, 0.04) 0%, transparent 70%);
-}
-
-.corner-filigree {
-  position: absolute;
-  font-size: 13px;
-  color: #ffd700;
-  text-shadow: 0 0 6px rgba(255, 215, 0, 0.8);
-  line-height: 1;
-}
-.corner-filigree.top-left { top: 8px; left: 8px; }
-.corner-filigree.top-right { top: 8px; right: 8px; }
-.corner-filigree.bottom-left { bottom: 8px; left: 8px; }
-.corner-filigree.bottom-right { bottom: 8px; right: 8px; }
-
-.book-embossed-crest {
-  margin-bottom: 12px;
-  filter: drop-shadow(0 0 10px rgba(0, 240, 255, 0.3));
-}
-
-.book-journal-title {
-  font-family: 'Cinzel', 'Georgia', serif;
-  font-size: 22px;
-  font-weight: 800;
-  letter-spacing: 5px;
-  background: linear-gradient(135deg, #fff2b2 0%, #d4af37 50%, #aa820a 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.8));
-  margin-bottom: 2px;
-}
-
-.book-journal-subtitle {
-  font-size: 9.5px;
-  letter-spacing: 3px;
-  color: #f3e5ab;
-  font-weight: 700;
-  text-shadow: 0 0 8px rgba(212, 175, 55, 0.4);
-  margin-bottom: 10px;
-}
-
-.book-journal-dept {
-  font-size: 7px;
-  letter-spacing: 1.5px;
-  color: var(--study-accent-cyan);
-  text-transform: uppercase;
-  text-align: center;
-  opacity: 0.9;
-  margin-bottom: 14px;
-}
-
-.gold-seal-ribbon {
-  background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.2), transparent);
-  border-top: 1px solid rgba(212, 175, 55, 0.4);
-  border-bottom: 1px solid rgba(212, 175, 55, 0.4);
-  padding: 3px 12px;
-  font-size: 7.5px;
-  letter-spacing: 2px;
-  color: #f3e5ab;
-  font-style: italic;
-  text-transform: uppercase;
-}
-
-/* ═══════════ MAIN STUDY MODE CONTAINER ═══════════ */
+/* ═══════════ MAIN STUDY MODE CONTAINER (FULL-SCREEN EDGE-TO-EDGE) ═══════════ */
 .study-mode-container {
   position: fixed;
   inset: 0;
+  width: 100vw;
+  height: 100%;
+  height: 100dvh;
+  min-height: 100vh;
   z-index: 99990;
   background: var(--study-bg);
   background-image: 
@@ -392,10 +30,12 @@
     radial-gradient(circle at 90% 80%, rgba(157, 78, 221, 0.06) 0%, transparent 45%);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   opacity: 0;
   pointer-events: none;
-  transform: translateY(20px);
+  transform: translateY(16px);
   transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
 }
 
 .study-mode-container.active {
@@ -407,18 +47,14 @@
 /* ═══════════ TOP HEADER (SAFE AREA & WINDOW INSETS) ═══════════ */
 .study-header {
   position: relative;
-  min-height: calc(76px + max(env(safe-area-inset-top, 0px), 28px));
-  min-height: auto;
-  height: auto;
-  padding-top: max(env(safe-area-inset-top, 0px), 28px);
-  padding-top: max(env(safe-area-inset-top, 0px), 14px);
+  width: 100%;
+  padding-top: max(env(safe-area-inset-top, 0px), 16px);
   padding-bottom: 12px;
   padding-left: 16px;
   padding-right: 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  gap: 10px; /* strict min 8dp vertical spacing between rows */
   background: rgba(8, 11, 18, 0.96);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
@@ -426,41 +62,14 @@
   box-shadow: 0 4px 25px rgba(0, 0, 0, 0.5);
   z-index: 100;
   box-sizing: border-box;
-  width: 100%;
+  flex-shrink: 0;
 }
 
-.study-header-main-row {
 /* Row 1: Back Button + Title ("Study Mode") aligned center/left */
 .study-header-row-1 {
   display: flex;
   align-items: center;
   gap: 12px;
-  width: 100%;
-}
-
-/* Row 2: "Live Tutor", "Focus", and "Tools" chips cleanly spaced horizontally */
-.study-header-row-2 {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  width: 100%;
-  gap: 8px;
-}
-
-.study-header-left {
-.study-tools-menu-wrap {
-  position: relative;
-  flex-shrink: 0;
-}
-
-/* Row 3: Model Selectors ("Fast", "Thinking", "Pro Thinking") below chips */
-.study-header-row-3 {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-  justify-content: center;
   width: 100%;
 }
 
@@ -525,14 +134,157 @@
   text-overflow: ellipsis;
 }
 
-/* Dedicated Cognitive Modes Bar below title (Eliminates horizontal collision) */
-.study-header-modes-row {
+/* Row 2: "Live Tutor", "Focus", and "Tools" chips cleanly spaced horizontally */
+.study-header-row-2 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+
+.btn-study-live-vision {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0, 240, 255, 0.12);
+  border: 1px solid var(--study-accent-cyan);
+  color: var(--study-accent-cyan);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-study-live-vision:hover {
+  background: rgba(0, 240, 255, 0.22);
+  box-shadow: 0 0 12px var(--study-accent-glow);
+}
+
+.live-pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #00f0ff;
+  box-shadow: 0 0 8px #00f0ff;
+  animation: pulseGlow 1.5s infinite;
+}
+
+.btn-study-focus {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--study-text-muted);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-study-focus.active {
+  background: rgba(0, 255, 136, 0.15);
+  border-color: var(--study-accent-green);
+  color: var(--study-accent-green);
+  box-shadow: 0 0 12px rgba(0, 255, 136, 0.3);
+}
+
+.focus-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.study-tools-menu-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.btn-study-tools-menu {
+  background: rgba(0, 240, 255, 0.08);
+  border: 1px solid var(--study-surface-border);
+  color: var(--study-accent-cyan);
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-study-tools-menu:hover {
+  background: rgba(0, 240, 255, 0.18);
+  box-shadow: 0 0 15px var(--study-accent-glow);
+}
+
+/* Tools Dropdown Menu */
+.study-tools-dropdown {
+  position: absolute;
+  top: 42px;
+  right: 0;
+  width: 230px;
+  background: rgba(12, 16, 26, 0.96);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  border: 1px solid var(--study-surface-border);
+  border-radius: 14px;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 240, 255, 0.15);
+  padding: 8px;
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 200;
+}
+
+.study-tools-dropdown.show {
+  display: flex;
+  animation: fadeInDown 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.study-tool-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: var(--study-text);
+  font-size: 13.5px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.study-tool-item:hover, .study-tool-item.active {
+  background: rgba(0, 240, 255, 0.12);
+  color: var(--study-accent-cyan);
+}
+
+/* Row 3: Model Selectors ("Fast", "Thinking", "Pro Thinking") below chips */
+.study-header-row-3 {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
-  margin-top: 8px;
-  padding: 2px 0;
 }
 
 .study-tier-switcher {

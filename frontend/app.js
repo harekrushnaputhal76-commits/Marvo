@@ -466,10 +466,19 @@ const AI_CONTROL_REGISTRY = [
       },
       {
         key: "marvo.vision.gyro_parallax",
-        label: "Gyroscope Parallax Effect",
-        desc: "Tilt phone to view holographic 3D eye depth perspective via HTML5 DeviceOrientation",
+        label: "Gyroscope Eye Gaze Tracking",
+        desc: "Tilt phone to make Marvo's eyes smoothly track device orientation",
         default: true,
         onChange: (val) => {
+          if (window.mainTiltEngine) {
+            if (val) {
+              window.mainTiltEngine.start();
+            } else {
+              window.mainTiltEngine.stop();
+              document.documentElement.style.setProperty('--tilt-x', '0px');
+              document.documentElement.style.setProperty('--tilt-y', '0px');
+            }
+          }
           if (typeof GyroParallaxManager !== 'undefined') {
             if (val) GyroParallaxManager.start();
             else GyroParallaxManager.stop();
@@ -4118,47 +4127,29 @@ function initDeviceTilt() {
   if (!EngineClass) return;
 
   const root = document.documentElement;
-  let boundaryState = '';
 
   const engine = new EngineClass({
-    maxTilt: 16,
-    smoothing: 6,
+    maxTilt: 22,
+    smoothing: 8,
     fps: 30,
-    idleMs: 1500,
+    idleMs: 1800,
     onUpdate: ({ pitch, roll }) => {
-      // 1. Update CSS custom properties for 3D eye depth, lighting & shadows
-      root.style.setProperty('--gyro-rot-x', `${(-pitch * 0.45).toFixed(2)}deg`);
-      root.style.setProperty('--gyro-rot-y', `${(roll * 0.45).toFixed(2)}deg`);
-      root.style.setProperty('--gyro-x', `${(roll * 0.22).toFixed(2)}px`);
-      root.style.setProperty('--gyro-y', `${(pitch * 0.22).toFixed(2)}px`);
-      root.style.setProperty('--gyro-light-x', `${(50 + roll * 1.5).toFixed(1)}%`);
-      root.style.setProperty('--gyro-light-y', `${(35 + pitch * 1.5).toFixed(1)}%`);
-      root.style.setProperty('--gyro-shadow-x', `${(roll * 0.12).toFixed(2)}px`);
-      root.style.setProperty('--gyro-shadow-y', `${(pitch * 0.12).toFixed(2)}px`);
+      // Gyroscope tracking exclusively for Marvo's Main Eyes
+      // Map roll -> X gaze offset, pitch -> Y gaze offset
+      // Clamped to subtle [-10px, 10px] range to keep pupils perfectly within eye socket
+      const tiltX = Math.max(-10, Math.min(10, roll * 0.45));
+      const tiltY = Math.max(-10, Math.min(10, pitch * 0.45));
 
-      // 2. Apply 3D perspective matrix3d to avatar card if present
-      if (DOM.avatarZone && typeof window.applyTilt === 'function') {
-        window.applyTilt(DOM.avatarZone, pitch * 0.5, roll * 0.5);
-      }
-
-      // 3. Apply to any active tilt cards on screen
-      const tiltCards = document.querySelectorAll('.tilt-card');
-      if (tiltCards.length > 0 && typeof window.applyTilt === 'function') {
-        tiltCards.forEach(c => window.applyTilt(c, pitch, roll));
-      }
-
-      // 4. Subtle haptic pulse at boundary tilt
-      const nextBoundary = Math.abs(pitch) > 14 || Math.abs(roll) > 14
-        ? `${Math.sign(pitch)}:${Math.sign(roll)}` : '';
-      if (nextBoundary && nextBoundary !== boundaryState && typeof navigator.vibrate === 'function') {
-        navigator.vibrate(8);
-      }
-      boundaryState = nextBoundary;
+      root.style.setProperty('--tilt-x', `${tiltX.toFixed(2)}px`);
+      root.style.setProperty('--tilt-y', `${tiltY.toFixed(2)}px`);
     }
   });
 
   window.mainTiltEngine = engine;
-  engine.start();
+  const isEnabled = localStorage.getItem('marvo.vision.gyro_parallax') !== 'false';
+  if (isEnabled) {
+    engine.start();
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -4652,6 +4643,9 @@ document.addEventListener('visibilitychange', () => {
     }
 
     // 4. Halt 3D Gyroscope sensor
+    if (window.mainTiltEngine) {
+      window.mainTiltEngine.stop();
+    }
     if (typeof GyroParallaxManager !== 'undefined') {
       GyroParallaxManager.stop();
     }
@@ -4667,8 +4661,11 @@ document.addEventListener('visibilitychange', () => {
     document.body.classList.remove('page-paused', 'app-background-paused');
 
     // Resume Gyroscope if enabled in user settings
+    const gyroEnabled = localStorage.getItem('marvo.vision.gyro_parallax') !== 'false';
+    if (gyroEnabled && window.mainTiltEngine) {
+      window.mainTiltEngine.start();
+    }
     if (typeof GyroParallaxManager !== 'undefined') {
-      const gyroEnabled = localStorage.getItem('marvo.vision.gyro_parallax') !== 'false';
       if (gyroEnabled) GyroParallaxManager.start();
     }
 
