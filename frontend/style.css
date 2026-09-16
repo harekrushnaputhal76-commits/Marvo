@@ -4684,8 +4684,8 @@ body.island-active .main {
   position: fixed;
   top: calc(var(--island-top-offset) + 4px);
   left: 50%;
-  transform: translateX(-50%) translate3d(0, 0, 0);
-  -webkit-transform: translateX(-50%) translate3d(0, 0, 0);
+  transform: translateX(-50%);
+  -webkit-transform: translateX(-50%);
   transform-origin: top center;
   z-index: 9999;
   box-sizing: border-box;
@@ -4693,7 +4693,7 @@ body.island-active .main {
   /* Motorola Edge 60 Pro Punch-hole Camera Anchor (Idle Dot) */
   width: 24px;
   height: 24px;
-  border-radius: 999px;
+  border-radius: 50%;
   background: #000000;
 
   pointer-events: none; /* Idle dot must never block touches or the real camera */
@@ -4709,16 +4709,10 @@ body.island-active .main {
     opacity 0.3s ease;
 }
 
-/* Idle State: subtle breathing pulse (3-4s cycle) */
+/* Idle State: strictly static 24x24 black circle (no animation) */
 #marvo-dynamic-island.state-idle,
 #marvo-camera-island.state-idle {
-  animation: marvoDotPulse 3.6s ease-in-out infinite alternate;
-}
-
-@keyframes marvoDotPulse {
-  0% { transform: translateX(-50%) scale3d(1, 1, 1); opacity: 0.92; }
-  50% { transform: translateX(-50%) scale3d(1.04, 1.04, 1); opacity: 1; }
-  100% { transform: translateX(-50%) scale3d(1, 1, 1); opacity: 0.92; }
+  animation: none;
 }
 
 /* Island Summoned: Active pointer events */
@@ -4862,11 +4856,19 @@ body.island-active .main {
 /* Idle State: Hide inner card content, only camera anchor dot visible */
 #marvo-dynamic-island.state-idle .island-glass-card,
 #marvo-camera-island.state-idle .island-glass-card {
+  opacity: 0;
+  pointer-events: none;
   background: transparent;
   border-color: transparent;
   box-shadow: none;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
+}
+
+#marvo-dynamic-island.state-idle .island-gooey-wrapper,
+#marvo-camera-island.state-idle .island-gooey-wrapper {
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* Marvo Dynamic Fluid Edge Glow */

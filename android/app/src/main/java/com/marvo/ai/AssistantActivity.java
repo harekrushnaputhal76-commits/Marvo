@@ -695,9 +695,6 @@ public class AssistantActivity extends AppCompatActivity {
             });
         }
 
-        // Initialize WebGL Siri Fluid Orb (Step 9)
-        initOrbWebView();
-
         // Load Gemini API Key from .env asset
         loadGeminiApiKey();
 
@@ -5033,13 +5030,6 @@ public class AssistantActivity extends AppCompatActivity {
     // ============================================================
 
     /**
-     * Obsolete bottom orb WebGL WebView initialization removed.
-     */
-    private void initOrbWebView() {
-        // No-op: bottom orb removed
-    }
-
-    /**
      * Step 8: JavaScript Interface bridge for Siri Orb touch/click events.
      */
     public class OrbBridge {
@@ -6212,12 +6202,6 @@ public class AssistantActivity extends AppCompatActivity {
             }
         } catch (Exception ignored) {}
 
-        if (orbWebView != null) {
-            try {
-                orbWebView.onResume();
-                orbWebView.resumeTimers();
-            } catch (Exception ignored) {}
-        }
         if (audioPollHandler != null && audioPollRunnable != null) {
             audioPollHandler.removeCallbacks(audioPollRunnable);
             audioPollHandler.postDelayed(audioPollRunnable, 50);
@@ -6250,13 +6234,6 @@ public class AssistantActivity extends AppCompatActivity {
             getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         } catch (Exception ignored) {}
 
-        if (orbWebView != null) {
-            try {
-                orbWebView.onPause();
-                orbWebView.pauseTimers();
-            } catch (Exception ignored) {}
-        }
-
         try {
             SensorManager sm = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
             if (sm != null) {
@@ -6277,12 +6254,6 @@ public class AssistantActivity extends AppCompatActivity {
         }
         if (typewriterHandler != null && typewriterRunnable != null) {
             typewriterHandler.removeCallbacks(typewriterRunnable);
-        }
-        if (orbWebView != null) {
-            try {
-                orbWebView.onPause();
-                orbWebView.pauseTimers();
-            } catch (Exception ignored) {}
         }
 
         // Traffic Police 4: Strict Gatekeeper Deep Sleep Enforcement (0% CPU, all modules killed)
@@ -6318,11 +6289,6 @@ public class AssistantActivity extends AppCompatActivity {
         }
         if (typewriterRunnable != null) {
             typewriterHandler.removeCallbacks(typewriterRunnable);
-        }
-        if (orbWebView != null) {
-            orbWebView.loadUrl("about:blank");
-            orbWebView.destroy();
-            orbWebView = null;
         }
         if (speechRecognizer != null) {
             speechRecognizer.destroy();
