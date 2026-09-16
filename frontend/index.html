@@ -914,7 +914,30 @@
       <!-- ════════ TAB 4: DOWNLOADS & STORAGE ════════ -->
       <div class="settings-tab-panel" id="tabPanelDownloads">
         <div class="settings-section">
-          <h4 class="settings-section-title">📁 UNIFIED DOWNLOADS DIRECTORY</h4>
+          <!-- Master Toggle: Offline Ecosystem / Local RAG -->
+          <div class="storage-toggle-card">
+            <div class="storage-toggle-info">
+              <div class="storage-toggle-title">
+                <span>⚡</span> Offline Ecosystem / Local RAG
+              </div>
+              <div class="storage-toggle-sub">
+                Prioritize on-device GGUF neural models &amp; local SQLite vector embeddings without cloud latency
+              </div>
+            </div>
+            <label class="switch-toggle" title="Toggle Offline Ecosystem / Local RAG">
+              <input type="checkbox" id="toggleOfflineEcosystem" checked>
+              <span class="switch-slider"></span>
+            </label>
+          </div>
+
+          <!-- Downloaded Models & Files Storage Viewer -->
+          <h4 class="settings-section-title" style="margin-top: 20px;">💾 DOWNLOADED MODELS &amp; FILES</h4>
+          <p class="settings-subdesc">Inspect isolated neural models and local vector documents stored on device. Delete any file to instantly reclaim storage.</p>
+          <div class="downloaded-storage-viewer" id="downloadedStorageViewer">
+            <div class="downloads-empty-hint">Scanning downloaded models and indexed files...</div>
+          </div>
+
+          <h4 class="settings-section-title" style="margin-top: 20px;">📁 UNIFIED DOWNLOADS DIRECTORY</h4>
           <div class="storage-info-card">
             <div class="storage-header">
               <svg viewBox="0 0 24 24" width="22" height="22" style="color:var(--accent);"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" fill="none" stroke="currentColor" stroke-width="2"/></svg>

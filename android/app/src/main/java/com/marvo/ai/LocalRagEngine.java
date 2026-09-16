@@ -424,6 +424,22 @@ public class LocalRagEngine {
         }
     }
 
+    public void clearAllDocuments() {
+        backgroundExecutor.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    SQLiteDatabase db = dbHelper.getWritableDatabase();
+                    db.delete("documents", null, null);
+                    db.delete("chunks", null, null);
+                    Log.d(TAG, "Cleared all documents and chunks from LocalRagEngine SQLite DB.");
+                } catch (Exception e) {
+                    Log.e(TAG, "Failed to clear RAG database: " + e.getMessage(), e);
+                }
+            }
+        });
+    }
+
     private static Set<String> getStopWords() {
         Set<String> s = new HashSet<>();
         String[] words = {"the", "is", "at", "which", "on", "and", "a", "an", "in", "to", "for",

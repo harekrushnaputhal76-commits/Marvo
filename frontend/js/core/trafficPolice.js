@@ -31,6 +31,10 @@
     if (!raw || typeof raw !== 'string') return raw || '';
     let text = raw;
 
+    // 0. Strip internal bracketed system metadata directives
+    text = text.replace(/\[(?:DEVICE_STATE|APPLE_INTELLIGENCE_DIRECTIVES|ACADEMIC DIRECTIVE|PEDAGOGICAL_INSTRUCTION|GROUND TRUTH|SYSTEM INSTRUCTION|SYSTEM)[^\]]*\]/gi, '');
+    text = text.replace(/\[[A-Z0-9_]+:[^\]]*\]/gi, '');
+
     // 1. Strip structural / thinking / reasoning tags (<thought>, <think>, <reasoning>, <coreResponse>, etc.)
     text = text.replace(/<thought>[\s\S]*?<\/thought>/gi, '');
     text = text.replace(/<think>[\s\S]*?<\/think>/gi, '');

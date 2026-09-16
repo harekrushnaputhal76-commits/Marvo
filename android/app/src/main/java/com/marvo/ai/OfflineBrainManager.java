@@ -202,7 +202,14 @@ public class OfflineBrainManager {
      * Formats queries using Phi-3 Instruct syntax and performs real context-aware generation.
      */
     private String executeInference(String prompt) {
-        String clean = prompt.trim();
+        // Strip system metadata directives like [DEVICE_STATE:...], [APPLE_INTELLIGENCE_DIRECTIVES:...]
+        String userQuery = prompt.replaceAll("(?is)\\[[A-Z0-9_]+:[\\s\\S]*?\\]", "")
+                                 .replaceAll("(?is)\\[(?:Attached|Apple Intelligence|SYSTEM|Context|ACADEMIC|PEDAGOGICAL)[\\s\\S]*?\\]", "")
+                                 .trim();
+        if (userQuery.isEmpty()) {
+            userQuery = prompt.trim();
+        }
+        String clean = userQuery;
         String lower = clean.toLowerCase();
 
         // Check if query is explicitly asking about offline model status or download progress
@@ -273,11 +280,11 @@ public class OfflineBrainManager {
         }
 
         // Directive 10: Dynamic Tool Routing (Math & Device Intent Modules)
-        if (isMathExpression(lower)) {
-            String mathAns = solveLocalMath(lower);
+        if (isMathExpression(clean)) {
+            String mathAns = solveLocalMath(clean);
             if (mathAns != null) {
                 return "### 📐 Calculation Result\n\n" +
-                       "$$\\text{" + clean.replaceAll("[?]", "") + "} = \\mathbf{" + mathAns.replaceAll("(?i)^Uttar hai\\s*", "").replaceAll("[.]", "") + "}$$\n\n" +
+                       "**" + clean.replaceAll("[?]", "").trim() + "** = **" + mathAns.replaceAll("(?i)^Uttar hai\\s*", "").replaceAll("[.]", "").trim() + "**\n\n" +
                        "- **Result**: " + mathAns;
             }
         }
@@ -308,10 +315,25 @@ public class OfflineBrainManager {
     }
 
     private boolean isMathExpression(String text) {
-        return text.contains("+") || text.contains("-") || text.contains("*") || text.contains("/") ||
-               text.contains("plus") || text.contains("minus") || text.contains("multiply") || text.contains("divide") ||
-               text.contains("into") || text.contains("guna") || text.contains("bhaag") || text.contains("square root") ||
-               text.contains("percentage") || text.contains("percent") || text.contains("%");
+        if (text == null) return false;
+        String t = text.trim().toLowerCase();
+        // Discard long prompts, system instructions, or normal text
+        if (t.length() > 60 || t.split("\\s+").length > 8) return false;
+        if (t.contains("\n") || t.contains("[") || t.contains("<")) return false;
+
+        // Dedicated arithmetic expressions: "25 + 10", "what is 100 / 4", "15 * 3"
+        if (t.matches("^(?:what is|calculate|solve|eval)?\\s*\\(?\\s*\\d+(?:\\.\\d+)?\\s*(?:[+\\-*/x×÷]|plus|minus|into|divided by|multiply|times|guna|bhaag)\\s*\\d+(?:\\.\\d+)?\\s*\\)?$")) {
+            return true;
+        }
+        // Square roots: "sqrt 144", "square root of 25"
+        if (t.matches("^(?:what is\\s+)?(?:square root of|sqrt)\\s*\\d+(?:\\.\\d+)?$")) {
+            return true;
+        }
+        // Percentages: "20% of 500"
+        if (t.matches("^(?:what is\\s+)?\\d+(?:\\.\\d+)?\\s*(?:%|percent(?:age)?)\\s*of\\s*\\d+(?:\\.\\d+)?$")) {
+            return true;
+        }
+        return false;
     }
 
     private String solveLocalMath(String text) {
@@ -461,7 +483,9 @@ public class OfflineBrainManager {
 
     public static String cleanAppleXmlTags(String text) {
         if (text == null || text.trim().isEmpty()) return "";
-        return text.replaceAll("(?is)<thought>[\\s\\S]*?</thought>", "")
+        return text.replaceAll("(?is)\\[[A-Z0-9_]+:[\\s\\S]*?\\]", "")
+                   .replaceAll("(?is)\\[(?:Attached|Apple Intelligence|SYSTEM|Context|ACADEMIC|PEDAGOGICAL)[\\s\\S]*?\\]", "")
+                   .replaceAll("(?is)<thought>[\\s\\S]*?</thought>", "")
                    .replaceAll("(?is)<think>[\\s\\S]*?</think>", "")
                    .replaceAll("(?is)<suggestions>[\\s\\S]*?</suggestions>", "")
                    .replaceAll("(?i)</?suggestions>", "")

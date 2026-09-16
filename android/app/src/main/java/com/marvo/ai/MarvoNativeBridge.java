@@ -917,5 +917,46 @@ public class MarvoNativeBridge extends Plugin {
             call.reject("Failed to start Live Vision Tutor: " + e.getMessage());
         }
     }
+
+    @PluginMethod
+    public void clearRagCache(PluginCall call) {
+        try {
+            Context context = getContext();
+            LocalRagEngine.getInstance(context).clearAllDocuments();
+            JSObject res = new JSObject();
+            res.put("success", true);
+            res.put("cleared", true);
+            call.resolve(res);
+        } catch (Exception e) {
+            Log.e(TAG, "Error clearing RAG cache: " + e.getMessage(), e);
+            call.reject("Failed to clear RAG cache: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void getStorageInfo(PluginCall call) {
+        try {
+            Context context = getContext();
+            JSONArray models = OfflineBrainDownloader.getInstance().getAllOfflineModelsList(context);
+            JSObject res = new JSObject();
+            res.put("models", models);
+            File modelsDir = OfflineBrainDownloader.getInstance().getModelsDir(context);
+            long totalModelsSize = 0L;
+            if (modelsDir != null && modelsDir.exists()) {
+                File[] files = modelsDir.listFiles();
+                if (files != null) {
+                    for (File f : files) {
+                        totalModelsSize += f.length();
+                    }
+                }
+            }
+            res.put("totalModelsBytes", totalModelsSize);
+            res.put("modelsDirPath", modelsDir != null ? modelsDir.getAbsolutePath() : "");
+            call.resolve(res);
+        } catch (Exception e) {
+            Log.e(TAG, "Error getting storage info: " + e.getMessage(), e);
+            call.reject("Failed to get storage info: " + e.getMessage());
+        }
+    }
 }
 

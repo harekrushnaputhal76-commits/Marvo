@@ -257,6 +257,33 @@ public class OfflineBrainDownloader {
         return isModelDownloaded(context, TYPE_LLM);
     }
 
+    public boolean deleteModel(Context context, String type) {
+        if (context == null) return false;
+        try {
+            File f = getModelFile(context, type);
+            File part = getPartFile(context, type);
+            boolean deleted = false;
+            if (f != null && f.exists()) {
+                deleted = f.delete();
+            }
+            if (part != null && part.exists()) {
+                part.delete();
+            }
+            SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+            prefs.edit()
+                 .remove("status_" + type)
+                 .remove("progress_" + type)
+                 .remove("downloaded_" + type)
+                 .remove("total_" + type)
+                 .apply();
+            Log.d(TAG, "Deleted offline model: " + type + ", fileDeleted=" + deleted);
+            return true;
+        } catch (Exception e) {
+            Log.e(TAG, "Error deleting model " + type + ": " + e.getMessage(), e);
+            return false;
+        }
+    }
+
     public boolean isUnmeteredConnection(Context context) {
         if (context == null) return false;
         try {

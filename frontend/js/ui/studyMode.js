@@ -12,10 +12,13 @@
 
   const STUDY_STORAGE_KEY = 'marvo.studymode.history';
   const STUDY_SYSTEM_INSTRUCTION = 
-    `You are Marvo Study Mode — a specialized higher secondary STEM tutor, examiner, and academic problem solver.
-Focus deeply on Physics, Chemistry, Mathematics (Algebra, Trigonometry, Differential & Integral Calculus), and Biology.
-Always provide step-by-step derivations, clear intermediate steps, and format EVERY mathematical equation in textbook LaTeX using $...$ for inline and $$...$$ for block equations.
-Be rigorous, precise, and pedagogically clear.`;
+    `You are Marvo STEM Tutor — an elite, pedagogical academic tutor and examiner specializing in Higher Secondary STEM (Physics, Chemistry, Mathematics, and Biology).
+PEDAGOGICAL DIRECTIVES:
+1. RIGOROUS STEP-BY-STEP DERIVATION: Break down every numerical, conceptual proof, and scientific theorem into clear, sequential steps (Given, Formula/Principle, Step-by-Step Derivation, Final Result with SI units).
+2. FLUID KATEX & TEXTBOOK MATH: Render EVERY mathematical equation, variable, and formula in LaTeX. Use single dollar signs $...$ for inline symbols (e.g. $F = ma$, $\\int x dx$) and double dollar signs $$...$$ for standalone display formulas. Never write raw plaintext equations.
+3. ZERO FILLER & CONCISE CLARITY: Eliminate all conversational preamble (e.g. "Sure, I can help you with that!", "Great question!"). Dive straight into the pedagogical explanation with clear Markdown headers, bold terminology, and bullet points.
+4. HIGHER SECONDARY & COMPETITIVE SYLLABUS: Adhere to NCERT, CBSE, CHSE, JEE Main/Advanced, and NEET standards for conceptual depth and precision.
+5. INTUITIVE VISUALS & ANALOGIES: Supplement complex abstract concepts (e.g. quantum states, thermodynamics, electromagnetic induction) with crisp intuitive analogies before mathematical formalism.`;
 
   const StudyModeUI = {
     isOpen: false,
@@ -444,6 +447,20 @@ Be rigorous, precise, and pedagogically clear.`;
         this.dom.btnBack.onclick = () => this.exit();
       }
 
+      // Android Hardware & Software Back Button Handling
+      if (window.Capacitor?.Plugins?.App?.addListener) {
+        window.Capacitor.Plugins.App.addListener('backButton', () => {
+          if (this.isOpen) {
+            this.exit();
+          }
+        });
+      }
+      window.addEventListener('popstate', () => {
+        if (this.isOpen) {
+          this.exit();
+        }
+      });
+
       // Tools Dropdown Toggle
       if (this.dom.btnToolsMenu) {
         this.dom.btnToolsMenu.onclick = (e) => {
@@ -738,62 +755,43 @@ Be rigorous, precise, and pedagogically clear.`;
     },
 
     /**
-     * Ultra-Premium 3D Academic Journal Entry Sequence
+     * Instant, Fluid Transition into Study Mode
      */
-    enter() {
-      this.isOpen = true;
-      const overlay = this.dom.introOverlay;
-      const container = this.dom.container;
-      if (!overlay || !container) return;
+     enter() {
+       this.isOpen = true;
+       const overlay = this.dom.introOverlay;
+       const container = this.dom.container;
+       if (!container) return;
 
-      overlay.classList.remove('opening', 'page-turning', 'zooming');
-      overlay.classList.add('active');
+       if (overlay) {
+         overlay.classList.remove('active', 'opening', 'page-turning', 'zooming');
+       }
 
-      // Step 1: Open sapphire leather front cover smoothly
-      setTimeout(() => {
-        overlay.classList.add('opening');
-      }, 250);
+       // Immediate slide-in transition
+       container.classList.add('active');
+       this.switchTab('chat');
 
-      // Step 2: Realistic 3D page flip revealing derivations
-      setTimeout(() => {
-        overlay.classList.add('page-turning');
-      }, 650);
+       // Automatically engage Isolated Focus Mode
+       this.toggleFocusMode(true);
+     },
 
-      // Step 3: Cinematic camera zoom into journal manuscript
-      setTimeout(() => {
-        overlay.classList.add('zooming');
-      }, 1050);
+     exit() {
+       this.isOpen = false;
+       if (this.dom.container) {
+         this.dom.container.classList.remove('active');
+       }
+       if (this.dom.introOverlay) {
+         this.dom.introOverlay.classList.remove('active', 'opening', 'page-turning', 'zooming');
+       }
 
-      // Step 4: Seamlessly transition into Study Mode workspace
-      setTimeout(() => {
-        container.classList.add('active');
-      }, 1300);
+       // Restore normal notification volume & settings
+       this.toggleFocusMode(false);
 
-      // Step 5: Clean up overlay
-      setTimeout(() => {
-        overlay.classList.remove('active', 'opening', 'page-turning', 'zooming');
-      }, 1650);
-
-      this.switchTab('chat');
-
-      // Automatically engage Isolated Focus Mode
-      this.toggleFocusMode(true);
-    },
-
-    exit() {
-      this.isOpen = false;
-      if (this.dom.container) {
-        this.dom.container.classList.remove('active');
-      }
-
-      // Restore normal notification volume & settings
-      this.toggleFocusMode(false);
-
-      // Immediately terminate hands-free microphone listening (Traffic Police 4 Deep Sleep)
-      if (window.FlashcardEngine) {
-        window.FlashcardEngine.stopVoiceListener();
-      }
-    },
+       // Immediately terminate hands-free microphone listening (Traffic Police 4 Deep Sleep)
+       if (window.FlashcardEngine) {
+         window.FlashcardEngine.stopVoiceListener();
+       }
+     },
 
     switchTab(tab) {
       this.activeTab = tab;
@@ -1078,6 +1076,10 @@ Be rigorous, precise, and pedagogically clear.`;
       if (!raw || typeof raw !== 'string') return raw || '';
       let text = raw;
 
+      // 0. Strip internal bracketed system metadata directives
+      text = text.replace(/\[(?:DEVICE_STATE|APPLE_INTELLIGENCE_DIRECTIVES|ACADEMIC DIRECTIVE|PEDAGOGICAL_INSTRUCTION|GROUND TRUTH|SYSTEM INSTRUCTION|SYSTEM)[^\]]*\]/gi, '');
+      text = text.replace(/\[[A-Z0-9_]+:[^\]]*\]/gi, '');
+
       // 1. Strip special token tags (<|system|>, <|user|>, <|assistant|>, <|end|>, <|endoftext|>, etc.)
       text = text.replace(/<\|[a-z0-9_\-]+\|>/gi, '');
 
@@ -1115,6 +1117,7 @@ Be rigorous, precise, and pedagogically clear.`;
     },
 
     appendMessage(role, text) {
+      if (role === 'system' || role === 'developer') return;
       if (!this.dom.messagesList) return;
       const cleanText = (role === 'ai') ? this.sanitizeResponse(text) : text;
 

@@ -1198,6 +1198,7 @@ function switchSettingsTab(tabName) {
 
   if (tabName === 'downloads') {
     renderDownloadsHistory();
+    renderDownloadedStorageViewer();
   }
 }
 
@@ -1502,6 +1503,8 @@ function stripAppleXmlTags(text) {
     return window.sanitizeLlmResponse(text);
   }
   return text
+    .replace(/\[(?:DEVICE_STATE|APPLE_INTELLIGENCE_DIRECTIVES|ACADEMIC DIRECTIVE|PEDAGOGICAL_INSTRUCTION|GROUND TRUTH|SYSTEM INSTRUCTION|SYSTEM)[^\]]*\]/gi, '')
+    .replace(/\[[A-Z0-9_]+:[^\]]*\]/gi, '')
     .replace(/<thought>[\s\S]*?<\/thought>/gi, '')
     .replace(/<think>[\s\S]*?<\/think>/gi, '')
     .replace(/<\/?(?:thought|think|coreResponse|suggestions|system|assistant)>/gi, '')
@@ -1735,6 +1738,143 @@ async function renderDownloadsHistory() {
       <span style="font-size:11px;color:var(--accent);font-weight:600;">Saved</span>
     </div>
   `).join('');
+}
+
+async function renderDownloadedStorageViewer() {
+  const container = document.getElementById('downloadedStorageViewer');
+  if (!container) return;
+
+  // Initialize master offline ecosystem toggle
+  const toggle = document.getElementById('toggleOfflineEcosystem');
+  if (toggle && !toggle._hasListener) {
+    toggle._hasListener = true;
+    const isEnabled = localStorage.getItem('marvo.offline.ecosystem') !== 'false';
+    toggle.checked = isEnabled;
+    toggle.addEventListener('change', () => {
+      localStorage.setItem('marvo.offline.ecosystem', toggle.checked.toString());
+      showToast(toggle.checked ? '⚡ Offline Ecosystem & Local RAG: Active' : '☁️ Cloud Priority Active: Offline Fallback Silenced');
+    });
+  }
+
+  let items = [];
+
+  // 1. Check native offline models via MarvoNativeBridge
+  try {
+    if (window.Capacitor?.Plugins?.MarvoNativeBridge?.listOfflineModels) {
+      const res = await window.Capacitor.Plugins.MarvoNativeBridge.listOfflineModels();
+      if (res && res.models) {
+        const list = Array.isArray(res.models) ? res.models : JSON.parse(res.models);
+        list.forEach(m => {
+          if (m.isDownloaded || m.status === 'completed' || m.downloadedBytes > 0) {
+            items.push({
+              type: 'model',
+              id: m.id,
+              name: m.name || m.fileName,
+              badge: 'GGUF MODEL',
+              size: m.sizeFormatted || `${Math.round((m.downloadedBytes || m.sizeBytes || 0) / (1024 * 1024))} MB`,
+              path: m.storagePath || `/data/user/0/com.marvo.ai/files/models/${m.fileName || m.id}`
+            });
+          }
+        });
+      }
+    }
+  } catch (err) {
+    console.warn('[StorageViewer] Error querying native models:', err);
+  }
+
+  // Fallback to AiControlCenter or offline models if native list returned empty in browser preview
+  if (!items.length && window.AiControlCenter?.models) {
+    window.AiControlCenter.models.forEach(m => {
+      if (m.isDownloaded || m.progress === 100) {
+        items.push({
+          type: 'model',
+          id: m.id,
+          name: m.name,
+          badge: 'GGUF MODEL',
+          size: m.sizeFormatted,
+          path: m.storagePath
+        });
+      }
+    });
+  }
+
+  // 2. Check Local RAG indexed document
+  if (window.RagEngine?.hasActiveDocument && window.RagEngine.hasActiveDocument()) {
+    const doc = window.RagEngine.getActiveDocument();
+    items.push({
+      type: 'rag',
+      id: doc.docId || 'active_rag_doc',
+      name: doc.fileName || 'Local Textbook Document',
+      badge: 'RAG VECTOR DB',
+      size: `${doc.totalChunks || 1} chunks indexed`,
+      path: `SQLite: marvo_rag.db [${doc.totalChunks || 1} vectors]`
+    });
+  }
+
+  if (!items.length) {
+    container.innerHTML = `
+      <div class="downloads-empty-hint">
+        No offline models or RAG documents stored yet.
+        <br><span style="font-size:11px;opacity:0.75;">Download Phi-3/Gemma in AI Control Center or ingest a PDF in Study Mode to see it here.</span>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = items.map(item => `
+    <div class="storage-item-card" data-storage-id="${escapeHtml(item.id)}" data-storage-type="${escapeHtml(item.type)}">
+      <div class="storage-item-left">
+        <div class="storage-item-title-row">
+          <span class="storage-item-name">${escapeHtml(item.name)}</span>
+          <span class="storage-item-badge ${item.type}">${escapeHtml(item.badge)}</span>
+        </div>
+        <div class="storage-item-meta">
+          <span class="file-size">${escapeHtml(item.size)}</span>
+          <span>&bull;</span>
+          <span style="overflow:hidden;text-overflow:ellipsis;max-width:200px;">${escapeHtml(item.path)}</span>
+        </div>
+      </div>
+      <button type="button" class="btn-delete-storage" title="Delete and free storage">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        <span>Delete</span>
+      </button>
+    </div>
+  `).join('');
+
+  // Attach delete handlers
+  container.querySelectorAll('.storage-item-card').forEach(card => {
+    const btn = card.querySelector('.btn-delete-storage');
+    const id = card.dataset.storageId;
+    const type = card.dataset.storageType;
+    if (btn) {
+      btn.onclick = async () => {
+        if (!confirm(`Reclaim storage: delete "${id}"?`)) return;
+        btn.disabled = true;
+        btn.innerHTML = '<span>Deleting...</span>';
+
+        if (type === 'rag') {
+          if (window.RagEngine?.clearActiveDocument) {
+            window.RagEngine.clearActiveDocument();
+          }
+          showToast('🗑️ Cleared RAG document from local storage');
+        } else if (type === 'model') {
+          try {
+            if (window.Capacitor?.Plugins?.MarvoNativeBridge?.deleteOfflineModel) {
+              await window.Capacitor.Plugins.MarvoNativeBridge.deleteOfflineModel({ modelType: id });
+            }
+            if (window.AiControlCenter?.refreshModels) {
+              window.AiControlCenter.refreshModels();
+            }
+            showToast(`🗑️ Deleted ${id} from device storage`);
+          } catch (err) {
+            console.error('[StorageViewer] Delete error:', err);
+            showToast(`Delete failed: ${err.message}`);
+          }
+        }
+        await renderDownloadedStorageViewer();
+      };
+    }
+  });
 }
 
 /* Instant Image Generation Parsing & Card Rendering */
@@ -2246,6 +2386,7 @@ function renderFormattedAiResponse(rawText) {
 }
 
 function addMessage(text, sender, attachments = []) {
+  if (sender === 'system' || sender === 'developer') return null;
   if (sender === 'user') {
     const el = document.createElement('div');
     el.className = 'msg msg-user';

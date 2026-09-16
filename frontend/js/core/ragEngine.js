@@ -33,6 +33,16 @@
       return this.activeDocument;
     },
 
+    clearActiveDocument() {
+      this.activeDocument = null;
+      this.localChunks = [];
+      if (window.Capacitor?.Plugins?.MarvoNativeBridge?.clearRagCache) {
+        window.Capacitor.Plugins.MarvoNativeBridge.clearRagCache().catch(() => {});
+      }
+      if (window.showToast) window.showToast('🗑️ Cleared local RAG document from Vector DB.');
+      console.log('[RagEngine] Active document and local vector chunks cleared.');
+    },
+
     /**
      * Ingests a File object (PDF, TXT, MD).
      * @param {File} file
