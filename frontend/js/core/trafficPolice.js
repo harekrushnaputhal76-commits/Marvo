@@ -223,6 +223,17 @@
       return messages;
     },
 
+    isCloudProviderEnabled(provider) {
+      const key = `marvo.cloud.enabled.${provider}`;
+      return localStorage.getItem(key) !== 'false';
+    },
+
+    areAllCloudApisToggledOff() {
+      return !this.isCloudProviderEnabled('groq') &&
+             !this.isCloudProviderEnabled('gemini') &&
+             !this.isCloudProviderEnabled('openrouter');
+    },
+
     /**
      * PRIMARY ROUTING DISPATCHER (TRAFFIC POLICE 1)
      * Online (Network is ON):
@@ -242,6 +253,18 @@
         signal = null,
         advancedMode = null // 'deep-thinking' | 'web-research' | null
       } = options;
+
+      // 0. CRITICAL ROUTING INTERCEPTOR: MANUAL CLOUD OVERRIDE CHECK
+      // If ALL cloud engines are toggled OFF in AI Control Center, forcefully route directly to Offline Brain
+      const allCloudOff = this.areAllCloudApisToggledOff();
+      if (allCloudOff) {
+        console.log('[TrafficPolice] Manual Cloud Override: All cloud APIs are toggled OFF. Force routing directly to Offline LLM.');
+        let offlineResult = await this.callLocalLLM(prompt, contextHistory, systemInstruction, signal);
+        if (offlineResult && typeof offlineResult.response === 'string') {
+          offlineResult.response = sanitizeLlmResponse(offlineResult.response);
+        }
+        return offlineResult;
+      }
 
       // 1. Strict Active Connectivity Check (LTE / Wi-Fi)
       const isOnline = navigator.onLine !== false;
@@ -352,6 +375,9 @@ ${effectiveSystemInstruction}`;
      * Fast & Free Ultra-low latency inference
      */
     async callGroq(prompt, contextHistory = [], systemInstruction = '', signal = null) {
+      if (!this.isCloudProviderEnabled('groq')) {
+        throw new Error("Groq Cloud Engine is manually toggled off via AI Control Center.");
+      }
       const apiKey = this.state.keys.groq || DEFAULT_KEYS.groq;
       if (!apiKey) {
         throw new Error("GROQ_API_KEY is not configured.");
@@ -402,6 +428,9 @@ ${effectiveSystemInstruction}`;
      * Google Native Generative Language API
      */
     async callGemini(prompt, contextHistory = [], systemInstruction = '', imageBase64 = null, signal = null) {
+      if (!this.isCloudProviderEnabled('gemini')) {
+        throw new Error("Google Gemini API is manually toggled off via AI Control Center.");
+      }
       const apiKey = this.state.keys.gemini || DEFAULT_KEYS.gemini;
       const modelName = this.state.mode === 'Pro Thinking' ? 'gemini-1.5-pro' : 'gemini-1.5-flash';
 
@@ -490,6 +519,9 @@ ${effectiveSystemInstruction}`;
      * Multi-Agent Gateway supporting Claude 3.5 Sonnet, GPT-4o, Llama 3.1 405B, DeepSeek R1
      */
     async callOpenRouter(prompt, contextHistory = [], systemInstruction = '', signal = null) {
+      if (!this.isCloudProviderEnabled('openrouter')) {
+        throw new Error("OpenRouter Multi-Agent Gateway is manually toggled off via AI Control Center.");
+      }
       const apiKey = this.state.keys.openrouter || DEFAULT_KEYS.openrouter;
       if (!apiKey) {
         throw new Error("OPENROUTER_API_KEY is not configured.");

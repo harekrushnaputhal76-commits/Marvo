@@ -4593,6 +4593,20 @@ async function initTrafficPoliceAndModelUI() {
   if (window.AiControlCenter && typeof window.AiControlCenter.init === 'function') {
     window.AiControlCenter.init();
   }
+
+  // Phase 2: Cinematic 3D Zoom Splash Dismissal
+  function initCinematicSplash() {
+    const splash = document.getElementById('cinematicSplash');
+    if (!splash) return;
+    setTimeout(() => {
+      splash.classList.add('dismissed');
+      setTimeout(() => {
+        splash.style.display = 'none';
+        if (splash.parentNode) splash.parentNode.removeChild(splash);
+      }, 550);
+    }, 1600);
+  }
+  initCinematicSplash();
 }
 
 window.openAiControlCenter = function() {

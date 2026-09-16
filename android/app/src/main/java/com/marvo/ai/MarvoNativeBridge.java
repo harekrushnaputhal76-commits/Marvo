@@ -414,18 +414,6 @@ public class MarvoNativeBridge extends Plugin {
     }
 
     @PluginMethod
-    public void clearRagCache(final PluginCall call) {
-        LocalRagEngine.getInstance(getContext()).clearSessionCache(new Runnable() {
-            @Override
-            public void run() {
-                JSObject ret = new JSObject();
-                ret.put("cleared", true);
-                call.resolve(ret);
-            }
-        });
-    }
-
-    @PluginMethod
     public void getCustomQA(PluginCall call) {
         try {
             Context context = getContext();

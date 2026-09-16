@@ -638,6 +638,26 @@
       this.renderApiCards();
     },
 
+    isCloudEnabled(provider) {
+      return localStorage.getItem(`marvo.cloud.enabled.${provider}`) !== 'false';
+    },
+
+    toggleCloudProvider(provider, enabled) {
+      localStorage.setItem(`marvo.cloud.enabled.${provider}`, enabled ? 'true' : 'false');
+      if (window.showToast) {
+        const title = provider === 'groq' ? 'Groq LPU' : provider === 'gemini' ? 'Google Gemini' : 'OpenRouter';
+        window.showToast(`${title} ${enabled ? 'Enabled' : 'Bypassed (Toggled Off)'}`);
+      }
+      if (window.TrafficPolice && typeof window.TrafficPolice.notifyStateChange === 'function') {
+        window.TrafficPolice.notifyStateChange();
+      }
+      this.renderApiCards();
+    },
+
+    areAllCloudApisToggledOff() {
+      return !this.isCloudEnabled('groq') && !this.isCloudEnabled('gemini') && !this.isCloudEnabled('openrouter');
+    },
+
     renderApiCards() {
       if (!this.dom.apiCardsContainer) return;
 
@@ -663,9 +683,12 @@
       ];
 
       this.dom.apiCardsContainer.innerHTML = configs.map(c => {
+        const isEnabled = this.isCloudEnabled(c.key);
         const st = this.apiStatus[c.key] || { status: 'checking', latency: 0 };
         let badgeHtml = '';
-        if (st.status === 'active') {
+        if (!isEnabled) {
+          badgeHtml = `<span class="api-badge disabled" title="Cloud engine manually toggled off">⚪ Manual Override Off</span>`;
+        } else if (st.status === 'active') {
           badgeHtml = `<span class="api-badge active">🟢 Active & Verified (${st.latency}ms)</span>`;
         } else if (st.status === 'failed') {
           badgeHtml = `<span class="api-badge failed">🔴 Failed / Invalid Key</span>`;
@@ -676,18 +699,27 @@
         }
 
         return `
-          <div class="api-health-card">
+          <div class="api-health-card ${!isEnabled ? 'engine-toggled-off' : ''}" id="api_card_${c.key}">
             <div class="api-card-top">
               <div>
-                <h4 class="api-name">${c.title}</h4>
+                <div class="api-name-row">
+                  <h4 class="api-name">${c.title}</h4>
+                  ${!isEnabled ? '<span class="api-override-chip">Offline Fallback</span>' : ''}
+                </div>
                 <span class="api-model-tag">${c.model}</span>
               </div>
-              ${badgeHtml}
+              <div class="api-card-ctrl-group">
+                ${badgeHtml}
+                <label class="cloud-toggle-switch" title="Toggle ${c.title} cloud engine">
+                  <input type="checkbox" ${isEnabled ? 'checked' : ''} onchange="window.AiControlCenter.toggleCloudProvider('${c.key}', this.checked)">
+                  <span class="cloud-toggle-slider"></span>
+                </label>
+              </div>
             </div>
             <p class="api-desc">${c.desc}</p>
             <div class="api-card-footer">
-              <span class="api-secure-tag">🔒 Key Secured in Backend Logic</span>
-              <button class="btn-api-reping" onclick="window.AiControlCenter.repingSingle('${c.key}')">Ping</button>
+              <span class="api-secure-tag">${isEnabled ? '🔒 Key Secured in Backend Logic' : '⚠️ Cloud Bypassed: Routes to Offline Brain'}</span>
+              <button class="btn-api-reping" ${!isEnabled ? 'disabled style="opacity:0.4;cursor:not-allowed;"' : ''} onclick="window.AiControlCenter.repingSingle('${c.key}')">Ping</button>
             </div>
           </div>
         `;
@@ -695,6 +727,10 @@
     },
 
     repingSingle(provider) {
+      if (!this.isCloudEnabled(provider)) {
+        if (window.showToast) window.showToast(`${provider.toUpperCase()} is toggled off. Enable it first to test ping.`);
+        return;
+      }
       const keys = (window.TrafficPolice && window.TrafficPolice.state && window.TrafficPolice.state.keys) || {};
       if (provider === 'groq') this.pingGroq(keys.groq);
       else if (provider === 'gemini') this.pingGemini(keys.gemini);
