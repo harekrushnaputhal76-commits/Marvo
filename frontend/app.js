@@ -5157,5 +5157,6 @@ window.marvo = {
   get currentVoice() { return currentVoice; },
   get session() { return currentSessionId; },
   get mode() { return selectedMode; },
+  renderingCapabilities: window.MarvoRenderingCapabilities,
   STATES,
 };
