@@ -210,6 +210,7 @@
 <div id="sidebarOverlay" class="sidebar-overlay"></div>
 
 <!-- ═══════════ MAIN CONTAINER ═══════════ -->
+<main class="main">
 <main id="app-root" class="main">
 
   <!-- Top Bar with Safe Area Insets & Strict Vertical Stacking (No Overlap) -->
@@ -1177,59 +1178,94 @@
   </div>
 </div>
 
-<!-- ═══════════ APPLE 2026 DYNAMIC ISLAND - CAMERA MORPH (LIQUID GLASS SHELL) ═══════════ -->
-<div id="marvo-camera-island" class="camera-island-bubble" aria-live="polite">
-  <!-- Phase 1: Rainbow Prism Light Arc (Top Inside Edge below Camera Lens) -->
-  <div class="prism-light-arc"></div>
+<!-- ═══════════ SVG GOOEY FILTER (LIQUID SURFACE TENSION PHYSICS) ═══════════ -->
+<svg id="marvo-goo-svg" class="goo-filter-svg" style="position:fixed;top:0;left:0;width:0;height:0;pointer-events:none;opacity:0;z-index:-1;" aria-hidden="true">
+  <defs>
+    <filter id="island-liquid-goo">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur" />
+      <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -10" result="goo" />
+      <feComposite in="SourceGraphic" in2="goo" operator="atop" />
+    </filter>
+  </defs>
+</svg>
 
-  <!-- Physical Punch-hole Camera Lens Anchor & Specular Reflection -->
-  <div class="island-camera-lens">
-    <div class="camera-lens-reflection"></div>
+<!-- ═══════════ APPLE 2026 DYNAMIC ISLAND - CAMERA MORPH (ORGANIC LIQUID GLASS) ═══════════ -->
+<div id="marvo-camera-island" class="camera-island-bubble state-idle" aria-live="polite">
+  <!-- SVG Gooey Liquid Hull (Organic water droplet expansion & surface tension) -->
+  <div class="island-gooey-wrapper">
+    <div class="island-liquid-hull">
+      <div class="island-liquid-anchor"></div>
+      <div class="island-liquid-body"></div>
+    </div>
   </div>
 
-  <!-- Island Top Bar: Status Badge & Close Trigger -->
-  <div class="island-top-row">
-    <div class="island-status-badge" id="islandStatusPill">Listening…</div>
-    <button id="btnIslandClose" class="island-close-btn" aria-label="Close Island">&times;</button>
+  <!-- Frosted Glass Card Shell (Backdrop blur + depth) -->
+  <div class="island-glass-card">
+    <!-- Siri Dynamic Plasma Border Glow (mix-blend-mode: screen) -->
+    <div class="island-plasma-edge" id="islandPlasmaEdge"></div>
+
+    <!-- Rainbow Prism Light Arc (Top inside edge below camera lens) -->
+    <div class="prism-light-arc"></div>
+
+    <!-- Physical Punch-hole Camera Lens Anchor & Specular Glint -->
+    <div class="island-camera-lens">
+      <div class="camera-lens-reflection"></div>
+    </div>
+
+    <!-- Crisp UI Content Layer -->
+    <div class="island-content-layer">
+      <!-- Island Top Bar: Status Badge & Close Trigger -->
+      <div class="island-top-row">
+        <div class="island-status-badge" id="islandStatusPill">Marvo</div>
+        <button id="btnIslandClose" class="island-close-btn" aria-label="Close Island">&times;</button>
+      </div>
+
+      <!-- Live Voice Transcript / AI Response Typography -->
+      <div id="island-response-content" class="island-response-content">
+        <p id="islandResponseText" class="island-response-text">Listening to you...</p>
+      </div>
+
+      <!-- 3-State Plasma Waveform Visualizer & Ambient Conic Glow -->
+      <div class="island-plasma-wrapper" id="islandPlasmaWrapper">
+        <canvas id="islandWaveCanvas" class="island-wave-canvas" width="380" height="64"></canvas>
+        <div class="island-conic-glow" id="islandConicGlow"></div>
+      </div>
+
+      <!-- Island Glassmorphic Action Controls -->
+      <div class="island-action-bar" id="islandActionBar">
+        <button id="btnIslandCancel" class="island-btn island-btn-cancel" aria-label="Cancel">
+          <svg viewBox="0 0 24 24" width="15" height="15"><line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <span>Cancel</span>
+        </button>
+        <button id="btnIslandPauseResume" class="island-btn island-btn-pause" aria-label="Pause or Resume">
+          <svg id="iconIslandPause" viewBox="0 0 24 24" width="15" height="15"><rect x="6" y="4" width="4" height="16" rx="1.5" fill="currentColor"/><rect x="14" y="4" width="4" height="16" rx="1.5" fill="currentColor"/></svg>
+          <svg id="iconIslandResume" class="hidden" viewBox="0 0 24 24" width="15" height="15"><polygon points="6 4 19 12 6 20 6 4" fill="currentColor"/></svg>
+          <span id="labelIslandPauseResume">Pause</span>
+        </button>
+        <button id="btnIslandSend" class="island-btn island-btn-send" aria-label="Send Recording">
+          <svg viewBox="0 0 24 24" width="15" height="15"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"/></svg>
+          <span>Send</span>
+        </button>
+      </div>
+
+      <!-- Swipe-up dismiss pill handle -->
+      <div class="island-drag-pill" id="islandDragPill"></div>
+    </div>
   </div>
 
-  <!-- Phase 5: 3-State Plasma Waveform Visualizer & Ambient Conic Glow -->
-  <div class="island-plasma-wrapper" id="islandPlasmaWrapper">
-    <canvas id="islandWaveCanvas" class="island-wave-canvas" width="380" height="64"></canvas>
-    <div class="island-conic-glow" id="islandConicGlow"></div>
-  </div>
-
-  <!-- Phase 2: Apple Typography Response Content & Staggered Reveal -->
-  <div id="island-response-content" class="island-response-content">
-    <p id="islandResponseText" class="island-response-text">Listening to you...</p>
-  </div>
-
-  <!-- Island Glassmorphic Action Controls -->
-  <div class="island-action-bar" id="islandActionBar">
-    <button id="btnIslandCancel" class="island-btn island-btn-cancel" aria-label="Cancel">
-      <svg viewBox="0 0 24 24" width="15" height="15"><line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-      <span>Cancel</span>
-    </button>
-    <button id="btnIslandPauseResume" class="island-btn island-btn-pause" aria-label="Pause or Resume">
-      <svg id="iconIslandPause" viewBox="0 0 24 24" width="15" height="15"><rect x="6" y="4" width="4" height="16" rx="1.5" fill="currentColor"/><rect x="14" y="4" width="4" height="16" rx="1.5" fill="currentColor"/></svg>
-      <svg id="iconIslandResume" class="hidden" viewBox="0 0 24 24" width="15" height="15"><polygon points="6 4 19 12 6 20 6 4" fill="currentColor"/></svg>
-      <span id="labelIslandPauseResume">Pause</span>
-    </button>
-    <button id="btnIslandSend" class="island-btn island-btn-send" aria-label="Send Recording">
-      <svg viewBox="0 0 24 24" width="15" height="15"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"/></svg>
-      <span>Send</span>
-    </button>
-  </div>
-
-  <!-- Swipe-up dismiss pill handle -->
-  <div class="island-drag-pill" id="islandDragPill"></div>
-
-  <!-- Hidden compatibility hooks for existing script bindings -->
-  <div id="voiceOverlay" style="display:none;" class="hidden"></div>
-  <span id="voiceStatusText" style="display:none;"></span>
-  <p id="voiceTranscriptText" style="display:none;"></p>
-  <canvas id="voiceWaveCanvas" style="display:none;" width="1" height="1"></canvas>
-  <div id="voiceTranscriptBox" style="display:none;"></div>
+  <!-- Hidden compatibility elements for legacy script hooks -->
+  <div id="voiceOverlay" style="display:none;" class="hidden" aria-hidden="true"></div>
+  <span id="voiceStatusText" style="display:none;" aria-hidden="true"></span>
+  <p id="voiceTranscriptText" style="display:none;" aria-hidden="true"></p>
+  <canvas id="voiceWaveCanvas" style="display:none;" width="1" height="1" aria-hidden="true"></canvas>
+  <div id="voiceTranscriptBox" style="display:none;" aria-hidden="true"></div>
+  <button id="btnVoiceClose" style="display:none;" aria-hidden="true"></button>
+  <button id="btnVoiceCancel" style="display:none;" aria-hidden="true"></button>
+  <button id="btnVoicePauseResume" style="display:none;" aria-hidden="true"></button>
+  <span id="labelVoicePauseResume" style="display:none;" aria-hidden="true"></span>
+  <svg id="iconVoicePause" style="display:none;" aria-hidden="true"></svg>
+  <svg id="iconVoiceResume" style="display:none;" aria-hidden="true"></svg>
+  <button id="btnVoiceSend" style="display:none;" aria-hidden="true"></button>
 </div>
 
 <!-- Toast notification helper -->

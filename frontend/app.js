@@ -142,6 +142,24 @@ const DOM = {
   btnMic:             $('#btnMic'),
   btnScreenShare:     $('#btnScreenShare'),
 
+  // Bottom-Docked Voice UI
+  voiceOverlay:         $('#voiceOverlay'),
+  voiceStatusText:      $('#voiceStatusText'),
+  voiceWaveCanvas:      $('#voiceWaveCanvas'),
+  voiceBars:            $('#voiceBars'),
+  voiceTranscriptBox:   $('#voiceTranscriptBox'),
+  voiceTranscriptText:  $('#voiceTranscriptText'),
+  btnVoiceClose:        $('#btnVoiceClose'),
+  btnVoiceCancel:       $('#btnVoiceCancel'),
+  btnVoicePauseResume:  $('#btnVoicePauseResume'),
+  iconVoicePause:       $('#iconVoicePause'),
+  iconVoiceResume:      $('#iconVoiceResume'),
+  labelVoicePauseResume:$('#labelVoicePauseResume'),
+  btnVoiceSend:         $('#btnVoiceSend'),
+  siriOrbDock:          $('#siri-orb-dock'),
+  siriOrbWrap:          $('#siri-orb-wrap'),
+  siriOrb:              $('#siri-orb'),
+  siriOrbLabel:         $('#siri-orb-label'),
   // Apple 2026 Dynamic Island & Voice UI
   cameraIsland:         $('#marvo-camera-island'),
   prismLightArc:        $('.prism-light-arc'),
@@ -2948,11 +2966,41 @@ async function sendMessage(userText) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   PHASE 6: PREMIUM TAPTIC FEEDBACK (MICRO-VIBRATIONS)
-   Action 1: Island fully expands -> Medium Impact / CONFIRM
-   Action 2: Swipe up / dismiss -> Light Impact / REJECT
-   Action 3: State Thinking to Responding -> Subtle Tick
+   APPLE INTELLIGENCE / 2026 DYNAMIC ISLAND - ORGANIC LIQUID CONTROLLER
+   - Strict Backend Preservation: 100% untouched Gemini/Whisper/Audio routing
+   - SVG Gooey Surface Tension Physics & 120fps hardware acceleration
+   - Motorola Punch-hole Camera Anchor (top: 32px; left: 50%)
+   - Siri Plasma Edge, Rainbow Prism Arc & 3-State Waveform Visualizer
+   - Premium Taptic Feedback & Touch/Swipe-up Gestures
    ═══════════════════════════════════════════════════════════════════ */
+
+const SIRI_STATES = {
+  idle: {
+    colors: ['#8B5CF6', '#3B82F6', '#EC4899', '#22D3EE'],
+    glow: 'rgba(139,92,246,.45)',
+    glow2: 'rgba(59,130,246,.25)',
+    label: 'Ready'
+  },
+  listening: {
+    colors: ['#22D3EE', '#34D399', '#3B82F6', '#8B5CF6'],
+    glow: 'rgba(34,211,238,.55)',
+    glow2: 'rgba(52,211,153,.28)',
+    label: 'Listening…'
+  },
+  thinking: {
+    colors: ['#F472B6', '#F59E0B', '#8B5CF6', '#3B82F6'],
+    glow: 'rgba(245,158,11,.55)',
+    glow2: 'rgba(244,114,182,.30)',
+    label: 'Thinking…'
+  },
+  speaking: {
+    colors: ['#EC4899', '#8B5CF6', '#22D3EE', '#3B82F6'],
+    glow: 'rgba(236,72,153,.60)',
+    glow2: 'rgba(139,92,246,.32)',
+    label: 'Responding…'
+  }
+};
+
 const HapticFeedback = {
   confirm() {
     try {
@@ -2983,14 +3031,9 @@ const HapticFeedback = {
   }
 };
 
-/* ═══════════════════════════════════════════════════════════════════
-   APPLE 2026 DYNAMIC ISLAND - CAMERA MORPH CONTROLLER
-   Phase 1: 3D Liquid Glass Camera Bubble (140x140px)
-   Phase 2: Liquid Expansion into 92% Squircle Panel + Staggered Reveal
-   Phase 4: Screen Push-Back Effect (Z-Axis Depth on #app-root)
-   Phase 5: 3-State Plasma Waveform Visualizer
-   Phase 6: Hardware Taptic Feedback & Touch Gestures
-   ═══════════════════════════════════════════════════════════════════ */
+// Cubic ease for organic, non-linear volume response
+const easeInOutCubic = x => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+
 class DynamicIslandManager {
   constructor() {
     this.island = document.getElementById('marvo-camera-island');
@@ -3031,24 +3074,24 @@ class DynamicIslandManager {
     el.classList.add('island-open');
     el.classList.remove('state-idle');
 
-    // Phase 4: Push-back effect on main OS container
+    // Screen push-back depth effect on main OS root container
     if (root) {
       root.classList.add('island-pushed-back');
     }
     document.body.classList.add('island-active');
 
-    // Phase 2: Fluid Expansion into 92% Squircle Panel
+    // Organic liquid stretch into card
     if (this.expandTimer) clearTimeout(this.expandTimer);
     requestAnimationFrame(() => {
       el.classList.add('expanded', 'active');
     });
 
-    // Phase 6 Action 1: When Island fully expands -> Trigger Medium Impact / CONFIRM
+    // Taptic confirmation when island expands
     this.expandTimer = setTimeout(() => {
       if (this.active) {
         HapticFeedback.confirm();
       }
-    }, 420);
+    }, 380);
 
     this.setVoiceState('listening', 0);
     this._startVisualizerLoop();
@@ -3069,16 +3112,16 @@ class DynamicIslandManager {
       el.classList.add('state-idle');
       setTimeout(() => {
         if (!this.active) el.classList.remove('island-open');
-      }, 500);
+      }, 480);
     }
 
-    // Phase 4: Smoothly restore OS container back to normal
+    // Restore root OS container
     if (root) {
       root.classList.remove('island-pushed-back');
     }
     document.body.classList.remove('island-active');
 
-    // Phase 6 Action 2: Trigger Light Impact / REJECT on close
+    // Taptic rejection on dismiss
     HapticFeedback.reject();
 
     if (this.animId) {
@@ -3105,7 +3148,7 @@ class DynamicIslandManager {
     this.state = s;
     this.volume = Math.max(0, Math.min(100, volume));
 
-    // Phase 6 Action 3: When state changes from 'Thinking' to 'Responding' -> Trigger subtle Tick
+    // Tick haptic on transition from thinking to speaking
     if (prevState === 'thinking' && s === 'speaking') {
       HapticFeedback.tick();
     }
@@ -3154,8 +3197,8 @@ class DynamicIslandManager {
     el.addEventListener('touchend', (e) => {
       const touchEndY = e.changedTouches[0].clientY;
       const deltaY = touchEndY - this.touchStartY;
-      // Phase 6: Swipe-up gesture upwards by > 28px -> Dismiss Island
-      if (deltaY < -28 && this.active) {
+      // Swipe-up upwards by > 25px snaps back to camera
+      if (deltaY < -25 && this.active) {
         if (typeof closeVoiceDock === 'function') {
           closeVoiceDock();
         } else {
@@ -3197,9 +3240,12 @@ class DynamicIslandManager {
   _bindVisibility() {
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
-        if (this.active && typeof closeVoiceDock === 'function') {
-          closeVoiceDock();
+        if (this.animId) {
+          cancelAnimationFrame(this.animId);
+          this.animId = null;
         }
+      } else if (this.active) {
+        this._startVisualizerLoop();
       }
     });
   }
@@ -3223,19 +3269,17 @@ class DynamicIslandManager {
 
       const time = Date.now() * 0.004;
 
-      // Phase 5: 3-State Plasma Waveform Visualizer
-      // Palette: Violet (#5E5CE6), Pink (#FF375F), Cyan (#64D2FF), Blue (#0A84FF)
+      // 3-State Plasma Waveform Visualizer
+      // iOS Palette: Cyan (#64D2FF), Pink (#FF375F), Violet (#5E5CE6)
       if (this.state === 'thinking') {
-        // State 2 (Thinking): No jagged waves! Minimal harmonic hum; CSS conic-glow handles ambient spin
+        // Thinking: Ambient CSS conic-glow handles spinning aura; waveform stays minimal
         return;
       }
 
       let baseAmp = 3;
       if (this.state === 'listening') {
-        // State 1 (Listening): Waves bouncing actively based on mic volume
         baseAmp = Math.max(4, Math.min(26, (this.volume / 100) * 28));
       } else if (this.state === 'speaking') {
-        // State 3 (Responding): Smooth rolling waves syncing to TTS rhythm
         baseAmp = 12 + Math.sin(time * 3) * 6;
       }
 
@@ -3253,7 +3297,7 @@ class DynamicIslandManager {
         ctx.shadowBlur = 6;
 
         for (let x = 0; x < width; x += 4) {
-          const envelope = Math.sin((x / width) * Math.PI); // Pinches ends
+          const envelope = Math.sin((x / width) * Math.PI);
           const y = height / 2 + Math.sin(x * 0.035 + time * w.speed + w.phase) * baseAmp * w.ampMult * envelope;
           if (x === 0) ctx.moveTo(x, y);
           else ctx.lineTo(x, y);
@@ -3350,6 +3394,7 @@ async function initAudioVisualizer() {
       micRmsCount++;
       dynamicAmp = Math.max(4, Math.min(32, rms * 80));
 
+      // Directly feed real microphone frequency/volume to Apple Siri Orb!
       // Directly feed real microphone frequency/volume to Dynamic Island!
       if (window.dynamicIslandInstance && isVoiceRecording && !isVoicePaused) {
         window.dynamicIslandInstance.setAudioLevel(rms);
@@ -3402,8 +3447,13 @@ function openVoiceDock() {
   isVoiceRecording = true;
   isVoicePaused = false;
   currentVoiceTranscript = '';
+  DOM.voiceTranscriptText.textContent = 'Listening to you...';
   if (DOM.voiceTranscriptText) DOM.voiceTranscriptText.textContent = 'Listening to you...';
   if (DOM.voiceStatusText) DOM.voiceStatusText.textContent = 'Listening...';
+  DOM.iconVoicePause.classList.remove('hidden');
+  DOM.iconVoiceResume.classList.add('hidden');
+  DOM.labelVoicePauseResume.textContent = 'Pause';
+  DOM.voiceOverlay.classList.add('show');
   if (DOM.iconVoicePause) DOM.iconVoicePause.classList.remove('hidden');
   if (DOM.iconVoiceResume) DOM.iconVoiceResume.classList.add('hidden');
   if (DOM.labelVoicePauseResume) DOM.labelVoicePauseResume.textContent = 'Pause';
@@ -3441,6 +3491,7 @@ function closeVoiceDock() {
     clearTimeout(speechSilenceTimer);
     speechSilenceTimer = null;
   }
+  DOM.voiceOverlay.classList.remove('show');
   DOM.btnMic.classList.remove('recording');
   if (visualizerAnimId) cancelAnimationFrame(visualizerAnimId);
   if (speechRecognizer) {
@@ -3452,11 +3503,11 @@ function closeVoiceDock() {
     micStream = null;
     analyser = null;
   }
-  if (window.setVoiceState) {
-    window.setVoiceState('idle', 0);
-  }
   if (window.dynamicIslandInstance) {
     window.dynamicIslandInstance.close();
+  }
+  if (window.setVoiceState) {
+    window.setVoiceState('idle', 0);
   }
   if (!isBusy) setEyeExpression('state-idle');
 }
@@ -4851,6 +4902,9 @@ document.addEventListener('visibilitychange', () => {
       closeVoiceDock();
     }
 
+    // 3. Halt Siri Plasma animations
+    const siriPlasma = document.getElementById('siriPlasmaContainer');
+    if (siriPlasma) siriPlasma.classList.add('siri-paused');
     // 3. Halt Dynamic Island animations & speech
     if (window.dynamicIslandInstance) window.dynamicIslandInstance.close();
     if (window.siriOrbInstance) window.siriOrbInstance.stop();

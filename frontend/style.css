@@ -4783,6 +4783,8 @@ body.page-paused * {
   opacity: 0.85;
 }
 
+/* Strictly Enforce Widget Z-Index Hierarchy: Voice / Siri Dock on Top */
+.voice-bottom-dock {
 /* ═══════════════════════════════════════════════════════════════════
    PHASE 4: SCREEN PUSH-BACK EFFECT (Z-AXIS DEPTH)
    Apple Intelligence pushes the rest of the OS backward to create 3D depth
@@ -4806,91 +4808,238 @@ body.island-active .main {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   APPLE 2026 DYNAMIC ISLAND - CAMERA MORPH (LIQUID GLASS SHELL)
-   Phase 1: 3D Liquid Glass Sphere (140x140px) anchored to top punch-hole
-   Phase 2: Fluid Expansion into 92% Squircle Panel
-   Phase 5: 3-State Plasma Waveform Visualizer
+   APPLE 2026 DYNAMIC ISLAND - TRUE ORGANIC LIQUID CAMERA MORPH
+   - Motorola Punch-hole Camera Anchor: top: 32px; left: 50%; 24x24px
+   - SVG Gooey Surface Tension Physics (#island-liquid-goo)
+   - 120fps Hardware Acceleration (scale3d / translate3d)
+   - Apple Fluid Spring Curve: cubic-bezier(0.16, 1, 0.3, 1)
+   - Frosted Glass Shell: blur(25px) saturate(180%) rgba(0,0,0,0.85)
+   - Dynamic Siri Plasma Edge & Rainbow Prism Arc
    ═══════════════════════════════════════════════════════════════════ */
+
 #marvo-camera-island {
   position: fixed;
-  top: 12px;
+  top: 32px;
   left: 50%;
-  transform: translateX(-50%) translateZ(0);
-  -webkit-transform: translateX(-50%) translateZ(0);
+  transform: translateX(-50%) translate3d(0, 0, 0);
+  -webkit-transform: translateX(-50%) translate3d(0, 0, 0);
+  transform-origin: top center;
   z-index: 9999;
   box-sizing: border-box;
-  overflow: hidden;
 
-  /* Phase 1 Specs: Initial 140x140px Sphere expanding from camera */
-  width: 140px;
-  height: 140px;
+  /* Motorola Center Punch-hole Camera Anchor (Collapsed Initial State) */
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
 
-  /* 3D Liquid Glass Material */
-  background: linear-gradient(180deg, rgba(30, 30, 30, 0.6) 0%, rgba(10, 10, 10, 0.2) 100%);
-  backdrop-filter: blur(40px) saturate(180%) contrast(110%);
-  -webkit-backdrop-filter: blur(40px) saturate(180%) contrast(110%);
-  box-shadow:
-    inset 0px -10px 30px rgba(255, 255, 255, 0.05),
-    inset 0px 4px 10px rgba(255, 255, 255, 0.1),
-    0 16px 45px rgba(0, 0, 0, 0.65);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  padding: 14px 18px;
-
+  pointer-events: none;
   opacity: 0;
   visibility: hidden;
-  pointer-events: none;
+  overflow: visible;
 
-  /* Signature Apple-style bouncy spring curve */
-  transition: all 0.65s cubic-bezier(0.2, 0.8, 0.2, 1);
-  will-change: width, height, border-radius, transform, opacity;
+  /* 120fps Hardware Acceleration & Apple Fluid Spring Curve */
+  will-change: width, height, transform, border-radius, opacity;
+  transition:
+    width 0.62s cubic-bezier(0.16, 1, 0.3, 1),
+    height 0.62s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.62s cubic-bezier(0.16, 1, 0.3, 1),
+    border-radius 0.62s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    visibility 0.3s;
 }
 
-/* Island Summoned & Active States */
+/* Island Summoned: Becomes active at punch-hole */
 #marvo-camera-island.island-open {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
 }
 
-/* Phase 1: Rainbow Prism Arc (The Signature Detail) */
+/* Expanded Card: Stretches downwards like water from punch-hole */
+#marvo-camera-island.expanded,
+#marvo-camera-island.active {
+  width: 92%;
+  max-width: 440px;
+  min-height: 230px;
+  height: max-content;
+  border-radius: 38px;
+  transform: translateX(-50%) translate3d(0, 0, 0);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SVG GOOEY LIQUID HULL (Water Droplet Surface Tension Physics)
+   ═══════════════════════════════════════════════════════════════════ */
+.island-gooey-wrapper {
+  position: absolute;
+  inset: -24px;
+  filter: url(#island-liquid-goo);
+  -webkit-filter: url(#island-liquid-goo);
+  pointer-events: none;
+  z-index: 1;
+  overflow: visible;
+}
+
+.island-liquid-hull {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* Physical Camera Anchor Droplet */
+.island-liquid-anchor {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  width: 24px;
+  height: 24px;
+  transform: translateX(-50%) translate3d(0, 0, 0);
+  border-radius: 50%;
+  background: #000000;
+}
+
+/* Morphing Liquid Droplet Body */
+.island-liquid-body {
+  position: absolute;
+  inset: 24px;
+  background: rgba(0, 0, 0, 0.96);
+  border-radius: 50%;
+  transform: scale3d(0.12, 0.12, 1) translate3d(0, 0, 0);
+  transform-origin: top center;
+  will-change: transform, border-radius;
+  transition:
+    transform 0.62s cubic-bezier(0.16, 1, 0.3, 1),
+    border-radius 0.62s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#marvo-camera-island.expanded .island-liquid-body,
+#marvo-camera-island.active .island-liquid-body {
+  transform: scale3d(1, 1, 1) translate3d(0, 0, 0);
+  border-radius: 38px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   FROSTED GLASS CARD SHELL & DYNAMIC SIRI PLASMA BORDER
+   ═══════════════════════════════════════════════════════════════════ */
+.island-glass-card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: inherit;
+  border-radius: inherit;
+  box-sizing: border-box;
+
+  /* Frosted Glass Spec: blur(25px) saturate(180%) rgba(0,0,0,0.85) */
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(25px) saturate(180%);
+  -webkit-backdrop-filter: blur(25px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 24px 64px rgba(0, 0, 0, 0.75),
+    0 0 40px rgba(100, 210, 255, 0.15),
+    inset 0 1px 2px rgba(255, 255, 255, 0.22);
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
+  z-index: 2;
+}
+
+/* Dynamic Siri Glowing Plasma Edge (mix-blend-mode: screen) */
+.island-plasma-edge {
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  padding: 2px;
+  background: conic-gradient(
+    from 0deg,
+    #5E5CE6,
+    #FF375F,
+    #64D2FF,
+    #0A84FF,
+    #34C759,
+    #5E5CE6
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  filter: blur(6px);
+  -webkit-filter: blur(6px);
+  mix-blend-mode: screen;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), filter 0.4s ease;
+  animation: islandPlasmaRotate 4s linear infinite;
+  z-index: 6;
+}
+
+@keyframes islandPlasmaRotate {
+  0% { filter: blur(6px) hue-rotate(0deg); }
+  100% { filter: blur(6px) hue-rotate(360deg); }
+}
+
+#marvo-camera-island.state-listening .island-plasma-edge {
+  opacity: 0.85;
+  animation-duration: 3.5s;
+}
+
+#marvo-camera-island.state-thinking .island-plasma-edge {
+  opacity: 1;
+  filter: blur(8px);
+  animation-duration: 2s;
+}
+
+#marvo-camera-island.state-speaking .island-plasma-edge {
+  opacity: 0.65;
+  animation-duration: 5s;
+}
+
+/* Rainbow Prism Light Arc (Inside Top Edge below camera lens) */
 .prism-light-arc {
   width: 60%;
-  height: 8px;
+  height: 6px;
   position: absolute;
-  top: 15%;
+  top: 5px;
   left: 50%;
   transform: translateX(-50%);
-  background: linear-gradient(90deg, rgba(255,0,0,0) 0%, #FF3B30 20%, #FF9500 40%, #34C759 60%, #007AFF 80%, rgba(0,0,255,0) 100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    #FF3B30 20%,
+    #FF9500 40%,
+    #34C759 60%,
+    #007AFF 80%,
+    transparent 100%
+  );
   border-radius: 999px;
-  filter: blur(4px);
-  -webkit-filter: blur(4px);
+  filter: blur(3px);
+  -webkit-filter: blur(3px);
   mix-blend-mode: screen;
   pointer-events: none;
   z-index: 10;
-  transition: width 0.65s cubic-bezier(0.2, 0.8, 0.2, 1),
-              top 0.65s cubic-bezier(0.2, 0.8, 0.2, 1),
-              opacity 0.65s ease;
+  opacity: 0.55;
+  transition: width 0.62s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease;
 }
 
-/* Physical punch-hole camera lens simulation */
+#marvo-camera-island.expanded .prism-light-arc,
+#marvo-camera-island.active .prism-light-arc {
+  width: 82%;
+  opacity: 0.45;
+}
+
+/* Physical Punch-hole Camera Lens Simulation */
 .island-camera-lens {
   position: absolute;
-  top: 8px;
+  top: 5px;
   left: 50%;
   transform: translateX(-50%);
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #181d28 0%, #08090d 80%);
-  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.2), 0 0 2px rgba(0, 0, 0, 0.8);
+  background: radial-gradient(circle at 35% 35%, #1a202c 0%, #08090d 85%);
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.25), 0 0 2px rgba(0, 0, 0, 0.9);
   pointer-events: none;
-  z-index: 11;
+  z-index: 12;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4900,50 +5049,55 @@ body.island-active .main {
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: rgba(100, 210, 255, 0.65);
-  box-shadow: 0 0 4px rgba(100, 210, 255, 0.8);
+  background: rgba(100, 210, 255, 0.7);
+  box-shadow: 0 0 4px rgba(100, 210, 255, 0.9);
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   PHASE 2: LIQUID EXPANSION & SQUIRCLE PANEL MORPH
-   Width: 92%, min-height: 25vh, max-height: 35vh, border-radius: 42px
+   CRISP UI CONTENT LAYER (Typography, Visualizer, Controls)
    ═══════════════════════════════════════════════════════════════════ */
-#marvo-camera-island.expanded,
-#marvo-camera-island.active {
-  width: 92%;
-  max-width: 460px;
-  min-height: 25vh;
-  max-height: 35vh;
-  height: max-content;
-  border-radius: 42px;
-  padding: 16px 20px 20px;
+.island-content-layer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 14px 18px 14px;
+  box-sizing: border-box;
+  z-index: 5;
+  opacity: 0;
+  transform: translateY(8px) scale3d(0.96, 0.96, 1);
+  transition:
+    opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: 0.12s;
 }
 
-/* Rainbow prism arc stretches and dims to 50% on expansion */
-#marvo-camera-island.expanded .prism-light-arc,
-#marvo-camera-island.active .prism-light-arc {
-  width: 85%;
-  top: 8px;
-  opacity: 0.5;
+#marvo-camera-island.expanded .island-content-layer,
+#marvo-camera-island.active .island-content-layer {
+  opacity: 1;
+  transform: translateY(0) scale3d(1, 1, 1);
 }
 
-/* Island Top Row Header (Status pill & Close) */
+/* Island Top Row: Status Badge & Close Trigger */
 .island-top-row {
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: 0 2px;
   margin-top: 6px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   z-index: 5;
 }
 
 .island-status-badge {
-  padding: 4px 12px;
+  padding: 4px 14px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, 0.92);
   font: 600 11px -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -4962,7 +5116,7 @@ body.island-active .main {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.2s;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s;
 }
 
 .island-close-btn:active {
@@ -4970,53 +5124,37 @@ body.island-active .main {
   background: rgba(255, 255, 255, 0.22);
 }
 
-/* Phase 2: Apple Typography & Text Container (Staggered Reveal) */
-#island-response-content {
+/* Response Typography Container */
+.island-response-content {
   width: 100%;
   box-sizing: border-box;
-  padding: 8px 12px;
+  padding: 6px 10px;
   text-align: left;
-  max-height: 140px;
+  max-height: 120px;
   overflow-y: auto;
   z-index: 5;
-
-  /* Staggered text reveal: starts hidden and slides up after expansion */
-  opacity: 0;
-  transform: translateY(15px);
-  transition: all 0.4s ease-out;
-  transition-delay: 0.25s;
-}
-
-#marvo-camera-island.expanded #island-response-content,
-#marvo-camera-island.active #island-response-content {
-  opacity: 1;
-  transform: translateY(0);
 }
 
 .island-response-text {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
   color: #FFFFFF;
-  text-shadow: 0px 2px 10px rgba(0, 0, 0, 0.3);
-  font-size: 17px;
+  text-shadow: 0px 2px 10px rgba(0, 0, 0, 0.4);
+  font-size: 16px;
   font-weight: 500;
-  line-height: 1.5;
+  line-height: 1.45;
   margin: 0;
   word-break: break-word;
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   PHASE 5: 3-STATE PLASMA WAVEFORM (SIRI VISUALIZER)
-   iOS 18.1 Palette: Violet (#5E5CE6), Pink (#FF375F), Cyan (#64D2FF), Blue (#0A84FF)
-   ═══════════════════════════════════════════════════════════════════ */
+/* 3-State Plasma Waveform Visualizer & Ambient Conic Glow */
 .island-plasma-wrapper {
   position: relative;
+  overflow: visible !important;
   width: 100%;
-  height: 52px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
-  border-radius: 20px;
   margin: 4px 0;
   z-index: 4;
 }
@@ -5027,10 +5165,12 @@ body.island-active .main {
   display: block;
 }
 
-/* State 2: Thinking Conic Ambient Glow (No jagged waves) */
 .island-conic-glow {
   position: absolute;
-  inset: -20px;
+  width: 76px;
+  height: 76px;
+  inset: -14px auto auto 50%;
+  transform: translateX(-50%);
   border-radius: 50%;
   background: conic-gradient(
     from 0deg,
@@ -5045,39 +5185,30 @@ body.island-active .main {
   opacity: 0;
   pointer-events: none;
   mix-blend-mode: screen;
-  transition: opacity 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
-  animation: islandConicSpin 4s linear infinite;
+  transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: islandConicSpin 3.5s linear infinite;
   animation-play-state: paused;
 }
 
 #marvo-camera-island.state-thinking .island-conic-glow {
-  opacity: 0.75;
+  opacity: 0.8;
   animation-play-state: running;
 }
 
 @keyframes islandConicSpin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% { transform: translateX(-50%) rotate(0deg); }
+  100% { transform: translateX(-50%) rotate(360deg); }
 }
 
-/* Action Bar Controls */
+/* Action Controls Bar */
 .island-action-bar {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 12px;
   width: 100%;
-  margin-top: 8px;
+  margin-top: 6px;
   z-index: 5;
-  opacity: 0;
-  transform: translateY(10px);
-  transition: all 0.35s ease-out 0.2s;
-}
-
-#marvo-camera-island.expanded .island-action-bar,
-#marvo-camera-island.active .island-action-bar {
-  opacity: 1;
-  transform: translateY(0);
 }
 
 .island-btn {
@@ -5095,12 +5226,12 @@ body.island-active .main {
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   user-select: none;
 }
 
 .island-btn:active {
-  transform: scale(0.95);
+  transform: scale(0.94);
   background: rgba(255, 255, 255, 0.2);
 }
 
@@ -5109,8 +5240,8 @@ body.island-active .main {
 }
 
 .island-btn-send {
-  background: linear-gradient(135deg, rgba(94, 92, 230, 0.85), rgba(10, 132, 255, 0.85));
-  border-color: rgba(255, 255, 255, 0.25);
+  background: linear-gradient(135deg, rgba(94, 92, 230, 0.9), rgba(10, 132, 255, 0.9));
+  border-color: rgba(255, 255, 255, 0.28);
   box-shadow: 0 4px 14px rgba(94, 92, 230, 0.35);
 }
 
@@ -5123,10 +5254,30 @@ body.island-active .main {
   width: 32px;
   height: 4px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.28);
   margin-top: 10px;
   cursor: grab;
   z-index: 5;
+  transition: background 0.2s;
+}
+
+.island-drag-pill:active {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SCREEN PUSH-BACK DEPTH (Z-Axis Depth on #app-root)
+   ═══════════════════════════════════════════════════════════════════ */
+#app-root.island-pushed-back,
+.main.island-pushed-back {
+  transform: scale3d(0.94, 0.94, 1) translateY(18px);
+  border-radius: 36px;
+  overflow: hidden;
+  filter: brightness(0.85);
+  transition:
+    transform 0.55s cubic-bezier(0.16, 1, 0.3, 1),
+    filter 0.55s cubic-bezier(0.16, 1, 0.3, 1),
+    border-radius 0.55s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .settings-modal-overlay {
