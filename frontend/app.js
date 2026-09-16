@@ -2957,134 +2957,81 @@ const easeInOutCubic = x => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 
 class SiriOrb {
   constructor(canvas, labelEl) {
     this.canvas = canvas;
-    this.ctx = canvas ? canvas.getContext('2d') : null;
     this.label = labelEl;
-    this.w = canvas ? canvas.width : 260;
-    this.h = canvas ? canvas.height : 260;
-    this.cx = this.w / 2;
-    this.cy = this.h / 2;
+    this.plasma = document.getElementById('siriPlasmaContainer');
+    this.wrap = document.getElementById('siri-orb-wrap');
     this.state = 'idle';
-    this.volume = 0;         // 0-100 target volume
-    this.smVolume = 0;       // smoothed volume
-    this.t = 0;
-    this.rafId = null;
+    this.volume = 0;
     this.running = false;
-    this.lastTs = 0;
     this._bindVisibility();
+    this.setVoiceState('idle', 0);
   }
 
   setVoiceState(state, volume = 0) {
-    if (!SIRI_STATES[state]) return;
-    const changed = state !== this.state;
-    this.state = state;
+    const validStates = ['idle', 'listening', 'thinking', 'speaking'];
+    const s = validStates.includes(state) ? state : 'idle';
+    this.state = s;
     this.volume = Math.max(0, Math.min(100, volume));
 
-    if (changed) {
-      const cfg = SIRI_STATES[state];
-      const wrap = document.getElementById('siri-orb-wrap');
-      if (wrap) {
-        wrap.style.setProperty('--orb-glow', cfg.glow);
-        wrap.style.setProperty('--orb-glow2', cfg.glow2);
-      }
-      if (this.label) {
-        if (cfg.label) {
-          this.label.textContent = cfg.label;
-          requestAnimationFrame(() => this.label.classList.add('visible'));
-        } else {
-          this.label.classList.remove('visible');
-        }
-      }
-      const legacyStatus = document.getElementById('voiceStatusText');
-      if (legacyStatus && cfg.label) legacyStatus.textContent = cfg.label;
+    const cfg = SIRI_STATES[s] || SIRI_STATES.idle;
+    if (!this.wrap) this.wrap = document.getElementById('siri-orb-wrap');
+    if (this.wrap) {
+      this.wrap.style.setProperty('--orb-glow', cfg.glow);
+      this.wrap.style.setProperty('--orb-glow2', cfg.glow2);
     }
+
+    if (!this.plasma) {
+      this.plasma = document.getElementById('siriPlasmaContainer');
+    }
+    if (this.plasma) {
+      this.plasma.classList.remove('state-idle', 'state-listening', 'state-thinking', 'state-speaking');
+      this.plasma.classList.add(`state-${s}`);
+
+      // Constrained subtle scale reactivity: strictly 1.0 to 1.08 max
+      const easedScale = 1.0 + Math.min(0.08, easeInOutCubic(this.volume / 100) * 0.08);
+      this.plasma.style.setProperty('--siri-vol-scale', easedScale.toFixed(3));
+    }
+
+    if (this.label) {
+      if (cfg.label) {
+        this.label.textContent = cfg.label;
+        requestAnimationFrame(() => this.label.classList.add('visible'));
+      } else {
+        this.label.classList.remove('visible');
+      }
+    }
+    const legacyStatus = document.getElementById('voiceStatusText');
+    if (legacyStatus && cfg.label) legacyStatus.textContent = cfg.label;
   }
 
   _bindVisibility() {
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
         this.stop();
-      } else if (this.running) {
+      } else if (typeof isVoiceRecording !== 'undefined' && isVoiceRecording) {
         this.start();
       }
     });
   }
 
   start() {
-    if (this.running && this.rafId) return;
     this.running = true;
-    this.lastTs = performance.now();
-    this.rafId = requestAnimationFrame(this._loop.bind(this));
+    if (!this.plasma) this.plasma = document.getElementById('siriPlasmaContainer');
+    if (this.plasma) {
+      this.plasma.classList.remove('siri-paused');
+    }
   }
 
   stop() {
     this.running = false;
-    if (this.rafId) cancelAnimationFrame(this.rafId);
-    this.rafId = null;
+    if (!this.plasma) this.plasma = document.getElementById('siriPlasmaContainer');
+    if (this.plasma) {
+      this.plasma.classList.add('siri-paused');
+    }
   }
 
   destroy() {
     this.stop();
-  }
-
-  _loop(ts) {
-    if (!this.running) return;
-    const dt = Math.min((ts - this.lastTs) / 1000, 0.05);
-    this.lastTs = ts;
-    const cfg = SIRI_STATES[this.state] || SIRI_STATES.idle;
-
-    this.t += dt * cfg.speed;
-    // Spring-like smoothing toward eased volume target (non-linear organic curve)
-    const easedTarget = easeInOutCubic(Math.min(1, Math.max(0, this.volume / 100))) * 100;
-    this.smVolume += (easedTarget - this.smVolume) * Math.min(1, dt * 6.0);
-
-    this._draw(cfg);
-    this.rafId = requestAnimationFrame(this._loop.bind(this));
-  }
-
-  _draw(cfg) {
-    const ctx = this.ctx;
-    if (!ctx) return;
-    const { cx, cy, w, h, t } = this;
-    const amp = cfg.amp + (this.smVolume / 100) * 0.55;
-
-    ctx.clearRect(0, 0, w, h);
-    ctx.globalCompositeOperation = 'lighter';
-
-    const baseR = Math.min(w, h) * 0.26;
-    const n = cfg.colors.length;
-
-    for (let i = 0; i < n; i++) {
-      // Apple fluid multi-color orbital harmonics
-      const phase = t + (i * (Math.PI * 2)) / n;
-      const rx = Math.sin(phase * 1.15 + i) * baseR * amp;
-      const ry = Math.cos(phase * 0.85 - i) * baseR * amp * 0.8;
-      const zScale = 1 + Math.sin(phase * 1.4 + i * 1.7) * 0.22 * (1 + amp * 0.6);
-      const r = baseR * zScale * (0.9 + 0.25 * Math.sin(phase * 0.6));
-
-      const x = cx + rx * 0.55;
-      const y = cy + ry * 0.55;
-
-      const grad = ctx.createRadialGradient(x, y, 0, x, y, Math.max(r, 1));
-      grad.addColorStop(0, cfg.colors[i] + 'e6');
-      grad.addColorStop(0.55, cfg.colors[i] + '4d');
-      grad.addColorStop(1, cfg.colors[i] + '00');
-
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.arc(x, y, Math.max(r, 1), 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // High-energy white core glow
-    const coreGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, baseR * 0.55);
-    coreGrad.addColorStop(0, 'rgba(255,255,255,0.55)');
-    coreGrad.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = coreGrad;
-    ctx.beginPath();
-    ctx.arc(cx, cy, baseR * 0.55, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.globalCompositeOperation = 'source-over';
   }
 }
 
@@ -3092,7 +3039,7 @@ let siriOrbInstance = null;
 function initSiriOrb() {
   const canvas = document.getElementById('siri-orb');
   const label = document.getElementById('siri-orb-label');
-  if (canvas && !siriOrbInstance) {
+  if (!siriOrbInstance) {
     siriOrbInstance = new SiriOrb(canvas, label);
     window.siriOrbInstance = siriOrbInstance;
     window.setVoiceState = (state, volume) => siriOrbInstance.setVoiceState(state, volume);
@@ -4129,19 +4076,20 @@ function initDeviceTilt() {
   const root = document.documentElement;
 
   const engine = new EngineClass({
-    maxTilt: 22,
-    smoothing: 8,
-    fps: 30,
+    maxTilt: 25,
+    smoothing: 10,
+    fps: 60,
     idleMs: 1800,
-    onUpdate: ({ pitch, roll }) => {
-      // Gyroscope tracking exclusively for Marvo's Main Eyes
-      // Map roll -> X gaze offset, pitch -> Y gaze offset
-      // Clamped to subtle [-10px, 10px] range to keep pupils perfectly within eye socket
-      const tiltX = Math.max(-10, Math.min(10, roll * 0.45));
-      const tiltY = Math.max(-10, Math.min(10, pitch * 0.45));
+    onUpdate: ({ pitch, roll, tiltX, tiltY }) => {
+      // 60FPS Hardware-Accelerated Gyroscope tracking exclusively for Marvo's Main Eyes
+      // Universal coverage across ALL eye colors, themes, and expressions
+      const tx = tiltX !== undefined ? tiltX : Math.max(-12, Math.min(12, roll * 0.48));
+      const ty = tiltY !== undefined ? tiltY : Math.max(-12, Math.min(12, pitch * 0.48));
 
-      root.style.setProperty('--tilt-x', `${tiltX.toFixed(2)}px`);
-      root.style.setProperty('--tilt-y', `${tiltY.toFixed(2)}px`);
+      root.style.setProperty('--eye-tilt-x', `${tx.toFixed(2)}px`);
+      root.style.setProperty('--eye-tilt-y', `${ty.toFixed(2)}px`);
+      root.style.setProperty('--tilt-x', `${tx.toFixed(2)}px`);
+      root.style.setProperty('--tilt-y', `${ty.toFixed(2)}px`);
     }
   });
 
@@ -4641,6 +4589,11 @@ document.addEventListener('visibilitychange', () => {
     if (typeof isVoiceRecording !== 'undefined' && isVoiceRecording) {
       closeVoiceDock();
     }
+
+    // 3. Halt Siri Plasma animations
+    const siriPlasma = document.getElementById('siriPlasmaContainer');
+    if (siriPlasma) siriPlasma.classList.add('siri-paused');
+    if (window.siriOrbInstance) window.siriOrbInstance.stop();
 
     // 4. Halt 3D Gyroscope sensor
     if (window.mainTiltEngine) {

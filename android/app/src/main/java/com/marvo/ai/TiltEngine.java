@@ -99,7 +99,7 @@ public class TiltEngine implements SensorEventListener, DefaultLifecycleObserver
         running = true;
         lastTs = 0L;
         if (sensorManager != null && rotationSensor != null) {
-            sensorManager.registerListener(this, rotationSensor, SensorManager.SENSOR_DELAY_UI);
+            sensorManager.registerListener(this, rotationSensor, SensorManager.SENSOR_DELAY_GAME);
         }
         handler.post(frameRunnable);
     }
@@ -110,6 +110,16 @@ public class TiltEngine implements SensorEventListener, DefaultLifecycleObserver
             sensorManager.unregisterListener(this);
         }
         handler.removeCallbacks(frameRunnable);
+    }
+
+    @Override
+    public void onResume(@NonNull LifecycleOwner owner) {
+        start();
+    }
+
+    @Override
+    public void onPause(@NonNull LifecycleOwner owner) {
+        stop();
     }
 
     @Override

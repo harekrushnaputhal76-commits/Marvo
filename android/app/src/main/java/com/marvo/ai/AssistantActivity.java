@@ -6319,6 +6319,13 @@ public class AssistantActivity extends AppCompatActivity {
             getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         } catch (Exception ignored) {}
 
+        if (orbWebView != null) {
+            try {
+                orbWebView.onPause();
+                orbWebView.pauseTimers();
+            } catch (Exception ignored) {}
+        }
+
         try {
             SensorManager sm = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
             if (sm != null) {

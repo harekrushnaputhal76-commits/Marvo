@@ -1186,9 +1186,15 @@
         <button id="btnVoiceClose" class="siri-btn-close" aria-label="Close">&times;</button>
       </div>
 
-      <!-- Siri Fluid Multi-Color Orb (Deep magenta, electric blue, violet, soft cyan) -->
+      <!-- 1:1 Apple Siri Fluid Plasma Orb (5-Layer Blobs + Glass Blur) -->
       <div id="siri-orb-wrap" class="siri-orb-wrap">
-        <canvas id="siri-orb" width="260" height="260"></canvas>
+        <div class="siri-master-container" id="siriPlasmaContainer">
+          <div class="siri-blob color-blue"></div>
+          <div class="siri-blob color-magenta"></div>
+          <div class="siri-blob color-cyan"></div>
+          <div class="siri-blob color-violet"></div>
+          <div class="siri-glass-blur"></div> <!-- Heavy backdrop filter -->
+        </div>
       </div>
 
       <!-- Apple Intelligence Frosted Glass Pill Status & Subtitle -->
