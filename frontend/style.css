@@ -5360,8 +5360,8 @@ body.island-active .main {
   position: fixed !important;
   top: var(--camera-anchor-top) !important;
   left: 50% !important;
-  width: var(--marvo-geo-idle-diameter) !important;
-  height: var(--marvo-geo-idle-diameter) !important;
+  width: var(--marvo-geo-expanded-max-width) !important;
+  height: var(--marvo-geo-height-expanded) !important;
   transform: translateX(-50%) !important;
   filter: url(#marvo-goo);
   -webkit-filter: url(#marvo-goo);
@@ -5373,15 +5373,21 @@ body.island-active .main {
 
 #marvo-dynamic-island {
   position: absolute !important;
-  inset: 0 !important;
-  width: 100% !important;
-  height: 100% !important;
-  border-radius: var(--marvo-geo-radius-idle) !important;
+  top: 0 !important;
+  left: 50% !important;
+  width: var(--marvo-shape-width) !important;
+  height: var(--marvo-shape-height) !important;
+  transform: translateX(-50%) !important;
+  transform-origin: top center !important;
+  border-radius: var(--marvo-shape-radius) !important;
   background: var(--marvo-conic-idle) !important;
   pointer-events: none !important;
   overflow: hidden !important;
-  transition: none !important;
-  will-change: auto !important;
+  transition:
+    width var(--marvo-duration-base) linear,
+    height var(--marvo-duration-base) linear,
+    border-radius var(--marvo-duration-base) linear !important;
+  will-change: width, height, border-radius !important;
 }
 
 #marvo-dynamic-island::before {
