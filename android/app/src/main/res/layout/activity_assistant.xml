@@ -116,28 +116,6 @@
             android:textSize="14sp"
             android:visibility="gone"
             android:background="@null" />
-
-        <!-- Glowing Orb Container positioned at the absolute bottom -->
-        <FrameLayout
-            android:id="@+id/orbContainer"
-            android:layout_width="140dp"
-            android:layout_height="140dp"
-            android:background="@null"
-            android:layout_gravity="bottom|center_horizontal"
-            android:layout_marginBottom="16dp">
-
-            <!-- Siri-style Fluid WebGL Orb (Step 7 - Part 2: True 3D Floating Liquid Orb) -->
-            <WebView
-                android:id="@+id/orbWebView"
-                android:layout_width="140dp"
-                android:layout_height="140dp"
-                android:layout_gravity="center"
-                android:background="@null"
-                android:overScrollMode="never"
-                android:scrollbars="none"
-                android:layerType="hardware" />
-        </FrameLayout>
-
     </LinearLayout>
 
 </RelativeLayout>

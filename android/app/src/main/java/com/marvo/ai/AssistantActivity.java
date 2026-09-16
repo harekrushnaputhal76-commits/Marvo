@@ -779,17 +779,13 @@ public class AssistantActivity extends AppCompatActivity {
         audioPollRunnable = new Runnable() {
             @Override
             public void run() {
-                if (orbWebView != null) {
-                    if (targetAudioAmplitude > currentAudioAmplitude) {
-                        currentAudioAmplitude += (targetAudioAmplitude - currentAudioAmplitude) * 0.45f;
-                    } else {
-                        currentAudioAmplitude += (targetAudioAmplitude - currentAudioAmplitude) * 0.15f;
-                    }
-                    if (currentAudioAmplitude < 0.01f) {
-                        currentAudioAmplitude = 0.0f;
-                    }
-                    final float ampToSend = currentAudioAmplitude;
-                    orbWebView.evaluateJavascript("if(window.updateOrbAmplitude){window.updateOrbAmplitude(" + ampToSend + ");}else if(window.setAmplitude){window.setAmplitude(" + ampToSend + ");}", null);
+                if (targetAudioAmplitude > currentAudioAmplitude) {
+                    currentAudioAmplitude += (targetAudioAmplitude - currentAudioAmplitude) * 0.45f;
+                } else {
+                    currentAudioAmplitude += (targetAudioAmplitude - currentAudioAmplitude) * 0.15f;
+                }
+                if (currentAudioAmplitude < 0.01f) {
+                    currentAudioAmplitude = 0.0f;
                 }
                 if (audioPollHandler != null) {
                     audioPollHandler.postDelayed(this, 50);
@@ -2691,15 +2687,8 @@ public class AssistantActivity extends AppCompatActivity {
                     };
                     card.setOnClickListener(callClickListener);
                     callBtnFrame.setOnClickListener(callClickListener);
-
-                    // Insert above orbContainer in bottomSheetContainer
-                    View orbContainer = findViewById(R.id.orbContainer);
-                    int insertIdx = bottomSheet.indexOfChild(orbContainer);
-                    if (insertIdx >= 0) {
-                        bottomSheet.addView(card, insertIdx);
-                    } else {
-                        bottomSheet.addView(card);
-                    }
+                    // Insert card into bottomSheetContainer
+                    bottomSheet.addView(card);
 
                     // Smooth entrance animation
                     card.setAlpha(0.0f);
@@ -5050,39 +5039,10 @@ public class AssistantActivity extends AppCompatActivity {
     // ============================================================
 
     /**
-     * Step 9 Part 1: Initialize the transparent WebView hosting the WebGL fluid orb.
+     * Obsolete bottom orb WebGL WebView initialization removed.
      */
     private void initOrbWebView() {
-        if (orbWebView == null) return;
-        try {
-            WebSettings settings = orbWebView.getSettings();
-            settings.setJavaScriptEnabled(true);
-            settings.setDomStorageEnabled(true);
-            settings.setLoadWithOverviewMode(true);
-            settings.setUseWideViewPort(true);
-            settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
-
-            // Transparent background for the glassmorphic effect
-            orbWebView.setBackgroundColor(android.graphics.Color.TRANSPARENT);
-            orbWebView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
-
-            // Step 8: Orb Tap-to-Listen Native Bridge
-            orbWebView.addJavascriptInterface(new OrbBridge(), "Android");
-
-            orbWebView.setWebViewClient(new WebViewClient() {
-                @Override
-                public void onPageFinished(WebView view, String url) {
-                    super.onPageFinished(view, url);
-                    // Set initial state to IDLE once loaded
-                    setOrbState("IDLE");
-                    Log.d(TAG, "WebGL Siri Orb loaded successfully");
-                }
-            });
-
-            orbWebView.loadUrl("file:///android_asset/siri_orb.html");
-        } catch (Exception e) {
-            Log.e(TAG, "Error initializing orb WebView: " + e.getMessage(), e);
-        }
+        // No-op: bottom orb removed
     }
 
     /**
@@ -5128,42 +5088,19 @@ public class AssistantActivity extends AppCompatActivity {
     }
 
     /**
-     * Step 9: Set the orb animation state via JavaScript bridge.
+     * Step 9: State hook preserved for callers (OfflineIntentRouter, TrafficPoliceManager).
      * States: IDLE, LISTENING, THINKING, SPEAKING
      */
     public void setOrbState(final String state) {
-        if (orbWebView != null) {
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        orbWebView.evaluateJavascript("setOrbState('" + state + "')", null);
-                    } catch (Exception e) {
-                        Log.e(TAG, "Error setting orb state: " + e.getMessage());
-                    }
-                }
-            });
-        }
+        // State tracking preserved; bottom orb WebGL dispatch removed
     }
 
     /**
-     * Step 9 & Step 7 Part 2: Set audio amplitude for the orb's real-time reactivity.
+     * Step 9 & Step 7 Part 2: Set audio amplitude for real-time reactivity.
      * @param amplitude 0.0 to 1.0
      */
     void setOrbAmplitude(final float amplitude) {
         targetAudioAmplitude = Math.max(0.0f, Math.min(1.0f, amplitude));
-        if (orbWebView != null) {
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        orbWebView.evaluateJavascript("if(window.updateOrbAmplitude){window.updateOrbAmplitude(" + amplitude + ");}else if(window.setAmplitude){window.setAmplitude(" + amplitude + ");}", null);
-                    } catch (Exception e) {
-                        Log.e(TAG, "Error setting orb amplitude: " + e.getMessage());
-                    }
-                }
-            });
-        }
     }
 
     /**

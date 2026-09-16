@@ -4265,6 +4265,7 @@ DOM.btnScreenShare?.addEventListener('click', () => {
 });
 
 // Bottom-Docked Voice UI Controls
+// Voice Assistant Controls
 DOM.btnMic.addEventListener('click', () => {
   if (isVoiceRecording) closeVoiceDock();
   else openVoiceDock();
@@ -4930,6 +4931,7 @@ document.addEventListener('visibilitychange', () => {
     const siriPlasma = document.getElementById('siriPlasmaContainer');
     if (siriPlasma) siriPlasma.classList.add('siri-paused');
     // 3. Halt Dynamic Island animations & speech
+    // 3. Halt Dynamic Island animations & voice assistant
     if (window.dynamicIslandInstance) window.dynamicIslandInstance.close();
     if (window.siriOrbInstance) window.siriOrbInstance.stop();
 
