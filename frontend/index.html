@@ -1193,79 +1193,8 @@
   </filter>
 </svg>
 
-<!-- ═══════════ MARVO TOP-ANCHORED LIQUID DYNAMIC ISLAND ═══════════ -->
-<div class="marvo-island-goo-container" style="filter: url(#marvo-goo)">
-<div id="marvo-dynamic-island" class="marvo-dynamic-island state-idle" aria-live="polite">
-  <!-- SVG Gooey Liquid Hull (Organic water droplet expansion & surface tension) -->
-  <div class="island-gooey-wrapper">
-    <div class="island-liquid-hull">
-      <div class="island-liquid-anchor"></div>
-      <div class="island-liquid-body"></div>
-    </div>
-  </div>
-
-  <!-- Marvo Frosted Glass Shell (Backdrop blur + depth) -->
-  <div class="island-glass-card">
-    <!-- Marvo Dynamic Edge Glow (Fluid gradient sweep) -->
-    <div class="island-plasma-edge" id="islandPlasmaEdge"></div>
-
-    <!-- Hardware Camera Lens Alignment Frame & Specular Glint -->
-    <div class="island-camera-lens">
-      <div class="camera-lens-reflection"></div>
-    </div>
-
-    <!-- Compact Capsule State Display (active during 140x40px capsule modes) -->
-    <div class="island-capsule-display" id="islandCapsuleDisplay">
-      <div class="capsule-sound-bars" id="capsuleSoundBars">
-        <span class="bar bar-1"></span>
-        <span class="bar bar-2"></span>
-        <span class="bar bar-3"></span>
-        <span class="bar bar-4"></span>
-      </div>
-      <span class="capsule-label" id="capsuleLabel">Ready</span>
-    </div>
-
-    <!-- Crisp UI Content Layer -->
-    <div class="island-content-layer">
-      <!-- Top Row: Status Badge & Close Trigger -->
-      <div class="island-top-row">
-        <div class="island-status-badge" id="islandStatusPill">Marvo</div>
-        <button id="btnIslandClose" class="island-close-btn" aria-label="Close Island">&times;</button>
-      </div>
-
-      <!-- Live Voice Transcript / AI Response Typography -->
-      <div id="island-response-content" class="island-response-content">
-        <p id="islandResponseText" class="island-response-text">Listening to you...</p>
-      </div>
-
-      <!-- Live Voice Waveform Visualizer & Ambient Conic Glow -->
-      <div class="island-plasma-wrapper" id="islandPlasmaWrapper">
-        <canvas id="islandWaveCanvas" class="island-wave-canvas" width="380" height="64"></canvas>
-        <div class="island-conic-glow" id="islandConicGlow"></div>
-      </div>
-
-      <!-- Island Glassmorphic Action Controls -->
-      <div class="island-action-bar" id="islandActionBar">
-        <button id="btnIslandCancel" class="island-btn island-btn-cancel" aria-label="Cancel">
-          <svg viewBox="0 0 24 24" width="15" height="15"><line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-          <span>Cancel</span>
-        </button>
-        <button id="btnIslandPauseResume" class="island-btn island-btn-pause" aria-label="Pause or Resume">
-          <svg id="iconIslandPause" viewBox="0 0 24 24" width="15" height="15"><rect x="6" y="4" width="4" height="16" rx="1.5" fill="currentColor"/><rect x="14" y="4" width="4" height="16" rx="1.5" fill="currentColor"/></svg>
-          <svg id="iconIslandResume" class="hidden" viewBox="0 0 24 24" width="15" height="15"><polygon points="6 4 19 12 6 20 6 4" fill="currentColor"/></svg>
-          <span id="labelIslandPauseResume">Pause</span>
-        </button>
-        <button id="btnIslandSend" class="island-btn island-btn-send" aria-label="Send Recording">
-          <svg viewBox="0 0 24 24" width="15" height="15"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"/></svg>
-          <span>Send</span>
-        </button>
-      </div>
-
-      <!-- Swipe-up dismiss pill handle -->
-      <div class="island-drag-pill" id="islandDragPill"></div>
-    </div>
-  </div>
-</div>
+<!-- ═══════════ MARVO TOP-ANCHORED IDLE VOICE INDICATOR ═══════════ -->
+<div id="marvo-dynamic-island" aria-hidden="true"></div>
 
 <!-- Toast notification helper -->
 <div id="appToast" class="app-toast"></div>

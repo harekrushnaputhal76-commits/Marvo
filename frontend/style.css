@@ -5332,6 +5332,22 @@ body.island-active .main {
   z-index: 1000 !important;
 }
 
+#marvo-dynamic-island {
+  position: fixed !important;
+  top: var(--camera-anchor-top) !important;
+  left: 50% !important;
+  width: var(--marvo-geo-idle-diameter) !important;
+  height: var(--marvo-geo-idle-diameter) !important;
+  transform: translateX(-50%) !important;
+  border-radius: var(--marvo-geo-radius-idle) !important;
+  background: var(--marvo-color-blue) !important;
+  z-index: var(--marvo-z-indicator-layer) !important;
+  pointer-events: none !important;
+  animation: none !important;
+  transition: none !important;
+  will-change: auto !important;
+}
+
 /* ================================================================
    PHASE 1: AGGRESSIVE BATTERY & BACKGROUND KILL-SWITCH
    ================================================================ */
