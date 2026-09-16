@@ -1,0 +1,110 @@
+/* ═══════════════════════════════════════════════════════════════════
+   MARVO DESIGN TOKENS (Single Source of Truth)
+   Core Design System Tokens for Marvo Voice Indicator & UI Layer
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ─────────────────────────────────────────────────────────────────
+     1. COLOR & GRADIENT TOKENS (Blue -> Violet -> Magenta -> Orange)
+     ───────────────────────────────────────────────────────────────── */
+  --marvo-color-blue:          #0072ff;
+  --marvo-color-cyan:          #00f0ff;
+  --marvo-color-violet:        #7b2cbf;
+  --marvo-color-fuchsia:       #c026d3;
+  --marvo-color-magenta:       #ff007f;
+  --marvo-color-orange:        #ff6b35;
+  --marvo-color-amber:         #ff9e00;
+
+  /* Idle Multi-Hue Gradient Stops */
+  --marvo-grad-stop-blue:      var(--marvo-color-blue);
+  --marvo-grad-stop-violet:    var(--marvo-color-violet);
+  --marvo-grad-stop-magenta:   var(--marvo-color-magenta);
+  --marvo-grad-stop-orange:    var(--marvo-color-orange);
+
+  /* Composed Gradients */
+  --marvo-gradient-idle:       linear-gradient(
+    135deg,
+    var(--marvo-grad-stop-blue) 0%,
+    var(--marvo-grad-stop-violet) 35%,
+    var(--marvo-grad-stop-magenta) 70%,
+    var(--marvo-grad-stop-orange) 100%
+  );
+  --marvo-conic-idle:          conic-gradient(
+    from 0deg,
+    var(--marvo-color-cyan) 0deg,
+    var(--marvo-color-violet) 90deg,
+    var(--marvo-color-magenta) 180deg,
+    var(--marvo-color-orange) 270deg,
+    var(--marvo-color-cyan) 360deg
+  );
+  --marvo-gradient-thinking:   linear-gradient(
+    90deg,
+    #060913 0%,
+    var(--marvo-color-cyan) 25%,
+    var(--marvo-color-violet) 50%,
+    var(--marvo-color-magenta) 75%,
+    #060913 100%
+  );
+
+  /* ─────────────────────────────────────────────────────────────────
+     2. GLASS SURFACE TOKENS
+     ───────────────────────────────────────────────────────────────── */
+  --marvo-glass-bg:                   rgba(8, 12, 20, 0.88);
+  --marvo-glass-bg-tint:              rgba(11, 16, 26, 0.85);
+  --marvo-glass-surface-opacity:      0.88;
+  --marvo-glass-border-color:         rgba(0, 240, 255, 0.18);
+  --marvo-glass-border-highlight:     rgba(255, 255, 255, 0.20);
+  --marvo-glass-border-subtle:        rgba(255, 255, 255, 0.08);
+  --marvo-glass-blur-radius:          25px;
+  --marvo-glass-blur:                 blur(var(--marvo-glass-blur-radius)) saturate(180%);
+  --marvo-glass-shadow:               0 24px 64px rgba(0, 0, 0, 0.8),
+                                      0 0 32px rgba(0, 240, 255, 0.16),
+                                      inset 0 1px 2px rgba(255, 255, 255, 0.15);
+
+  /* ─────────────────────────────────────────────────────────────────
+     3. MOTION & EASING TOKENS
+     ───────────────────────────────────────────────────────────────── */
+  --marvo-ease-spring:                cubic-bezier(0.32, 0.72, 0, 1);
+  --marvo-ease-bounce:                cubic-bezier(0.34, 1.56, 0.64, 1);
+  --marvo-ease-smooth:                cubic-bezier(0.16, 1, 0.3, 1);
+  --marvo-duration-fast:              0.2s;
+  --marvo-duration-base:              0.38s;
+  --marvo-duration-slow:              0.6s;
+
+  /* ─────────────────────────────────────────────────────────────────
+     4. GEOMETRY & SHAPE TOKENS
+     ───────────────────────────────────────────────────────────────── */
+  --marvo-geo-idle-diameter:          24px;
+  --marvo-geo-capsule-width:          140px;
+  --marvo-geo-capsule-height:         40px;
+  --marvo-geo-expanded-min-width:     280px;
+  --marvo-geo-expanded-width:         92%;
+  --marvo-geo-expanded-max-width:     440px;
+
+  /* Heights per state */
+  --marvo-geo-height-idle:            24px;
+  --marvo-geo-height-listening:       40px;
+  --marvo-geo-height-thinking:        40px;
+  --marvo-geo-height-speaking:        40px;
+  --marvo-geo-height-error:           40px;
+  --marvo-geo-height-expanded:        230px;
+
+  /* Corner radii */
+  --marvo-geo-radius-idle:            50%;
+  --marvo-geo-radius-capsule:         20px;
+  --marvo-geo-radius-expanded:        38px;
+  --marvo-geo-radius-pill:            999px;
+
+  /* ─────────────────────────────────────────────────────────────────
+     5. ELEVATION & Z-INDEX TOKENS
+     ───────────────────────────────────────────────────────────────── */
+  --marvo-z-hull:                     1;
+  --marvo-z-card:                     2;
+  --marvo-z-plasma:                   4;
+  --marvo-z-content:                  5;
+  --marvo-z-edge:                     6;
+  --marvo-z-lens:                     12;
+  --marvo-z-indicator-layer:          9999;
+  --marvo-z-overlay:                  10000;
+  --marvo-z-modal:                    10001;
+}
