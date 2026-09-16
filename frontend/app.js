@@ -3011,7 +3011,40 @@ const HapticFeedback = {
 // Cubic ease for organic, non-linear volume response
 const easeInOutCubic = x => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
 
+/**
+ * Authoritative Voice Indicator States.
+ * @readonly
+ * @enum {string}
+ */
+const VoiceIndicatorState = Object.freeze({
+  IDLE: 'idle',
+  LISTENING: 'listening',
+  THINKING: 'thinking',
+  SPEAKING: 'speaking',
+  ERROR: 'error'
+});
+
+/**
+ * Valid Voice Indicator State Transitions.
+ * @readonly
+ */
+const VALID_VOICE_STATE_TRANSITIONS = Object.freeze({
+  idle: Object.freeze(['listening', 'thinking', 'speaking', 'error']),
+  listening: Object.freeze(['thinking', 'idle', 'error', 'listening']),
+  thinking: Object.freeze(['speaking', 'idle', 'error']),
+  speaking: Object.freeze(['idle', 'listening', 'error', 'speaking']),
+  error: Object.freeze(['idle'])
+});
+
 class DynamicIslandManager {
+  static get STATES() {
+    return VoiceIndicatorState;
+  }
+
+  static get VALID_TRANSITIONS() {
+    return VALID_VOICE_STATE_TRANSITIONS;
+  }
+
   constructor() {
     this.island = document.getElementById('marvo-dynamic-island');
     this.appRoot = document.getElementById('app-root') || document.querySelector('.main');
@@ -3019,7 +3052,7 @@ class DynamicIslandManager {
     this.responseText = document.getElementById('islandResponseText');
     this.canvas = document.getElementById('islandWaveCanvas');
     this.ctx = this.canvas ? this.canvas.getContext('2d') : null;
-    this.state = 'idle'; // 'idle' | 'listening' | 'thinking' | 'speaking' | 'error'
+    this.state = VoiceIndicatorState.IDLE;
     this.volume = 0;
     this.smoothVolume = 0;
     this.active = false;
@@ -3028,10 +3061,28 @@ class DynamicIslandManager {
     this.expandTimer = null;
     this.errorTimer = null;
     this.visibilityHandler = null;
+    this.subscribers = new Set();
 
     this._bindTouchGestures();
     this._bindButtons();
     this._bindVisibility();
+  }
+
+  /**
+   * Subscribe a listener to voice indicator state transitions.
+   * @param {function(string, string, number): void} callback
+   * @returns {function(): void} Unsubscribe function
+   */
+  subscribe(callback) {
+    if (typeof callback === 'function') {
+      this.subscribers.add(callback);
+      return () => this.subscribers.delete(callback);
+    }
+    return () => {};
+  }
+
+  onStateChange(callback) {
+    return this.subscribe(callback);
   }
 
   getIsland() {
@@ -3084,7 +3135,7 @@ class DynamicIslandManager {
     el.style.transform = 'translateX(-50%)';
     el.style.transformOrigin = 'top center';
     el.style.willChange = 'width, height, border-radius, transform';
-    el.style.transition = 'width 0.38s linear, height 0.38s linear, border-radius 0.38s linear, transform 0.38s linear';
+    el.style.transition = 'width var(--marvo-duration-base) var(--marvo-ease-bounce), height var(--marvo-duration-base) var(--marvo-ease-bounce), border-radius var(--marvo-duration-base) var(--marvo-ease-bounce), transform var(--marvo-duration-base) var(--marvo-ease-bounce)';
 
     return el;
   }

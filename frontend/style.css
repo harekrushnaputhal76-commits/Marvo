@@ -5363,6 +5363,7 @@ body.island-active .main {
   width: var(--marvo-geo-expanded-max-width) !important;
   height: var(--marvo-geo-height-expanded) !important;
   transform: translateX(-50%) !important;
+  transform-origin: top center !important;
   filter: url(#marvo-goo);
   -webkit-filter: url(#marvo-goo);
   overflow: visible !important;
@@ -5384,9 +5385,9 @@ body.island-active .main {
   pointer-events: none !important;
   overflow: hidden !important;
   transition:
-    width var(--marvo-duration-base) linear,
-    height var(--marvo-duration-base) linear,
-    border-radius var(--marvo-duration-base) linear !important;
+    width var(--marvo-duration-base) var(--marvo-ease-bounce),
+    height var(--marvo-duration-base) var(--marvo-ease-bounce),
+    border-radius var(--marvo-duration-base) var(--marvo-ease-bounce) !important;
   will-change: width, height, border-radius !important;
 }
 
