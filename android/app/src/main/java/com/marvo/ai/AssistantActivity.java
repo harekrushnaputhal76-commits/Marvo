@@ -18,6 +18,11 @@ import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraManager;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
+import android.os.PowerManager;
 import android.bluetooth.BluetoothAdapter;
 import android.media.AudioManager;
 import android.net.ConnectivityManager;
@@ -6239,16 +6244,50 @@ public class AssistantActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        Log.d(TAG, "AssistantActivity onResume: Resuming interactive surface");
         setOrbState("IDLE");
         isSpeaking = false;
+
+        try {
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        } catch (Exception ignored) {}
+
+        try {
+            SensorManager sm = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+            if (sm != null && this instanceof SensorEventListener) {
+                Sensor accel = sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+                if (accel != null) {
+                    sm.registerListener((SensorEventListener) this, accel, SensorManager.SENSOR_DELAY_NORMAL);
+                }
+                Sensor prox = sm.getDefaultSensor(Sensor.TYPE_PROXIMITY);
+                if (prox != null) {
+                    sm.registerListener((SensorEventListener) this, prox, SensorManager.SENSOR_DELAY_NORMAL);
+                }
+            }
+        } catch (Exception ignored) {}
+
+        if (orbWebView != null) {
+            try {
+                orbWebView.onResume();
+                orbWebView.resumeTimers();
+            } catch (Exception ignored) {}
+        }
+        if (audioPollHandler != null && audioPollRunnable != null) {
+            audioPollHandler.removeCallbacks(audioPollRunnable);
+            audioPollHandler.postDelayed(audioPollRunnable, 50);
+        }
         if (speechRecognizer == null) {
             initSpeechRecognizer();
+        }
+        if (!isFinishing() && ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            startListening();
         }
     }
 
     @Override
     protected void onPause() {
         super.onPause();
+        Log.d(TAG, "AssistantActivity onPause: Aggressively terminating active audio/mic/recognition threads to preserve battery (0% CPU)");
         if (speechRecognizer != null) {
             try {
                 speechRecognizer.cancel();
@@ -6259,38 +6298,21 @@ public class AssistantActivity extends AppCompatActivity {
                 tts.stop();
             } catch (Exception ignored) {}
         }
-    }
+        isSpeaking = false;
 
-    @Override
-    protected void onStop() {
-        super.onStop();
-        if (speechRecognizer != null) {
-            try {
-                speechRecognizer.cancel();
-            } catch (Exception ignored) {}
-        }
-    }
-
-    @Override
-    public void finish() {
-        super.finish();
-        overridePendingTransition(0, R.anim.slide_down_assistant);
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        Log.d(TAG, "AssistantActivity onPause: Aggressively terminating active audio/mic/recognition threads to preserve battery (0% CPU)");
         try {
-            if (speechRecognizer != null) {
-                speechRecognizer.cancel();
+            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        } catch (Exception ignored) {}
+
+        try {
+            SensorManager sm = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+            if (sm != null) {
+                if (this instanceof SensorEventListener) {
+                    sm.unregisterListener((SensorEventListener) this);
+                }
             }
         } catch (Exception ignored) {}
-        try {
-            if (tts != null) {
-                tts.stop();
-            }
-        } catch (Exception ignored) {}
+
         if (audioPollHandler != null && audioPollRunnable != null) {
             audioPollHandler.removeCallbacks(audioPollRunnable);
         }
@@ -6312,19 +6334,19 @@ public class AssistantActivity extends AppCompatActivity {
     }
 
     @Override
-    protected void onResume() {
-        super.onResume();
-        Log.d(TAG, "AssistantActivity onResume: Resuming interactive surface");
-        if (orbWebView != null) {
+    protected void onStop() {
+        super.onStop();
+        if (speechRecognizer != null) {
             try {
-                orbWebView.onResume();
-                orbWebView.resumeTimers();
+                speechRecognizer.cancel();
             } catch (Exception ignored) {}
         }
-        if (audioPollHandler != null && audioPollRunnable != null) {
-            audioPollHandler.removeCallbacks(audioPollRunnable);
-            audioPollHandler.postDelayed(audioPollRunnable, 50);
-        }
+    }
+
+    @Override
+    public void finish() {
+        super.finish();
+        overridePendingTransition(0, R.anim.slide_down_assistant);
     }
 
     @Override
