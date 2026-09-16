@@ -210,7 +210,7 @@
 <div id="sidebarOverlay" class="sidebar-overlay"></div>
 
 <!-- ═══════════ MAIN CONTAINER ═══════════ -->
-<main class="main">
+<main id="app-root" class="main">
 
   <!-- Top Bar with Safe Area Insets & Strict Vertical Stacking (No Overlap) -->
   <header class="topbar">
@@ -1177,59 +1177,59 @@
   </div>
 </div>
 
-<!-- ═══════════ APPLE SIRI-LEVEL FLUID VOICE DOCK (iOS 18 APPLE INTELLIGENCE) ═══════════ -->
-<div id="voiceOverlay" class="voice-overlay voice-bottom-dock">
-  <div id="siri-orb-dock" class="siri-orb-dock">
-    <div class="siri-glass-card">
-      <div class="siri-top-bar">
-        <div class="siri-drag-pill"></div>
-        <button id="btnVoiceClose" class="siri-btn-close" aria-label="Close">&times;</button>
-      </div>
+<!-- ═══════════ APPLE 2026 DYNAMIC ISLAND - CAMERA MORPH (LIQUID GLASS SHELL) ═══════════ -->
+<div id="marvo-camera-island" class="camera-island-bubble" aria-live="polite">
+  <!-- Phase 1: Rainbow Prism Light Arc (Top Inside Edge below Camera Lens) -->
+  <div class="prism-light-arc"></div>
 
-      <!-- 1:1 Apple Siri Fluid Plasma Orb (5-Layer Blobs + Glass Blur) -->
-      <div id="siri-orb-wrap" class="siri-orb-wrap">
-        <div class="siri-master-container" id="siriPlasmaContainer">
-          <div class="siri-blob color-blue"></div>
-          <div class="siri-blob color-magenta"></div>
-          <div class="siri-blob color-cyan"></div>
-          <div class="siri-blob color-violet"></div>
-          <div class="siri-glass-blur"></div> <!-- Heavy backdrop filter -->
-        </div>
-      </div>
-
-      <!-- Apple Intelligence Frosted Glass Pill Status & Subtitle -->
-      <div id="siri-orb-label" class="siri-orb-label visible">Listening…</div>
-      <span class="voice-status-text" id="voiceStatusText" style="display:none;">Listening...</span>
-
-      <!-- Live Voice Transcript in iOS System Typography -->
-      <div class="voice-transcript-box" id="voiceTranscriptBox">
-        <p id="voiceTranscriptText" class="voice-transcript-text">Listening to you...</p>
-      </div>
-
-      <!-- Apple Glassmorphic Control Dock -->
-      <div class="voice-controls-dock siri-controls">
-        <button id="btnVoiceCancel" class="btn-siri-action siri-cancel" aria-label="Cancel">
-          <svg viewBox="0 0 24 24" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-          <span>Cancel</span>
-        </button>
-
-        <button id="btnVoicePauseResume" class="btn-siri-action siri-pause-resume" aria-label="Pause or Resume">
-          <svg id="iconVoicePause" viewBox="0 0 24 24" width="16" height="16"><rect x="6" y="4" width="4" height="16" rx="1.5" fill="currentColor"/><rect x="14" y="4" width="4" height="16" rx="1.5" fill="currentColor"/></svg>
-          <svg id="iconVoiceResume" class="hidden" viewBox="0 0 24 24" width="16" height="16"><polygon points="6 4 19 12 6 20 6 4" fill="currentColor"/></svg>
-          <span id="labelVoicePauseResume">Pause</span>
-        </button>
-
-        <button id="btnVoiceSend" class="btn-siri-action siri-send" aria-label="Send Recording">
-          <svg viewBox="0 0 24 24" width="16" height="16"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"/></svg>
-          <span>Send</span>
-        </button>
-      </div>
-
-      <!-- Hidden fallbacks for legacy audio visualizer compatibility -->
-      <canvas id="voiceWaveCanvas" class="hidden" width="1" height="1" style="display:none;"></canvas>
-      <div id="voiceBars" class="hidden" style="display:none;"></div>
-    </div>
+  <!-- Physical Punch-hole Camera Lens Anchor & Specular Reflection -->
+  <div class="island-camera-lens">
+    <div class="camera-lens-reflection"></div>
   </div>
+
+  <!-- Island Top Bar: Status Badge & Close Trigger -->
+  <div class="island-top-row">
+    <div class="island-status-badge" id="islandStatusPill">Listening…</div>
+    <button id="btnIslandClose" class="island-close-btn" aria-label="Close Island">&times;</button>
+  </div>
+
+  <!-- Phase 5: 3-State Plasma Waveform Visualizer & Ambient Conic Glow -->
+  <div class="island-plasma-wrapper" id="islandPlasmaWrapper">
+    <canvas id="islandWaveCanvas" class="island-wave-canvas" width="380" height="64"></canvas>
+    <div class="island-conic-glow" id="islandConicGlow"></div>
+  </div>
+
+  <!-- Phase 2: Apple Typography Response Content & Staggered Reveal -->
+  <div id="island-response-content" class="island-response-content">
+    <p id="islandResponseText" class="island-response-text">Listening to you...</p>
+  </div>
+
+  <!-- Island Glassmorphic Action Controls -->
+  <div class="island-action-bar" id="islandActionBar">
+    <button id="btnIslandCancel" class="island-btn island-btn-cancel" aria-label="Cancel">
+      <svg viewBox="0 0 24 24" width="15" height="15"><line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <span>Cancel</span>
+    </button>
+    <button id="btnIslandPauseResume" class="island-btn island-btn-pause" aria-label="Pause or Resume">
+      <svg id="iconIslandPause" viewBox="0 0 24 24" width="15" height="15"><rect x="6" y="4" width="4" height="16" rx="1.5" fill="currentColor"/><rect x="14" y="4" width="4" height="16" rx="1.5" fill="currentColor"/></svg>
+      <svg id="iconIslandResume" class="hidden" viewBox="0 0 24 24" width="15" height="15"><polygon points="6 4 19 12 6 20 6 4" fill="currentColor"/></svg>
+      <span id="labelIslandPauseResume">Pause</span>
+    </button>
+    <button id="btnIslandSend" class="island-btn island-btn-send" aria-label="Send Recording">
+      <svg viewBox="0 0 24 24" width="15" height="15"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"/></svg>
+      <span>Send</span>
+    </button>
+  </div>
+
+  <!-- Swipe-up dismiss pill handle -->
+  <div class="island-drag-pill" id="islandDragPill"></div>
+
+  <!-- Hidden compatibility hooks for existing script bindings -->
+  <div id="voiceOverlay" style="display:none;" class="hidden"></div>
+  <span id="voiceStatusText" style="display:none;"></span>
+  <p id="voiceTranscriptText" style="display:none;"></p>
+  <canvas id="voiceWaveCanvas" style="display:none;" width="1" height="1"></canvas>
+  <div id="voiceTranscriptBox" style="display:none;"></div>
 </div>
 
 <!-- Toast notification helper -->

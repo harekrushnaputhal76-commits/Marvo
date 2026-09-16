@@ -142,24 +142,36 @@ const DOM = {
   btnMic:             $('#btnMic'),
   btnScreenShare:     $('#btnScreenShare'),
 
-  // Bottom-Docked Voice UI
-  voiceOverlay:         $('#voiceOverlay'),
-  voiceStatusText:      $('#voiceStatusText'),
-  voiceWaveCanvas:      $('#voiceWaveCanvas'),
-  voiceBars:            $('#voiceBars'),
-  voiceTranscriptBox:   $('#voiceTranscriptBox'),
-  voiceTranscriptText:  $('#voiceTranscriptText'),
-  btnVoiceClose:        $('#btnVoiceClose'),
-  btnVoiceCancel:       $('#btnVoiceCancel'),
-  btnVoicePauseResume:  $('#btnVoicePauseResume'),
-  iconVoicePause:       $('#iconVoicePause'),
-  iconVoiceResume:      $('#iconVoiceResume'),
-  labelVoicePauseResume:$('#labelVoicePauseResume'),
-  btnVoiceSend:         $('#btnVoiceSend'),
-  siriOrbDock:          $('#siri-orb-dock'),
-  siriOrbWrap:          $('#siri-orb-wrap'),
-  siriOrb:              $('#siri-orb'),
-  siriOrbLabel:         $('#siri-orb-label'),
+  // Apple 2026 Dynamic Island & Voice UI
+  cameraIsland:         $('#marvo-camera-island'),
+  prismLightArc:        $('.prism-light-arc'),
+  islandResponseContent:$('#island-response-content'),
+  islandResponseText:   $('#islandResponseText'),
+  islandStatusPill:     $('#islandStatusPill'),
+  islandWaveCanvas:     $('#islandWaveCanvas'),
+  islandPlasma:         $('#islandPlasmaWrapper'),
+  btnIslandClose:       $('#btnIslandClose'),
+  btnIslandCancel:      $('#btnIslandCancel'),
+  btnIslandPauseResume: $('#btnIslandPauseResume'),
+  iconIslandPause:      $('#iconIslandPause'),
+  iconIslandResume:     $('#iconIslandResume'),
+  labelIslandPauseResume:$('#labelIslandPauseResume'),
+  btnIslandSend:        $('#btnIslandSend'),
+  appRoot:              $('#app-root'),
+
+  // Unified aliases ensuring seamless voice assistant compatibility
+  voiceOverlay:         $('#marvo-camera-island'),
+  voiceStatusText:      $('#islandStatusPill'),
+  voiceWaveCanvas:      $('#islandWaveCanvas'),
+  voiceTranscriptBox:   $('#island-response-content'),
+  voiceTranscriptText:  $('#islandResponseText'),
+  btnVoiceClose:        $('#btnIslandClose'),
+  btnVoiceCancel:       $('#btnIslandCancel'),
+  btnVoicePauseResume:  $('#btnIslandPauseResume'),
+  iconVoicePause:       $('#iconIslandPause'),
+  iconVoiceResume:      $('#iconIslandResume'),
+  labelVoicePauseResume:$('#labelIslandPauseResume'),
+  btnVoiceSend:         $('#btnIslandSend'),
 
   // Toast
   appToast:           $('#appToast'),
@@ -1610,6 +1622,10 @@ async function playSpeech(text, btnElement = null) {
   if (btnElement) btnElement.classList.add('playing-tts');
   setEyeExpression('state-speaking');
   DOM.face?.classList.add('speaking-mode');
+  if (window.dynamicIslandInstance) {
+    window.dynamicIslandInstance.setResponseText(cleanText);
+    window.dynamicIslandInstance.setVoiceState('speaking', 65);
+  }
   if (window.setVoiceState) window.setVoiceState('speaking', 60);
 
   try {
@@ -1639,6 +1655,13 @@ async function playSpeech(text, btnElement = null) {
         DOM.face.classList.remove('speaking-mode');
         setEyeExpression('state-idle');
         if (window.setVoiceState) window.setVoiceState('idle', 0);
+        if (window.dynamicIslandInstance && window.dynamicIslandInstance.active) {
+          setTimeout(() => {
+            if (window.dynamicIslandInstance && !isVoiceRecording) {
+              window.dynamicIslandInstance.close();
+            }
+          }, 2600);
+        }
         if (currentAudio === audio) currentAudio = null;
       };
       audio.onerror = () => {
@@ -1675,6 +1698,13 @@ function fallbackWebSpeech(text, btnElement, volume = 1.0, pitch = 1.0) {
     DOM.face.classList.remove('speaking-mode');
     setEyeExpression('state-idle');
     if (window.setVoiceState) window.setVoiceState('idle', 0);
+    if (window.dynamicIslandInstance && window.dynamicIslandInstance.active) {
+      setTimeout(() => {
+        if (window.dynamicIslandInstance && !isVoiceRecording) {
+          window.dynamicIslandInstance.close();
+        }
+      }, 2600);
+    }
   };
   utter.onerror = () => {
     if (btnElement) btnElement.classList.remove('playing-tts');
@@ -1682,6 +1712,10 @@ function fallbackWebSpeech(text, btnElement, volume = 1.0, pitch = 1.0) {
     setEyeExpression('state-idle');
     if (window.setVoiceState) window.setVoiceState('idle', 0);
   };
+  if (window.dynamicIslandInstance) {
+    window.dynamicIslandInstance.setResponseText(text);
+    window.dynamicIslandInstance.setVoiceState('speaking', 65);
+  }
   if (window.setVoiceState) window.setVoiceState('speaking', 60);
   window.speechSynthesis.speak(utter);
 }
@@ -2914,136 +2948,347 @@ async function sendMessage(userText) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   APPLE INTELLIGENCE SIRI-LEVEL FLUID VOICE ORB ENGINE & INTERACTION
+   PHASE 6: PREMIUM TAPTIC FEEDBACK (MICRO-VIBRATIONS)
+   Action 1: Island fully expands -> Medium Impact / CONFIRM
+   Action 2: Swipe up / dismiss -> Light Impact / REJECT
+   Action 3: State Thinking to Responding -> Subtle Tick
    ═══════════════════════════════════════════════════════════════════ */
-const SIRI_STATES = {
-  idle: {
-    colors: ['#8B5CF6', '#3B82F6', '#EC4899', '#22D3EE'],
-    speed: 0.35,
-    amp: 0.14,
-    glow: 'rgba(139,92,246,.45)',
-    glow2: 'rgba(59,130,246,.25)',
-    label: ''
+const HapticFeedback = {
+  confirm() {
+    try {
+      if (window.Capacitor?.Plugins?.Haptics) {
+        window.Capacitor.Plugins.Haptics.impact({ style: 'MEDIUM' });
+      } else if (navigator.vibrate) {
+        navigator.vibrate(25);
+      }
+    } catch (e) {}
   },
-  listening: {
-    colors: ['#22D3EE', '#34D399', '#3B82F6', '#8B5CF6'],
-    speed: 0.85,
-    amp: 0.30,
-    glow: 'rgba(34,211,238,.55)',
-    glow2: 'rgba(52,211,153,.28)',
-    label: 'Listening…'
+  reject() {
+    try {
+      if (window.Capacitor?.Plugins?.Haptics) {
+        window.Capacitor.Plugins.Haptics.impact({ style: 'LIGHT' });
+      } else if (navigator.vibrate) {
+        navigator.vibrate(15);
+      }
+    } catch (e) {}
   },
-  thinking: {
-    colors: ['#F472B6', '#F59E0B', '#8B5CF6', '#3B82F6'],
-    speed: 1.40,
-    amp: 0.24,
-    glow: 'rgba(245,158,11,.55)',
-    glow2: 'rgba(244,114,182,.30)',
-    label: 'Thinking…'
-  },
-  speaking: {
-    colors: ['#EC4899', '#8B5CF6', '#22D3EE', '#3B82F6'],
-    speed: 1.10,
-    amp: 0.44,
-    glow: 'rgba(236,72,153,.60)',
-    glow2: 'rgba(139,92,246,.32)',
-    label: 'Speaking…'
+  tick() {
+    try {
+      if (window.Capacitor?.Plugins?.Haptics) {
+        window.Capacitor.Plugins.Haptics.selectionStart();
+      } else if (navigator.vibrate) {
+        navigator.vibrate(8);
+      }
+    } catch (e) {}
   }
 };
 
-// Cubic ease for organic, non-linear volume response
-const easeInOutCubic = x => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+/* ═══════════════════════════════════════════════════════════════════
+   APPLE 2026 DYNAMIC ISLAND - CAMERA MORPH CONTROLLER
+   Phase 1: 3D Liquid Glass Camera Bubble (140x140px)
+   Phase 2: Liquid Expansion into 92% Squircle Panel + Staggered Reveal
+   Phase 4: Screen Push-Back Effect (Z-Axis Depth on #app-root)
+   Phase 5: 3-State Plasma Waveform Visualizer
+   Phase 6: Hardware Taptic Feedback & Touch Gestures
+   ═══════════════════════════════════════════════════════════════════ */
+class DynamicIslandManager {
+  constructor() {
+    this.island = document.getElementById('marvo-camera-island');
+    this.appRoot = document.getElementById('app-root') || document.querySelector('.main');
+    this.statusPill = document.getElementById('islandStatusPill');
+    this.responseText = document.getElementById('islandResponseText');
+    this.canvas = document.getElementById('islandWaveCanvas');
+    this.ctx = this.canvas ? this.canvas.getContext('2d') : null;
+    this.state = 'idle'; // 'idle' | 'listening' | 'thinking' | 'speaking'
+    this.volume = 0;
+    this.smoothVolume = 0;
+    this.active = false;
+    this.animId = null;
+    this.touchStartY = 0;
+    this.expandTimer = null;
 
-class SiriOrb {
-  constructor(canvas, labelEl) {
-    this.canvas = canvas;
-    this.label = labelEl;
-    this.plasma = document.getElementById('siriPlasmaContainer');
-    this.wrap = document.getElementById('siri-orb-wrap');
+    this._bindTouchGestures();
+    this._bindButtons();
+    this._bindVisibility();
+  }
+
+  getIsland() {
+    if (!this.island) this.island = document.getElementById('marvo-camera-island');
+    return this.island;
+  }
+
+  getAppRoot() {
+    if (!this.appRoot) this.appRoot = document.getElementById('app-root') || document.querySelector('.main');
+    return this.appRoot;
+  }
+
+  open() {
+    const el = this.getIsland();
+    const root = this.getAppRoot();
+    if (!el) return;
+
+    this.active = true;
+    el.classList.add('island-open');
+    el.classList.remove('state-idle');
+
+    // Phase 4: Push-back effect on main OS container
+    if (root) {
+      root.classList.add('island-pushed-back');
+    }
+    document.body.classList.add('island-active');
+
+    // Phase 2: Fluid Expansion into 92% Squircle Panel
+    if (this.expandTimer) clearTimeout(this.expandTimer);
+    requestAnimationFrame(() => {
+      el.classList.add('expanded', 'active');
+    });
+
+    // Phase 6 Action 1: When Island fully expands -> Trigger Medium Impact / CONFIRM
+    this.expandTimer = setTimeout(() => {
+      if (this.active) {
+        HapticFeedback.confirm();
+      }
+    }, 420);
+
+    this.setVoiceState('listening', 0);
+    this._startVisualizerLoop();
+  }
+
+  close() {
+    const el = this.getIsland();
+    const root = this.getAppRoot();
+    this.active = false;
+
+    if (this.expandTimer) {
+      clearTimeout(this.expandTimer);
+      this.expandTimer = null;
+    }
+
+    if (el) {
+      el.classList.remove('expanded', 'active', 'state-listening', 'state-thinking', 'state-speaking');
+      el.classList.add('state-idle');
+      setTimeout(() => {
+        if (!this.active) el.classList.remove('island-open');
+      }, 500);
+    }
+
+    // Phase 4: Smoothly restore OS container back to normal
+    if (root) {
+      root.classList.remove('island-pushed-back');
+    }
+    document.body.classList.remove('island-active');
+
+    // Phase 6 Action 2: Trigger Light Impact / REJECT on close
+    HapticFeedback.reject();
+
+    if (this.animId) {
+      cancelAnimationFrame(this.animId);
+      this.animId = null;
+    }
     this.state = 'idle';
     this.volume = 0;
-    this.running = false;
-    this._bindVisibility();
-    this.setVoiceState('idle', 0);
+    this.smoothVolume = 0;
+  }
+
+  setAudioLevel(rms) {
+    if (!this.active || this.state !== 'listening') return;
+    const raw = Math.min(100, Math.max(0, rms * 340));
+    this.smoothVolume += (raw - this.smoothVolume) * 0.35;
+    this.volume = Math.round(this.smoothVolume);
   }
 
   setVoiceState(state, volume = 0) {
+    const el = this.getIsland();
     const validStates = ['idle', 'listening', 'thinking', 'speaking'];
     const s = validStates.includes(state) ? state : 'idle';
+    const prevState = this.state;
     this.state = s;
     this.volume = Math.max(0, Math.min(100, volume));
 
-    const cfg = SIRI_STATES[s] || SIRI_STATES.idle;
-    if (!this.wrap) this.wrap = document.getElementById('siri-orb-wrap');
-    if (this.wrap) {
-      this.wrap.style.setProperty('--orb-glow', cfg.glow);
-      this.wrap.style.setProperty('--orb-glow2', cfg.glow2);
+    // Phase 6 Action 3: When state changes from 'Thinking' to 'Responding' -> Trigger subtle Tick
+    if (prevState === 'thinking' && s === 'speaking') {
+      HapticFeedback.tick();
     }
 
-    if (!this.plasma) {
-      this.plasma = document.getElementById('siriPlasmaContainer');
-    }
-    if (this.plasma) {
-      this.plasma.classList.remove('state-idle', 'state-listening', 'state-thinking', 'state-speaking');
-      this.plasma.classList.add(`state-${s}`);
-
-      // Constrained subtle scale reactivity: strictly 1.0 to 1.08 max
-      const easedScale = 1.0 + Math.min(0.08, easeInOutCubic(this.volume / 100) * 0.08);
-      this.plasma.style.setProperty('--siri-vol-scale', easedScale.toFixed(3));
+    if (el) {
+      el.classList.remove('state-idle', 'state-listening', 'state-thinking', 'state-speaking');
+      el.classList.add(`state-${s}`);
     }
 
-    if (this.label) {
-      if (cfg.label) {
-        this.label.textContent = cfg.label;
-        requestAnimationFrame(() => this.label.classList.add('visible'));
-      } else {
-        this.label.classList.remove('visible');
-      }
+    const stateLabels = {
+      idle: 'Ready',
+      listening: 'Listening…',
+      thinking: 'Thinking…',
+      speaking: 'Responding…'
+    };
+
+    if (!this.statusPill) this.statusPill = document.getElementById('islandStatusPill');
+    if (this.statusPill) {
+      this.statusPill.textContent = stateLabels[s] || 'Marvo';
     }
     const legacyStatus = document.getElementById('voiceStatusText');
-    if (legacyStatus && cfg.label) legacyStatus.textContent = cfg.label;
+    if (legacyStatus) {
+      legacyStatus.textContent = stateLabels[s] || 'Marvo';
+    }
+  }
+
+  setResponseText(text) {
+    if (!this.responseText) this.responseText = document.getElementById('islandResponseText');
+    if (this.responseText && text) {
+      this.responseText.textContent = text;
+    }
+    const legacyTranscript = document.getElementById('voiceTranscriptText');
+    if (legacyTranscript && text) {
+      legacyTranscript.textContent = text;
+    }
+  }
+
+  _bindTouchGestures() {
+    const el = this.getIsland();
+    if (!el) return;
+
+    el.addEventListener('touchstart', (e) => {
+      this.touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+
+    el.addEventListener('touchend', (e) => {
+      const touchEndY = e.changedTouches[0].clientY;
+      const deltaY = touchEndY - this.touchStartY;
+      // Phase 6: Swipe-up gesture upwards by > 28px -> Dismiss Island
+      if (deltaY < -28 && this.active) {
+        if (typeof closeVoiceDock === 'function') {
+          closeVoiceDock();
+        } else {
+          this.close();
+        }
+      }
+    }, { passive: true });
+  }
+
+  _bindButtons() {
+    const btnClose = document.getElementById('btnIslandClose');
+    if (btnClose) {
+      btnClose.onclick = () => {
+        if (typeof closeVoiceDock === 'function') closeVoiceDock();
+        else this.close();
+      };
+    }
+    const btnCancel = document.getElementById('btnIslandCancel');
+    if (btnCancel) {
+      btnCancel.onclick = () => {
+        if (typeof closeVoiceDock === 'function') closeVoiceDock();
+        else this.close();
+      };
+    }
+    const btnPause = document.getElementById('btnIslandPauseResume');
+    if (btnPause) {
+      btnPause.onclick = () => {
+        if (typeof toggleVoicePauseResume === 'function') toggleVoicePauseResume();
+      };
+    }
+    const btnSend = document.getElementById('btnIslandSend');
+    if (btnSend) {
+      btnSend.onclick = () => {
+        if (typeof submitVoiceRecording === 'function') submitVoiceRecording();
+      };
+    }
   }
 
   _bindVisibility() {
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
-        this.stop();
-      } else if (typeof isVoiceRecording !== 'undefined' && isVoiceRecording) {
-        this.start();
+        if (this.active && typeof closeVoiceDock === 'function') {
+          closeVoiceDock();
+        }
       }
     });
   }
 
-  start() {
-    this.running = true;
-    if (!this.plasma) this.plasma = document.getElementById('siriPlasmaContainer');
-    if (this.plasma) {
-      this.plasma.classList.remove('siri-paused');
-    }
+  _startVisualizerLoop() {
+    if (this.animId) cancelAnimationFrame(this.animId);
+
+    const render = () => {
+      if (!this.active) return;
+      this.animId = requestAnimationFrame(render);
+
+      if (!this.canvas) this.canvas = document.getElementById('islandWaveCanvas');
+      if (!this.canvas) return;
+      if (!this.ctx) this.ctx = this.canvas.getContext('2d');
+      const ctx = this.ctx;
+      if (!ctx) return;
+
+      const width = this.canvas.width;
+      const height = this.canvas.height;
+      ctx.clearRect(0, 0, width, height);
+
+      const time = Date.now() * 0.004;
+
+      // Phase 5: 3-State Plasma Waveform Visualizer
+      // Palette: Violet (#5E5CE6), Pink (#FF375F), Cyan (#64D2FF), Blue (#0A84FF)
+      if (this.state === 'thinking') {
+        // State 2 (Thinking): No jagged waves! Minimal harmonic hum; CSS conic-glow handles ambient spin
+        return;
+      }
+
+      let baseAmp = 3;
+      if (this.state === 'listening') {
+        // State 1 (Listening): Waves bouncing actively based on mic volume
+        baseAmp = Math.max(4, Math.min(26, (this.volume / 100) * 28));
+      } else if (this.state === 'speaking') {
+        // State 3 (Responding): Smooth rolling waves syncing to TTS rhythm
+        baseAmp = 12 + Math.sin(time * 3) * 6;
+      }
+
+      const waves = [
+        { color: 'rgba(100, 210, 255, 0.95)', speed: 1.1, phase: 0, ampMult: 1.0, width: 2.5 },
+        { color: 'rgba(255, 55, 95, 0.85)', speed: -1.3, phase: Math.PI / 3, ampMult: 0.75, width: 2.0 },
+        { color: 'rgba(94, 92, 230, 0.80)', speed: 0.8, phase: Math.PI / 1.5, ampMult: 0.55, width: 1.8 }
+      ];
+
+      waves.forEach(w => {
+        ctx.beginPath();
+        ctx.lineWidth = w.width;
+        ctx.strokeStyle = w.color;
+        ctx.shadowColor = w.color;
+        ctx.shadowBlur = 6;
+
+        for (let x = 0; x < width; x += 4) {
+          const envelope = Math.sin((x / width) * Math.PI); // Pinches ends
+          const y = height / 2 + Math.sin(x * 0.035 + time * w.speed + w.phase) * baseAmp * w.ampMult * envelope;
+          if (x === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      });
+      ctx.shadowBlur = 0;
+    };
+
+    render();
   }
 
-  stop() {
-    this.running = false;
-    if (!this.plasma) this.plasma = document.getElementById('siriPlasmaContainer');
-    if (this.plasma) {
-      this.plasma.classList.add('siri-paused');
-    }
-  }
+  // Compatibility aliases
+  start() { this.open(); }
+  stop() { this.close(); }
+  activate() { this.open(); }
+  deactivate() { this.close(); }
+  destroy() { this.close(); }
+}
 
-  destroy() {
-    this.stop();
+let dynamicIslandInstance = null;
+let siriOrbInstance = null;
+
+function initDynamicIsland() {
+  if (!dynamicIslandInstance) {
+    dynamicIslandInstance = new DynamicIslandManager();
+    siriOrbInstance = dynamicIslandInstance;
+    window.dynamicIslandInstance = dynamicIslandInstance;
+    window.siriOrbInstance = dynamicIslandInstance;
+    window.setVoiceState = (state, volume) => dynamicIslandInstance.setVoiceState(state, volume);
   }
 }
 
-let siriOrbInstance = null;
 function initSiriOrb() {
-  const canvas = document.getElementById('siri-orb');
-  const label = document.getElementById('siri-orb-label');
-  if (!siriOrbInstance) {
-    siriOrbInstance = new SiriOrb(canvas, label);
-    window.siriOrbInstance = siriOrbInstance;
-    window.setVoiceState = (state, volume) => siriOrbInstance.setVoiceState(state, volume);
-  }
+  initDynamicIsland();
 }
 
 let isVoiceRecording = false;
@@ -3105,7 +3350,10 @@ async function initAudioVisualizer() {
       micRmsCount++;
       dynamicAmp = Math.max(4, Math.min(32, rms * 80));
 
-      // Directly feed real microphone frequency/volume to Apple Siri Orb!
+      // Directly feed real microphone frequency/volume to Dynamic Island!
+      if (window.dynamicIslandInstance && isVoiceRecording && !isVoicePaused) {
+        window.dynamicIslandInstance.setAudioLevel(rms);
+      }
       if (window.setVoiceState && isVoiceRecording) {
         const rawVol = Math.min(100, Math.max(0, rms * 350));
         window.setVoiceState(isVoicePaused ? 'idle' : 'listening', isVoicePaused ? 0 : rawVol);
@@ -3154,18 +3402,17 @@ function openVoiceDock() {
   isVoiceRecording = true;
   isVoicePaused = false;
   currentVoiceTranscript = '';
-  DOM.voiceTranscriptText.textContent = 'Listening to you...';
+  if (DOM.voiceTranscriptText) DOM.voiceTranscriptText.textContent = 'Listening to you...';
   if (DOM.voiceStatusText) DOM.voiceStatusText.textContent = 'Listening...';
-  DOM.iconVoicePause.classList.remove('hidden');
-  DOM.iconVoiceResume.classList.add('hidden');
-  DOM.labelVoicePauseResume.textContent = 'Pause';
-  DOM.voiceOverlay.classList.add('show');
+  if (DOM.iconVoicePause) DOM.iconVoicePause.classList.remove('hidden');
+  if (DOM.iconVoiceResume) DOM.iconVoiceResume.classList.add('hidden');
+  if (DOM.labelVoicePauseResume) DOM.labelVoicePauseResume.textContent = 'Pause';
   DOM.btnMic.classList.add('recording');
   setEyeExpression('state-listening');
 
-  initSiriOrb();
-  if (window.siriOrbInstance) {
-    window.siriOrbInstance.start();
+  initDynamicIsland();
+  if (window.dynamicIslandInstance) {
+    window.dynamicIslandInstance.open();
   }
   if (window.setVoiceState) {
     window.setVoiceState('listening', 0);
@@ -3194,7 +3441,6 @@ function closeVoiceDock() {
     clearTimeout(speechSilenceTimer);
     speechSilenceTimer = null;
   }
-  DOM.voiceOverlay.classList.remove('show');
   DOM.btnMic.classList.remove('recording');
   if (visualizerAnimId) cancelAnimationFrame(visualizerAnimId);
   if (speechRecognizer) {
@@ -3209,8 +3455,8 @@ function closeVoiceDock() {
   if (window.setVoiceState) {
     window.setVoiceState('idle', 0);
   }
-  if (window.siriOrbInstance) {
-    window.siriOrbInstance.stop();
+  if (window.dynamicIslandInstance) {
+    window.dynamicIslandInstance.close();
   }
   if (!isBusy) setEyeExpression('state-idle');
 }
@@ -3262,13 +3508,28 @@ function submitVoiceRecording() {
   }
 
   const textToSend = currentVoiceTranscript.trim();
-  closeVoiceDock();
   if (textToSend) {
-    // Transition: Listening -> Processing (Orb glowing/thinking)
+    // Keep Dynamic Island open and transition: Listening -> Thinking
+    isVoiceRecording = false;
+    if (visualizerAnimId) cancelAnimationFrame(visualizerAnimId);
+    if (speechRecognizer) {
+      try { speechRecognizer.stop(); } catch {}
+    }
+    if (micStream) {
+      try { micStream.getTracks().forEach(t => t.stop()); } catch {}
+      micStream = null;
+      analyser = null;
+    }
+    DOM.btnMic?.classList.remove('recording');
     setEyeExpression('state-thinking');
-    if (window.setVoiceState) window.setVoiceState('thinking', 20);
+    if (window.dynamicIslandInstance) {
+      window.dynamicIslandInstance.setVoiceState('thinking', 20);
+    } else if (window.setVoiceState) {
+      window.setVoiceState('thinking', 20);
+    }
     sendMessage(textToSend);
   } else {
+    closeVoiceDock();
     setEyeExpression('state-idle');
     if (window.setVoiceState) window.setVoiceState('idle', 0);
     showToast('No speech detected');
@@ -4590,9 +4851,8 @@ document.addEventListener('visibilitychange', () => {
       closeVoiceDock();
     }
 
-    // 3. Halt Siri Plasma animations
-    const siriPlasma = document.getElementById('siriPlasmaContainer');
-    if (siriPlasma) siriPlasma.classList.add('siri-paused');
+    // 3. Halt Dynamic Island animations & speech
+    if (window.dynamicIslandInstance) window.dynamicIslandInstance.close();
     if (window.siriOrbInstance) window.siriOrbInstance.stop();
 
     // 4. Halt 3D Gyroscope sensor

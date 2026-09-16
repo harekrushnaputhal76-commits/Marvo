@@ -4783,380 +4783,350 @@ body.page-paused * {
   opacity: 0.85;
 }
 
-/* Strictly Enforce Widget Z-Index Hierarchy: Voice / Siri Dock on Top */
-.voice-bottom-dock {
+/* ═══════════════════════════════════════════════════════════════════
+   PHASE 4: SCREEN PUSH-BACK EFFECT (Z-AXIS DEPTH)
+   Apple Intelligence pushes the rest of the OS backward to create 3D depth
+   ═══════════════════════════════════════════════════════════════════ */
+#app-root,
+.main {
+  transform-origin: top center;
+  transition: all 0.5s cubic-bezier(0.32, 0.72, 0, 1);
+  will-change: transform, filter;
+}
+
+#app-root.island-pushed-back,
+.main.island-pushed-back,
+body.island-active #app-root,
+body.island-active .main {
+  transform: scale(0.95) translateY(6px);
+  filter: brightness(0.7) blur(2px);
+  -webkit-filter: brightness(0.7) blur(2px);
+  border-radius: 24px;
+  overflow: hidden;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   APPLE 2026 DYNAMIC ISLAND - CAMERA MORPH (LIQUID GLASS SHELL)
+   Phase 1: 3D Liquid Glass Sphere (140x140px) anchored to top punch-hole
+   Phase 2: Fluid Expansion into 92% Squircle Panel
+   Phase 5: 3-State Plasma Waveform Visualizer
+   ═══════════════════════════════════════════════════════════════════ */
+#marvo-camera-island {
   position: fixed;
-  inset: 0;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%) translateZ(0);
+  -webkit-transform: translateX(-50%) translateZ(0);
+  z-index: 9999;
+  box-sizing: border-box;
+  overflow: hidden;
+
+  /* Phase 1 Specs: Initial 140x140px Sphere expanding from camera */
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+
+  /* 3D Liquid Glass Material */
+  background: linear-gradient(180deg, rgba(30, 30, 30, 0.6) 0%, rgba(10, 10, 10, 0.2) 100%);
+  backdrop-filter: blur(40px) saturate(180%) contrast(110%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%) contrast(110%);
+  box-shadow:
+    inset 0px -10px 30px rgba(255, 255, 255, 0.05),
+    inset 0px 4px 10px rgba(255, 255, 255, 0.1),
+    0 16px 45px rgba(0, 0, 0, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+
   display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  padding-bottom: max(20px, env(safe-area-inset-bottom));
-  background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  z-index: 3000 !important;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 14px 18px;
+
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  transition: opacity 0.35s cubic-bezier(0.22, 1, 0.36, 1), visibility 0.35s;
+
+  /* Signature Apple-style bouncy spring curve */
+  transition: all 0.65s cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: width, height, border-radius, transform, opacity;
 }
 
-.voice-bottom-dock.show {
+/* Island Summoned & Active States */
+#marvo-camera-island.island-open {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
 }
 
-.siri-orb-dock {
+/* Phase 1: Rainbow Prism Arc (The Signature Detail) */
+.prism-light-arc {
+  width: 60%;
+  height: 8px;
+  position: absolute;
+  top: 15%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(90deg, rgba(255,0,0,0) 0%, #FF3B30 20%, #FF9500 40%, #34C759 60%, #007AFF 80%, rgba(0,0,255,0) 100%);
+  border-radius: 999px;
+  filter: blur(4px);
+  -webkit-filter: blur(4px);
+  mix-blend-mode: screen;
+  pointer-events: none;
+  z-index: 10;
+  transition: width 0.65s cubic-bezier(0.2, 0.8, 0.2, 1),
+              top 0.65s cubic-bezier(0.2, 0.8, 0.2, 1),
+              opacity 0.65s ease;
+}
+
+/* Physical punch-hole camera lens simulation */
+.island-camera-lens {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #181d28 0%, #08090d 80%);
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.2), 0 0 2px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+  z-index: 11;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  width: 100%;
-  max-width: 420px;
-  padding: 0 16px;
-  pointer-events: auto;
-  overflow: visible !important;
+  justify-content: center;
 }
 
-.siri-glass-card {
-  position: relative;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 20px 20px;
-  background: rgba(0, 0, 0, 0.60);
-  backdrop-filter: blur(24px) saturate(160%);
-  -webkit-backdrop-filter: blur(24px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 32px;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75), 0 0 45px rgba(139, 92, 246, 0.18);
-  transform: translateY(40px);
-  opacity: 0;
-  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.35s ease;
-  overflow: visible !important;
+.camera-lens-reflection {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(100, 210, 255, 0.65);
+  box-shadow: 0 0 4px rgba(100, 210, 255, 0.8);
 }
 
-.voice-bottom-dock.show .siri-glass-card {
-  transform: translateY(0);
-  opacity: 1;
+/* ═══════════════════════════════════════════════════════════════════
+   PHASE 2: LIQUID EXPANSION & SQUIRCLE PANEL MORPH
+   Width: 92%, min-height: 25vh, max-height: 35vh, border-radius: 42px
+   ═══════════════════════════════════════════════════════════════════ */
+#marvo-camera-island.expanded,
+#marvo-camera-island.active {
+  width: 92%;
+  max-width: 460px;
+  min-height: 25vh;
+  max-height: 35vh;
+  height: max-content;
+  border-radius: 42px;
+  padding: 16px 20px 20px;
 }
 
-.siri-top-bar {
+/* Rainbow prism arc stretches and dims to 50% on expansion */
+#marvo-camera-island.expanded .prism-light-arc,
+#marvo-camera-island.active .prism-light-arc {
+  width: 85%;
+  top: 8px;
+  opacity: 0.5;
+}
+
+/* Island Top Row Header (Status pill & Close) */
+.island-top-row {
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 2px 4px;
+  margin-top: 6px;
+  margin-bottom: 8px;
+  z-index: 5;
 }
 
-.siri-drag-pill {
-  width: 36px;
-  height: 4px;
+.island-status-badge {
+  padding: 4px 12px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.25);
-  margin: 0 auto;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.9);
+  font: 600 11px -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
-.siri-btn-close {
-  position: absolute;
-  top: 14px;
-  right: 16px;
-  width: 28px;
-  height: 28px;
+.island-close-btn {
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.12);
   color: rgba(255, 255, 255, 0.85);
-  font-size: 18px;
+  font-size: 16px;
   line-height: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.2s;
 }
 
-.siri-btn-close:active {
+.island-close-btn:active {
   transform: scale(0.9);
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.22);
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   1:1 APPLE SIRI FLUID PLASMA EFFECT (STRICT iOS REPLICA)
-   5-Layer Colored Blobs, Independent Axis Rotation, 25px Glass Blur
-   ═══════════════════════════════════════════════════════════════════ */
-.siri-orb-wrap,
-#siri-orb-wrap {
-  width: 120px;
-  height: 120px;
-  position: relative;
-  overflow: visible !important; /* Glow aura never clips */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  filter: drop-shadow(0 0 20px var(--orb-glow, rgba(139, 92, 246, 0.5)))
-          drop-shadow(0 0 40px var(--orb-glow2, rgba(0, 122, 255, 0.3)));
-  transition: filter 0.4s ease;
-  will-change: filter;
-}
-
-/* Rigid Proportions: Exactly 120px x 120px with Subtle Scale Breathing */
-.siri-master-container {
-  width: 120px;
-  height: 120px;
-  position: relative;
-  border-radius: 50%;
-  overflow: hidden;
-  background: #02040a;
-  box-shadow: 0 0 28px rgba(0, 0, 0, 0.85), inset 0 0 16px rgba(255, 255, 255, 0.1);
-  will-change: transform;
-  transform: translate3d(0, 0, 0);
-  animation: siriOrbBreathe 3.6s ease-in-out infinite alternate;
-}
-
-@keyframes siriOrbBreathe {
-  0% { transform: scale(0.97) translate3d(0, 0, 0); }
-  50% { transform: scale(1.02) translate3d(0, 0, 0); }
-  100% { transform: scale(1.05) translate3d(0, 0, 0); }
-}
-
-/* Entry Animation */
-.voice-bottom-dock.show .siri-master-container {
-  animation: siriEntry 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards, siriOrbBreathe 3.6s ease-in-out 0.45s infinite alternate;
-}
-
-@keyframes siriEntry {
-  from { transform: scale(0.8) translateY(10px) translate3d(0, 0, 0); opacity: 0; }
-  to { transform: scale(1.0) translateY(0) translate3d(0, 0, 0); opacity: 1; }
-}
-
-/* 4 Distinct Plasma Colored Blobs */
-.siri-blob {
-  position: absolute;
-  width: 86px;
-  height: 86px;
-  border-radius: 50%;
-  filter: blur(25px) saturate(160%);
-  -webkit-filter: blur(25px) saturate(160%);
-  will-change: transform;
-  mix-blend-mode: screen;
-  pointer-events: none;
-}
-
-/* Blob 1 (Electric Blue): 8s rotation, origin center left */
-.siri-blob.color-blue {
-  top: 17px;
-  left: 10px;
-  background: radial-gradient(circle at 45% 45%, #007aff 0%, #2563eb 55%, transparent 80%);
-  transform-origin: 25% 50%;
-  animation: siriRotateBlue 8s linear infinite;
-}
-
-/* Blob 2 (Deep Magenta / Neon Pink): 12s counter-rotation, origin bottom right */
-.siri-blob.color-magenta {
-  bottom: 10px;
-  right: 12px;
-  background: radial-gradient(circle at 50% 50%, #f43f5e 0%, #ec4899 50%, transparent 80%);
-  transform-origin: 75% 75%;
-  animation: siriRotateMagenta 12s linear infinite;
-}
-
-/* Blob 3 (Electric Cyan): 10s rotation with translateX orbit, origin top right */
-.siri-blob.color-cyan {
-  top: 10px;
-  right: 14px;
-  background: radial-gradient(circle at 50% 50%, #00f0ff 0%, #06b6d4 55%, transparent 80%);
-  transform-origin: 65% 35%;
-  animation: siriRotateCyan 10s ease-in-out infinite alternate;
-}
-
-/* Blob 4 (Deep Violet / Purple): 15s counter-rotation, origin top center */
-.siri-blob.color-violet {
-  top: 8px;
-  left: 20px;
-  background: radial-gradient(circle at 50% 50%, #a855f7 0%, #7c3aed 55%, transparent 80%);
-  transform-origin: 50% 25%;
-  animation: siriRotateViolet 15s linear infinite;
-}
-
-/* Blob Keyframe Rotations */
-@keyframes siriRotateBlue {
-  0% { transform: rotate(0deg) translate3d(0, 0, 0); }
-  100% { transform: rotate(360deg) translate3d(0, 0, 0); }
-}
-
-@keyframes siriRotateMagenta {
-  0% { transform: rotate(0deg) translate3d(0, 0, 0); }
-  100% { transform: rotate(-360deg) translate3d(0, 0, 0); }
-}
-
-@keyframes siriRotateCyan {
-  0% { transform: rotate(0deg) translateX(8px) translate3d(0, 0, 0); }
-  50% { transform: rotate(180deg) translateX(-8px) translate3d(0, 0, 0); }
-  100% { transform: rotate(360deg) translateX(8px) translate3d(0, 0, 0); }
-}
-
-@keyframes siriRotateViolet {
-  0% { transform: rotate(0deg) translate3d(0, 0, 0); }
-  100% { transform: rotate(-360deg) translate3d(0, 0, 0); }
-}
-
-/* 5th Layer: Frosted Glass Overlay with Specular Highlight */
-.siri-glass-blur {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  backdrop-filter: blur(25px) saturate(150%);
-  -webkit-backdrop-filter: blur(25px) saturate(150%);
-  background: radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0.08) 35%, transparent 70%);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  box-shadow: inset 0 0 16px rgba(255, 255, 255, 0.25), inset 0 -6px 14px rgba(0, 0, 0, 0.45);
-  pointer-events: none;
+/* Phase 2: Apple Typography & Text Container (Staggered Reveal) */
+#island-response-content {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  text-align: left;
+  max-height: 140px;
+  overflow-y: auto;
   z-index: 5;
-}
 
-/* ── STATE REACTIVITY (Phase 4) ── */
-
-/* 1. Listening / Active State: 2x Rotation Speed */
-.siri-master-container.state-listening .siri-blob.color-blue {
-  animation-duration: 4s;
-}
-.siri-master-container.state-listening .siri-blob.color-magenta {
-  animation-duration: 6s;
-}
-.siri-master-container.state-listening .siri-blob.color-cyan {
-  animation-duration: 5s;
-}
-.siri-master-container.state-listening .siri-blob.color-violet {
-  animation-duration: 7.5s;
-}
-.siri-master-container.state-listening {
-  transform: scale(var(--siri-vol-scale, 1.02)) translate3d(0, 0, 0);
-  transition: transform 0.08s ease-out;
-}
-
-/* 2. Speaking State: Rapid subtle audio-sync vibration (scale 1.0 to 1.08 max) */
-.siri-master-container.state-speaking {
-  animation: siriSpeakingPulse 0.32s ease-in-out infinite alternate !important;
-}
-.siri-master-container.state-speaking .siri-blob.color-blue { animation-duration: 4.5s; }
-.siri-master-container.state-speaking .siri-blob.color-magenta { animation-duration: 6.5s; }
-.siri-master-container.state-speaking .siri-blob.color-cyan { animation-duration: 5.5s; }
-.siri-master-container.state-speaking .siri-blob.color-violet { animation-duration: 8s; }
-
-@keyframes siriSpeakingPulse {
-  0% { transform: scale(1.0) translate3d(0, 0, 0); }
-  100% { transform: scale(1.08) translate3d(0, 0, 0); }
-}
-
-/* 3. Thinking State: Mystical amber/violet swirl */
-.siri-master-container.state-thinking .siri-blob.color-blue { animation-duration: 3s; }
-.siri-master-container.state-thinking .siri-blob.color-magenta { animation-duration: 4s; }
-.siri-master-container.state-thinking .siri-blob.color-cyan { animation-duration: 3.5s; }
-.siri-master-container.state-thinking .siri-blob.color-violet { animation-duration: 5s; }
-
-/* Aggressive Battery Preservation: 0% CPU when paused */
-.siri-master-container.siri-paused,
-.siri-master-container.siri-paused .siri-blob {
-  animation-play-state: paused !important;
-}
-
-/* Apple-style frosted glass pill for status label */
-.siri-orb-label,
-#siri-orb-label {
-  padding: 5px 16px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(24px) saturate(160%);
-  -webkit-backdrop-filter: blur(24px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: rgba(255, 255, 255, 0.95);
-  font: 500 12px -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  /* Staggered text reveal: starts hidden and slides up after expansion */
   opacity: 0;
-  transform: translateY(4px);
-  transition: opacity 0.35s ease, transform 0.35s ease;
-  white-space: nowrap;
+  transform: translateY(15px);
+  transition: all 0.4s ease-out;
+  transition-delay: 0.25s;
 }
 
-.siri-orb-label.visible,
-#siri-orb-label.visible {
+#marvo-camera-island.expanded #island-response-content,
+#marvo-camera-island.active #island-response-content {
   opacity: 1;
   transform: translateY(0);
 }
 
-/* Live Voice Transcript Box */
-.voice-transcript-box {
-  width: 100%;
-  padding: 4px 12px;
-  max-height: 85px;
-  overflow-y: auto;
-  text-align: center;
-}
-
-.voice-transcript-text {
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
-  font-size: 14px;
-  line-height: 1.45;
-  color: rgba(255, 255, 255, 0.88);
-  letter-spacing: 0.015em;
+.island-response-text {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif;
+  color: #FFFFFF;
+  text-shadow: 0px 2px 10px rgba(0, 0, 0, 0.3);
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.5;
   margin: 0;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  word-break: break-word;
 }
 
-/* Siri Control Actions Dock */
-.siri-controls {
+/* ═══════════════════════════════════════════════════════════════════
+   PHASE 5: 3-STATE PLASMA WAVEFORM (SIRI VISUALIZER)
+   iOS 18.1 Palette: Violet (#5E5CE6), Pink (#FF375F), Cyan (#64D2FF), Blue (#0A84FF)
+   ═══════════════════════════════════════════════════════════════════ */
+.island-plasma-wrapper {
+  position: relative;
+  width: 100%;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 20px;
+  margin: 4px 0;
+  z-index: 4;
+}
+
+.island-wave-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* State 2: Thinking Conic Ambient Glow (No jagged waves) */
+.island-conic-glow {
+  position: absolute;
+  inset: -20px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    #5E5CE6 0deg,
+    #FF375F 90deg,
+    #64D2FF 180deg,
+    #0A84FF 270deg,
+    #5E5CE6 360deg
+  );
+  filter: blur(18px) saturate(180%);
+  -webkit-filter: blur(18px) saturate(180%);
+  opacity: 0;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  transition: opacity 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: islandConicSpin 4s linear infinite;
+  animation-play-state: paused;
+}
+
+#marvo-camera-island.state-thinking .island-conic-glow {
+  opacity: 0.75;
+  animation-play-state: running;
+}
+
+@keyframes islandConicSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Action Bar Controls */
+.island-action-bar {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 12px;
   width: 100%;
-  margin-top: 4px;
+  margin-top: 8px;
+  z-index: 5;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.35s ease-out 0.2s;
 }
 
-.btn-siri-action {
+#marvo-camera-island.expanded .island-action-bar,
+#marvo-camera-island.active .island-action-bar {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.island-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 9px 18px;
+  padding: 8px 16px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.15);
   color: #fff;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
   user-select: none;
 }
 
-.btn-siri-action:active {
+.island-btn:active {
   transform: scale(0.95);
-  background: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.2);
 }
 
-.btn-siri-action.siri-cancel {
+.island-btn-cancel {
   color: rgba(255, 255, 255, 0.75);
 }
 
-.btn-siri-action.siri-pause-resume {
-  color: #fff;
+.island-btn-send {
+  background: linear-gradient(135deg, rgba(94, 92, 230, 0.85), rgba(10, 132, 255, 0.85));
+  border-color: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 4px 14px rgba(94, 92, 230, 0.35);
 }
 
-.btn-siri-action.siri-send {
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.85), rgba(59, 130, 246, 0.85));
-  border-color: rgba(255, 255, 255, 0.28);
-  box-shadow: 0 4px 16px rgba(139, 92, 246, 0.35);
+.island-btn-send:active {
+  background: linear-gradient(135deg, rgba(94, 92, 230, 1), rgba(10, 132, 255, 1));
 }
 
-.btn-siri-action.siri-send:active {
-  background: linear-gradient(135deg, rgba(139, 92, 246, 1), rgba(59, 130, 246, 1));
+/* Swipe-Up Dismiss Pill Handle */
+.island-drag-pill {
+  width: 32px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.25);
+  margin-top: 10px;
+  cursor: grab;
+  z-index: 5;
 }
 
 .settings-modal-overlay {
