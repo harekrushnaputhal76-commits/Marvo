@@ -3055,6 +3055,7 @@ class DynamicIslandManager {
     this.state = VoiceIndicatorState.IDLE;
     this.volume = 0;
     this.smoothVolume = 0;
+    this.smoothedAudioLevel = 0;
     this.active = false;
     this.animId = null;
     this.touchStartY = 0;
@@ -3202,14 +3203,27 @@ class DynamicIslandManager {
     this.state = 'idle';
     this.volume = 0;
     this.smoothVolume = 0;
+    this.smoothedAudioLevel = 0;
   }
 
   setAudioLevel(rms) {
     if (!this.active || this.state !== 'listening') return;
-    const raw = Math.min(100, Math.max(0, rms * 340));
+    const normalizedRms = Math.max(0, Math.min(1, Number(rms) || 0));
+    this.smoothedAudioLevel += (normalizedRms - this.smoothedAudioLevel) * 0.18;
+    const el = this.getIsland();
+    if (el) {
+      const styles = getComputedStyle(el);
+      const responseMin = parseFloat(styles.getPropertyValue('--marvo-listening-response-min'));
+      const responseMax = parseFloat(styles.getPropertyValue('--marvo-listening-response-max'));
+      const min = Number.isFinite(responseMin) ? responseMin : 0.12;
+      const max = Number.isFinite(responseMax) ? responseMax : 0.82;
+      const intensity = min + this.smoothedAudioLevel * (max - min);
+      el.style.setProperty('--marvo-listening-intensity', intensity.toFixed(3));
+    }
+
+    const raw = Math.min(100, Math.max(0, normalizedRms * 340));
     this.smoothVolume += (raw - this.smoothVolume) * 0.35;
     this.volume = Math.round(this.smoothVolume);
-    const el = this.getIsland();
     if (el) {
       el.style.setProperty('--island-volume', (this.volume / 100).toFixed(2));
     }
@@ -3248,6 +3262,8 @@ class DynamicIslandManager {
       if (s === 'idle') {
         el.classList.remove('state-listening', 'state-thinking', 'state-speaking', 'state-error', 'island-open', 'expanded', 'active');
         el.classList.add('state-idle');
+        this.smoothedAudioLevel = 0;
+        el.style.setProperty('--marvo-listening-intensity', 'var(--marvo-listening-response-fallback)');
         this.active = false;
         if (this.animId) {
           cancelAnimationFrame(this.animId);
@@ -5287,12 +5303,12 @@ window.marvo = {
   openNotebookModal,
   openShareModal,
   setVoiceState: (s, v) => window.setVoiceState && window.setVoiceState(s, v),
-  get siriOrb() { return window.siriOrbInstance; },
   get activeProject() { return activeProject; },
   get activeAgent() { return activeAgent; },
   get currentVoice() { return currentVoice; },
   get session() { return currentSessionId; },
   get mode() { return selectedMode; },
   renderingCapabilities: window.MarvoRenderingCapabilities,
+  VOICE_STATES: VoiceIndicatorState,
   STATES,
 };

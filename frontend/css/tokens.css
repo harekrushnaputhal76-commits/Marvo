@@ -122,6 +122,11 @@
   --marvo-geo-expanded-radius:        24px;
   --marvo-geo-expanded-padding-x:      18px;
 
+   /* Listening amplitude response bounds; JS maps smoothed RMS into this range. */
+   --marvo-listening-response-min:      0.12;
+   --marvo-listening-response-max:      0.82;
+   --marvo-listening-response-fallback: 0.22;
+
   /* ─────────────────────────────────────────────────────────────────
      5. ELEVATION & Z-INDEX TOKENS
      ───────────────────────────────────────────────────────────────── */

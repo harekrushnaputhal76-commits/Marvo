@@ -5357,6 +5357,7 @@ body.island-active .main {
 }
 
 #marvo-dynamic-island {
+  --marvo-listening-intensity: var(--marvo-listening-response-fallback);
   position: absolute !important;
   top: 0 !important;
   left: 50% !important;
@@ -5390,6 +5391,33 @@ body.island-active .main {
   transform-origin: center;
 }
 
+@keyframes marvo-listening-ripple {
+  0%, 100% {
+    transform: scale3d(0.98, 0.92, 1);
+  }
+  50% {
+    transform: scale3d(1.02, 1.08, 1);
+  }
+}
+
+#marvo-dynamic-island::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border: 1px solid var(--marvo-color-cyan);
+  border-radius: inherit;
+  background: var(--marvo-conic-idle);
+  opacity: 0;
+  transform: scale3d(0.98, 0.92, 1);
+  transform-origin: center;
+  pointer-events: none;
+}
+
+#marvo-dynamic-island.state-listening::after {
+  opacity: var(--marvo-listening-intensity);
+  animation: marvo-listening-ripple var(--marvo-duration-slow) var(--marvo-ease-smooth) infinite;
+}
+
 @supports (property: --marvo-idle-angle) {
   #marvo-dynamic-island::before {
     animation: marvo-idle-gradient-sweep 8s linear infinite;
@@ -5415,13 +5443,15 @@ body.island-active .main {
 
 @media (prefers-reduced-motion: reduce) {
   #marvo-liquid-filter-context,
-  #marvo-dynamic-island::before {
+  #marvo-dynamic-island::before,
+  #marvo-dynamic-island::after {
     animation: none !important;
   }
 }
 
 .marvo-reduced-motion #marvo-liquid-filter-context,
-.marvo-reduced-motion #marvo-dynamic-island::before {
+.marvo-reduced-motion #marvo-dynamic-island::before,
+.marvo-reduced-motion #marvo-dynamic-island::after {
   animation: none !important;
 }
 
