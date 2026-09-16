@@ -3225,6 +3225,16 @@ class DynamicIslandManager {
     this.volume = Math.max(0, Math.min(100, volume));
 
     if (stateChanged) {
+      console.log(`[VoiceIndicatorState] State transition: ${prevState} -> ${s}`, { volume: this.volume });
+      if (this.subscribers) {
+        this.subscribers.forEach((cb) => {
+          try {
+            cb(s, prevState, this.volume);
+          } catch (err) {
+            console.warn('[VoiceIndicatorState] subscriber error:', err);
+          }
+        });
+      }
       const shape = this.getStateShape(s);
       this.applyShape(shape.width, shape.height, { radius: shape.radius });
     }
@@ -3462,7 +3472,8 @@ function initDynamicIsland() {
     marvoVoiceInstance = dynamicIslandInstance;
     window.marvoIslandInstance = dynamicIslandInstance;
     window.dynamicIslandInstance = dynamicIslandInstance;
-    window.siriOrbInstance = dynamicIslandInstance;
+    window.VoiceIndicatorState = VoiceIndicatorState;
+    window.MarvoVoiceIndicatorState = VoiceIndicatorState;
     window.setVoiceState = (state, volume) => dynamicIslandInstance.setVoiceState(state, volume);
   }
 }
@@ -3470,6 +3481,12 @@ function initDynamicIsland() {
 function initMarvoVoiceIndicator() {
   window.MarvoIdleIndicatorLifecycle?.mount();
   initDynamicIsland();
+  if (dynamicIslandInstance) {
+    // Passive subscriber: monitors live app state transitions without overriding idle visuals
+    dynamicIslandInstance.subscribe((newState, prevState, volume) => {
+      console.log(`[MarvoVoiceIndicator:PassiveListener] State: ${prevState} -> ${newState} (vol: ${volume})`);
+    });
+  }
 }
 
 let isVoiceRecording = false;
@@ -3479,10 +3496,38 @@ let currentVoiceTranscript = '';
 let audioCtx = null;
 let micStream = null;
 let analyser = null;
+let micSource = null;
 let visualizerAnimId = null;
+let micAmplitude = 0;
 
 let micRmsSum = 0;
 let micRmsCount = 0;
+
+window.MarvoAudioAmplitude = Object.freeze({
+  getValue: () => micAmplitude
+});
+
+function stopAudioAmplitudePipeline() {
+  if (visualizerAnimId) {
+    cancelAnimationFrame(visualizerAnimId);
+    visualizerAnimId = null;
+  }
+  if (micSource) {
+    try { micSource.disconnect(); } catch {}
+    micSource = null;
+  }
+  if (micStream) {
+    try { micStream.getTracks().forEach(track => track.stop()); } catch {}
+    micStream = null;
+  }
+  analyser = null;
+  micAmplitude = 0;
+  if (audioCtx?.state === 'running') {
+    audioCtx.suspend().catch(() => {});
+  }
+}
+
+window.MarvoIdleIndicatorLifecycle?.registerTeardown(stopAudioAmplitudePipeline);
 
 async function initAudioVisualizer() {
   initMarvoVoiceIndicator();
@@ -3505,8 +3550,8 @@ async function initAudioVisualizer() {
     if (micStream && !analyser) {
       analyser = audioCtx.createAnalyser();
       analyser.fftSize = 256;
-      const source = audioCtx.createMediaStreamSource(micStream);
-      source.connect(analyser);
+      micSource = audioCtx.createMediaStreamSource(micStream);
+      micSource.connect(analyser);
     }
   } catch (audioErr) {
     console.warn('[Visualizer] AudioContext mic stream error:', audioErr);
@@ -3515,7 +3560,7 @@ async function initAudioVisualizer() {
   const dataArray = analyser ? new Uint8Array(analyser.frequencyBinCount) : null;
 
   function renderWave() {
-    if (!isVoiceRecording) return;
+    if (!isVoiceRecording || isVoicePaused) return;
     visualizerAnimId = requestAnimationFrame(renderWave);
 
     let dynamicAmp = 14;
@@ -3527,6 +3572,7 @@ async function initAudioVisualizer() {
         sumSquares += norm * norm;
       }
       const rms = Math.sqrt(sumSquares / dataArray.length);
+      micAmplitude = Math.max(0, Math.min(1, rms));
       micRmsSum += rms;
       micRmsCount++;
       dynamicAmp = Math.max(4, Math.min(32, rms * 80));
@@ -3623,15 +3669,9 @@ function closeVoiceDock() {
     speechSilenceTimer = null;
   }
   DOM.btnMic?.classList.remove('recording');
-  if (visualizerAnimId) cancelAnimationFrame(visualizerAnimId);
+  stopAudioAmplitudePipeline();
   if (speechRecognizer) {
     try { speechRecognizer.stop(); } catch {}
-  }
-  // Clean up mic audio stream to prevent battery drain
-  if (micStream) {
-    try { micStream.getTracks().forEach(t => t.stop()); } catch {}
-    micStream = null;
-    analyser = null;
   }
   if (window.dynamicIslandInstance) {
     window.dynamicIslandInstance.close();
@@ -3660,6 +3700,7 @@ function toggleVoicePauseResume() {
     if (speechRecognizer) {
       try { speechRecognizer.stop(); } catch {}
     }
+    stopAudioAmplitudePipeline();
   } else {
     if (DOM.islandStatusPill) DOM.islandStatusPill.textContent = 'Listening...';
     DOM.iconIslandPause?.classList.remove('hidden');
@@ -3667,6 +3708,7 @@ function toggleVoicePauseResume() {
     if (DOM.labelIslandPauseResume) DOM.labelIslandPauseResume.textContent = 'Pause';
     setEyeExpression('state-listening');
     if (window.setVoiceState) window.setVoiceState('listening', 0);
+    initAudioVisualizer();
     startSpeechRecognition();
   }
 }
@@ -3696,11 +3738,7 @@ function submitVoiceRecording() {
     if (speechRecognizer) {
       try { speechRecognizer.stop(); } catch {}
     }
-    if (micStream) {
-      try { micStream.getTracks().forEach(t => t.stop()); } catch {}
-      micStream = null;
-      analyser = null;
-    }
+    stopAudioAmplitudePipeline();
     DOM.btnMic?.classList.remove('recording');
     setEyeExpression('state-thinking');
     if (window.dynamicIslandInstance) {
