@@ -95,6 +95,33 @@
   --marvo-geo-radius-expanded:        38px;
   --marvo-geo-radius-pill:            999px;
 
+  /* Expanded-state geometry tokens for listening / thinking / speaking.
+     Thinking and speaking intentionally reuse the listening capsule family.
+     Error flash keeps the same idle circle diameter but uses a different tint.
+     The shared expanded corner radius and horizontal padding are reused by
+     the capsule states and the future Group B12/B13 cards. */
+  --marvo-geo-listening-min-width:     180px;
+  --marvo-geo-listening-max-width:     360px;
+  --marvo-geo-listening-height-min:    36px;
+  --marvo-geo-listening-height-max:    48px;
+  --marvo-geo-listening-radius:        999px;
+
+  --marvo-geo-thinking-min-width:      var(--marvo-geo-listening-min-width);
+  --marvo-geo-thinking-max-width:      var(--marvo-geo-listening-max-width);
+  --marvo-geo-thinking-height-min:     var(--marvo-geo-listening-height-min);
+  --marvo-geo-thinking-height-max:     var(--marvo-geo-listening-height-max);
+  --marvo-geo-thinking-radius:         var(--marvo-geo-listening-radius);
+
+  --marvo-geo-speaking-min-width:      var(--marvo-geo-listening-min-width);
+  --marvo-geo-speaking-max-width:      var(--marvo-geo-listening-max-width);
+  --marvo-geo-speaking-height-min:     var(--marvo-geo-listening-height-min);
+  --marvo-geo-speaking-height-max:     var(--marvo-geo-listening-height-max);
+  --marvo-geo-speaking-radius:         var(--marvo-geo-listening-radius);
+
+  --marvo-geo-error-diameter:          var(--marvo-geo-idle-diameter);
+  --marvo-geo-expanded-radius:        24px;
+  --marvo-geo-expanded-padding-x:      18px;
+
   /* ─────────────────────────────────────────────────────────────────
      5. ELEVATION & Z-INDEX TOKENS
      ───────────────────────────────────────────────────────────────── */
