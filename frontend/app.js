@@ -55,6 +55,7 @@ const DOM = {
   // Top Bar & Menus
   tierSwitcher:       $('#tierSwitcher'),
   btnTierFast:        $('#btnTierFast'),
+  btnTierThinking:    $('#btnTierThinking'),
   btnTierPro:         $('#btnTierPro'),
   btnAppMenu:         $('#btnAppMenu'),
   appDropdown:        $('#appDropdown'),
@@ -3685,13 +3686,13 @@ DOM.msgInput.addEventListener('blur', () => {
 });
 
 // Plus / Attachments Menu
-DOM.btnAttach.addEventListener('click', (e) => {
+DOM.btnAttach?.addEventListener('click', (e) => {
   e.stopPropagation();
-  const isOpen = DOM.attachMenu.classList.contains('show');
+  const isOpen = DOM.attachMenu?.classList.contains('show');
   closeAllDropdowns();
   if (!isOpen) {
-    DOM.attachMenu.classList.add('show');
-    DOM.btnAttach.classList.add('active');
+    DOM.attachMenu?.classList.add('show');
+    DOM.btnAttach?.classList.add('active');
   }
 });
 
@@ -3708,16 +3709,29 @@ DOM.btnAttachImageGen?.addEventListener('click', (e) => {
   showToast('Describe what you want Marvo to draw and press Send!');
 });
 
-DOM.attachMenu.addEventListener('click', (e) => {
+DOM.attachMenu?.addEventListener('click', (e) => {
   if (e.target.closest('#btnAttachImageGen')) return;
   const item = e.target.closest('.attach-item');
   if (item) {
     closeAllDropdowns();
-    showToast(`${item.dataset.type} upload coming soon!`);
+    const type = item.dataset.type;
+    if (type === 'PDF') {
+      if (DOM.fileUploadInput) {
+        DOM.fileUploadInput.accept = 'application/pdf';
+        DOM.fileUploadInput.click();
+      }
+    } else if (type === 'Photo') {
+      if (DOM.fileUploadInput) {
+        DOM.fileUploadInput.accept = 'image/*';
+        DOM.fileUploadInput.click();
+      }
+    } else {
+      showToast(`${item.dataset.type} upload selected!`);
+    }
   }
 });
 
-DOM.btnScreenShare.addEventListener('click', () => {
+DOM.btnScreenShare?.addEventListener('click', () => {
   showToast('Live screen analysis coming soon!');
 });
 
@@ -4032,32 +4046,52 @@ function closeModal(modalEl) {
    CREATIVE AGENTS PERSONAS CONTROLLER
    ═══════════════════════════════════════════════════════════════════ */
 function setMode(modeKey) {
-  let normalized = (modeKey || 'fast').toLowerCase();
-  if (normalized === 'fast') normalized = 'fast';
-  else if (normalized === 'pro' || normalized === 'high') normalized = 'high';
-  else if (normalized === 'thinking' || normalized === 'medium') normalized = 'high';
-  else normalized = 'fast';
+  let raw = (modeKey || 'Fast').trim();
+  let normalized = raw.toLowerCase();
+  let canonicalMode = 'Fast';
 
-  selectedMode = normalized;
+  if (normalized === 'fast') {
+    canonicalMode = 'Fast';
+  } else if (normalized === 'thinking' || normalized === 'medium') {
+    canonicalMode = 'Thinking';
+  } else if (normalized.includes('pro') || normalized === 'high') {
+    canonicalMode = 'Pro Thinking';
+  }
+
+  selectedMode = canonicalMode;
   NativeStorage.set(MODE_STORAGE_KEY, selectedMode);
 
-  const isFast = (normalized === 'fast');
-  if (DOM.tierSwitcher) {
-    DOM.tierSwitcher.classList.toggle('tier-fast', isFast);
-    DOM.tierSwitcher.classList.toggle('tier-pro', !isFast);
+  if (window.TrafficPolice && typeof window.TrafficPolice.setMode === 'function') {
+    window.TrafficPolice.setMode(canonicalMode);
   }
+
+  if (DOM.tierSwitcher) {
+    DOM.tierSwitcher.classList.remove('tier-fast', 'tier-thinking', 'tier-pro');
+    if (canonicalMode === 'Fast') DOM.tierSwitcher.classList.add('tier-fast');
+    else if (canonicalMode === 'Thinking') DOM.tierSwitcher.classList.add('tier-thinking');
+    else if (canonicalMode === 'Pro Thinking') DOM.tierSwitcher.classList.add('tier-pro');
+  }
+
   if (DOM.btnTierFast) {
-    DOM.btnTierFast.classList.toggle('active', isFast);
-    DOM.btnTierFast.setAttribute('aria-checked', isFast ? 'true' : 'false');
+    const active = canonicalMode === 'Fast';
+    DOM.btnTierFast.classList.toggle('active', active);
+    DOM.btnTierFast.setAttribute('aria-checked', active ? 'true' : 'false');
+  }
+  if (DOM.btnTierThinking) {
+    const active = canonicalMode === 'Thinking';
+    DOM.btnTierThinking.classList.toggle('active', active);
+    DOM.btnTierThinking.setAttribute('aria-checked', active ? 'true' : 'false');
   }
   if (DOM.btnTierPro) {
-    DOM.btnTierPro.classList.toggle('active', !isFast);
-    DOM.btnTierPro.setAttribute('aria-checked', !isFast ? 'true' : 'false');
+    const active = canonicalMode === 'Pro Thinking';
+    DOM.btnTierPro.classList.toggle('active', active);
+    DOM.btnTierPro.setAttribute('aria-checked', active ? 'true' : 'false');
   }
 
   if (DOM.modeSelector) {
     DOM.modeSelector.querySelectorAll('.chip-btn').forEach(b => {
-      if (b.dataset.mode === normalized) {
+      const bMode = (b.dataset.mode || '').toLowerCase();
+      if (bMode === normalized || b.dataset.mode === canonicalMode) {
         b.classList.add('active');
       } else {
         b.classList.remove('active');

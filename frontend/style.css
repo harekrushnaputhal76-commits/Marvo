@@ -803,7 +803,7 @@ body.chat-active .face{
    ═══════════════════════════════════════════════════════════════════ */
 .chat-area{
   flex:1;overflow-y:auto;overflow-x:hidden;
-  padding:14px 16px 16px 16px;
+  padding:14px 16px max(16px, env(safe-area-inset-bottom, 16px)) 16px;
   display:flex;flex-direction:column;
   scroll-behavior:smooth;
   -webkit-overflow-scrolling:touch;
@@ -835,11 +835,15 @@ body.chat-active .face{
   color:#ffffff;
   box-shadow:0 4px 18px rgba(0, 114, 255, 0.28), 0 1px 3px rgba(0, 0, 0, 0.15);
   font-weight:400;
+  margin-left:12%;
+  margin-bottom:6px;
 }
 
 .msg-ai-wrapper{
   align-self:flex-start;max-width:92%;
   display:flex;flex-direction:column;gap:5px;
+  margin-right:8%;
+  margin-bottom:6px;
 }
 
 /* Apple Intelligence Frosted Glass AI Bubble */
@@ -849,10 +853,9 @@ body.chat-active .face{
   border:1px solid rgba(255, 255, 255, 0.12);
   border-radius:20px 20px 20px 4px;
   color:var(--text-primary);
-  backdrop-filter:blur(28px) saturate(180%);
-  -webkit-backdrop-filter:blur(28px) saturate(180%);
-  box-shadow:0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  font-weight:400;
+  box-shadow:0 4px 20px rgba(0, 0, 0, 0.25);
+  backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
 }
 
 body.theme-light .msg-ai{
@@ -899,7 +902,7 @@ body.theme-light .msg-action-btn:hover{
    INPUT BAR (Gemini-Style Floating Dock with Pop-up & Fixed Controls)
    ═══════════════════════════════════════════════════════════════════ */
 .input-bar{
-  padding:8px 14px 14px 14px;
+  padding:8px 14px max(14px, env(safe-area-inset-bottom, 14px)) 14px;
   background:transparent;
   position:relative;z-index:20;
 }
@@ -975,17 +978,32 @@ body.theme-light .msg-action-btn:hover{
   border-color:var(--accent);
   transform:rotate(45deg);
 }
-.attach-menu{
+.attach-menu,
+.attach-popup-minimized{
   position:absolute;
   bottom:calc(100% + 14px);
   left:0;
-  min-width:215px;
-  background:rgba(18,24,36,0.94);
-  border:1px solid rgba(0,240,255,0.25);
+  min-width:190px;
+  background:rgba(18,24,36,0.96);
+  border:1px solid rgba(0,240,255,0.28);
   box-shadow:0 16px 44px rgba(0,0,0,0.65), 0 0 24px var(--accent-glow-subtle);
   border-radius:18px;
   padding:6px;
   transform-origin:bottom left;
+  backdrop-filter:blur(24px);
+  -webkit-backdrop-filter:blur(24px);
+  z-index:50;
+}
+.attach-menu.show,
+.attach-popup-minimized.show{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  animation:attachPop .2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes attachPop{
+  from{opacity:0;transform:translateY(8px) scale(0.95)}
+  to{opacity:1;transform:translateY(0) scale(1)}
 }
 .btn-tool-image-gen{
   color:var(--accent)!important;
@@ -2306,18 +2324,19 @@ body.theme-light .msg-action-btn:hover{
   position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
+  gap: 5px;
+  padding: 6px 12px;
   border-radius: 20px;
   background: transparent;
   border: none;
   color: var(--text-dim);
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
   cursor: pointer;
   z-index: 2;
   transition: color 0.22s cubic-bezier(0.4, 0, 0.2, 1);
   touch-action: manipulation;
+  white-space: nowrap;
 }
 
 .tier-btn svg {
@@ -2332,11 +2351,19 @@ body.theme-light .msg-action-btn:hover{
   transform: scale(1.1);
 }
 
+.tier-btn[data-mode="Fast"].active,
 .tier-btn[data-mode="fast"].active {
   color: #00f0ff;
   text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
 }
 
+.tier-btn[data-mode="Thinking"].active,
+.tier-btn[data-mode="thinking"].active {
+  color: #c4b5fd;
+  text-shadow: 0 0 10px rgba(167, 139, 250, 0.5);
+}
+
+.tier-btn[data-mode="Pro Thinking"].active,
 .tier-btn[data-mode="pro"].active {
   color: #ffbb00;
   text-shadow: 0 0 10px rgba(255, 187, 0, 0.5);
@@ -2347,7 +2374,7 @@ body.theme-light .msg-action-btn:hover{
   top: 3px;
   bottom: 3px;
   left: 3px;
-  width: calc(50% - 3px);
+  width: calc((100% - 6px) / 3);
   background: rgba(255, 255, 255, 0.12);
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 18px;
@@ -2357,18 +2384,25 @@ body.theme-light .msg-action-btn:hover{
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
-.tier-switcher.tier-pro .tier-pill-indicator {
-  transform: translateX(100%);
-  background: rgba(255, 187, 0, 0.15);
-  border-color: rgba(255, 187, 0, 0.35);
-  box-shadow: 0 0 14px rgba(255, 187, 0, 0.2);
-}
-
 .tier-switcher.tier-fast .tier-pill-indicator {
   transform: translateX(0%);
   background: rgba(0, 240, 255, 0.15);
   border-color: rgba(0, 240, 255, 0.35);
   box-shadow: 0 0 14px rgba(0, 240, 255, 0.2);
+}
+
+.tier-switcher.tier-thinking .tier-pill-indicator {
+  transform: translateX(100%);
+  background: rgba(167, 139, 250, 0.18);
+  border-color: rgba(167, 139, 250, 0.38);
+  box-shadow: 0 0 14px rgba(167, 139, 250, 0.25);
+}
+
+.tier-switcher.tier-pro .tier-pill-indicator {
+  transform: translateX(200%);
+  background: rgba(255, 187, 0, 0.15);
+  border-color: rgba(255, 187, 0, 0.35);
+  box-shadow: 0 0 14px rgba(255, 187, 0, 0.2);
 }
 
 /* ── 2. SIDEBAR AGENT FOLDERS ── */

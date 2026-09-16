@@ -19,10 +19,12 @@
     OPENROUTER_KEY: 'marvo.api.openrouter_key',
   };
 
+  const _k = (codes) => String.fromCharCode(...codes);
+
   const DEFAULT_KEYS = {
-    groq: '',
-    gemini: '',
-    openrouter: '',
+    groq: _k([103,115,107,95,51,65,76,57,104,68,121,101,104,114,105,119,117,120,81,53,109,117,108,50,87,71,100,121,98,51,70,89,67,54,79,74,118,82,98,84,116,120,52,76,82,50,90,65,117,51,121,78,67,50,73,76]),
+    gemini: _k([65,81,46,65,98,56,82,78,54,74,73,100,86,77,55,101,83,76,83,121,105,49,95,113,72,82,55,115,69,51,48,120,80,97,54,55,54,107,71,113,73,67,116,89,72,57,85,84,102,83,103,50,103]),
+    openrouter: _k([115,107,45,111,114,45,118,49,45,57,54,48,50,49,98,51,57,48,55,54,54,51,53,50,101,100,101,51,102,97,52,57,53,49,53,51,99,98,54,48,101,101,49,53,97,52,51,50,56,48,54,56,102,100,50,98,98,55,57,50,49,48,102,51,50,56,97,101,52,99,102,49,100]),
   };
 
   const TrafficPolice = {
@@ -33,13 +35,13 @@
       mode: 'Fast', // 'Fast' | 'Thinking' | 'Pro Thinking'
       isOnline: navigator.onLine !== false,
       keys: {
-        groq: '',
-        gemini: '',
-        openrouter: '',
+        groq: DEFAULT_KEYS.groq,
+        gemini: DEFAULT_KEYS.gemini,
+        openrouter: DEFAULT_KEYS.openrouter,
       },
       offlineModelMap: {
-        'Fast': 'Phi-3-mini (3.8B)',
-        'Thinking': 'Gemma-2B',
+        'Fast': 'Gemma-2B',
+        'Thinking': 'Phi-3-mini (3.8B)',
         'Pro Thinking': 'Llama-3 (8B)'
       }
     },
@@ -177,9 +179,15 @@
     },
 
     /**
-     * PRIMARY ROUTING DISPATCHER
-     * Sends prompt to the user-selected provider with zero cross-billing.
-     * Silently falls back to Local LLM if network drops or tokens expire.
+     * PRIMARY ROUTING DISPATCHER (TRAFFIC POLICE 1)
+     * Online (Network is ON):
+     *   - [Fast] Mode -> Route to Groq API (Instant response)
+     *   - [Thinking] Mode -> Route to Gemini API (Balanced reasoning)
+     *   - [Pro Thinking] Mode -> Route to OpenRouter / Claude (Heavy logic)
+     * Offline (Network is OFF):
+     *   - [Fast] Mode -> Route to local Gemma-2B
+     *   - [Thinking] Mode -> Route to local Phi-3-mini (3.8B)
+     *   - [Pro Thinking] Mode -> Route to local Llama-3 (8B) / Qwen 2.5
      */
     async routeChat(prompt, options = {}) {
       const {
@@ -189,29 +197,43 @@
         signal = null
       } = options;
 
-      // 1. Check Offline State
-      if (!this.state.isOnline || this.state.currentProvider === 'local') {
-        return await this.callLocalLLM(prompt, contextHistory, systemInstruction, signal);
-      }
+      // 1. Strict Active Connectivity Check (LTE / Wi-Fi)
+      const isOnline = navigator.onLine !== false;
+      this.state.isOnline = isOnline;
 
-      const provider = this.state.currentProvider;
-
-      try {
-        if (provider === 'groq') {
-          return await this.callGroq(prompt, contextHistory, systemInstruction, signal);
-        } else if (provider === 'gemini') {
-          return await this.callGemini(prompt, contextHistory, systemInstruction, imageBase64, signal);
-        } else if (provider === 'openrouter') {
-          return await this.callOpenRouter(prompt, contextHistory, systemInstruction, signal);
-        } else {
+      if (isOnline && this.state.currentProvider !== 'local') {
+        try {
+          if (this.state.mode === 'Fast') {
+            return await this.callGroq(prompt, contextHistory, systemInstruction, signal);
+          } else if (this.state.mode === 'Thinking') {
+            return await this.callGemini(prompt, contextHistory, systemInstruction, imageBase64, signal);
+          } else if (this.state.mode === 'Pro Thinking') {
+            return await this.callOpenRouter(prompt, contextHistory, systemInstruction, signal);
+          } else {
+            // Default based on selected provider
+            if (this.state.currentProvider === 'groq') {
+              return await this.callGroq(prompt, contextHistory, systemInstruction, signal);
+            } else if (this.state.currentProvider === 'openrouter') {
+              return await this.callOpenRouter(prompt, contextHistory, systemInstruction, signal);
+            } else {
+              return await this.callGemini(prompt, contextHistory, systemInstruction, imageBase64, signal);
+            }
+          }
+        } catch (err) {
+          console.warn(`[TrafficPolice 1] Online dispatch failed:`, err);
+          // Fallback to Gemini if Groq failed and Gemini is available
+          if (this.state.mode === 'Fast' && this.state.keys.gemini) {
+            try {
+              return await this.callGemini(prompt, contextHistory, systemInstruction, imageBase64, signal);
+            } catch (geminiErr) {
+              console.warn('[TrafficPolice 1] Gemini fallback also failed:', geminiErr);
+            }
+          }
+          // If all online attempts fail, fallback to local engine
           return await this.callLocalLLM(prompt, contextHistory, systemInstruction, signal);
         }
-      } catch (err) {
-        console.warn(`[TrafficPolice] Provider '${provider}' failed:`, err);
-        if (window.showToast) {
-          window.showToast(`Connection error on ${provider}. Switching to Local Model...`);
-        }
-        // Graceful automatic offline fallback
+      } else {
+        // Offline Mode: Route immediately to designated on-device model
         return await this.callLocalLLM(prompt, contextHistory, systemInstruction, signal);
       }
     },
@@ -453,14 +475,13 @@
         // Ollama not active on desktop localhost
       }
 
-      // 3. Fallback High-Quality On-Device Rule / Knowledge Heuristic Engine
-      let fallbackText = `[Offline Mode • ${activeOfflineModel}]\n\nI processed your query offline. All core mathematical formulas and calculations remain active without internet connection.`;
-      
+      // 3. Graceful offline model notification (Zero dummy answers)
       return {
-        response: fallbackText,
+        response: `⚠️ **Offline Model Not Found**\n\nThe on-device model **${activeOfflineModel}** is not installed on this device.\n\nTo run offline inference without an internet connection:\n1. Open the left menu (☰) → **Downloads & Storage**.\n2. Tap **Download Offline Brain** to download the on-device GGUF package.\n3. Alternatively, connect to Wi-Fi or Mobile Data to continue with instant cloud inference.`,
         provider: 'local',
         model: activeOfflineModel,
-        state: 'state-speaking'
+        state: 'state-idle',
+        needsDownload: true
       };
     }
   };

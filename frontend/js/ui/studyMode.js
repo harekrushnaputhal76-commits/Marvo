@@ -82,6 +82,13 @@ Be rigorous, precise, and pedagogically clear.`;
               </div>
             </div>
 
+            <!-- Cognitive Modes Toggle [Fast] | [Thinking] | [Pro Thinking] -->
+            <div class="study-tier-switcher cognitive-modes-switcher" id="studyTierSwitcher">
+              <button class="study-tier-btn active" data-mode="Fast" type="button" title="Fast Mode — Instant Groq">Fast</button>
+              <button class="study-tier-btn" data-mode="Thinking" type="button" title="Thinking Mode — Gemini Reasoning">Thinking</button>
+              <button class="study-tier-btn" data-mode="Pro Thinking" type="button" title="Pro Thinking Mode — OpenRouter / Claude">Pro Thinking</button>
+            </div>
+
             <div class="study-header-right">
               <button id="btnStudyToolsMenu" class="btn-study-tools-menu" title="Learning Tools">
                 <span>Tools</span>
@@ -203,6 +210,7 @@ Be rigorous, precise, and pedagogically clear.`;
         container: document.getElementById('studyModeContainer'),
         btnBack: document.getElementById('btnStudyBack'),
         subHeader: document.getElementById('studySubHeader'),
+        tierSwitcher: document.getElementById('studyTierSwitcher'),
         btnToolsMenu: document.getElementById('btnStudyToolsMenu'),
         toolsDropdown: document.getElementById('studyToolsDropdown'),
         toolChatMode: document.getElementById('toolChatMode'),
@@ -243,6 +251,25 @@ Be rigorous, precise, and pedagogically clear.`;
         this.dom.btnToolsMenu.onclick = (e) => {
           e.stopPropagation();
           this.dom.toolsDropdown.classList.toggle('show');
+        };
+      }
+
+      // Cognitive Mode Switching inside Study Mode
+      if (this.dom.tierSwitcher) {
+        this.dom.tierSwitcher.onclick = (e) => {
+          const btn = e.target.closest('.study-tier-btn');
+          if (btn && btn.dataset.mode) {
+            const mode = btn.dataset.mode;
+            this.dom.tierSwitcher.querySelectorAll('.study-tier-btn').forEach(b => {
+              b.classList.toggle('active', b === btn);
+            });
+            if (window.TrafficPolice && typeof window.TrafficPolice.setMode === 'function') {
+              window.TrafficPolice.setMode(mode);
+            }
+            if (typeof window.setMode === 'function') {
+              window.setMode(mode);
+            }
+          }
         };
       }
 

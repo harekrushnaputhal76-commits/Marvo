@@ -289,3 +289,4 @@ public class OfflineDeviceController {
         return -1;
     }
 }
+

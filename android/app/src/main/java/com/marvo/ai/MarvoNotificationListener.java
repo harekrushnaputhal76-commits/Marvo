@@ -176,3 +176,4 @@ public class MarvoNotificationListener extends NotificationListenerService {
         notificationBuffer.clear();
     }
 }
+

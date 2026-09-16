@@ -220,6 +220,51 @@
   font-weight: 500;
 }
 
+/* Cognitive Modes Toggle in Study Header */
+.study-tier-switcher {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(0, 240, 255, 0.22);
+  border-radius: 20px;
+  padding: 3px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.study-tier-btn {
+  padding: 5px 12px;
+  border-radius: 16px;
+  background: transparent;
+  border: none;
+  color: var(--study-text-muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.study-tier-btn.active {
+  color: #fff;
+  background: rgba(0, 240, 255, 0.2);
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.35);
+}
+
+.study-tier-btn[data-mode="Thinking"].active {
+  background: rgba(167, 139, 250, 0.25);
+  color: #c4b5fd;
+  box-shadow: 0 0 10px rgba(167, 139, 250, 0.4);
+}
+
+.study-tier-btn[data-mode="Pro Thinking"].active {
+  background: rgba(255, 187, 0, 0.25);
+  color: #ffd166;
+  box-shadow: 0 0 10px rgba(255, 187, 0, 0.4);
+}
+
 .study-header-right {
   display: flex;
   align-items: center;
@@ -470,7 +515,7 @@
 
 /* ═══════════ CLEAN BOTTOM CHATBAR ═══════════ */
 .study-chatbar-wrap {
-  padding: 10px 16px 16px;
+  padding: 10px 16px max(16px, env(safe-area-inset-bottom, 16px));
   background: rgba(8, 11, 18, 0.92);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
