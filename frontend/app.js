@@ -156,13 +156,9 @@ const DOM = {
   iconVoiceResume:      $('#iconVoiceResume'),
   labelVoicePauseResume:$('#labelVoicePauseResume'),
   btnVoiceSend:         $('#btnVoiceSend'),
-  siriOrbDock:          $('#siri-orb-dock'),
-  siriOrbWrap:          $('#siri-orb-wrap'),
-  siriOrb:              $('#siri-orb'),
-  siriOrbLabel:         $('#siri-orb-label'),
-  // Apple 2026 Dynamic Island & Voice UI
-  cameraIsland:         $('#marvo-camera-island'),
-  prismLightArc:        $('.prism-light-arc'),
+  // Marvo Top-Anchored Dynamic Island & Voice UI
+  dynamicIsland:        $('#marvo-dynamic-island'),
+  cameraIsland:         $('#marvo-dynamic-island'),
   islandResponseContent:$('#island-response-content'),
   islandResponseText:   $('#islandResponseText'),
   islandStatusPill:     $('#islandStatusPill'),
@@ -178,7 +174,7 @@ const DOM = {
   appRoot:              $('#app-root'),
 
   // Unified aliases ensuring seamless voice assistant compatibility
-  voiceOverlay:         $('#marvo-camera-island'),
+  voiceOverlay:         $('#marvo-dynamic-island'),
   voiceStatusText:      $('#islandStatusPill'),
   voiceWaveCanvas:      $('#islandWaveCanvas'),
   voiceTranscriptBox:   $('#island-response-content'),
@@ -2966,40 +2962,50 @@ async function sendMessage(userText) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   APPLE INTELLIGENCE / 2026 DYNAMIC ISLAND - ORGANIC LIQUID CONTROLLER
+   MARVO TOP-ANCHORED LIQUID DYNAMIC ISLAND CONTROLLER
    - Strict Backend Preservation: 100% untouched Gemini/Whisper/Audio routing
-   - SVG Gooey Surface Tension Physics & 120fps hardware acceleration
-   - Motorola Punch-hole Camera Anchor (top: 32px; left: 50%)
-   - Siri Plasma Edge, Rainbow Prism Arc & 3-State Waveform Visualizer
-   - Premium Taptic Feedback & Touch/Swipe-up Gestures
+   - Target Device: Motorola Edge 60 Pro (1220x2712px, centered punch-hole)
+   - SVG Gooey Surface Tension Physics (#marvo-goo)
+   - Fluid Spring Curve: cubic-bezier(0.32, 0.72, 0, 1)
+   - Downward-only morphing (transform-origin: top center)
+   - 5 States: idle, listening, thinking, speaking, error
    ═══════════════════════════════════════════════════════════════════ */
 
-const SIRI_STATES = {
+const MARVO_STATES = {
   idle: {
-    colors: ['#8B5CF6', '#3B82F6', '#EC4899', '#22D3EE'],
-    glow: 'rgba(139,92,246,.45)',
+    colors: ['#00f0ff', '#3b82f6', '#8b5cf6', '#00f0ff'],
+    glow: 'rgba(0,240,255,.45)',
     glow2: 'rgba(59,130,246,.25)',
     label: 'Ready'
   },
   listening: {
-    colors: ['#22D3EE', '#34D399', '#3B82F6', '#8B5CF6'],
-    glow: 'rgba(34,211,238,.55)',
+    colors: ['#00f0ff', '#34d399', '#3b82f6', '#8b5cf6'],
+    glow: 'rgba(0,240,255,.55)',
     glow2: 'rgba(52,211,153,.28)',
     label: 'Listening…'
   },
   thinking: {
-    colors: ['#F472B6', '#F59E0B', '#8B5CF6', '#3B82F6'],
+    colors: ['#f43f5e', '#f59e0b', '#8b5cf6', '#00f0ff'],
     glow: 'rgba(245,158,11,.55)',
-    glow2: 'rgba(244,114,182,.30)',
+    glow2: 'rgba(244,63,94,.30)',
     label: 'Thinking…'
   },
   speaking: {
-    colors: ['#EC4899', '#8B5CF6', '#22D3EE', '#3B82F6'],
-    glow: 'rgba(236,72,153,.60)',
+    colors: ['#00f0ff', '#8b5cf6', '#ec4899', '#3b82f6'],
+    glow: 'rgba(0,240,255,.60)',
     glow2: 'rgba(139,92,246,.32)',
     label: 'Responding…'
+  },
+  error: {
+    colors: ['#ef4444', '#dc2626', '#f87171', '#ef4444'],
+    glow: 'rgba(239,68,68,.60)',
+    glow2: 'rgba(220,38,38,.35)',
+    label: 'Error'
   }
 };
+
+// Backward-compatibility alias
+const SIRI_STATES = MARVO_STATES;
 
 const HapticFeedback = {
   confirm() {
@@ -3036,19 +3042,20 @@ const easeInOutCubic = x => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 
 
 class DynamicIslandManager {
   constructor() {
-    this.island = document.getElementById('marvo-camera-island');
+    this.island = document.getElementById('marvo-dynamic-island') || document.getElementById('marvo-camera-island');
     this.appRoot = document.getElementById('app-root') || document.querySelector('.main');
     this.statusPill = document.getElementById('islandStatusPill');
     this.responseText = document.getElementById('islandResponseText');
     this.canvas = document.getElementById('islandWaveCanvas');
     this.ctx = this.canvas ? this.canvas.getContext('2d') : null;
-    this.state = 'idle'; // 'idle' | 'listening' | 'thinking' | 'speaking'
+    this.state = 'idle'; // 'idle' | 'listening' | 'thinking' | 'speaking' | 'error'
     this.volume = 0;
     this.smoothVolume = 0;
     this.active = false;
     this.animId = null;
     this.touchStartY = 0;
     this.expandTimer = null;
+    this.errorTimer = null;
 
     this._bindTouchGestures();
     this._bindButtons();
@@ -3056,7 +3063,9 @@ class DynamicIslandManager {
   }
 
   getIsland() {
-    if (!this.island) this.island = document.getElementById('marvo-camera-island');
+    if (!this.island) {
+      this.island = document.getElementById('marvo-dynamic-island') || document.getElementById('marvo-camera-island');
+    }
     return this.island;
   }
 
@@ -3074,19 +3083,19 @@ class DynamicIslandManager {
     el.classList.add('island-open');
     el.classList.remove('state-idle');
 
-    // Screen push-back depth effect on main OS root container
+    // Screen push-back depth effect on underlying interface
     if (root) {
       root.classList.add('island-pushed-back');
     }
     document.body.classList.add('island-active');
 
-    // Organic liquid stretch into card
+    // Liquid expansion downward from top center
     if (this.expandTimer) clearTimeout(this.expandTimer);
     requestAnimationFrame(() => {
       el.classList.add('expanded', 'active');
     });
 
-    // Taptic confirmation when island expands
+    // Taptic confirmation
     this.expandTimer = setTimeout(() => {
       if (this.active) {
         HapticFeedback.confirm();
@@ -3106,22 +3115,26 @@ class DynamicIslandManager {
       clearTimeout(this.expandTimer);
       this.expandTimer = null;
     }
+    if (this.errorTimer) {
+      clearTimeout(this.errorTimer);
+      this.errorTimer = null;
+    }
 
     if (el) {
-      el.classList.remove('expanded', 'active', 'state-listening', 'state-thinking', 'state-speaking');
+      el.classList.remove('expanded', 'active', 'state-listening', 'state-thinking', 'state-speaking', 'state-error');
       el.classList.add('state-idle');
       setTimeout(() => {
         if (!this.active) el.classList.remove('island-open');
-      }, 480);
+      }, 400);
     }
 
-    // Restore root OS container
+    // Restore root interface
     if (root) {
       root.classList.remove('island-pushed-back');
     }
     document.body.classList.remove('island-active');
 
-    // Taptic rejection on dismiss
+    // Taptic dismissal
     HapticFeedback.reject();
 
     if (this.animId) {
@@ -3142,7 +3155,7 @@ class DynamicIslandManager {
 
   setVoiceState(state, volume = 0) {
     const el = this.getIsland();
-    const validStates = ['idle', 'listening', 'thinking', 'speaking'];
+    const validStates = ['idle', 'listening', 'thinking', 'speaking', 'error'];
     const s = validStates.includes(state) ? state : 'idle';
     const prevState = this.state;
     this.state = s;
@@ -3154,7 +3167,7 @@ class DynamicIslandManager {
     }
 
     if (el) {
-      el.classList.remove('state-idle', 'state-listening', 'state-thinking', 'state-speaking');
+      el.classList.remove('state-idle', 'state-listening', 'state-thinking', 'state-speaking', 'state-error');
       el.classList.add(`state-${s}`);
     }
 
@@ -3162,7 +3175,8 @@ class DynamicIslandManager {
       idle: 'Ready',
       listening: 'Listening…',
       thinking: 'Thinking…',
-      speaking: 'Responding…'
+      speaking: 'Responding…',
+      error: 'Error'
     };
 
     if (!this.statusPill) this.statusPill = document.getElementById('islandStatusPill');
@@ -3172,6 +3186,16 @@ class DynamicIslandManager {
     const legacyStatus = document.getElementById('voiceStatusText');
     if (legacyStatus) {
       legacyStatus.textContent = stateLabels[s] || 'Marvo';
+    }
+
+    // Error state: brief flash then auto-dismiss back to idle after ~1.5s
+    if (s === 'error') {
+      if (this.errorTimer) clearTimeout(this.errorTimer);
+      this.errorTimer = setTimeout(() => {
+        if (this.state === 'error') {
+          this.close();
+        }
+      }, 1500);
     }
   }
 
@@ -3197,7 +3221,7 @@ class DynamicIslandManager {
     el.addEventListener('touchend', (e) => {
       const touchEndY = e.changedTouches[0].clientY;
       const deltaY = touchEndY - this.touchStartY;
-      // Swipe-up upwards by > 25px snaps back to camera
+      // Swipe-up upwards by > 25px snaps back to camera punch-hole
       if (deltaY < -25 && this.active) {
         if (typeof closeVoiceDock === 'function') {
           closeVoiceDock();
@@ -3269,10 +3293,8 @@ class DynamicIslandManager {
 
       const time = Date.now() * 0.004;
 
-      // 3-State Plasma Waveform Visualizer
-      // iOS Palette: Cyan (#64D2FF), Pink (#FF375F), Violet (#5E5CE6)
-      if (this.state === 'thinking') {
-        // Thinking: Ambient CSS conic-glow handles spinning aura; waveform stays minimal
+      // Thinking: Ambient conic-glow handles spinning aura; waveform stays minimal
+      if (this.state === 'thinking' || this.state === 'error') {
         return;
       }
 
@@ -3283,10 +3305,11 @@ class DynamicIslandManager {
         baseAmp = 12 + Math.sin(time * 3) * 6;
       }
 
+      // Marvo Neon Palette: Cyan (#00f0ff), Neon Pink (#ff007f), Neon Purple (#9333ea)
       const waves = [
-        { color: 'rgba(100, 210, 255, 0.95)', speed: 1.1, phase: 0, ampMult: 1.0, width: 2.5 },
-        { color: 'rgba(255, 55, 95, 0.85)', speed: -1.3, phase: Math.PI / 3, ampMult: 0.75, width: 2.0 },
-        { color: 'rgba(94, 92, 230, 0.80)', speed: 0.8, phase: Math.PI / 1.5, ampMult: 0.55, width: 1.8 }
+        { color: 'rgba(0, 240, 255, 0.95)', speed: 1.1, phase: 0, ampMult: 1.0, width: 2.5 },
+        { color: 'rgba(255, 0, 127, 0.85)', speed: -1.3, phase: Math.PI / 3, ampMult: 0.75, width: 2.0 },
+        { color: 'rgba(147, 51, 234, 0.80)', speed: 0.8, phase: Math.PI / 1.5, ampMult: 0.55, width: 1.8 }
       ];
 
       waves.forEach(w => {
@@ -3325,6 +3348,7 @@ function initDynamicIsland() {
   if (!dynamicIslandInstance) {
     dynamicIslandInstance = new DynamicIslandManager();
     siriOrbInstance = dynamicIslandInstance;
+    window.marvoIslandInstance = dynamicIslandInstance;
     window.dynamicIslandInstance = dynamicIslandInstance;
     window.siriOrbInstance = dynamicIslandInstance;
     window.setVoiceState = (state, volume) => dynamicIslandInstance.setVoiceState(state, volume);

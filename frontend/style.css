@@ -1069,150 +1069,6 @@ body.theme-light .msg-action-btn:hover{
   to{transform:scale(1.15);color:#ff0055}
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   BOTTOM-DOCKED GEMINI-STYLE VOICE UI
-   ═══════════════════════════════════════════════════════════════════ */
-.voice-bottom-dock{
-  position:fixed;inset:0;z-index:200;
-  display:flex;flex-direction:column;justify-content:flex-end;
-  background:rgba(0,0,0,0.65);
-  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-  opacity:0;pointer-events:none;
-  transition:opacity .3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.voice-bottom-dock.show{
-  opacity:1;pointer-events:auto;
-}
-
-.voice-dock-container{
-  width:100%;max-width:540px;margin:0 auto;
-  background:linear-gradient(180deg, rgba(16,22,36,0.98) 0%, rgba(9,13,20,0.99) 100%);
-  border-top:1.5px solid rgba(0,240,255,0.35);
-  border-left:1px solid var(--border-color);
-  border-right:1px solid var(--border-color);
-  border-radius:28px 28px 0 0;
-  padding:14px 20px 24px 20px;
-  box-shadow:0 -12px 48px rgba(0,0,0,0.7), 0 0 32px rgba(0,240,255,0.12);
-  transform:translateY(100%);
-  transition:transform .35s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.voice-bottom-dock.show .voice-dock-container{
-  transform:translateY(0);
-}
-
-.voice-dock-handle{
-  width:36px;height:4px;border-radius:2px;
-  background:rgba(255,255,255,0.2);
-  margin:0 auto 14px auto;
-}
-
-.voice-dock-header{
-  display:flex;align-items:center;justify-content:space-between;
-  margin-bottom:14px;
-}
-.voice-status-indicator{
-  display:flex;align-items:center;gap:8px;
-}
-.voice-pulse-dot{
-  width:8px;height:8px;border-radius:50%;
-  background:var(--accent);
-  box-shadow:0 0 10px var(--accent);
-  animation:dot-glow 1s infinite alternate;
-}
-@keyframes dot-glow{from{opacity:0.4}to{opacity:1}}
-.voice-status-text{
-  font-size:13.5px;font-weight:600;
-  color:var(--text-primary);
-}
-.btn-voice-close{
-  width:30px;height:30px;border-radius:50%;
-  font-size:20px;color:var(--text-muted);
-  display:flex;align-items:center;justify-content:center;
-}
-.btn-voice-close:hover{color:var(--text-primary);background:rgba(255,255,255,0.06)}
-
-/* Visualizer Wave & Equalizer */
-.voice-visualizer-container{
-  position:relative;width:100%;height:64px;
-  display:flex;align-items:center;justify-content:center;
-  margin-bottom:12px;
-}
-.voice-wave-canvas{
-  width:100%;height:100%;display:block;
-}
-.voice-bars{
-  position:absolute;inset:0;
-  display:flex;align-items:center;justify-content:center;gap:4.5px;
-}
-.voice-bars .bar{
-  width:4px;height:8px;border-radius:2px;
-  background:linear-gradient(to top, var(--accent-secondary), var(--accent));
-  box-shadow:0 0 8px rgba(0,240,255,0.5);
-  animation:sound-wave 1.2s ease-in-out infinite alternate;
-}
-.voice-bars .bar.b1{animation-delay:0.1s}
-.voice-bars .bar.b2{animation-delay:0.3s}
-.voice-bars .bar.b3{animation-delay:0.15s}
-.voice-bars .bar.b4{animation-delay:0.45s}
-.voice-bars .bar.b5{animation-delay:0.2s}
-.voice-bars .bar.b6{animation-delay:0.35s}
-.voice-bars .bar.b7{animation-delay:0.05s}
-.voice-bars .bar.b8{animation-delay:0.25s}
-.voice-bars .bar.b9{animation-delay:0.4s}
-.voice-bars .bar.b10{animation-delay:0.1s}
-.voice-bars .bar.b11{animation-delay:0.3s}
-.voice-bars .bar.b12{animation-delay:0.18s}
-.voice-bars .bar.b13{animation-delay:0.42s}
-.voice-bars .bar.b14{animation-delay:0.22s}
-.voice-bars .bar.b15{animation-delay:0.32s}
-.voice-bars .bar.b16{animation-delay:0.08s}
-
-@keyframes sound-wave{
-  0%{height:6px;opacity:0.4}
-  50%{height:36px;opacity:1}
-  100%{height:14px;opacity:0.7}
-}
-
-.voice-transcript-box{
-  min-height:44px;max-height:90px;overflow-y:auto;
-  padding:10px 14px;border-radius:14px;
-  background:rgba(255,255,255,0.04);
-  border:1px solid var(--border-subtle);
-  margin-bottom:18px;
-}
-.voice-transcript-text{
-  font-size:14px;line-height:1.45;color:var(--text-primary);
-  font-style:italic;
-}
-
-/* Control Pills */
-.voice-controls-dock{
-  display:flex;align-items:center;justify-content:center;gap:12px;
-}
-.btn-dock-action{
-  flex:1;max-width:130px;height:44px;
-  display:flex;align-items:center;justify-content:center;gap:8px;
-  border-radius:22px;
-  font-size:13.5px;font-weight:600;
-  border:1px solid var(--border-color);
-  background:rgba(255,255,255,0.06);
-  color:var(--text-primary);
-}
-.btn-dock-action:hover{background:rgba(255,255,255,0.12)}
-.dock-pause-resume{
-  background:rgba(0,240,255,0.12);
-  border-color:rgba(0,240,255,0.35);
-  color:var(--accent);
-}
-.dock-send{
-  background:linear-gradient(135deg, var(--accent) 0%, var(--accent-secondary) 100%);
-  color:#000;font-weight:700;
-  box-shadow:0 0 16px var(--accent-glow);
-  border:none;
-}
-.dock-send:hover{
-  box-shadow:0 0 24px var(--accent-glow);
-}
 
 /* ═══════════════════════════════════════════════════════════════════
    ADVANCED SIDEBAR DRAWER
@@ -4783,11 +4639,10 @@ body.page-paused * {
   opacity: 0.85;
 }
 
-/* Strictly Enforce Widget Z-Index Hierarchy: Voice / Siri Dock on Top */
-.voice-bottom-dock {
+
 /* ═══════════════════════════════════════════════════════════════════
    PHASE 4: SCREEN PUSH-BACK EFFECT (Z-AXIS DEPTH)
-   Apple Intelligence pushes the rest of the OS backward to create 3D depth
+   Pushes the underlying interface backward to create depth
    ═══════════════════════════════════════════════════════════════════ */
 #app-root,
 .main {
@@ -4808,18 +4663,24 @@ body.island-active .main {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   APPLE 2026 DYNAMIC ISLAND - TRUE ORGANIC LIQUID CAMERA MORPH
-   - Motorola Punch-hole Camera Anchor: top: 32px; left: 50%; 24x24px
-   - SVG Gooey Surface Tension Physics (#island-liquid-goo)
-   - 120fps Hardware Acceleration (scale3d / translate3d)
-   - Apple Fluid Spring Curve: cubic-bezier(0.16, 1, 0.3, 1)
-   - Frosted Glass Shell: blur(25px) saturate(180%) rgba(0,0,0,0.85)
-   - Dynamic Siri Plasma Edge & Rainbow Prism Arc
+   MARVO TOP-ANCHORED LIQUID DYNAMIC ISLAND
+   Target Device: Motorola Edge 60 Pro (1220x2712px, centered punch-hole)
+   - Anchor: top: calc(var(--island-top-offset) + 4px); left: 50%;
+   - Idle footprint: 24x24px pure black circle matching camera lens
+   - SVG Gooey Surface Tension Physics (#marvo-goo)
+   - Fluid Spring Curve: cubic-bezier(0.32, 0.72, 0, 1)
+   - 120Hz Hardware Acceleration (transform, scale3d, translate3d)
+   - Downward-only morphing (transform-origin: top center)
    ═══════════════════════════════════════════════════════════════════ */
 
+:root {
+  --island-top-offset: env(safe-area-inset-top, 12px);
+}
+
+#marvo-dynamic-island,
 #marvo-camera-island {
   position: fixed;
-  top: 32px;
+  top: calc(var(--island-top-offset) + 4px);
   left: 50%;
   transform: translateX(-50%) translate3d(0, 0, 0);
   -webkit-transform: translateX(-50%) translate3d(0, 0, 0);
@@ -4827,35 +4688,52 @@ body.island-active .main {
   z-index: 9999;
   box-sizing: border-box;
 
-  /* Motorola Center Punch-hole Camera Anchor (Collapsed Initial State) */
+  /* Motorola Edge 60 Pro Punch-hole Camera Anchor (Idle Dot) */
   width: 24px;
   height: 24px;
-  border-radius: 50%;
+  border-radius: 999px;
+  background: #000000;
 
-  pointer-events: none;
-  opacity: 0;
-  visibility: hidden;
+  pointer-events: none; /* Idle dot must never block touches or the real camera */
   overflow: visible;
 
-  /* 120fps Hardware Acceleration & Apple Fluid Spring Curve */
-  will-change: width, height, transform, border-radius, opacity;
+  /* 120Hz Hardware Acceleration & Fluid Spring Curve */
+  will-change: width, height, border-radius, transform, opacity;
   transition:
-    width 0.62s cubic-bezier(0.16, 1, 0.3, 1),
-    height 0.62s cubic-bezier(0.16, 1, 0.3, 1),
-    transform 0.62s cubic-bezier(0.16, 1, 0.3, 1),
-    border-radius 0.62s cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1),
-    visibility 0.3s;
+    width 0.4s cubic-bezier(0.32, 0.72, 0, 1),
+    height 0.4s cubic-bezier(0.32, 0.72, 0, 1),
+    border-radius 0.4s cubic-bezier(0.32, 0.72, 0, 1),
+    transform 0.4s cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 0.3s ease;
 }
 
-/* Island Summoned: Becomes active at punch-hole */
+/* Idle State: subtle breathing pulse (3-4s cycle) */
+#marvo-dynamic-island.state-idle,
+#marvo-camera-island.state-idle {
+  animation: marvoDotPulse 3.6s ease-in-out infinite alternate;
+}
+
+@keyframes marvoDotPulse {
+  0% { transform: translateX(-50%) scale3d(1, 1, 1); opacity: 0.92; }
+  50% { transform: translateX(-50%) scale3d(1.04, 1.04, 1); opacity: 1; }
+  100% { transform: translateX(-50%) scale3d(1, 1, 1); opacity: 0.92; }
+}
+
+/* Island Summoned: Active pointer events */
+#marvo-dynamic-island.island-open,
 #marvo-camera-island.island-open {
-  opacity: 1;
-  visibility: visible;
-  pointer-events: auto;
+  animation: none;
 }
 
-/* Expanded Card: Stretches downwards like water from punch-hole */
+/* Listening State: Elongated capsule ~140x40px stretching downward from camera */
+#marvo-dynamic-island.state-listening,
+#marvo-camera-island.state-listening {
+  border-radius: 22px;
+}
+
+/* Expanded Card Mode: Stretches downward into full interactive voice card */
+#marvo-dynamic-island.expanded,
+#marvo-dynamic-island.active,
 #marvo-camera-island.expanded,
 #marvo-camera-island.active {
   width: 92%;
@@ -4864,16 +4742,42 @@ body.island-active .main {
   height: max-content;
   border-radius: 38px;
   transform: translateX(-50%) translate3d(0, 0, 0);
+  pointer-events: auto;
+}
+
+/* Thinking State: Capsule with animated internal gradient sweep */
+#marvo-dynamic-island.state-thinking,
+#marvo-camera-island.state-thinking {
+  border-radius: 38px;
+}
+
+/* Speaking State: Amplitude-reactive pulsing tied to TTS audio output */
+#marvo-dynamic-island.state-speaking,
+#marvo-camera-island.state-speaking {
+  border-radius: 38px;
+}
+
+/* Error State: Brief red-tinted flash, auto-dismiss ~1.5s */
+#marvo-dynamic-island.state-error,
+#marvo-camera-island.state-error {
+  background: rgba(220, 38, 38, 0.92) !important;
+  box-shadow: 0 0 24px rgba(239, 68, 68, 0.7);
+  animation: marvoErrorFlash 0.3s ease-in-out 3 alternate;
+}
+
+@keyframes marvoErrorFlash {
+  0% { transform: translateX(-50%) scale3d(0.97, 0.97, 1); }
+  100% { transform: translateX(-50%) scale3d(1.03, 1.03, 1); }
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   SVG GOOEY LIQUID HULL (Water Droplet Surface Tension Physics)
+   SVG GOOEY LIQUID HULL (Surface Tension Physics)
    ═══════════════════════════════════════════════════════════════════ */
 .island-gooey-wrapper {
   position: absolute;
   inset: -24px;
-  filter: url(#island-liquid-goo);
-  -webkit-filter: url(#island-liquid-goo);
+  filter: url(#marvo-goo);
+  -webkit-filter: url(#marvo-goo);
   pointer-events: none;
   z-index: 1;
   overflow: visible;
@@ -4885,7 +4789,7 @@ body.island-active .main {
   height: 100%;
 }
 
-/* Physical Camera Anchor Droplet */
+/* Camera Anchor Dot */
 .island-liquid-anchor {
   position: absolute;
   top: 24px;
@@ -4893,24 +4797,32 @@ body.island-active .main {
   width: 24px;
   height: 24px;
   transform: translateX(-50%) translate3d(0, 0, 0);
-  border-radius: 50%;
+  border-radius: 999px;
   background: #000000;
 }
 
-/* Morphing Liquid Droplet Body */
+/* Morphing Liquid Body stretching downwards */
 .island-liquid-body {
   position: absolute;
   inset: 24px;
-  background: rgba(0, 0, 0, 0.96);
-  border-radius: 50%;
-  transform: scale3d(0.12, 0.12, 1) translate3d(0, 0, 0);
+  background: #000000;
+  border-radius: 999px;
+  transform: scale3d(0.15, 0.15, 1) translate3d(0, 0, 0);
   transform-origin: top center;
   will-change: transform, border-radius;
   transition:
-    transform 0.62s cubic-bezier(0.16, 1, 0.3, 1),
-    border-radius 0.62s cubic-bezier(0.16, 1, 0.3, 1);
+    transform 0.4s cubic-bezier(0.32, 0.72, 0, 1),
+    border-radius 0.4s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
+#marvo-dynamic-island.state-listening .island-liquid-body,
+#marvo-camera-island.state-listening .island-liquid-body {
+  transform: scale3d(1, 1, 1) translate3d(0, 0, 0);
+  border-radius: 22px;
+}
+
+#marvo-dynamic-island.expanded .island-liquid-body,
+#marvo-dynamic-island.active .island-liquid-body,
 #marvo-camera-island.expanded .island-liquid-body,
 #marvo-camera-island.active .island-liquid-body {
   transform: scale3d(1, 1, 1) translate3d(0, 0, 0);
@@ -4918,7 +4830,7 @@ body.island-active .main {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   FROSTED GLASS CARD SHELL & DYNAMIC SIRI PLASMA BORDER
+   MARVO GLASS CARD SHELL & FLUID EDGE GLOW
    ═══════════════════════════════════════════════════════════════════ */
 .island-glass-card {
   position: relative;
@@ -4928,24 +4840,34 @@ body.island-active .main {
   border-radius: inherit;
   box-sizing: border-box;
 
-  /* Frosted Glass Spec: blur(25px) saturate(180%) rgba(0,0,0,0.85) */
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(8, 12, 20, 0.88);
   backdrop-filter: blur(25px) saturate(180%);
   -webkit-backdrop-filter: blur(25px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(0, 240, 255, 0.18);
   box-shadow:
-    0 24px 64px rgba(0, 0, 0, 0.75),
-    0 0 40px rgba(100, 210, 255, 0.15),
-    inset 0 1px 2px rgba(255, 255, 255, 0.22);
+    0 24px 64px rgba(0, 0, 0, 0.8),
+    0 0 32px rgba(0, 240, 255, 0.16),
+    inset 0 1px 2px rgba(255, 255, 255, 0.15);
 
   display: flex;
   flex-direction: column;
   align-items: center;
   overflow: hidden;
   z-index: 2;
+  transition: opacity 0.3s ease, border-color 0.3s ease;
 }
 
-/* Dynamic Siri Glowing Plasma Edge (mix-blend-mode: screen) */
+/* Idle State: Hide inner card content, only camera anchor dot visible */
+#marvo-dynamic-island.state-idle .island-glass-card,
+#marvo-camera-island.state-idle .island-glass-card {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* Marvo Dynamic Fluid Edge Glow */
 .island-plasma-edge {
   position: absolute;
   inset: -2px;
@@ -4953,81 +4875,48 @@ body.island-active .main {
   padding: 2px;
   background: conic-gradient(
     from 0deg,
-    #5E5CE6,
-    #FF375F,
-    #64D2FF,
-    #0A84FF,
-    #34C759,
-    #5E5CE6
+    #00f0ff,
+    #9333ea,
+    #ff007f,
+    #00f0ff
   );
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   filter: blur(6px);
   -webkit-filter: blur(6px);
-  mix-blend-mode: screen;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), filter 0.4s ease;
-  animation: islandPlasmaRotate 4s linear infinite;
+  transition: opacity 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+  animation: marvoEdgeSpin 3.5s linear infinite;
   z-index: 6;
 }
 
-@keyframes islandPlasmaRotate {
+@keyframes marvoEdgeSpin {
   0% { filter: blur(6px) hue-rotate(0deg); }
   100% { filter: blur(6px) hue-rotate(360deg); }
 }
 
+#marvo-dynamic-island.state-listening .island-plasma-edge,
 #marvo-camera-island.state-listening .island-plasma-edge {
   opacity: 0.85;
-  animation-duration: 3.5s;
+  animation-duration: 3s;
 }
 
+#marvo-dynamic-island.state-thinking .island-plasma-edge,
 #marvo-camera-island.state-thinking .island-plasma-edge {
   opacity: 1;
   filter: blur(8px);
-  animation-duration: 2s;
+  animation-duration: 1.8s;
 }
 
+#marvo-dynamic-island.state-speaking .island-plasma-edge,
 #marvo-camera-island.state-speaking .island-plasma-edge {
-  opacity: 0.65;
-  animation-duration: 5s;
+  opacity: 0.7;
+  animation-duration: 4s;
 }
 
-/* Rainbow Prism Light Arc (Inside Top Edge below camera lens) */
-.prism-light-arc {
-  width: 60%;
-  height: 6px;
-  position: absolute;
-  top: 5px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    #FF3B30 20%,
-    #FF9500 40%,
-    #34C759 60%,
-    #007AFF 80%,
-    transparent 100%
-  );
-  border-radius: 999px;
-  filter: blur(3px);
-  -webkit-filter: blur(3px);
-  mix-blend-mode: screen;
-  pointer-events: none;
-  z-index: 10;
-  opacity: 0.55;
-  transition: width 0.62s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease;
-}
-
-#marvo-camera-island.expanded .prism-light-arc,
-#marvo-camera-island.active .prism-light-arc {
-  width: 82%;
-  opacity: 0.45;
-}
-
-/* Physical Punch-hole Camera Lens Simulation */
+/* Physical Punch-hole Camera Lens Alignment Frame */
 .island-camera-lens {
   position: absolute;
   top: 5px;
@@ -5036,7 +4925,7 @@ body.island-active .main {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #1a202c 0%, #08090d 85%);
+  background: radial-gradient(circle at 35% 35%, #161e2e 0%, #06080d 85%);
   box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.25), 0 0 2px rgba(0, 0, 0, 0.9);
   pointer-events: none;
   z-index: 12;
@@ -5049,13 +4938,11 @@ body.island-active .main {
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: rgba(100, 210, 255, 0.7);
-  box-shadow: 0 0 4px rgba(100, 210, 255, 0.9);
+  background: rgba(0, 240, 255, 0.75);
+  box-shadow: 0 0 4px rgba(0, 240, 255, 0.9);
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   CRISP UI CONTENT LAYER (Typography, Visualizer, Controls)
-   ═══════════════════════════════════════════════════════════════════ */
+/* Crisp UI Content Layer */
 .island-content-layer {
   position: relative;
   width: 100%;
@@ -5068,19 +4955,22 @@ body.island-active .main {
   z-index: 5;
   opacity: 0;
   transform: translateY(8px) scale3d(0.96, 0.96, 1);
+  pointer-events: none;
   transition:
-    opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1),
-    transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  transition-delay: 0.12s;
+    opacity 0.35s cubic-bezier(0.32, 0.72, 0, 1),
+    transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
+#marvo-dynamic-island.expanded .island-content-layer,
+#marvo-dynamic-island.active .island-content-layer,
 #marvo-camera-island.expanded .island-content-layer,
 #marvo-camera-island.active .island-content-layer {
   opacity: 1;
   transform: translateY(0) scale3d(1, 1, 1);
+  pointer-events: auto;
 }
 
-/* Island Top Row: Status Badge & Close Trigger */
+/* Top Row: Status Badge & Close Trigger */
 .island-top-row {
   width: 100%;
   display: flex;
@@ -5095,10 +4985,10 @@ body.island-active .main {
 .island-status-badge {
   padding: 4px 14px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.92);
-  font: 600 11px -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  background: rgba(0, 240, 255, 0.08);
+  border: 1px solid rgba(0, 240, 255, 0.2);
+  color: #00f0ff;
+  font: 600 11px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -5116,7 +5006,7 @@ body.island-active .main {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s;
+  transition: transform 0.2s cubic-bezier(0.32, 0.72, 0, 1), background 0.2s;
 }
 
 .island-close-btn:active {
@@ -5136,7 +5026,7 @@ body.island-active .main {
 }
 
 .island-response-text {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   color: #FFFFFF;
   text-shadow: 0px 2px 10px rgba(0, 0, 0, 0.4);
   font-size: 16px;
@@ -5146,7 +5036,7 @@ body.island-active .main {
   word-break: break-word;
 }
 
-/* 3-State Plasma Waveform Visualizer & Ambient Conic Glow */
+/* Waveform Visualizer & Ambient Conic Glow */
 .island-plasma-wrapper {
   position: relative;
   overflow: visible !important;
@@ -5174,22 +5064,22 @@ body.island-active .main {
   border-radius: 50%;
   background: conic-gradient(
     from 0deg,
-    #5E5CE6 0deg,
-    #FF375F 90deg,
-    #64D2FF 180deg,
-    #0A84FF 270deg,
-    #5E5CE6 360deg
+    #00f0ff 0deg,
+    #9333ea 90deg,
+    #ff007f 180deg,
+    #00f0ff 360deg
   );
   filter: blur(18px) saturate(180%);
   -webkit-filter: blur(18px) saturate(180%);
   opacity: 0;
   pointer-events: none;
   mix-blend-mode: screen;
-  transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity 0.4s cubic-bezier(0.32, 0.72, 0, 1);
   animation: islandConicSpin 3.5s linear infinite;
   animation-play-state: paused;
 }
 
+#marvo-dynamic-island.state-thinking .island-conic-glow,
 #marvo-camera-island.state-thinking .island-conic-glow {
   opacity: 0.8;
   animation-play-state: running;
@@ -5222,11 +5112,11 @@ body.island-active .main {
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.15);
   color: #fff;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.2s cubic-bezier(0.32, 0.72, 0, 1);
   user-select: none;
 }
 
@@ -5240,13 +5130,14 @@ body.island-active .main {
 }
 
 .island-btn-send {
-  background: linear-gradient(135deg, rgba(94, 92, 230, 0.9), rgba(10, 132, 255, 0.9));
-  border-color: rgba(255, 255, 255, 0.28);
-  box-shadow: 0 4px 14px rgba(94, 92, 230, 0.35);
+  background: linear-gradient(135deg, rgba(0, 240, 255, 0.9), rgba(147, 51, 234, 0.9));
+  border-color: rgba(0, 240, 255, 0.35);
+  box-shadow: 0 4px 14px rgba(0, 240, 255, 0.35);
+  color: #fff;
 }
 
 .island-btn-send:active {
-  background: linear-gradient(135deg, rgba(94, 92, 230, 1), rgba(10, 132, 255, 1));
+  background: linear-gradient(135deg, rgba(0, 240, 255, 1), rgba(147, 51, 234, 1));
 }
 
 /* Swipe-Up Dismiss Pill Handle */
@@ -5265,19 +5156,18 @@ body.island-active .main {
   background: rgba(255, 255, 255, 0.5);
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   SCREEN PUSH-BACK DEPTH (Z-Axis Depth on #app-root)
-   ═══════════════════════════════════════════════════════════════════ */
-#app-root.island-pushed-back,
-.main.island-pushed-back {
-  transform: scale3d(0.94, 0.94, 1) translateY(18px);
-  border-radius: 36px;
-  overflow: hidden;
-  filter: brightness(0.85);
-  transition:
-    transform 0.55s cubic-bezier(0.16, 1, 0.3, 1),
-    filter 0.55s cubic-bezier(0.16, 1, 0.3, 1),
-    border-radius 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+/* Accessibility: prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  #marvo-dynamic-island,
+  #marvo-camera-island,
+  .island-liquid-body,
+  .island-content-layer,
+  .island-plasma-edge {
+    animation: none !important;
+    transition: opacity 0.2s ease !important;
+    filter: none !important;
+    -webkit-filter: none !important;
+  }
 }
 
 .settings-modal-overlay {
