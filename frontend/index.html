@@ -1179,22 +1179,21 @@
 </div>
 
 <!-- ═══════════ MARVO SVG GOOEY FILTER (LIQUID SURFACE TENSION) ═══════════ -->
-<svg id="marvo-goo-svg" width="0" height="0" style="position:absolute;pointer-events:none;opacity:0;z-index:-1;" aria-hidden="true">
-  <defs>
-    <filter id="marvo-goo">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur" />
-      <feColorMatrix in="blur" mode="matrix"
-        values="1 0 0 0 0
-                0 1 0 0 0
-                0 0 1 0 0
-                0 0 0 19 -9"
-        result="goo" />
-      <feComposite in="SourceGraphic" in2="goo" operator="atop" />
-    </filter>
-  </defs>
+<svg width="0" height="0" style="position:absolute">
+  <filter id="marvo-goo">
+    <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="blur" />
+    <feColorMatrix in="blur" mode="matrix"
+      values="1 0 0 0 0
+              0 1 0 0 0
+              0 0 1 0 0
+              0 0 0 19 -9"
+      result="goo" />
+    <feComposite in="SourceGraphic" in2="goo" operator="atop" />
+  </filter>
 </svg>
 
 <!-- ═══════════ MARVO TOP-ANCHORED LIQUID DYNAMIC ISLAND ═══════════ -->
+<div class="marvo-island-goo-container" style="filter: url(#marvo-goo)">
 <div id="marvo-dynamic-island" class="marvo-dynamic-island state-idle" aria-live="polite">
   <!-- SVG Gooey Liquid Hull (Organic water droplet expansion & surface tension) -->
   <div class="island-gooey-wrapper">
@@ -1269,6 +1268,7 @@
   <svg id="iconVoicePause" style="display:none;" aria-hidden="true"></svg>
   <svg id="iconVoiceResume" style="display:none;" aria-hidden="true"></svg>
   <button id="btnVoiceSend" style="display:none;" aria-hidden="true"></button>
+</div>
 </div>
 
 <!-- Toast notification helper -->

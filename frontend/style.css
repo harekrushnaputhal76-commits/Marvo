@@ -4679,6 +4679,17 @@ body.island-active .main {
   --island-top-offset: env(safe-area-inset-top, 12px);
 }
 
+.marvo-island-goo-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 0;
+  pointer-events: none;
+  z-index: 9999;
+  overflow: visible;
+}
+
 #marvo-dynamic-island,
 #marvo-camera-island {
   position: fixed;
