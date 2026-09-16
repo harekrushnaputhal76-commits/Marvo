@@ -4766,26 +4766,10 @@ body.island-active .main {
   width: 140px;
   height: 40px;
   border-radius: 20px;
-  background: linear-gradient(
-    90deg,
-    #060913 0%,
-    #00f0ff 25%,
-    #9333ea 50%,
-    #ff007f 75%,
-    #060913 100%
-  );
-  background-size: 250% 100%;
-  animation: marvoThinkingSweep 2s linear infinite;
   box-shadow:
     0 4px 24px rgba(147, 51, 234, 0.35),
     0 0 1px rgba(255, 255, 255, 0.3);
   pointer-events: auto;
-}
-
-@keyframes marvoThinkingSweep {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
 }
 
 /* 4. Speaking State: Capsule with amplitude-reactive pulsing */
@@ -5412,6 +5396,23 @@ body.island-active .main {
   }
 }
 
+@keyframes marvo-thinking-gradient-sweep {
+  from {
+    background-position: 0% 50%;
+  }
+  to {
+    background-position: 100% 50%;
+  }
+}
+
+#marvo-dynamic-island.state-thinking::before {
+  background: var(--marvo-gradient-thinking);
+  background-size: 250% 100%;
+  background-position: 0% 50%;
+  transform: none;
+  animation: marvo-thinking-gradient-sweep var(--marvo-duration-slow) linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   #marvo-liquid-filter-context,
   #marvo-dynamic-island::before {
@@ -5421,6 +5422,25 @@ body.island-active .main {
 
 .marvo-reduced-motion #marvo-liquid-filter-context,
 .marvo-reduced-motion #marvo-dynamic-island::before {
+  animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #marvo-dynamic-island.state-thinking::before,
+  .marvo-reduced-motion #marvo-dynamic-island.state-thinking::before {
+    background: var(--marvo-gradient-thinking) !important;
+    background-size: 100% 100% !important;
+    background-position: 50% 50% !important;
+    transform: none !important;
+    animation: none !important;
+  }
+}
+
+.marvo-reduced-motion #marvo-dynamic-island.state-thinking::before {
+  background: var(--marvo-gradient-thinking) !important;
+  background-size: 100% 100% !important;
+  background-position: 50% 50% !important;
+  transform: none !important;
   animation: none !important;
 }
 
