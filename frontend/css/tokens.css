@@ -14,6 +14,7 @@
   --marvo-color-magenta:       #ff007f;
   --marvo-color-orange:        #ff6b35;
   --marvo-color-amber:         #ff9e00;
+   --marvo-color-error:         #ef4444;
 
   /* Idle Multi-Hue Gradient Stops */
   --marvo-grad-stop-blue:      var(--marvo-color-blue);
@@ -70,6 +71,7 @@
   --marvo-duration-fast:              0.2s;
   --marvo-duration-base:              0.38s;
   --marvo-duration-slow:              0.6s;
+   --marvo-error-flash-duration:       1.5s;
 
   /* ─────────────────────────────────────────────────────────────────
      4. GEOMETRY & SHAPE TOKENS

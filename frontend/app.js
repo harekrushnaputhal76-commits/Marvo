@@ -3305,14 +3305,23 @@ class DynamicIslandManager {
       capsuleLabel.textContent = stateLabels[s] || 'Marvo';
     }
 
-    // Error state: brief flash then auto-dismiss back to idle after ~1.5s
+    if (s !== 'error' && this.errorTimer) {
+      clearTimeout(this.errorTimer);
+      this.errorTimer = null;
+    }
+
+    // Error state: brief flash then auto-dismiss back to idle after the token duration.
     if (s === 'error') {
       if (this.errorTimer) clearTimeout(this.errorTimer);
+      const durationMs = el
+        ? parseFloat(getComputedStyle(el).getPropertyValue('--marvo-error-flash-duration')) * 1000
+        : NaN;
       this.errorTimer = setTimeout(() => {
+        this.errorTimer = null;
         if (this.state === 'error') {
           this.setVoiceState('idle', 0);
         }
-      }, 1500);
+      }, Number.isFinite(durationMs) ? durationMs : 1500);
     }
   }
 
@@ -3400,6 +3409,23 @@ class DynamicIslandManager {
     const render = () => {
       if (!this.active) return;
       this.animId = requestAnimationFrame(render);
+      const time = Date.now() * 0.004;
+
+      if (this.state === 'speaking') {
+        // No TTS output-level API is exposed, so use an explicit smooth fallback pulse.
+        const syntheticLevel = 0.5 + Math.sin(time * 2.4) * 0.5;
+        this.smoothedAudioLevel += (syntheticLevel - this.smoothedAudioLevel) * 0.18;
+        const el = this.getIsland();
+        if (el) {
+          const styles = getComputedStyle(el);
+          const responseMin = parseFloat(styles.getPropertyValue('--marvo-listening-response-min'));
+          const responseMax = parseFloat(styles.getPropertyValue('--marvo-listening-response-max'));
+          const min = Number.isFinite(responseMin) ? responseMin : 0.12;
+          const max = Number.isFinite(responseMax) ? responseMax : 0.82;
+          const intensity = min + this.smoothedAudioLevel * (max - min);
+          el.style.setProperty('--island-volume', intensity.toFixed(3));
+        }
+      }
 
       if (!this.canvas) this.canvas = document.getElementById('islandWaveCanvas');
       if (!this.canvas) return;
@@ -3410,8 +3436,6 @@ class DynamicIslandManager {
       const width = this.canvas.width;
       const height = this.canvas.height;
       ctx.clearRect(0, 0, width, height);
-
-      const time = Date.now() * 0.004;
 
       // Thinking: Ambient conic-glow handles spinning aura; waveform stays minimal
       if (this.state === 'thinking' || this.state === 'error') {

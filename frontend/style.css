@@ -4796,16 +4796,30 @@ body.island-active .main {
   }
 }
 
+@keyframes marvo-speaking-ripple {
+  0%, 100% {
+    transform: scale3d(0.99, 0.96, 1);
+  }
+  50% {
+    transform: scale3d(1.03, 1.06, 1);
+  }
+}
+
+#marvo-dynamic-island.state-speaking::after {
+  opacity: var(--island-volume, var(--marvo-listening-response-fallback));
+  animation: marvo-speaking-ripple var(--marvo-duration-base) var(--marvo-ease-smooth) infinite;
+}
+
 /* 5. Error State: Brief red-tinted flash (~1.5s) then back to idle */
 #marvo-dynamic-island.state-error {
-  width: 140px;
-  height: 40px;
-  border-radius: 20px;
-  background: rgba(220, 38, 38, 0.95) !important;
+  width: var(--marvo-geo-error-diameter);
+  height: var(--marvo-geo-error-diameter);
+  border-radius: var(--marvo-geo-radius-idle);
+  background: var(--marvo-color-error) !important;
   box-shadow:
     0 4px 24px rgba(239, 68, 68, 0.8),
     0 0 1px rgba(255, 255, 255, 0.35);
-  animation: marvoErrorFlash 0.3s ease-in-out 3 alternate;
+  animation: marvoErrorFlash var(--marvo-duration-fast) var(--marvo-ease-smooth) 3 alternate;
   pointer-events: auto;
 }
 
