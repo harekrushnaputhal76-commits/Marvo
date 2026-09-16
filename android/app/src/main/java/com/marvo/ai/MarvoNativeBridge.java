@@ -3,12 +3,15 @@ package com.marvo.ai;
 import android.app.NotificationManager;
 import android.content.Context;
 import android.content.Intent;
+import android.media.AudioManager;
 import android.media.MediaScannerConnection;
 import android.os.Build;
 import android.os.Environment;
+import android.provider.AlarmClock;
 import android.provider.Settings;
 import android.util.Base64;
 import android.util.Log;
+import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -16,6 +19,7 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.util.List;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -181,89 +185,114 @@ public class MarvoNativeBridge extends Plugin {
         android.content.pm.PackageManager pm = context.getPackageManager();
 
         try {
-            // 1. YouTube
-            if (lower.equals("open youtube") || lower.equals("youtube kholo") || lower.equals("launch youtube") || lower.equals("start youtube")) {
-                Intent intent = pm.getLaunchIntentForPackage("com.google.android.youtube");
-                if (intent != null) {
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    context.startActivity(intent);
+            // 1. Voice-Activated Alarm (AlarmManager / Clock Intent)
+            java.util.regex.Pattern alarmPattern = java.util.regex.Pattern.compile(
+                "(?:set|create|lagao)?\\s*(?:an\\s*)?alarm\\s*(?:for|at)?\\s*(\\d{1,2})(?::(\\d{2}))?\\s*(am|pm)?|" +
+                "(\\d{1,2})(?::(\\d{2}))?\\s*(?:baje|am|pm)?\\s*(?:ka\\s*)?alarm\\s*(?:lagao|set)",
+                java.util.regex.Pattern.CASE_INSENSITIVE
+            );
+            java.util.regex.Matcher m = alarmPattern.matcher(lower);
+            if (m.find()) {
+                String hourStr = m.group(1) != null ? m.group(1) : m.group(4);
+                String minStr = m.group(2) != null ? m.group(2) : m.group(5);
+                String ampmStr = m.group(3) != null ? m.group(3) : (lower.contains("pm") ? "pm" : (lower.contains("am") ? "am" : null));
+
+                int hour = Integer.parseInt(hourStr);
+                int minute = minStr != null ? Integer.parseInt(minStr) : 0;
+                if ("pm".equalsIgnoreCase(ampmStr) && hour < 12) hour += 12;
+                if ("am".equalsIgnoreCase(ampmStr) && hour == 12) hour = 0;
+
+                Intent alarmIntent = new Intent(AlarmClock.ACTION_SET_ALARM);
+                alarmIntent.putExtra(AlarmClock.EXTRA_HOUR, hour);
+                alarmIntent.putExtra(AlarmClock.EXTRA_MINUTES, minute);
+                alarmIntent.putExtra(AlarmClock.EXTRA_MESSAGE, "Marvo AI Alarm");
+                alarmIntent.putExtra(AlarmClock.EXTRA_SKIP_UI, false);
+                alarmIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
+                if (alarmIntent.resolveActivity(pm) != null) {
+                    context.startActivity(alarmIntent);
+                    String timeFormatted = String.format(java.util.Locale.US, "%02d:%02d", hour, minute);
                     JSObject res = new JSObject();
                     res.put("executed", true);
-                    res.put("message", "Opening YouTube...");
-                    res.put("action", "open_youtube");
+                    res.put("action", "set_alarm");
+                    res.put("message", "Alarm set for " + timeFormatted);
                     call.resolve(res);
                     return;
                 }
             }
 
-            // 2. WhatsApp
-            if (lower.equals("open whatsapp") || lower.equals("whatsapp kholo") || lower.equals("launch whatsapp") || lower.equals("open wa")) {
-                Intent intent = pm.getLaunchIntentForPackage("com.whatsapp");
-                if (intent != null) {
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    context.startActivity(intent);
-                    JSObject res = new JSObject();
-                    res.put("executed", true);
-                    res.put("message", "Opening WhatsApp...");
-                    res.put("action", "open_whatsapp");
-                    call.resolve(res);
-                    return;
+            // 2. Hardware Volume Control (AudioManager)
+            if (lower.contains("volume") || lower.contains("sound") || lower.contains("awaz") || lower.contains("awaaz") || lower.contains("mute") || lower.contains("unmute")) {
+                AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+                if (audioManager != null) {
+                    if (lower.contains("mute") || lower.contains("silent") || lower.contains("shant")) {
+                        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, 0, AudioManager.FLAG_SHOW_UI);
+                        JSObject res = new JSObject();
+                        res.put("executed", true);
+                        res.put("action", "volume_mute");
+                        res.put("message", "Media volume muted.");
+                        call.resolve(res);
+                        return;
+                    } else if (lower.contains("unmute")) {
+                        int def = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC) / 2;
+                        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, def, AudioManager.FLAG_SHOW_UI);
+                        JSObject res = new JSObject();
+                        res.put("executed", true);
+                        res.put("action", "volume_unmute");
+                        res.put("message", "Media volume unmuted.");
+                        call.resolve(res);
+                        return;
+                    } else if (lower.contains("up") || lower.contains("badhao") || lower.contains("increase") || lower.contains("raise") || lower.contains("jyada")) {
+                        audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_RAISE, AudioManager.FLAG_SHOW_UI);
+                        JSObject res = new JSObject();
+                        res.put("executed", true);
+                        res.put("action", "volume_up");
+                        res.put("message", "Media volume increased.");
+                        call.resolve(res);
+                        return;
+                    } else if (lower.contains("down") || lower.contains("kam") || lower.contains("decrease") || lower.contains("lower") || lower.contains("ghatao")) {
+                        audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_LOWER, AudioManager.FLAG_SHOW_UI);
+                        JSObject res = new JSObject();
+                        res.put("executed", true);
+                        res.put("action", "volume_down");
+                        res.put("message", "Media volume decreased.");
+                        call.resolve(res);
+                        return;
+                    }
                 }
             }
 
-            // 3. Camera
-            if (lower.equals("open camera") || lower.equals("camera kholo") || lower.equals("take photo") || lower.equals("launch camera")) {
-                Intent intent = new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE);
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                context.startActivity(intent);
+            // 3. Wi-Fi & Bluetooth Automation
+            if ((lower.contains("wifi") || lower.contains("wi-fi")) && (lower.contains("on") || lower.contains("off") || lower.contains("open") || lower.contains("settings") || lower.contains("chalao") || lower.contains("band"))) {
+                Intent panelIntent;
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    panelIntent = new Intent(Settings.Panel.ACTION_WIFI);
+                } else {
+                    panelIntent = new Intent(Settings.ACTION_WIFI_SETTINGS);
+                }
+                panelIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                context.startActivity(panelIntent);
                 JSObject res = new JSObject();
                 res.put("executed", true);
-                res.put("message", "Opening Camera...");
-                res.put("action", "open_camera");
-                call.resolve(res);
-                return;
-            }
-
-            // 4. Settings
-            if (lower.equals("open settings") || lower.equals("settings kholo") || lower.equals("launch settings")) {
-                Intent intent = new Intent(android.provider.Settings.ACTION_SETTINGS);
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                context.startActivity(intent);
-                JSObject res = new JSObject();
-                res.put("executed", true);
-                res.put("message", "Opening Settings...");
-                res.put("action", "open_settings");
-                call.resolve(res);
-                return;
-            }
-
-            // 5. Bluetooth Settings
-            if (lower.contains("bluetooth") && (lower.contains("open") || lower.contains("turn on") || lower.contains("settings") || lower.contains("kholo") || lower.contains("on karo"))) {
-                Intent intent = new Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS);
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                context.startActivity(intent);
-                JSObject res = new JSObject();
-                res.put("executed", true);
-                res.put("message", "Opening Bluetooth settings...");
-                res.put("action", "open_bluetooth");
-                call.resolve(res);
-                return;
-            }
-
-            // 6. Wi-Fi Settings
-            if ((lower.contains("wifi") || lower.contains("wi-fi")) && (lower.contains("open") || lower.contains("turn on") || lower.contains("settings") || lower.contains("kholo") || lower.contains("on karo"))) {
-                Intent intent = new Intent(android.provider.Settings.ACTION_WIFI_SETTINGS);
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                context.startActivity(intent);
-                JSObject res = new JSObject();
-                res.put("executed", true);
-                res.put("message", "Opening Wi-Fi settings...");
                 res.put("action", "open_wifi");
+                res.put("message", "Wi-Fi control panel opened.");
                 call.resolve(res);
                 return;
             }
 
-            // 7. Flashlight / Torch
+            if (lower.contains("bluetooth") && (lower.contains("on") || lower.contains("off") || lower.contains("open") || lower.contains("settings") || lower.contains("chalao") || lower.contains("band"))) {
+                Intent intent = new Intent(Settings.ACTION_BLUETOOTH_SETTINGS);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                context.startActivity(intent);
+                JSObject res = new JSObject();
+                res.put("executed", true);
+                res.put("action", "open_bluetooth");
+                res.put("message", "Bluetooth settings opened.");
+                call.resolve(res);
+                return;
+            }
+
+            // 4. Flashlight / Torch
             if (lower.contains("flashlight") || lower.contains("torch")) {
                 boolean turnOn = lower.contains("on") || lower.contains("chalao") || lower.contains("kholo") || lower.contains("jalao");
                 boolean turnOff = lower.contains("off") || lower.contains("band") || lower.contains("bujhao");
@@ -272,7 +301,7 @@ public class MarvoNativeBridge extends Plugin {
                         android.hardware.camera2.CameraManager camManager = (android.hardware.camera2.CameraManager) context.getSystemService(Context.CAMERA_SERVICE);
                         if (camManager != null) {
                             String cameraId = camManager.getCameraIdList()[0];
-                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                                 camManager.setTorchMode(cameraId, turnOn);
                                 JSObject res = new JSObject();
                                 res.put("executed", true);
@@ -286,9 +315,11 @@ public class MarvoNativeBridge extends Plugin {
                 }
             }
 
-            // 8. Generic App Launcher
+            // 5. Dynamic App Launcher: matches installed applications
             if (lower.startsWith("open ") || lower.startsWith("launch ") || lower.endsWith(" kholo")) {
                 String appTarget = lower.replaceFirst("^(?:open|launch)\\s+", "").replaceAll("\\s+kholo$", "").trim();
+                
+                // Check fast packages first
                 String fastPkg = OfflineIntentRouter.getAppPackage(appTarget);
                 if (fastPkg != null) {
                     Intent intent = pm.getLaunchIntentForPackage(fastPkg);
@@ -303,6 +334,25 @@ public class MarvoNativeBridge extends Plugin {
                         return;
                     }
                 }
+
+                // Dynamic query against all installed packages
+                List<android.content.pm.ApplicationInfo> apps = pm.getInstalledApplications(0);
+                for (android.content.pm.ApplicationInfo appInfo : apps) {
+                    String label = pm.getApplicationLabel(appInfo).toString().toLowerCase();
+                    if (label.equals(appTarget) || label.startsWith(appTarget) || appInfo.packageName.toLowerCase().contains(appTarget)) {
+                        Intent intent = pm.getLaunchIntentForPackage(appInfo.packageName);
+                        if (intent != null) {
+                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                            context.startActivity(intent);
+                            JSObject res = new JSObject();
+                            res.put("executed", true);
+                            res.put("message", "Opening " + pm.getApplicationLabel(appInfo) + "...");
+                            res.put("action", "open_app");
+                            call.resolve(res);
+                            return;
+                        }
+                    }
+                }
             }
         } catch (Exception e) {
             Log.w(TAG, "Device action intent execution note: " + e.getMessage());
@@ -311,6 +361,68 @@ public class MarvoNativeBridge extends Plugin {
         JSObject res = new JSObject();
         res.put("executed", false);
         call.resolve(res);
+    }
+
+    // ═══════════ LOCAL RAG & DOCUMENT VECTOR STORE (PHASE 4) ═══════════
+    @PluginMethod
+    public void ingestDocument(final PluginCall call) {
+        String fileName = call.getString("fileName", "Document.txt");
+        String content = call.getString("content", "");
+        String fileType = call.getString("fileType", "text/plain");
+
+        LocalRagEngine.getInstance(getContext()).ingestDocument(fileName, content, fileType, new LocalRagEngine.IngestCallback() {
+            @Override
+            public void onSuccess(String docId, int totalChunks, String name) {
+                JSObject ret = new JSObject();
+                ret.put("success", true);
+                ret.put("docId", docId);
+                ret.put("totalChunks", totalChunks);
+                ret.put("fileName", name);
+                call.resolve(ret);
+            }
+
+            @Override
+            public void onError(String error) {
+                call.reject("Failed to ingest document: " + error);
+            }
+        });
+    }
+
+    @PluginMethod
+    public void queryRag(final PluginCall call) {
+        String query = call.getString("query", "");
+        int topK = call.getInt("topK", 3);
+
+        LocalRagEngine.getInstance(getContext()).queryRag(query, topK, new LocalRagEngine.QueryCallback() {
+            @Override
+            public void onSuccess(List<LocalRagEngine.RagSearchResult> results) {
+                JSArray arr = new JSArray();
+                for (LocalRagEngine.RagSearchResult r : results) {
+                    arr.put(r.toJson());
+                }
+                JSObject ret = new JSObject();
+                ret.put("results", arr);
+                ret.put("count", results.size());
+                call.resolve(ret);
+            }
+
+            @Override
+            public void onError(String error) {
+                call.reject("RAG query failed: " + error);
+            }
+        });
+    }
+
+    @PluginMethod
+    public void clearRagCache(final PluginCall call) {
+        LocalRagEngine.getInstance(getContext()).clearSessionCache(new Runnable() {
+            @Override
+            public void run() {
+                JSObject ret = new JSObject();
+                ret.put("cleared", true);
+                call.resolve(ret);
+            }
+        });
     }
 
     @PluginMethod

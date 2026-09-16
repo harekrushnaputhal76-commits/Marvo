@@ -123,6 +123,8 @@ ${sourceText}`;
       const card = this.currentCards[this.currentIndex];
       const total = this.currentCards.length;
       const progressPct = Math.round(((this.currentIndex + 1) / total) * 100);
+      const isBookmarked = this.isCardBookmarked(card);
+      const bookmarkCount = this.getBookmarks().length;
 
       const renderMath = (text) => {
         if (window.MathRenderer) return window.MathRenderer.renderFormattedText(text);
@@ -132,7 +134,11 @@ ${sourceText}`;
       this.containerEl.innerHTML = `
         <div class="flashcard-deck-view">
           <div class="flashcard-deck-header">
-            <span class="flashcard-badge">${card.topic || 'Revision'}</span>
+            <div class="deck-mode-tabs">
+              <button class="deck-tab-btn ${!this.isViewingBookmarks ? 'active' : ''}" id="btnDeckAll">All (${this.allCards.length || total})</button>
+              <button class="deck-tab-btn ${this.isViewingBookmarks ? 'active' : ''}" id="btnDeckSaved">⭐ Saved (${bookmarkCount})</button>
+            </div>
+
             <!-- Hands-Free Voice Indicator Chip -->
             <button class="fc-voice-chip active" id="fcVoiceIndicator" title="Hands-Free Voice Active (Say 'Flip', 'Next', 'Back')">
               <span class="fc-voice-dot"></span>
@@ -146,26 +152,36 @@ ${sourceText}`;
             </div>
           </div>
 
-          <!-- 3D Card Scene -->
-          <div class="flashcard-scene" id="flashcardScene" title="Click, tap, or say 'Flip' to reveal answer">
+          <!-- 3D Card Scene with Touch Swipe -->
+          <div class="flashcard-scene" id="flashcardScene" title="Click or swipe left/right to navigate, say 'Flip' to reveal answer">
             <div class="flashcard-flipper ${this.isFlipped ? 'flipped' : ''}" id="flashcardFlipper">
               <!-- FRONT FACE -->
               <div class="flashcard-face flashcard-front">
-                <div class="face-tag">QUESTION / CONCEPT</div>
+                <div class="face-header-bar">
+                  <span class="face-tag">QUESTION / CONCEPT</span>
+                  <button class="fc-bookmark-btn ${isBookmarked ? 'bookmarked' : ''}" id="btnFcBookmarkFront" title="Save for revision">
+                    ${isBookmarked ? '⭐ Saved' : '🔖 Bookmark'}
+                  </button>
+                </div>
                 <div class="face-content">${renderMath(card.front)}</div>
                 <div class="face-tap-hint">
                   <svg viewBox="0 0 24 24" width="14" height="14"><path d="M7 10l5 5 5-5z" fill="currentColor"/></svg>
-                  Tap or Say "Flip" to Reveal Answer
+                  Tap to Reveal Answer &bull; Swipe Left for Next
                 </div>
               </div>
 
               <!-- BACK FACE -->
               <div class="flashcard-face flashcard-back">
-                <div class="face-tag">ANSWER & DERIVATION</div>
+                <div class="face-header-bar">
+                  <span class="face-tag">ANSWER & DERIVATION</span>
+                  <button class="fc-bookmark-btn ${isBookmarked ? 'bookmarked' : ''}" id="btnFcBookmarkBack" title="Save for revision">
+                    ${isBookmarked ? '⭐ Saved' : '🔖 Bookmark'}
+                  </button>
+                </div>
                 <div class="face-content">${renderMath(card.back)}</div>
                 <div class="face-tap-hint">
                   <svg viewBox="0 0 24 24" width="14" height="14"><path d="M7 14l5-5 5 5z" fill="currentColor"/></svg>
-                  Tap or Say "Flip" to Flip Back
+                  Tap to Flip Back &bull; Swipe Right for Prev
                 </div>
               </div>
             </div>
@@ -191,7 +207,54 @@ ${sourceText}`;
 
       // Bind interactions
       const scene = document.getElementById('flashcardScene');
-      if (scene) scene.onclick = () => this.toggleFlip();
+      if (scene) {
+        scene.onclick = (e) => {
+          if (e.target.closest('.fc-bookmark-btn')) return;
+          this.toggleFlip();
+        };
+
+        // Touch Swipe Navigation
+        let startX = 0;
+        let startY = 0;
+        scene.addEventListener('touchstart', (e) => {
+          if (e.touches && e.touches.length > 0) {
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+          }
+        }, { passive: true });
+
+        scene.addEventListener('touchend', (e) => {
+          if (e.changedTouches && e.changedTouches.length > 0) {
+            const endX = e.changedTouches[0].clientX;
+            const endY = e.changedTouches[0].clientY;
+            const diffX = endX - startX;
+            const diffY = endY - startY;
+
+            // Horizontal swipe threshold 45px (with lower vertical variance)
+            if (Math.abs(diffX) > 45 && Math.abs(diffX) > Math.abs(diffY)) {
+              if (diffX < 0) {
+                // Swipe Left -> Next
+                this.nextCard();
+              } else {
+                // Swipe Right -> Prev
+                this.prevCard();
+              }
+            }
+          }
+        }, { passive: true });
+      }
+
+      // Bookmark Button handlers
+      const btnBmFront = document.getElementById('btnFcBookmarkFront');
+      const btnBmBack = document.getElementById('btnFcBookmarkBack');
+      if (btnBmFront) btnBmFront.onclick = (e) => { e.stopPropagation(); this.toggleBookmark(card); };
+      if (btnBmBack) btnBmBack.onclick = (e) => { e.stopPropagation(); this.toggleBookmark(card); };
+
+      // Deck Filter Tabs
+      const btnAll = document.getElementById('btnDeckAll');
+      const btnSaved = document.getElementById('btnDeckSaved');
+      if (btnAll) btnAll.onclick = () => this.showAllDeck();
+      if (btnSaved) btnSaved.onclick = () => this.showBookmarksDeck();
 
       const btnFlip = document.getElementById('btnFcFlip');
       if (btnFlip) btnFlip.onclick = () => this.toggleFlip();
@@ -212,6 +275,81 @@ ${sourceText}`;
 
       // Automatically engage low-power offline voice commands
       this.startVoiceListener();
+    },
+
+    // ═══════════ BOOKMARK REPOSITORY ═══════════
+    BOOKMARK_STORAGE_KEY: 'marvo_bookmarked_flashcards',
+    allCards: [],
+    isViewingBookmarks: false,
+
+    getBookmarks() {
+      try {
+        const raw = localStorage.getItem(this.BOOKMARK_STORAGE_KEY);
+        return raw ? JSON.parse(raw) : [];
+      } catch (e) {
+        return [];
+      }
+    },
+
+    isCardBookmarked(card) {
+      if (!card) return false;
+      const bms = this.getBookmarks();
+      return bms.some(b => b.front === card.front && b.back === card.back);
+    },
+
+    toggleBookmark(card) {
+      if (!card) return;
+      let bms = this.getBookmarks();
+      const idx = bms.findIndex(b => b.front === card.front && b.back === card.back);
+      if (idx >= 0) {
+        bms.splice(idx, 1);
+        if (window.showToast) window.showToast('Bookmark removed from repository');
+      } else {
+        bms.unshift({
+          front: card.front,
+          back: card.back,
+          topic: card.topic || 'Revision',
+          savedAt: Date.now()
+        });
+        if (window.showToast) window.showToast('⭐ Card saved to Bookmark Repository!');
+      }
+
+      try {
+        localStorage.setItem(this.BOOKMARK_STORAGE_KEY, JSON.stringify(bms));
+      } catch (e) {}
+
+      if (this.isViewingBookmarks) {
+        this.currentCards = bms;
+        if (this.currentIndex >= this.currentCards.length) {
+          this.currentIndex = Math.max(0, this.currentCards.length - 1);
+        }
+      }
+      this.render();
+    },
+
+    showAllDeck() {
+      if (!this.isViewingBookmarks) return;
+      this.isViewingBookmarks = false;
+      this.currentCards = this.allCards.length > 0 ? this.allCards : this.currentCards;
+      this.currentIndex = 0;
+      this.isFlipped = false;
+      this.render();
+    },
+
+    showBookmarksDeck() {
+      const bms = this.getBookmarks();
+      if (bms.length === 0) {
+        if (window.showToast) window.showToast('No saved flashcards yet. Tap 🔖 Bookmark to save cards.');
+        return;
+      }
+      this.isViewingBookmarks = true;
+      if (this.allCards.length === 0) {
+        this.allCards = [...this.currentCards];
+      }
+      this.currentCards = bms;
+      this.currentIndex = 0;
+      this.isFlipped = false;
+      this.render();
     },
 
     toggleFlip() {

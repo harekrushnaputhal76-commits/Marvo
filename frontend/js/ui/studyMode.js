@@ -276,15 +276,15 @@ Be rigorous, precise, and pedagogically clear.`;
                 <button class="action-menu-close" id="btnCloseActionMenu">&times;</button>
               </div>
 
-              <!-- Category 1: ATTACHMENTS -->
+              <!-- Category 1: LOCAL RAG & ATTACHMENTS -->
               <div class="action-menu-category">
-                <div class="category-label">ATTACHMENTS</div>
+                <div class="category-label">LOCAL RAG &amp; ATTACHMENTS</div>
                 <div class="action-menu-grid">
                   <button class="action-menu-btn" id="actionUploadPdf" type="button">
-                    <span class="action-btn-icon">📄</span>
+                    <span class="action-btn-icon">📚</span>
                     <div class="action-btn-text">
-                      <span class="action-btn-title">Upload PDF</span>
-                      <span class="action-btn-desc">Notes, papers &amp; textbooks</span>
+                      <span class="action-btn-title">Local RAG (PDF/Notes)</span>
+                      <span class="action-btn-desc">Chat with textbooks &amp; notes</span>
                     </div>
                   </button>
                   <button class="action-menu-btn" id="actionTakePhoto" type="button">
@@ -297,7 +297,28 @@ Be rigorous, precise, and pedagogically clear.`;
                 </div>
               </div>
 
-              <!-- Category 2: ADVANCED MODES -->
+              <!-- Category 2: AI STUDY ENHANCERS -->
+              <div class="action-menu-category">
+                <div class="category-label">AI STUDY ENHANCERS</div>
+                <div class="action-menu-grid">
+                  <button class="action-menu-btn" id="actionAutoQuiz" type="button">
+                    <span class="action-btn-icon">📝</span>
+                    <div class="action-btn-text">
+                      <span class="action-btn-title">Generate Quiz</span>
+                      <span class="action-btn-desc">5 High-yield MCQs from notes</span>
+                    </div>
+                  </button>
+                  <button class="action-menu-btn" id="actionGenerateFlashcards" type="button">
+                    <span class="action-btn-icon">🗂️</span>
+                    <div class="action-btn-text">
+                      <span class="action-btn-title">3D Flashcards</span>
+                      <span class="action-btn-desc">Swipeable concept deck</span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Category 3: ADVANCED MODES -->
               <div class="action-menu-category">
                 <div class="category-label">ADVANCED MODES</div>
                 <div class="action-menu-grid">
@@ -331,7 +352,7 @@ Be rigorous, precise, and pedagogically clear.`;
             <!-- Input Bar -->
             <div class="study-chatbar">
               <!-- Hidden Attachment Input -->
-              <input type="file" id="studyFileInput" accept="application/pdf,image/*" style="display:none;">
+              <input type="file" id="studyFileInput" accept="application/pdf,.pdf,.txt,.md,text/plain,text/markdown,image/*" style="display:none;">
 
               <!-- [ + ] Action Menu Button -->
               <button id="btnStudyActionMenu" class="btn-study-action btn-action-plus" title="Actions &amp; Advanced Modes" type="button">
@@ -400,6 +421,8 @@ Be rigorous, precise, and pedagogically clear.`;
         btnCloseActionMenu: document.getElementById('btnCloseActionMenu'),
         actionUploadPdf: document.getElementById('actionUploadPdf'),
         actionTakePhoto: document.getElementById('actionTakePhoto'),
+        actionAutoQuiz: document.getElementById('actionAutoQuiz'),
+        actionGenerateFlashcards: document.getElementById('actionGenerateFlashcards'),
         actionDeepThinking: document.getElementById('actionDeepThinking'),
         actionWebResearch: document.getElementById('actionWebResearch'),
         activeModeChip: document.getElementById('studyActiveModeChip'),
@@ -467,12 +490,12 @@ Be rigorous, precise, and pedagogically clear.`;
         };
       }
 
-      // Action 1: Upload PDF
+      // Action 1: Upload PDF / Notes for Local RAG
       if (this.dom.actionUploadPdf) {
         this.dom.actionUploadPdf.onclick = () => {
           this.closeActionMenu();
           if (this.dom.fileInput) {
-            this.dom.fileInput.accept = 'application/pdf,.pdf';
+            this.dom.fileInput.accept = 'application/pdf,.pdf,.txt,.md,text/plain,text/markdown';
             this.dom.fileInput.removeAttribute('capture');
             this.dom.fileInput.click();
           }
@@ -488,6 +511,22 @@ Be rigorous, precise, and pedagogically clear.`;
             this.dom.fileInput.setAttribute('capture', 'environment');
             this.dom.fileInput.click();
           }
+        };
+      }
+
+      // Action: Auto-Quiz from Notes/Chat
+      if (this.dom.actionAutoQuiz) {
+        this.dom.actionAutoQuiz.onclick = () => {
+          this.closeActionMenu();
+          this.generateQuizFromNotes();
+        };
+      }
+
+      // Action: Generate Flashcards from Notes/Chat
+      if (this.dom.actionGenerateFlashcards) {
+        this.dom.actionGenerateFlashcards.onclick = () => {
+          this.closeActionMenu();
+          this.generateFlashcardsFromNotes();
         };
       }
 
@@ -794,29 +833,36 @@ Be rigorous, precise, and pedagogically clear.`;
     },
 
     /**
-     * Handles Attachment Upload (PDF or Photo)
+     * Handles Attachment Upload (Local RAG Document: PDF/TXT/MD, or Photo)
      */
     async handleFileSelected(e) {
       const file = e.target.files?.[0];
       if (!file) return;
 
-      const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf');
+      const isDoc = file.type === 'application/pdf' || file.name.endsWith('.pdf') ||
+                    file.name.endsWith('.txt') || file.name.endsWith('.md') || file.type.startsWith('text/');
       const isImage = file.type.startsWith('image/');
 
-      const reader = new FileReader();
-
-      if (isPdf) {
-        reader.onload = async (event) => {
-          this.pendingAttachment = {
-            type: 'pdf',
-            name: file.name,
-            dataUrl: event.target.result,
-            text: `[Attached PDF: ${file.name}]`
-          };
-          this.renderAttachmentShelf();
-        };
-        reader.readAsDataURL(file);
+      if (isDoc) {
+        if (window.showToast) window.showToast(`📚 Indexing "${file.name}" into Local Vector Store...`);
+        try {
+          if (window.RagEngine) {
+            const docInfo = await window.RagEngine.ingestFile(file);
+            this.pendingAttachment = {
+              type: 'rag-doc',
+              name: file.name,
+              chunks: docInfo.totalChunks,
+              text: `[Active Document: ${file.name}]`
+            };
+            this.renderAttachmentShelf();
+            if (window.showToast) window.showToast(`✅ "${file.name}" indexed (${docInfo.totalChunks} chunks)! Chat directly with your notes.`);
+          }
+        } catch (err) {
+          console.error('[StudyMode] RAG indexing error:', err);
+          if (window.showToast) window.showToast(`Error indexing note: ${err.message}`);
+        }
       } else if (isImage) {
+        const reader = new FileReader();
         reader.onload = (event) => {
           const dataUrl = event.target.result;
           this.pendingAttachment = {
@@ -826,8 +872,6 @@ Be rigorous, precise, and pedagogically clear.`;
             text: `[Attached Photo: ${file.name}]`
           };
           this.renderAttachmentShelf();
-
-          // Also populate OCR Preview & run client extraction
           this.runOnDeviceOcr(dataUrl);
         };
         reader.readAsDataURL(file);
@@ -843,18 +887,26 @@ Be rigorous, precise, and pedagogically clear.`;
       }
 
       shelf.classList.remove('hidden');
-      const icon = this.pendingAttachment.type === 'pdf' ? '📄' : '🖼️';
+      const isRag = this.pendingAttachment.type === 'rag-doc';
+      const icon = isRag ? '📚' : (this.pendingAttachment.type === 'pdf' ? '📄' : '🖼️');
+      const meta = isRag ? `<span class="rag-chip-chunks">(${this.pendingAttachment.chunks} chunks in Vector DB)</span>` : '';
+
       shelf.innerHTML = `
-        <div class="study-attach-chip">
+        <div class="study-attach-chip ${isRag ? 'rag-doc-chip' : ''}">
           <span>${icon}</span>
-          <span>${this.pendingAttachment.name}</span>
-          <button class="study-attach-remove" id="btnRemoveStudyAttach">&times;</button>
+          <span class="attach-chip-title">${this.pendingAttachment.name}</span>
+          ${meta}
+          <button class="study-attach-remove" id="btnRemoveStudyAttach" title="${isRag ? 'Clear Document from Vector DB' : 'Remove Attachment'}">&times;</button>
         </div>
       `;
 
       const btnRemove = document.getElementById('btnRemoveStudyAttach');
       if (btnRemove) {
         btnRemove.onclick = () => {
+          if (this.pendingAttachment?.type === 'rag-doc' && window.RagEngine) {
+            window.RagEngine.clearActiveDocument();
+            if (window.showToast) window.showToast('Document cleared from Local Vector Store.');
+          }
           this.pendingAttachment = null;
           this.renderAttachmentShelf();
         };
@@ -946,11 +998,14 @@ Be rigorous, precise, and pedagogically clear.`;
       if (this.pendingAttachment) {
         if (this.pendingAttachment.type === 'photo') {
           imgData = this.pendingAttachment.dataUrl;
+          this.pendingAttachment = null;
+          this.renderAttachmentShelf();
         } else if (this.pendingAttachment.type === 'pdf') {
           payloadText = `[Attached PDF Document: ${this.pendingAttachment.name}]\n` + payloadText;
+          this.pendingAttachment = null;
+          this.renderAttachmentShelf();
         }
-        this.pendingAttachment = null;
-        this.renderAttachmentShelf();
+        // Note: For 'rag-doc', keep it in the shelf so multi-turn chat continues querying the textbook
       }
 
       await this.sendCustomPrompt(payloadText, imgData);
@@ -965,11 +1020,24 @@ Be rigorous, precise, and pedagogically clear.`;
       this.appendLoadingBubble(loadingId);
 
       try {
+        let ragContext = '';
+        let citedChunks = [];
+        if (window.RagEngine && window.RagEngine.hasActiveDocument()) {
+          try {
+            citedChunks = await window.RagEngine.search(promptText, 3);
+            if (citedChunks && citedChunks.length > 0) {
+              ragContext = window.RagEngine.buildGroundedContext(promptText, citedChunks);
+            }
+          } catch (ragErr) {
+            console.warn('[StudyMode] RAG context error:', ragErr);
+          }
+        }
+
         let aiResult = { response: '' };
         if (window.TrafficPolice) {
           aiResult = await window.TrafficPolice.routeChat(promptText, {
             contextHistory: this.history,
-            systemInstruction: STUDY_SYSTEM_INSTRUCTION,
+            systemInstruction: STUDY_SYSTEM_INSTRUCTION + ragContext,
             imageBase64: imageBase64,
             advancedMode: this.activeCognitiveMode
           });
@@ -977,7 +1045,12 @@ Be rigorous, precise, and pedagogically clear.`;
           aiResult.response = "Study router is configuring...";
         }
 
-        const cleanAiAnswer = this.sanitizeResponse(aiResult.response);
+        let cleanAiAnswer = this.sanitizeResponse(aiResult.response);
+        if (citedChunks.length > 0 && window.RagEngine?.getActiveDocument()) {
+          const docName = window.RagEngine.getActiveDocument().fileName;
+          cleanAiAnswer += `\n\n> 📚 *Grounded in local document: **${docName}** (${citedChunks.length} sections cited)*`;
+        }
+
         this.removeLoadingBubble(loadingId);
         this.appendMessage('ai', cleanAiAnswer);
         this.saveTurn('ai', cleanAiAnswer);
@@ -1202,8 +1275,25 @@ Be rigorous, precise, and pedagogically clear.`;
         if (window.showToast) window.showToast('Listening in Study Mode...');
       };
 
-      recognizer.onresult = (event) => {
+      recognizer.onresult = async (event) => {
         const transcript = event.results[0][0].transcript;
+        if (!transcript) return;
+
+        // Voice-Powered System Automation & Intent Routing (Phase 3)
+        if (window.Capacitor?.Plugins?.MarvoNativeBridge?.executeDeviceIntent) {
+          try {
+            const intentRes = await window.Capacitor.Plugins.MarvoNativeBridge.executeDeviceIntent({ query: transcript });
+            if (intentRes && intentRes.executed) {
+              if (window.showToast) window.showToast(`⚡ Action: ${intentRes.message || 'Executed system command'}`);
+              this.appendMessage('user', transcript);
+              this.appendMessage('ai', `⚡ **System Automation**: ${intentRes.message || 'Action executed successfully.'}`);
+              return;
+            }
+          } catch (intentErr) {
+            console.warn('Voice intent execution error:', intentErr);
+          }
+        }
+
         if (this.dom.msgInput) {
           this.dom.msgInput.value = transcript;
           this.sendMessage();
@@ -1215,6 +1305,52 @@ Be rigorous, precise, and pedagogically clear.`;
       };
 
       recognizer.start();
+    },
+
+    async generateQuizFromNotes() {
+      let context = '';
+      if (window.RagEngine && window.RagEngine.hasActiveDocument()) {
+        context = window.RagEngine.getActiveDocument().sampleText;
+      }
+      if (!context && this.history && this.history.length > 0) {
+        context = this.history.slice(-4).map(h => `${h.role}: ${h.content}`).join('\n');
+      }
+      if (!context) {
+        context = 'Fundamental principles of Science, Physics derivations, and Mathematics';
+      }
+
+      this.switchTab('quiz');
+      if (window.QuizEngine) {
+        if (window.showToast) window.showToast('📝 Auto-Generating 5 High-Yield MCQs from notes...');
+        try {
+          await window.QuizEngine.generateQuiz(context, 5);
+        } catch (e) {
+          console.warn('[StudyMode] Auto-Quiz error:', e);
+        }
+      }
+    },
+
+    async generateFlashcardsFromNotes() {
+      let context = '';
+      if (window.RagEngine && window.RagEngine.hasActiveDocument()) {
+        context = window.RagEngine.getActiveDocument().sampleText;
+      }
+      if (!context && this.history && this.history.length > 0) {
+        context = this.history.slice(-4).map(h => `${h.role}: ${h.content}`).join('\n');
+      }
+      if (!context) {
+        context = 'Fundamental principles of Science, Physics derivations, and Mathematics';
+      }
+
+      this.switchTab('flashcards');
+      if (window.FlashcardEngine) {
+        if (window.showToast) window.showToast('🗂️ Generating 3D Active-Recall Flashcards from notes...');
+        try {
+          await window.FlashcardEngine.generateFromContent(context, 6);
+        } catch (e) {
+          console.warn('[StudyMode] Auto-Flashcards error:', e);
+        }
+      }
     },
 
     async launchLiveVisionTutor() {
