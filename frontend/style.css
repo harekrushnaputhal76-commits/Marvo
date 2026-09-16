@@ -10,7 +10,11 @@
   --sab: env(safe-area-inset-bottom, 0px);
   --sal: env(safe-area-inset-left, 0px);
   --sar: env(safe-area-inset-right, 0px);
-  --island-top-offset: env(safe-area-inset-top, 12px);
+
+  /* Top-Camera Safe-Area Anchor Offset & Tunable Device Nudge */
+  --camera-anchor-nudge: 4px;
+  --camera-anchor-top: calc(env(safe-area-inset-top, 12px) + var(--camera-anchor-nudge));
+  --island-top-offset: var(--camera-anchor-top);
 
   /* Deep Obsidian / Dark Slate Flagship Palette */
   --bg-primary: #07090e;
@@ -4666,17 +4670,13 @@ body.island-active .main {
 /* ═══════════════════════════════════════════════════════════════════
    MARVO TOP-ANCHORED LIQUID DYNAMIC ISLAND
    Target Device: Motorola Edge 60 Pro (1220x2712px, centered punch-hole)
-   - Anchor: top: calc(var(--island-top-offset) + 4px); left: 50%;
+   - Anchor: top: var(--camera-anchor-top); left: 50%;
    - Idle footprint: 24x24px pure black circle matching camera lens
    - SVG Gooey Surface Tension Physics (#marvo-goo)
    - Fluid Spring Curve: cubic-bezier(0.32, 0.72, 0, 1)
    - 120Hz Hardware Acceleration (transform, scale3d, translate3d)
    - Downward-only morphing (transform-origin: top center)
    ═══════════════════════════════════════════════════════════════════ */
-
-:root {
-  --island-top-offset: env(safe-area-inset-top, 12px);
-}
 
 .marvo-island-goo-container {
   position: fixed;
@@ -4691,7 +4691,7 @@ body.island-active .main {
 
 #marvo-dynamic-island {
   position: fixed;
-  top: calc(var(--island-top-offset) + 4px);
+  top: var(--camera-anchor-top);
   left: 50%;
   transform: translateX(-50%);
   -webkit-transform: translateX(-50%);
