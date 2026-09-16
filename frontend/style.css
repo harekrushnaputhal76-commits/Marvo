@@ -4689,8 +4689,7 @@ body.island-active .main {
   overflow: visible;
 }
 
-#marvo-dynamic-island,
-#marvo-camera-island {
+#marvo-dynamic-island {
   position: fixed;
   top: calc(var(--island-top-offset) + 4px);
   left: 50%;
@@ -4724,14 +4723,12 @@ body.island-active .main {
 }
 
 /* Island Summoned: Active pointer events */
-#marvo-dynamic-island.island-open,
-#marvo-camera-island.island-open {
+#marvo-dynamic-island.island-open {
   pointer-events: auto;
 }
 
 /* 1. Idle State: 24x24px circle centered on camera */
-#marvo-dynamic-island.state-idle,
-#marvo-camera-island.state-idle {
+#marvo-dynamic-island.state-idle {
   width: 24px;
   height: 24px;
   border-radius: 50%;
@@ -4742,8 +4739,7 @@ body.island-active .main {
 }
 
 /* 2. Listening State: Capsule ~140px wide x 40px tall expanding downward */
-#marvo-dynamic-island.state-listening,
-#marvo-camera-island.state-listening {
+#marvo-dynamic-island.state-listening {
   width: 140px;
   height: 40px;
   border-radius: 20px;
@@ -4755,8 +4751,7 @@ body.island-active .main {
 }
 
 /* 3. Thinking State: Capsule with animated internal gradient sweep */
-#marvo-dynamic-island.state-thinking,
-#marvo-camera-island.state-thinking {
+#marvo-dynamic-island.state-thinking {
   width: 140px;
   height: 40px;
   border-radius: 20px;
@@ -4783,8 +4778,7 @@ body.island-active .main {
 }
 
 /* 4. Speaking State: Capsule with amplitude-reactive pulsing */
-#marvo-dynamic-island.state-speaking,
-#marvo-camera-island.state-speaking {
+#marvo-dynamic-island.state-speaking {
   width: 140px;
   height: 40px;
   border-radius: 20px;
@@ -4808,8 +4802,7 @@ body.island-active .main {
 }
 
 /* 5. Error State: Brief red-tinted flash (~1.5s) then back to idle */
-#marvo-dynamic-island.state-error,
-#marvo-camera-island.state-error {
+#marvo-dynamic-island.state-error {
   width: 140px;
   height: 40px;
   border-radius: 20px;
@@ -4909,9 +4902,7 @@ body.island-active .main {
 
 /* Expanded Card Mode (when explicitly opened to full view) */
 #marvo-dynamic-island.expanded,
-#marvo-dynamic-island.active.expanded,
-#marvo-camera-island.expanded,
-#marvo-camera-island.active.expanded {
+#marvo-dynamic-island.active.expanded {
   width: 92%;
   max-width: 440px;
   min-height: 230px;
@@ -4966,16 +4957,13 @@ body.island-active .main {
     border-radius 0.4s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-#marvo-dynamic-island.state-listening .island-liquid-body,
-#marvo-camera-island.state-listening .island-liquid-body {
+#marvo-dynamic-island.state-listening .island-liquid-body {
   transform: scale3d(1, 1, 1) translate3d(0, 0, 0);
   border-radius: 22px;
 }
 
 #marvo-dynamic-island.expanded .island-liquid-body,
-#marvo-dynamic-island.active .island-liquid-body,
-#marvo-camera-island.expanded .island-liquid-body,
-#marvo-camera-island.active .island-liquid-body {
+#marvo-dynamic-island.active .island-liquid-body {
   transform: scale3d(1, 1, 1) translate3d(0, 0, 0);
   border-radius: 38px;
 }
@@ -5009,8 +4997,7 @@ body.island-active .main {
 }
 
 /* Idle State: Hide inner card content, only camera anchor dot visible */
-#marvo-dynamic-island.state-idle .island-glass-card,
-#marvo-camera-island.state-idle .island-glass-card {
+#marvo-dynamic-island.state-idle .island-glass-card {
   opacity: 0;
   pointer-events: none;
   background: transparent;
@@ -5020,8 +5007,7 @@ body.island-active .main {
   -webkit-backdrop-filter: none;
 }
 
-#marvo-dynamic-island.state-idle .island-gooey-wrapper,
-#marvo-camera-island.state-idle .island-gooey-wrapper {
+#marvo-dynamic-island.state-idle .island-gooey-wrapper {
   opacity: 0;
   pointer-events: none;
 }
@@ -5056,21 +5042,18 @@ body.island-active .main {
   100% { filter: blur(6px) hue-rotate(360deg); }
 }
 
-#marvo-dynamic-island.state-listening .island-plasma-edge,
-#marvo-camera-island.state-listening .island-plasma-edge {
+#marvo-dynamic-island.state-listening .island-plasma-edge {
   opacity: 0.85;
   animation-duration: 3s;
 }
 
-#marvo-dynamic-island.state-thinking .island-plasma-edge,
-#marvo-camera-island.state-thinking .island-plasma-edge {
+#marvo-dynamic-island.state-thinking .island-plasma-edge {
   opacity: 1;
   filter: blur(8px);
   animation-duration: 1.8s;
 }
 
-#marvo-dynamic-island.state-speaking .island-plasma-edge,
-#marvo-camera-island.state-speaking .island-plasma-edge {
+#marvo-dynamic-island.state-speaking .island-plasma-edge {
   opacity: 0.7;
   animation-duration: 4s;
 }
@@ -5121,9 +5104,7 @@ body.island-active .main {
 }
 
 #marvo-dynamic-island.expanded .island-content-layer,
-#marvo-dynamic-island.active .island-content-layer,
-#marvo-camera-island.expanded .island-content-layer,
-#marvo-camera-island.active .island-content-layer {
+#marvo-dynamic-island.active .island-content-layer {
   opacity: 1;
   transform: translateY(0) scale3d(1, 1, 1);
   pointer-events: auto;
@@ -5238,8 +5219,7 @@ body.island-active .main {
   animation-play-state: paused;
 }
 
-#marvo-dynamic-island.state-thinking .island-conic-glow,
-#marvo-camera-island.state-thinking .island-conic-glow {
+#marvo-dynamic-island.state-thinking .island-conic-glow {
   opacity: 0.8;
   animation-play-state: running;
 }
@@ -5324,7 +5304,6 @@ body.island-active .main {
   }
 
   #marvo-dynamic-island,
-  #marvo-camera-island,
   .island-liquid-body,
   .island-content-layer,
   .island-plasma-edge,

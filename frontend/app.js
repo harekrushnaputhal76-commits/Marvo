@@ -142,23 +142,8 @@ const DOM = {
   btnMic:             $('#btnMic'),
   btnScreenShare:     $('#btnScreenShare'),
 
-  // Bottom-Docked Voice UI
-  voiceOverlay:         $('#voiceOverlay'),
-  voiceStatusText:      $('#voiceStatusText'),
-  voiceWaveCanvas:      $('#voiceWaveCanvas'),
-  voiceBars:            $('#voiceBars'),
-  voiceTranscriptBox:   $('#voiceTranscriptBox'),
-  voiceTranscriptText:  $('#voiceTranscriptText'),
-  btnVoiceClose:        $('#btnVoiceClose'),
-  btnVoiceCancel:       $('#btnVoiceCancel'),
-  btnVoicePauseResume:  $('#btnVoicePauseResume'),
-  iconVoicePause:       $('#iconVoicePause'),
-  iconVoiceResume:      $('#iconVoiceResume'),
-  labelVoicePauseResume:$('#labelVoicePauseResume'),
-  btnVoiceSend:         $('#btnVoiceSend'),
   // Marvo Top-Anchored Dynamic Island & Voice UI
   dynamicIsland:        $('#marvo-dynamic-island'),
-  cameraIsland:         $('#marvo-dynamic-island'),
   islandResponseContent:$('#island-response-content'),
   islandResponseText:   $('#islandResponseText'),
   islandStatusPill:     $('#islandStatusPill'),
@@ -172,20 +157,6 @@ const DOM = {
   labelIslandPauseResume:$('#labelIslandPauseResume'),
   btnIslandSend:        $('#btnIslandSend'),
   appRoot:              $('#app-root'),
-
-  // Unified aliases ensuring seamless voice assistant compatibility
-  voiceOverlay:         $('#marvo-dynamic-island'),
-  voiceStatusText:      $('#islandStatusPill'),
-  voiceWaveCanvas:      $('#islandWaveCanvas'),
-  voiceTranscriptBox:   $('#island-response-content'),
-  voiceTranscriptText:  $('#islandResponseText'),
-  btnVoiceClose:        $('#btnIslandClose'),
-  btnVoiceCancel:       $('#btnIslandCancel'),
-  btnVoicePauseResume:  $('#btnIslandPauseResume'),
-  iconVoicePause:       $('#iconIslandPause'),
-  iconVoiceResume:      $('#iconIslandResume'),
-  labelVoicePauseResume:$('#labelIslandPauseResume'),
-  btnVoiceSend:         $('#btnIslandSend'),
 
   // Toast
   appToast:           $('#appToast'),
@@ -3042,7 +3013,7 @@ const easeInOutCubic = x => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 
 
 class DynamicIslandManager {
   constructor() {
-    this.island = document.getElementById('marvo-dynamic-island') || document.getElementById('marvo-camera-island');
+    this.island = document.getElementById('marvo-dynamic-island');
     this.appRoot = document.getElementById('app-root') || document.querySelector('.main');
     this.statusPill = document.getElementById('islandStatusPill');
     this.responseText = document.getElementById('islandResponseText');
@@ -3064,7 +3035,7 @@ class DynamicIslandManager {
 
   getIsland() {
     if (!this.island) {
-      this.island = document.getElementById('marvo-dynamic-island') || document.getElementById('marvo-camera-island');
+      this.island = document.getElementById('marvo-dynamic-island');
     }
     return this.island;
   }
@@ -3204,10 +3175,6 @@ class DynamicIslandManager {
     if (capsuleLabel) {
       capsuleLabel.textContent = stateLabels[s] || 'Marvo';
     }
-    const legacyStatus = document.getElementById('voiceStatusText');
-    if (legacyStatus) {
-      legacyStatus.textContent = stateLabels[s] || 'Marvo';
-    }
 
     // Error state: brief flash then auto-dismiss back to idle after ~1.5s
     if (s === 'error') {
@@ -3224,10 +3191,6 @@ class DynamicIslandManager {
     if (!this.responseText) this.responseText = document.getElementById('islandResponseText');
     if (this.responseText && text) {
       this.responseText.textContent = text;
-    }
-    const legacyTranscript = document.getElementById('voiceTranscriptText');
-    if (legacyTranscript && text) {
-      legacyTranscript.textContent = text;
     }
   }
 
@@ -3382,7 +3345,6 @@ function initDynamicIsland() {
     marvoVoiceInstance = dynamicIslandInstance;
     window.marvoIslandInstance = dynamicIslandInstance;
     window.dynamicIslandInstance = dynamicIslandInstance;
-    window.siriOrbInstance = dynamicIslandInstance;
     window.setVoiceState = (state, volume) => dynamicIslandInstance.setVoiceState(state, volume);
   }
 }
@@ -3405,7 +3367,7 @@ let micRmsCount = 0;
 
 async function initAudioVisualizer() {
   initMarvoVoiceIndicator();
-  const canvas = DOM.voiceWaveCanvas;
+  const canvas = DOM.islandWaveCanvas;
   const ctx = canvas ? canvas.getContext('2d') : null;
 
   micRmsSum = 0;
@@ -3502,17 +3464,12 @@ function openVoiceDock() {
   isVoiceRecording = true;
   isVoicePaused = false;
   currentVoiceTranscript = '';
-  DOM.voiceTranscriptText.textContent = 'Listening to you...';
-  if (DOM.voiceTranscriptText) DOM.voiceTranscriptText.textContent = 'Listening to you...';
-  if (DOM.voiceStatusText) DOM.voiceStatusText.textContent = 'Listening...';
-  DOM.iconVoicePause.classList.remove('hidden');
-  DOM.iconVoiceResume.classList.add('hidden');
-  DOM.labelVoicePauseResume.textContent = 'Pause';
-  DOM.voiceOverlay.classList.add('show');
-  if (DOM.iconVoicePause) DOM.iconVoicePause.classList.remove('hidden');
-  if (DOM.iconVoiceResume) DOM.iconVoiceResume.classList.add('hidden');
-  if (DOM.labelVoicePauseResume) DOM.labelVoicePauseResume.textContent = 'Pause';
-  DOM.btnMic.classList.add('recording');
+  if (DOM.islandResponseText) DOM.islandResponseText.textContent = 'Listening to you...';
+  if (DOM.islandStatusPill) DOM.islandStatusPill.textContent = 'Listening...';
+  if (DOM.iconIslandPause) DOM.iconIslandPause.classList.remove('hidden');
+  if (DOM.iconIslandResume) DOM.iconIslandResume.classList.add('hidden');
+  if (DOM.labelIslandPauseResume) DOM.labelIslandPauseResume.textContent = 'Pause';
+  DOM.btnMic?.classList.add('recording');
   setEyeExpression('state-listening');
 
   initDynamicIsland();
@@ -3546,8 +3503,7 @@ function closeVoiceDock() {
     clearTimeout(speechSilenceTimer);
     speechSilenceTimer = null;
   }
-  DOM.voiceOverlay.classList.remove('show');
-  DOM.btnMic.classList.remove('recording');
+  DOM.btnMic?.classList.remove('recording');
   if (visualizerAnimId) cancelAnimationFrame(visualizerAnimId);
   if (speechRecognizer) {
     try { speechRecognizer.stop(); } catch {}
@@ -3576,20 +3532,20 @@ function toggleVoicePauseResume() {
       clearTimeout(speechSilenceTimer);
       speechSilenceTimer = null;
     }
-    if (DOM.voiceStatusText) DOM.voiceStatusText.textContent = 'Paused';
-    DOM.iconVoicePause.classList.add('hidden');
-    DOM.iconVoiceResume.classList.remove('hidden');
-    DOM.labelVoicePauseResume.textContent = 'Resume';
+    if (DOM.islandStatusPill) DOM.islandStatusPill.textContent = 'Paused';
+    DOM.iconIslandPause?.classList.add('hidden');
+    DOM.iconIslandResume?.classList.remove('hidden');
+    if (DOM.labelIslandPauseResume) DOM.labelIslandPauseResume.textContent = 'Resume';
     setEyeExpression('state-idle');
     if (window.setVoiceState) window.setVoiceState('idle', 0);
     if (speechRecognizer) {
       try { speechRecognizer.stop(); } catch {}
     }
   } else {
-    if (DOM.voiceStatusText) DOM.voiceStatusText.textContent = 'Listening...';
-    DOM.iconVoicePause.classList.remove('hidden');
-    DOM.iconVoiceResume.classList.add('hidden');
-    DOM.labelVoicePauseResume.textContent = 'Pause';
+    if (DOM.islandStatusPill) DOM.islandStatusPill.textContent = 'Listening...';
+    DOM.iconIslandPause?.classList.remove('hidden');
+    DOM.iconIslandResume?.classList.add('hidden');
+    if (DOM.labelIslandPauseResume) DOM.labelIslandPauseResume.textContent = 'Pause';
     setEyeExpression('state-listening');
     if (window.setVoiceState) window.setVoiceState('listening', 0);
     startSpeechRecognition();
@@ -3645,7 +3601,7 @@ function submitVoiceRecording() {
 function startSpeechRecognition() {
   const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRec) {
-    DOM.voiceTranscriptText.textContent = "Voice input isn't supported in this browser. Please type your message.";
+    if (DOM.islandResponseText) DOM.islandResponseText.textContent = "Voice input isn't supported in this browser. Please type your message.";
     return;
   }
 
@@ -3690,7 +3646,7 @@ function startSpeechRecognition() {
       }
       const display = (currentVoiceTranscript + ' ' + interim).trim();
       if (display) {
-        DOM.voiceTranscriptText.textContent = display;
+        if (DOM.islandResponseText) DOM.islandResponseText.textContent = display;
         resetSpeechSilenceTimer();
       }
     };
@@ -4295,17 +4251,16 @@ DOM.btnScreenShare?.addEventListener('click', () => {
   showToast('Live screen analysis coming soon!');
 });
 
-// Bottom-Docked Voice UI Controls
 // Voice Assistant Controls
-DOM.btnMic.addEventListener('click', () => {
+DOM.btnMic?.addEventListener('click', () => {
   if (isVoiceRecording) closeVoiceDock();
   else openVoiceDock();
 });
 
-DOM.btnVoiceClose.addEventListener('click', closeVoiceDock);
-DOM.btnVoiceCancel.addEventListener('click', closeVoiceDock);
-DOM.btnVoicePauseResume.addEventListener('click', toggleVoicePauseResume);
-DOM.btnVoiceSend.addEventListener('click', submitVoiceRecording);
+DOM.btnIslandClose?.addEventListener('click', closeVoiceDock);
+DOM.btnIslandCancel?.addEventListener('click', closeVoiceDock);
+DOM.btnIslandPauseResume?.addEventListener('click', toggleVoicePauseResume);
+DOM.btnIslandSend?.addEventListener('click', submitVoiceRecording);
 
 // History Context Menu (Sidebar)
 DOM.btnRenameChat.addEventListener('click', async () => {
@@ -5175,7 +5130,6 @@ window.marvo = {
   openNotebookModal,
   openShareModal,
   setVoiceState: (s, v) => window.setVoiceState && window.setVoiceState(s, v),
-  get siriOrb() { return window.siriOrbInstance; },
   get activeProject() { return activeProject; },
   get activeAgent() { return activeAgent; },
   get currentVoice() { return currentVoice; },
