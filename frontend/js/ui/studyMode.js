@@ -46,6 +46,95 @@ PEDAGOGICAL DIRECTIVES:
     },
 
     injectDOM() {
+      // 1. Ultra-Premium 3D Academic Journal Intro Overlay
+      const introHTML = `
+        <div id="studyIntroOverlay" class="study-intro-overlay">
+          <div class="study-journal-scene">
+            <div class="study-book-3d academic-journal" id="studyBook3D">
+              <!-- Leather Bound Spine with Gold Ribs -->
+              <div class="book-spine">
+                <span class="spine-text">MARVO STEM JOURNAL • VOL. IX</span>
+                <div class="spine-rib rib-1"></div>
+                <div class="spine-rib rib-2"></div>
+                <div class="spine-rib rib-3"></div>
+                <div class="spine-rib rib-4"></div>
+              </div>
+
+              <!-- Back Leather Cover -->
+              <div class="book-cover-back"></div>
+
+              <!-- Volumetric Parchment Pages Stack with Real Physics/Math Formulas -->
+              <div class="book-pages-stack">
+                <div class="academic-manuscript">
+                  <div class="manuscript-header">
+                    <span class="manuscript-tag">QUANTUM FIELD THEORY &amp; CALCULUS</span>
+                    <span class="manuscript-vol">VOL. IX • SEC. IV</span>
+                  </div>
+                  <div class="manuscript-title">Analytical Physics &amp; Differential Geometry</div>
+                  <div class="manuscript-formula-block">
+                    <div class="tex-line">$$\\nabla \\times \\mathbf{B} = \\mu_0 \\mathbf{J} + \\mu_0 \\varepsilon_0 \\frac{\\partial \\mathbf{E}}{\\partial t}$$</div>
+                    <div class="tex-line">$$\\int_{-\\infty}^{\\infty} e^{-x^2} dx = \\sqrt{\\pi}, \\quad \\mathcal{L} = \\bar{\\psi}(i\\gamma^\\mu D_\\mu - m)\\psi$$</div>
+                  </div>
+                  <div class="manuscript-abstract">
+                    Rigorous proof formulations, multi-agent cognitive derivations, and closed-form solutions initialized.
+                  </div>
+                </div>
+              </div>
+
+              <!-- 3D Turning Page with Academic Theorems -->
+              <div class="book-flipping-page">
+                <div class="page-front">
+                  <div class="manuscript-formula-block mini">
+                    <div class="tex-line">$$\\oint_{\\partial \\Sigma} \\mathbf{E} \\cdot d\\boldsymbol{\\ell} = -\\frac{d}{dt}\\iint_{\\Sigma} \\mathbf{B} \\cdot d\\mathbf{A}$$</div>
+                  </div>
+                  <div class="manuscript-lines">
+                    <div class="m-line"></div>
+                    <div class="m-line short"></div>
+                  </div>
+                </div>
+                <div class="page-back">
+                  <div class="manuscript-formula-block mini">
+                    <div class="tex-line">$$\\mathcal{H}\\psi = E\\psi, \\quad G_{\\mu\\nu} = \\frac{8\\pi G}{c^4}T_{\\mu\\nu}$$</div>
+                  </div>
+                  <div class="manuscript-lines">
+                    <div class="m-line"></div>
+                    <div class="m-line"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Sapphire Hardcover with Ornate Gold Foil Filigree & Seal -->
+              <div class="book-cover-front">
+                <div class="gold-foil-border">
+                  <div class="corner-filigree top-left">✦</div>
+                  <div class="corner-filigree top-right">✦</div>
+                  <div class="corner-filigree bottom-left">✦</div>
+                  <div class="corner-filigree bottom-right">✦</div>
+
+                  <div class="book-embossed-crest">
+                    <svg viewBox="0 0 100 100" width="56" height="56">
+                      <circle cx="50" cy="50" r="44" fill="none" stroke="#d4af37" stroke-width="2.5" stroke-dasharray="3,2"/>
+                      <circle cx="50" cy="50" r="38" fill="rgba(212,175,55,0.08)" stroke="#f3e5ab" stroke-width="1.5"/>
+                      <path d="M50 18 L58 38 L80 38 L62 51 L69 72 L50 59 L31 72 L38 51 L20 38 L42 38 Z" fill="none" stroke="#d4af37" stroke-width="1.5"/>
+                      <circle cx="50" cy="50" r="12" fill="rgba(0,240,255,0.2)" stroke="#00f0ff" stroke-width="1.5"/>
+                      <circle cx="50" cy="50" r="4" fill="#00f0ff"/>
+                    </svg>
+                  </div>
+
+                  <div class="book-journal-title">MARVO</div>
+                  <div class="book-journal-subtitle">ACADEMIC JOURNAL</div>
+                  <div class="book-journal-dept">HIGHER SECONDARY STEM &bull; ADVANCED COGNITION</div>
+                  <div class="gold-seal-ribbon">
+                    <span>VERITAS ET SCIENTIA</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // 2. Study Mode Main Container
       // 1. Study Mode Main Container (Instant Launch - Zero Splash Delay)
       const containerHTML = `
         <div id="studyModeContainer" class="study-mode-container">
@@ -296,6 +385,7 @@ PEDAGOGICAL DIRECTIVES:
         </div>
       `;
 
+      document.body.insertAdjacentHTML('beforeend', introHTML);
       document.body.insertAdjacentHTML('beforeend', containerHTML);
     },
 
@@ -668,13 +758,20 @@ PEDAGOGICAL DIRECTIVES:
     },
 
     /**
+     * Instant, Fluid Transition into Study Mode
      * Instant, Fluid Transition into Study Mode (Zero Splash Delay & 3D Gyroscope Card Parallax)
      */
      enter() {
        this.isOpen = true;
+       const overlay = this.dom.introOverlay;
        const container = this.dom.container;
        if (!container) return;
 
+       if (overlay) {
+         overlay.classList.remove('active', 'opening', 'page-turning', 'zooming');
+       }
+
+       // Immediate slide-in transition
        // Immediate slide-in transition — instant launch
        container.classList.add('active');
        this.switchTab('chat');
@@ -714,6 +811,9 @@ PEDAGOGICAL DIRECTIVES:
        this.isOpen = false;
        if (this.dom.container) {
          this.dom.container.classList.remove('active');
+       }
+       if (this.dom.introOverlay) {
+         this.dom.introOverlay.classList.remove('active', 'opening', 'page-turning', 'zooming');
        }
 
        // Shut off gyroscope completely in background to conserve battery

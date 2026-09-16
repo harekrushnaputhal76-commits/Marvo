@@ -156,6 +156,10 @@ const DOM = {
   iconVoiceResume:      $('#iconVoiceResume'),
   labelVoicePauseResume:$('#labelVoicePauseResume'),
   btnVoiceSend:         $('#btnVoiceSend'),
+  siriOrbDock:          $('#siri-orb-dock'),
+  siriOrbWrap:          $('#siri-orb-wrap'),
+  siriOrb:              $('#siri-orb'),
+  siriOrbLabel:         $('#siri-orb-label'),
 
   // Toast
   appToast:           $('#appToast'),
@@ -1568,6 +1572,7 @@ function stopSpeech() {
   document.querySelectorAll('.playing-tts').forEach(el => el.classList.remove('playing-tts'));
   DOM.face?.classList.remove('speaking-mode');
   setEyeExpression('state-idle');
+  if (window.setVoiceState) window.setVoiceState('idle', 0);
 }
 
 async function playSpeech(text, btnElement = null) {
@@ -1596,6 +1601,7 @@ async function playSpeech(text, btnElement = null) {
   if (btnElement) btnElement.classList.add('playing-tts');
   setEyeExpression('state-speaking');
   DOM.face?.classList.add('speaking-mode');
+  if (window.setVoiceState) window.setVoiceState('speaking', 60);
 
   try {
     const res = await fetch(API_SPEAK, {
@@ -1623,12 +1629,14 @@ async function playSpeech(text, btnElement = null) {
         if (btnElement) btnElement.classList.remove('playing-tts');
         DOM.face.classList.remove('speaking-mode');
         setEyeExpression('state-idle');
+        if (window.setVoiceState) window.setVoiceState('idle', 0);
         if (currentAudio === audio) currentAudio = null;
       };
       audio.onerror = () => {
         if (btnElement) btnElement.classList.remove('playing-tts');
         DOM.face.classList.remove('speaking-mode');
         setEyeExpression('state-idle');
+        if (window.setVoiceState) window.setVoiceState('idle', 0);
         if (currentAudio === audio) currentAudio = null;
       };
       await audio.play();
@@ -1646,6 +1654,7 @@ function fallbackWebSpeech(text, btnElement, volume = 1.0, pitch = 1.0) {
     if (btnElement) btnElement.classList.remove('playing-tts');
     DOM.face.classList.remove('speaking-mode');
     setEyeExpression('state-idle');
+    if (window.setVoiceState) window.setVoiceState('idle', 0);
     return;
   }
   window.speechSynthesis.cancel();
@@ -1656,12 +1665,15 @@ function fallbackWebSpeech(text, btnElement, volume = 1.0, pitch = 1.0) {
     if (btnElement) btnElement.classList.remove('playing-tts');
     DOM.face.classList.remove('speaking-mode');
     setEyeExpression('state-idle');
+    if (window.setVoiceState) window.setVoiceState('idle', 0);
   };
   utter.onerror = () => {
     if (btnElement) btnElement.classList.remove('playing-tts');
     DOM.face.classList.remove('speaking-mode');
     setEyeExpression('state-idle');
+    if (window.setVoiceState) window.setVoiceState('idle', 0);
   };
+  if (window.setVoiceState) window.setVoiceState('speaking', 60);
   window.speechSynthesis.speak(utter);
 }
 
@@ -2884,14 +2896,200 @@ async function sendMessage(userText) {
   } finally {
     setStopButtonState(false);
     currentChatAbortController = null;
+    if (!currentAudio && !window.speechSynthesis?.speaking) {
+      if (window.setVoiceState) window.setVoiceState('idle', 0);
+    }
     if (requestSessionId !== currentSessionId || requestVersion !== sessionVersion) return;
     isBusy = false;
   }
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   BOTTOM-DOCKED GEMINI-STYLE VOICE INTERACTION & VISUALIZER
+   APPLE INTELLIGENCE SIRI-LEVEL FLUID VOICE ORB ENGINE & INTERACTION
    ═══════════════════════════════════════════════════════════════════ */
+const SIRI_STATES = {
+  idle: {
+    colors: ['#8B5CF6', '#3B82F6', '#EC4899', '#22D3EE'],
+    speed: 0.35,
+    amp: 0.14,
+    glow: 'rgba(139,92,246,.45)',
+    glow2: 'rgba(59,130,246,.25)',
+    label: ''
+  },
+  listening: {
+    colors: ['#22D3EE', '#34D399', '#3B82F6', '#8B5CF6'],
+    speed: 0.85,
+    amp: 0.30,
+    glow: 'rgba(34,211,238,.55)',
+    glow2: 'rgba(52,211,153,.28)',
+    label: 'Listening…'
+  },
+  thinking: {
+    colors: ['#F472B6', '#F59E0B', '#8B5CF6', '#3B82F6'],
+    speed: 1.40,
+    amp: 0.24,
+    glow: 'rgba(245,158,11,.55)',
+    glow2: 'rgba(244,114,182,.30)',
+    label: 'Thinking…'
+  },
+  speaking: {
+    colors: ['#EC4899', '#8B5CF6', '#22D3EE', '#3B82F6'],
+    speed: 1.10,
+    amp: 0.44,
+    glow: 'rgba(236,72,153,.60)',
+    glow2: 'rgba(139,92,246,.32)',
+    label: 'Speaking…'
+  }
+};
+
+// Cubic ease for organic, non-linear volume response
+const easeInOutCubic = x => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+
+class SiriOrb {
+  constructor(canvas, labelEl) {
+    this.canvas = canvas;
+    this.ctx = canvas ? canvas.getContext('2d') : null;
+    this.label = labelEl;
+    this.w = canvas ? canvas.width : 260;
+    this.h = canvas ? canvas.height : 260;
+    this.cx = this.w / 2;
+    this.cy = this.h / 2;
+    this.state = 'idle';
+    this.volume = 0;         // 0-100 target volume
+    this.smVolume = 0;       // smoothed volume
+    this.t = 0;
+    this.rafId = null;
+    this.running = false;
+    this.lastTs = 0;
+    this._bindVisibility();
+  }
+
+  setVoiceState(state, volume = 0) {
+    if (!SIRI_STATES[state]) return;
+    const changed = state !== this.state;
+    this.state = state;
+    this.volume = Math.max(0, Math.min(100, volume));
+
+    if (changed) {
+      const cfg = SIRI_STATES[state];
+      const wrap = document.getElementById('siri-orb-wrap');
+      if (wrap) {
+        wrap.style.setProperty('--orb-glow', cfg.glow);
+        wrap.style.setProperty('--orb-glow2', cfg.glow2);
+      }
+      if (this.label) {
+        if (cfg.label) {
+          this.label.textContent = cfg.label;
+          requestAnimationFrame(() => this.label.classList.add('visible'));
+        } else {
+          this.label.classList.remove('visible');
+        }
+      }
+      const legacyStatus = document.getElementById('voiceStatusText');
+      if (legacyStatus && cfg.label) legacyStatus.textContent = cfg.label;
+    }
+  }
+
+  _bindVisibility() {
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        this.stop();
+      } else if (this.running) {
+        this.start();
+      }
+    });
+  }
+
+  start() {
+    if (this.running && this.rafId) return;
+    this.running = true;
+    this.lastTs = performance.now();
+    this.rafId = requestAnimationFrame(this._loop.bind(this));
+  }
+
+  stop() {
+    this.running = false;
+    if (this.rafId) cancelAnimationFrame(this.rafId);
+    this.rafId = null;
+  }
+
+  destroy() {
+    this.stop();
+  }
+
+  _loop(ts) {
+    if (!this.running) return;
+    const dt = Math.min((ts - this.lastTs) / 1000, 0.05);
+    this.lastTs = ts;
+    const cfg = SIRI_STATES[this.state] || SIRI_STATES.idle;
+
+    this.t += dt * cfg.speed;
+    // Spring-like smoothing toward eased volume target (non-linear organic curve)
+    const easedTarget = easeInOutCubic(Math.min(1, Math.max(0, this.volume / 100))) * 100;
+    this.smVolume += (easedTarget - this.smVolume) * Math.min(1, dt * 6.0);
+
+    this._draw(cfg);
+    this.rafId = requestAnimationFrame(this._loop.bind(this));
+  }
+
+  _draw(cfg) {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const { cx, cy, w, h, t } = this;
+    const amp = cfg.amp + (this.smVolume / 100) * 0.55;
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.globalCompositeOperation = 'lighter';
+
+    const baseR = Math.min(w, h) * 0.26;
+    const n = cfg.colors.length;
+
+    for (let i = 0; i < n; i++) {
+      // Apple fluid multi-color orbital harmonics
+      const phase = t + (i * (Math.PI * 2)) / n;
+      const rx = Math.sin(phase * 1.15 + i) * baseR * amp;
+      const ry = Math.cos(phase * 0.85 - i) * baseR * amp * 0.8;
+      const zScale = 1 + Math.sin(phase * 1.4 + i * 1.7) * 0.22 * (1 + amp * 0.6);
+      const r = baseR * zScale * (0.9 + 0.25 * Math.sin(phase * 0.6));
+
+      const x = cx + rx * 0.55;
+      const y = cy + ry * 0.55;
+
+      const grad = ctx.createRadialGradient(x, y, 0, x, y, Math.max(r, 1));
+      grad.addColorStop(0, cfg.colors[i] + 'e6');
+      grad.addColorStop(0.55, cfg.colors[i] + '4d');
+      grad.addColorStop(1, cfg.colors[i] + '00');
+
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(x, y, Math.max(r, 1), 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // High-energy white core glow
+    const coreGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, baseR * 0.55);
+    coreGrad.addColorStop(0, 'rgba(255,255,255,0.55)');
+    coreGrad.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = coreGrad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, baseR * 0.55, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.globalCompositeOperation = 'source-over';
+  }
+}
+
+let siriOrbInstance = null;
+function initSiriOrb() {
+  const canvas = document.getElementById('siri-orb');
+  const label = document.getElementById('siri-orb-label');
+  if (canvas && !siriOrbInstance) {
+    siriOrbInstance = new SiriOrb(canvas, label);
+    window.siriOrbInstance = siriOrbInstance;
+    window.setVoiceState = (state, volume) => siriOrbInstance.setVoiceState(state, volume);
+  }
+}
+
 let isVoiceRecording = false;
 let isVoicePaused = false;
 let speechRecognizer = null;
@@ -2905,9 +3103,9 @@ let micRmsSum = 0;
 let micRmsCount = 0;
 
 async function initAudioVisualizer() {
+  initSiriOrb();
   const canvas = DOM.voiceWaveCanvas;
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas ? canvas.getContext('2d') : null;
 
   micRmsSum = 0;
   micRmsCount = 0;
@@ -2938,11 +3136,6 @@ async function initAudioVisualizer() {
     if (!isVoiceRecording) return;
     visualizerAnimId = requestAnimationFrame(renderWave);
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const width = canvas.width;
-    const height = canvas.height;
-    const time = Date.now() * 0.005;
-
     let dynamicAmp = 14;
     if (analyser && dataArray) {
       analyser.getByteTimeDomainData(dataArray);
@@ -2955,53 +3148,72 @@ async function initAudioVisualizer() {
       micRmsSum += rms;
       micRmsCount++;
       dynamicAmp = Math.max(4, Math.min(32, rms * 80));
+
+      // Directly feed real microphone frequency/volume to Apple Siri Orb!
+      if (window.setVoiceState && isVoiceRecording) {
+        const rawVol = Math.min(100, Math.max(0, rms * 350));
+        window.setVoiceState(isVoicePaused ? 'idle' : 'listening', isVoicePaused ? 0 : rawVol);
+      }
     }
 
-    const freq = isVoicePaused ? 0.01 : 0.045;
-    const amp = isVoicePaused ? 2 : dynamicAmp;
+    if (canvas && ctx && canvas.width > 1) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const width = canvas.width;
+      const height = canvas.height;
+      const time = Date.now() * 0.005;
+      const freq = isVoicePaused ? 0.01 : 0.045;
+      const amp = isVoicePaused ? 2 : dynamicAmp;
 
-    // Apple Intelligence 3-Layer Fluid Harmonic Glowing Waveform
-    const waves = [
-      { color: 'rgba(0, 240, 255, 0.9)', speed: 1.0, phase: 0, ampMult: 1.0, lineWidth: 2.5 },
-      { color: 'rgba(255, 0, 128, 0.75)', speed: -1.3, phase: Math.PI / 3, ampMult: 0.7, lineWidth: 2.0 },
-      { color: 'rgba(147, 51, 234, 0.65)', speed: 0.8, phase: Math.PI / 1.5, ampMult: 0.5, lineWidth: 1.8 }
-    ];
+      const waves = [
+        { color: 'rgba(0, 240, 255, 0.9)', speed: 1.0, phase: 0, ampMult: 1.0, lineWidth: 2.5 },
+        { color: 'rgba(255, 0, 128, 0.75)', speed: -1.3, phase: Math.PI / 3, ampMult: 0.7, lineWidth: 2.0 },
+        { color: 'rgba(147, 51, 234, 0.65)', speed: 0.8, phase: Math.PI / 1.5, ampMult: 0.5, lineWidth: 1.8 }
+      ];
 
-    waves.forEach(w => {
-      ctx.beginPath();
-      ctx.lineWidth = w.lineWidth;
-      ctx.strokeStyle = w.color;
-      ctx.shadowColor = w.color;
-      ctx.shadowBlur = isVoicePaused ? 2 : 8;
+      waves.forEach(w => {
+        ctx.beginPath();
+        ctx.lineWidth = w.lineWidth;
+        ctx.strokeStyle = w.color;
+        ctx.shadowColor = w.color;
+        ctx.shadowBlur = isVoicePaused ? 2 : 8;
 
-      for (let x = 0; x < width; x += 3) {
-        const envelope = Math.sin((x / width) * Math.PI);
-        const y = height / 2 + Math.sin(x * freq + time * w.speed + w.phase) * amp * w.ampMult * envelope;
-        if (x === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
-      ctx.stroke();
-    });
-    ctx.shadowBlur = 0;
+        for (let x = 0; x < width; x += 3) {
+          const envelope = Math.sin((x / width) * Math.PI);
+          const y = height / 2 + Math.sin(x * freq + time * w.speed + w.phase) * amp * w.ampMult * envelope;
+          if (x === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      });
+      ctx.shadowBlur = 0;
+    }
   }
   renderWave();
 }
 
 function openVoiceDock() {
-  // Step 29 & 32: Stop any active TTS audio immediately
+  // Stop any active TTS audio immediately
   stopSpeech();
 
   isVoiceRecording = true;
   isVoicePaused = false;
   currentVoiceTranscript = '';
   DOM.voiceTranscriptText.textContent = 'Listening to you...';
-  DOM.voiceStatusText.textContent = 'Listening...';
+  if (DOM.voiceStatusText) DOM.voiceStatusText.textContent = 'Listening...';
   DOM.iconVoicePause.classList.remove('hidden');
   DOM.iconVoiceResume.classList.add('hidden');
   DOM.labelVoicePauseResume.textContent = 'Pause';
   DOM.voiceOverlay.classList.add('show');
   DOM.btnMic.classList.add('recording');
   setEyeExpression('state-listening');
+
+  initSiriOrb();
+  if (window.siriOrbInstance) {
+    window.siriOrbInstance.start();
+  }
+  if (window.setVoiceState) {
+    window.setVoiceState('listening', 0);
+  }
 
   initAudioVisualizer();
   startSpeechRecognition();
@@ -3038,6 +3250,12 @@ function closeVoiceDock() {
     micStream = null;
     analyser = null;
   }
+  if (window.setVoiceState) {
+    window.setVoiceState('idle', 0);
+  }
+  if (window.siriOrbInstance) {
+    window.siriOrbInstance.stop();
+  }
   if (!isBusy) setEyeExpression('state-idle');
 }
 
@@ -3050,20 +3268,22 @@ function toggleVoicePauseResume() {
       clearTimeout(speechSilenceTimer);
       speechSilenceTimer = null;
     }
-    DOM.voiceStatusText.textContent = 'Paused';
+    if (DOM.voiceStatusText) DOM.voiceStatusText.textContent = 'Paused';
     DOM.iconVoicePause.classList.add('hidden');
     DOM.iconVoiceResume.classList.remove('hidden');
     DOM.labelVoicePauseResume.textContent = 'Resume';
     setEyeExpression('state-idle');
+    if (window.setVoiceState) window.setVoiceState('idle', 0);
     if (speechRecognizer) {
       try { speechRecognizer.stop(); } catch {}
     }
   } else {
-    DOM.voiceStatusText.textContent = 'Listening...';
+    if (DOM.voiceStatusText) DOM.voiceStatusText.textContent = 'Listening...';
     DOM.iconVoicePause.classList.remove('hidden');
     DOM.iconVoiceResume.classList.add('hidden');
     DOM.labelVoicePauseResume.textContent = 'Pause';
     setEyeExpression('state-listening');
+    if (window.setVoiceState) window.setVoiceState('listening', 0);
     startSpeechRecognition();
   }
 }
@@ -3074,7 +3294,7 @@ function submitVoiceRecording() {
     speechSilenceTimer = null;
   }
 
-  // Step 32: Detect whisper if average speech volume was very quiet (< 0.04 RMS)
+  // Detect whisper if average speech volume was very quiet (< 0.04 RMS)
   if (micRmsCount > 10) {
     const avgRms = micRmsSum / micRmsCount;
     if (avgRms > 0.005 && avgRms < 0.040) {
@@ -3090,9 +3310,11 @@ function submitVoiceRecording() {
   if (textToSend) {
     // Transition: Listening -> Processing (Orb glowing/thinking)
     setEyeExpression('state-thinking');
+    if (window.setVoiceState) window.setVoiceState('thinking', 20);
     sendMessage(textToSend);
   } else {
     setEyeExpression('state-idle');
+    if (window.setVoiceState) window.setVoiceState('idle', 0);
     showToast('No speech detected');
   }
 }
@@ -3892,11 +4114,11 @@ function initDeviceTilt() {
   if (!('DeviceOrientationEvent' in window)) return;
   window.__marvoDeviceTiltInitialized = true;
 
-  const root = document.documentElement;
-  let boundaryState = '';
-
   const EngineClass = window.TiltEngine || (typeof TiltEngine !== 'undefined' ? TiltEngine : null);
   if (!EngineClass) return;
+
+  const root = document.documentElement;
+  let boundaryState = '';
 
   const engine = new EngineClass({
     maxTilt: 16,
@@ -4610,6 +4832,8 @@ async function initTrafficPoliceAndModelUI() {
     window.AiControlCenter.init();
   }
 
+  // Initialize Apple Siri Fluid Orb
+  initSiriOrb();
 }
 
 window.openAiControlCenter = function() {
@@ -4634,6 +4858,8 @@ window.marvo = {
   setActiveAgent,
   openNotebookModal,
   openShareModal,
+  setVoiceState: (s, v) => window.setVoiceState && window.setVoiceState(s, v),
+  get siriOrb() { return window.siriOrbInstance; },
   get activeProject() { return activeProject; },
   get activeAgent() { return activeAgent; },
   get currentVoice() { return currentVoice; },

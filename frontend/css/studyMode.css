@@ -15,8 +15,23 @@
   --study-text-muted: #8e9bb0;
 }
 
+/* ═══════════ ULTRA-PREMIUM 3D ACADEMIC JOURNAL ENTRY ANIMATION ═══════════ */
 /* ═══════════ ULTRA-PREMIUM 3D ACADEMIC JOURNAL ENTRY ANIMATION (DISABLED FOR INSTANT LAUNCH) ═══════════ */
 .study-intro-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99998;
+  background: radial-gradient(ellipse at center, #0a1122 0%, #03060c 60%, #000205 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  perspective: 2200px;
+  perspective-origin: 50% 50%;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+  overflow: hidden;
   display: none !important;
   pointer-events: none !important;
 }

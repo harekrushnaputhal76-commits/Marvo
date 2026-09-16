@@ -212,7 +212,6 @@
 <!-- ═══════════ MAIN CONTAINER ═══════════ -->
 <main class="main">
 
-  <!-- Top Bar -->
   <!-- Top Bar with Safe Area Insets & Strict Vertical Stacking (No Overlap) -->
   <header class="topbar">
     <div class="topbar-main-row">
@@ -1178,54 +1177,51 @@
   </div>
 </div>
 
-<!-- ═══════════ BOTTOM-DOCKED GEMINI-STYLE VOICE UI ═══════════ -->
+<!-- ═══════════ APPLE SIRI-LEVEL FLUID VOICE DOCK (iOS 18 APPLE INTELLIGENCE) ═══════════ -->
 <div id="voiceOverlay" class="voice-overlay voice-bottom-dock">
-  <div class="voice-dock-container">
-    <div class="voice-dock-handle"></div>
-    
-    <div class="voice-dock-header">
-      <div class="voice-status-indicator">
-        <span class="voice-pulse-dot"></span>
-        <span class="voice-status-text" id="voiceStatusText">Listening to you...</span>
+  <div id="siri-orb-dock" class="siri-orb-dock">
+    <div class="siri-glass-card">
+      <div class="siri-top-bar">
+        <div class="siri-drag-pill"></div>
+        <button id="btnVoiceClose" class="siri-btn-close" aria-label="Close">&times;</button>
       </div>
-      <button id="btnVoiceClose" class="btn-voice-close" aria-label="Close">&times;</button>
-    </div>
 
-    <!-- Audio Waveform Visualizer -->
-    <div class="voice-visualizer-container">
-      <canvas id="voiceWaveCanvas" class="voice-wave-canvas" width="340" height="54"></canvas>
-      <div class="voice-bars" id="voiceBars">
-        <span class="bar b1"></span><span class="bar b2"></span><span class="bar b3"></span>
-        <span class="bar b4"></span><span class="bar b5"></span><span class="bar b6"></span>
-        <span class="bar b7"></span><span class="bar b8"></span><span class="bar b9"></span>
-        <span class="bar b10"></span><span class="bar b11"></span><span class="bar b12"></span>
-        <span class="bar b13"></span><span class="bar b14"></span><span class="bar b15"></span>
-        <span class="bar b16"></span>
+      <!-- Siri Fluid Multi-Color Orb (Deep magenta, electric blue, violet, soft cyan) -->
+      <div id="siri-orb-wrap" class="siri-orb-wrap">
+        <canvas id="siri-orb" width="260" height="260"></canvas>
       </div>
-    </div>
 
-    <!-- Live Transcript Box -->
-    <div class="voice-transcript-box" id="voiceTranscriptBox">
-      <p id="voiceTranscriptText" class="voice-transcript-text">Say something...</p>
-    </div>
+      <!-- Apple Intelligence Frosted Glass Pill Status & Subtitle -->
+      <div id="siri-orb-label" class="siri-orb-label visible">Listening…</div>
+      <span class="voice-status-text" id="voiceStatusText" style="display:none;">Listening...</span>
 
-    <!-- Modern Gemini-Style Control Pills -->
-    <div class="voice-controls-dock">
-      <button id="btnVoiceCancel" class="btn-dock-action dock-cancel" aria-label="Cancel">
-        <svg viewBox="0 0 24 24" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-        <span>Cancel</span>
-      </button>
+      <!-- Live Voice Transcript in iOS System Typography -->
+      <div class="voice-transcript-box" id="voiceTranscriptBox">
+        <p id="voiceTranscriptText" class="voice-transcript-text">Listening to you...</p>
+      </div>
 
-      <button id="btnVoicePauseResume" class="btn-dock-action dock-pause-resume" aria-label="Pause or Resume">
-        <svg id="iconVoicePause" viewBox="0 0 24 24" width="18" height="18"><rect x="6" y="4" width="4" height="16" fill="currentColor"/><rect x="14" y="4" width="4" height="16" fill="currentColor"/></svg>
-        <svg id="iconVoiceResume" class="hidden" viewBox="0 0 24 24" width="18" height="18"><polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/></svg>
-        <span id="labelVoicePauseResume">Pause</span>
-      </button>
+      <!-- Apple Glassmorphic Control Dock -->
+      <div class="voice-controls-dock siri-controls">
+        <button id="btnVoiceCancel" class="btn-siri-action siri-cancel" aria-label="Cancel">
+          <svg viewBox="0 0 24 24" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <span>Cancel</span>
+        </button>
 
-      <button id="btnVoiceSend" class="btn-dock-action dock-send" aria-label="Send Recording">
-        <svg viewBox="0 0 24 24" width="18" height="18"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"/></svg>
-        <span>Send</span>
-      </button>
+        <button id="btnVoicePauseResume" class="btn-siri-action siri-pause-resume" aria-label="Pause or Resume">
+          <svg id="iconVoicePause" viewBox="0 0 24 24" width="16" height="16"><rect x="6" y="4" width="4" height="16" rx="1.5" fill="currentColor"/><rect x="14" y="4" width="4" height="16" rx="1.5" fill="currentColor"/></svg>
+          <svg id="iconVoiceResume" class="hidden" viewBox="0 0 24 24" width="16" height="16"><polygon points="6 4 19 12 6 20 6 4" fill="currentColor"/></svg>
+          <span id="labelVoicePauseResume">Pause</span>
+        </button>
+
+        <button id="btnVoiceSend" class="btn-siri-action siri-send" aria-label="Send Recording">
+          <svg viewBox="0 0 24 24" width="16" height="16"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"/></svg>
+          <span>Send</span>
+        </button>
+      </div>
+
+      <!-- Hidden fallbacks for legacy audio visualizer compatibility -->
+      <canvas id="voiceWaveCanvas" class="hidden" width="1" height="1" style="display:none;"></canvas>
+      <div id="voiceBars" class="hidden" style="display:none;"></div>
     </div>
   </div>
 </div>

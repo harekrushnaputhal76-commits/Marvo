@@ -437,7 +437,7 @@
               <div>
                 <div class="model-title-row">
                   <span class="model-card-title">${m.name}</span>
-                  ${(isCompleted && m.isActive) || m.isActive ? '<span class="model-active-badge">★ Active Engine</span>' : ''}
+                  ${m.isActive ? '<span class="model-active-badge">★ Active Engine</span>' : ''}
                 </div>
                 <div class="model-vendor-tag">${m.vendor || 'On-Device GGUF'} • ${m.fileName}</div>
               </div>
@@ -447,10 +447,13 @@
             <p class="model-card-desc">${m.description || ''}</p>
 
             <div class="model-storage-row">
+              <span class="storage-label">Storage Path:</span>
+              <code class="storage-path">${m.storagePath}</code>
               <span class="storage-label">Storage:</span>
               <code class="storage-path" title="${m.storagePath}">${this.formatPath(m.storagePath)}</code>
             </div>
 
+            <!-- Progress Bar (Visible during download / pause) -->
             <!-- Dynamic Progress Bar Timeline (Visible during download / pause) -->
             <div class="model-progress-wrap ${isDownloading || isPaused ? 'show' : ''}" id="progressWrap_${m.id}">
               <div class="model-progress-bar">
@@ -458,6 +461,7 @@
               </div>
               <div class="model-progress-stats">
                 <span id="progressText_${m.id}">${pct}% • ${speed} ${eta}</span>
+                <span class="model-status-pill ${m.status}">${m.status.toUpperCase()}</span>
                 <span class="model-status-pill ${m.status || 'downloading'}">${(m.status || 'downloading').toUpperCase()}</span>
               </div>
             </div>
