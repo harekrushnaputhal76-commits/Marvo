@@ -1,0 +1,259 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/liveVisionRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#050810">
+
+    <!-- 1. Full-Screen Edge-to-Edge CameraX Preview -->
+    <androidx.camera.view.PreviewView
+        android:id="@+id/cameraPreviewView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- Screen Share Active Background Indicator (When MediaProjection active) -->
+    <RelativeLayout
+        android:id="@+id/screenShareContainer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#E6050C18"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="📱"
+                android:textSize="54sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:fontFamily="sans-serif-medium"
+                android:text="Live Screen Sharing Active"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:gravity="center"
+                android:paddingHorizontal="32dp"
+                android:text="AI is analyzing your device screen in real time for textbook problems, coding, and diagrams."
+                android:textColor="#8EA0BC"
+                android:textSize="13sp" />
+        </LinearLayout>
+    </RelativeLayout>
+
+    <!-- 2. Top Header Bar (Safe Insets) -->
+    <LinearLayout
+        android:id="@+id/topBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="20dp"
+        android:paddingTop="36dp"
+        android:paddingBottom="12dp">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_live_badge"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="6dp">
+
+            <View
+                android:id="@+id/liveDot"
+                android:layout_width="8dp"
+                android:layout_height="8dp"
+                android:background="@drawable/bg_end_call" />
+
+            <TextView
+                android:id="@+id/tvLiveStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:fontFamily="sans-serif-medium"
+                android:letterSpacing="0.08"
+                android:text="GEMINI LIVE TUTOR"
+                android:textColor="#00F0FF"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <TextView
+            android:id="@+id/tvCallTimer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_live_badge"
+            android:fontFamily="sans-serif-medium"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="4dp"
+            android:text="00:00"
+            android:textColor="#E0ECFC"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <!-- 3. Audio-Reactive Center Visualizer (Pulsing Fluid Orb) -->
+    <RelativeLayout
+        android:id="@+id/orbContainer"
+        android:layout_width="160dp"
+        android:layout_height="160dp"
+        android:layout_centerInParent="true">
+
+        <!-- Outer Ripple 2 -->
+        <View
+            android:id="@+id/orbRippleOuter"
+            android:layout_width="160dp"
+            android:layout_height="160dp"
+            android:layout_centerInParent="true"
+            android:alpha="0.2"
+            android:background="@drawable/bg_pill_ctrl_btn" />
+
+        <!-- Middle Ripple 1 -->
+        <View
+            android:id="@+id/orbRippleMid"
+            android:layout_width="120dp"
+            android:layout_height="120dp"
+            android:layout_centerInParent="true"
+            android:alpha="0.4"
+            android:background="@drawable/bg_pill_ctrl_btn" />
+
+        <!-- Core Orb -->
+        <View
+            android:id="@+id/orbCore"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:layout_centerInParent="true"
+            android:background="@drawable/bg_pill_ctrl_btn" />
+
+        <TextView
+            android:id="@+id/tvOrbState"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:text="⚛️"
+            android:textSize="28sp" />
+    </RelativeLayout>
+
+    <!-- 4. Floating HUD Subtitle / Derivation Card -->
+    <LinearLayout
+        android:id="@+id/transcriptCard"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_above="@id/pillControlsContainer"
+        android:layout_marginHorizontal="20dp"
+        android:layout_marginBottom="16dp"
+        android:background="@drawable/bg_transcript_card"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:id="@+id/tvTranscriptSpeaker"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-medium"
+            android:text="Marvo Live Cognitive Tutor"
+            android:textColor="#00F0FF"
+            android:textSize="12sp" />
+
+        <TextView
+            android:id="@+id/tvTranscriptContent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:fontFamily="sans-serif"
+            android:lineSpacingExtra="3dp"
+            android:text="I am looking through your camera. Point at any equation, textbook paragraph, or problem to solve together in real-time."
+            android:textColor="#F0F4FC"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+    <!-- 5. Floating Glassmorphism Pill (WindowInsets Safe Padding at Bottom) -->
+    <LinearLayout
+        android:id="@+id/pillControlsContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:gravity="center"
+        android:paddingHorizontal="24dp"
+        android:paddingBottom="28dp">
+
+        <LinearLayout
+            android:id="@+id/glassmorphismPill"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_live_pill"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="10dp">
+
+            <!-- Flip Camera Button -->
+            <ImageButton
+                android:id="@+id/btnFlipCamera"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@drawable/bg_pill_ctrl_btn"
+                android:contentDescription="Switch Camera"
+                android:padding="12dp"
+                android:scaleType="fitCenter"
+                android:src="@android:drawable/ic_menu_camera" />
+
+            <!-- Screen Share Button -->
+            <ImageButton
+                android:id="@+id/btnScreenShare"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginStart="14dp"
+                android:background="@drawable/bg_pill_ctrl_btn"
+                android:contentDescription="Screen Share"
+                android:padding="12dp"
+                android:scaleType="fitCenter"
+                android:src="@android:drawable/ic_menu_slideshow" />
+
+            <!-- Mic Mute/Unmute Button -->
+            <ImageButton
+                android:id="@+id/btnMicToggle"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginStart="14dp"
+                android:background="@drawable/bg_pill_ctrl_btn"
+                android:contentDescription="Toggle Microphone"
+                android:padding="12dp"
+                android:scaleType="fitCenter"
+                android:src="@android:drawable/btn_star" />
+
+            <!-- End Call Red Button -->
+            <ImageButton
+                android:id="@+id/btnEndCall"
+                android:layout_width="54dp"
+                android:layout_height="54dp"
+                android:layout_marginStart="18dp"
+                android:background="@drawable/bg_end_call"
+                android:contentDescription="End Call"
+                android:padding="14dp"
+                android:scaleType="fitCenter"
+                android:src="@android:drawable/ic_menu_close_clear_cancel" />
+        </LinearLayout>
+    </LinearLayout>
+
+</RelativeLayout>
+

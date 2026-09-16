@@ -789,5 +789,21 @@ public class MarvoNativeBridge extends Plugin {
             call.reject("Error opening notification policy settings: " + e.getMessage());
         }
     }
+
+    @PluginMethod
+    public void startLiveVisionTutor(PluginCall call) {
+        try {
+            Context context = getContext();
+            Intent intent = new Intent(context, LiveVisionTutorActivity.class);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            context.startActivity(intent);
+            JSObject res = new JSObject();
+            res.put("started", true);
+            call.resolve(res);
+        } catch (Exception e) {
+            Log.e(TAG, "Error launching LiveVisionTutorActivity: " + e.getMessage(), e);
+            call.reject("Failed to start Live Vision Tutor: " + e.getMessage());
+        }
+    }
 }
 

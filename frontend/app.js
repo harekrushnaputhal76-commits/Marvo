@@ -363,191 +363,7 @@ const MemoryManager = {
   }
 };
 
-/* ═══════════════════════════════════════════════════════════════════
-   STEP 30: REAL-TIME LIVE VISION MODE (Gemini Live Style)
-   ═══════════════════════════════════════════════════════════════════ */
-const LiveVisionManager = {
-  videoEl: null,
-  canvasEl: null,
-  overlayEl: null,
-  stream: null,
-  facingMode: 'environment',
-  frameInterval: null,
-  latestFrameBase64: null,
 
-  init() {
-    this.videoEl = $('#liveVisionVideo');
-    this.canvasEl = $('#liveVisionCanvas');
-    this.overlayEl = $('#liveVisionOverlay');
-
-    $('#btnFlipCamera')?.addEventListener('click', () => this.flipCamera());
-    $('#btnSnapVisionFrame')?.addEventListener('click', () => this.snapFrameManual());
-    $('#btnOcrMathSolve')?.addEventListener('click', () => this.scanAndSolveMath());
-    $('#btnCloseLiveVision')?.addEventListener('click', () => this.stop());
-    $('#btnLiveVision')?.addEventListener('click', () => this.toggle());
-  },
-
-  isActive() {
-    return !!(this.stream && this.stream.active);
-  },
-
-  async toggle() {
-    if (this.isActive()) {
-      this.stop();
-    } else {
-      await this.start();
-    }
-  },
-
-  async start() {
-    try {
-      const preferredFacing = (await NativeStorage.get('marvo.camera.front_default')) === 'true' ? 'user' : this.facingMode;
-      this.facingMode = preferredFacing;
-
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        showToast('Camera API not supported in this environment');
-        return;
-      }
-
-      this.stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: this.facingMode },
-          width: { ideal: 640 },
-          height: { ideal: 480 }
-        },
-        audio: false
-      });
-
-      if (this.videoEl) {
-        this.videoEl.srcObject = this.stream;
-        await this.videoEl.play();
-      }
-
-      if (this.overlayEl) {
-        this.overlayEl.classList.remove('hidden');
-      }
-
-      // Step 31: Respect OCR Math reticle setting
-      const mathScannerEnabled = (await NativeStorage.get('marvo.ocr_math_scanner_enabled')) !== 'false';
-      const mathBox = $('#liveVisionMathBox');
-      if (mathBox) mathBox.classList.toggle('hidden', !mathScannerEnabled);
-      const mathBtn = $('#btnOcrMathSolve');
-      if (mathBtn) mathBtn.style.display = mathScannerEnabled ? 'flex' : 'none';
-
-      const btn = $('#btnLiveVision');
-      if (btn) {
-        btn.classList.add('active');
-      }
-
-      setEyeExpression('state-vision');
-      showToast('Live Vision Mode Active');
-
-      this.captureFrame();
-      if (this.frameInterval) clearInterval(this.frameInterval);
-      this.frameInterval = setInterval(() => {
-        this.captureFrame();
-      }, 3000);
-
-    } catch (err) {
-      console.error('[LiveVision] Camera start failed:', err);
-      showToast('Camera access denied or unavailable: ' + (err.message || 'Error'));
-      this.stop();
-    }
-  },
-
-  async flipCamera() {
-    this.facingMode = this.facingMode === 'user' ? 'environment' : 'user';
-    if (this.stream) {
-      this.stream.getTracks().forEach(t => t.stop());
-      this.stream = null;
-    }
-    await this.start();
-  },
-
-  captureFrame() {
-    if (!this.isActive() || !this.videoEl || !this.canvasEl) return null;
-    try {
-      const v = this.videoEl;
-      if (!v.videoWidth || !v.videoHeight) return null;
-
-      const c = this.canvasEl;
-      c.width = v.videoWidth;
-      c.height = v.videoHeight;
-      const ctx = c.getContext('2d');
-      ctx.drawImage(v, 0, 0, c.width, c.height);
-
-      const dataUrl = c.toDataURL('image/jpeg', 0.6);
-      this.latestFrameBase64 = dataUrl;
-
-      const scan = $('.live-vision-scan-line');
-      if (scan) {
-        scan.classList.remove('pulse');
-        void scan.offsetWidth;
-        scan.classList.add('pulse');
-      }
-
-      return dataUrl;
-    } catch (e) {
-      console.warn('[LiveVision] Frame capture error:', e);
-      return null;
-    }
-  },
-
-  snapFrameManual() {
-    const frame = this.captureFrame();
-    if (frame) {
-      showToast('Visual frame snapped into context');
-    }
-  },
-
-  // Step 31: Smart OCR & Math Solver (Vision Extension)
-  async scanAndSolveMath() {
-    const mathEnabled = (await NativeStorage.get('marvo.ocr_math_scanner_enabled')) !== 'false';
-    if (!mathEnabled) {
-      showToast('OCR & Math Scanner is disabled in Settings');
-      return;
-    }
-
-    const frame = this.captureFrame();
-    if (!frame) {
-      showToast('No camera frame available. Please align formula in viewfinder.');
-      return;
-    }
-
-    showToast('📐 Analyzing formula & calculating step-by-step solution...');
-    setEyeExpression('state-thinking');
-
-    // Forcefully prompt LLM with required STEM instruction
-    const mathPrompt = 'Act as an expert STEM problem solver. Transcribe and solve the handwritten or printed math/science formula shown in this image with step-by-step LaTeX formatting.';
-    this.latestFrameBase64 = frame;
-    if (typeof sendMessage === 'function') {
-      await sendMessage(mathPrompt);
-    }
-  },
-
-  stop() {
-    if (this.frameInterval) {
-      clearInterval(this.frameInterval);
-      this.frameInterval = null;
-    }
-    if (this.stream) {
-      this.stream.getTracks().forEach(t => t.stop());
-      this.stream = null;
-    }
-    if (this.videoEl) {
-      this.videoEl.srcObject = null;
-    }
-    if (this.overlayEl) {
-      this.overlayEl.classList.add('hidden');
-    }
-    const btn = $('#btnLiveVision');
-    if (btn) {
-      btn.classList.remove('active');
-    }
-    this.latestFrameBase64 = null;
-    setEyeExpression('state-idle');
-  }
-};
 
 /* ═══════════════════════════════════════════════════════════════════
    STEP 30: AI CONTROL ROOM DASHBOARD REGISTRY & RENDERER
@@ -2706,14 +2522,8 @@ async function sendMessage(userText) {
     payloadMessage = `${memoryPromptBlock}\n\n${payloadMessage}`;
   }
 
-  // Step 30: Multimodal Live Vision Feed Frame Capture
+  // Step 30: Multimodal Context Frame Capture
   let activeLiveVisionFrame = null;
-  if (LiveVisionManager.isActive()) {
-    activeLiveVisionFrame = LiveVisionManager.captureFrame() || LiveVisionManager.latestFrameBase64;
-    if (activeLiveVisionFrame) {
-      payloadMessage = `[LIVE_VISION_CAMERA_FRAME_ACTIVE: A live camera viewfinder frame captured at ${new Date().toLocaleTimeString()} is attached. Look at what is visible in front of the camera and answer the user's questions about what you see.]\n\n${payloadMessage}`;
-    }
-  }
 
   if (currentAttachments.length > 0) {
     const attachMeta = currentAttachments.map(f => `[Attached ${f.type || 'file'}: ${f.name} (${f.size})]`).join('\n');
@@ -4401,8 +4211,7 @@ async function initApp() {
   await loadHistorySidebar();
   await restoreCurrentSession();
 
-  // Step 30: AI Control Room, Live Vision & Long-Term Memory Initializations
-  LiveVisionManager.init();
+  // Step 30: AI Control Room & Long-Term Memory Initializations
   await renderAiControlRoom();
   initMemoryModalListeners();
 
@@ -4458,12 +4267,7 @@ document.addEventListener('visibilitychange', () => {
       downloadPollTimer = null;
     }
 
-    // 2. Kill WebRTC Camera / Video stream immediately
-    if (typeof LiveVisionManager !== 'undefined' && LiveVisionManager.isActive()) {
-      LiveVisionManager.stop();
-    }
-
-    // 3. Kill WebRTC Mic audio stream and voice visualizer
+    // 2. Kill WebRTC Mic audio stream and voice visualizer
     if (typeof isVoiceRecording !== 'undefined' && isVoiceRecording) {
       closeVoiceDock();
     }

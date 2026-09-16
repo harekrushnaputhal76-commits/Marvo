@@ -473,55 +473,6 @@
   </div>
 </main>
 
-<!-- ═══════════ STEP 30: LIVE VISION OVERLAY (Gemini Live Style) ═══════════ -->
-<div id="liveVisionOverlay" class="live-vision-overlay hidden" aria-label="Live Vision Viewfinder">
-  <div class="live-vision-card">
-    <div class="live-vision-topbar">
-      <div class="vision-status-chip">
-        <span class="vision-pulse-dot"></span>
-        <span class="vision-status-label">LIVE VISION</span>
-        <span class="vision-fps-badge" id="liveVisionFps">Active</span>
-      </div>
-      <div class="vision-ctrl-group">
-        <button id="btnOcrMathSolve" class="vision-ctrl-btn math-solver-btn" type="button" title="Scan & Solve Math/Formula" aria-label="Scan & Solve Math">
-          <svg viewBox="0 0 24 24" width="16" height="16"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-6 3h5v2h-5V6zm-6 2h4v2H7V8zm0 4h4v2H7v-2zm6 0h5v2h-5v-2zm-6 4h4v2H7v-2zm6 0h5v2h-5v-2z" fill="currentColor"/></svg>
-        </button>
-        <button id="btnFlipCamera" class="vision-ctrl-btn" type="button" title="Flip Camera" aria-label="Flip Camera">
-          <svg viewBox="0 0 24 24" width="16" height="16"><path d="M20 4h-3.17L15 2H9L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-5 11.5V13H9v2.5L5.5 12 9 8.5V11h6V8.5l3.5 3.5-3.5 3.5z" fill="currentColor"/></svg>
-        </button>
-        <button id="btnSnapVisionFrame" class="vision-ctrl-btn" type="button" title="Snap Current Frame" aria-label="Snap Frame">
-          <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>
-        </button>
-        <button id="btnCloseLiveVision" class="vision-ctrl-btn close" type="button" title="Close Live Vision" aria-label="Close">
-          &times;
-        </button>
-      </div>
-    </div>
-
-    <div class="live-vision-viewport">
-      <video id="liveVisionVideo" autoplay playsinline muted></video>
-      <canvas id="liveVisionCanvas" style="display:none;"></canvas>
-      <div class="live-vision-scan-line"></div>
-      <div class="live-vision-reticle top-left"></div>
-      <div class="live-vision-reticle top-right"></div>
-      <div class="live-vision-reticle bottom-left"></div>
-      <div class="live-vision-reticle bottom-right"></div>
-
-      <!-- Step 31: OCR Math Reticle Target Box -->
-      <div class="live-vision-math-box hidden" id="liveVisionMathBox">
-        <div class="math-box-bracket tl"></div>
-        <div class="math-box-bracket tr"></div>
-        <div class="math-box-bracket bl"></div>
-        <div class="math-box-bracket br"></div>
-        <span class="math-box-label">📐 Align Equation / Text Here</span>
-      </div>
-    </div>
-
-    <div class="live-vision-footer">
-      <span class="vision-hint-text">Streaming visual perception to Gemini... Ask questions about what Marvo sees.</span>
-    </div>
-  </div>
-</div>
 
 <!-- ═══════════ SETTINGS MODAL (Customization & Voices) ═══════════ -->
 <div id="settingsModal" class="settings-modal-overlay">

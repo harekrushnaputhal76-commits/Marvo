@@ -151,6 +151,12 @@ Be rigorous, precise, and pedagogically clear.`;
               </div>
 
               <div class="study-header-right">
+                <!-- Live Vision Tutor Quick Button -->
+                <button id="btnHeaderLiveVision" class="btn-study-live-vision" title="Launch Gemini Live Vision Tutor" type="button">
+                  <span class="live-pulse-dot"></span>
+                  <span>Live Tutor</span>
+                </button>
+
                 <!-- Isolated Focus Mode DND Toggle -->
                 <button id="btnStudyFocusToggle" class="btn-study-focus" title="Toggle Isolated Focus Mode (Do Not Disturb)">
                   <span class="focus-dot"></span>
@@ -165,6 +171,9 @@ Be rigorous, precise, and pedagogically clear.`;
                 <div id="studyToolsDropdown" class="study-tools-dropdown">
                   <button class="study-tool-item" id="toolChatMode">
                     <span>💬</span> <span>Tutor Chat</span>
+                  </button>
+                  <button class="study-tool-item live-vision-dropdown-item" id="toolLiveVisionTutor">
+                    <span>👁️</span> <span>Live Vision Tutor</span>
                   </button>
                   <button class="study-tool-item" id="toolFlashcardMode">
                     <span>🗂️</span> <span>Flashcard Generator</span>
@@ -308,6 +317,13 @@ Be rigorous, precise, and pedagogically clear.`;
                     </div>
                     <span class="action-check-badge">✓</span>
                   </button>
+                  <button class="action-menu-btn live-vision-action-btn" id="actionLiveVisionTutor" type="button">
+                    <span class="action-btn-icon">👁️</span>
+                    <div class="action-btn-text">
+                      <span class="action-btn-title">Live Vision Tutor</span>
+                      <span class="action-btn-desc">Gemini Live Voice &amp; Camera</span>
+                    </div>
+                  </button>
                 </div>
               </div>
             </div>
@@ -389,6 +405,9 @@ Be rigorous, precise, and pedagogically clear.`;
         activeModeChip: document.getElementById('studyActiveModeChip'),
         activeModeLabel: document.getElementById('studyActiveModeLabel'),
         btnDismissActiveMode: document.getElementById('btnDismissActiveMode'),
+        btnHeaderLiveVision: document.getElementById('btnHeaderLiveVision'),
+        toolLiveVisionTutor: document.getElementById('toolLiveVisionTutor'),
+        actionLiveVisionTutor: document.getElementById('actionLiveVisionTutor'),
         btnAttach: document.getElementById('btnStudyActionMenu') || document.getElementById('btnStudyAttach'),
         msgInput: document.getElementById('studyMsgInput'),
         btnMic: document.getElementById('btnStudyMic'),
@@ -507,6 +526,23 @@ Be rigorous, precise, and pedagogically clear.`;
           this.closeActionMenu();
         }
       });
+
+      // Live Vision Tutor Triggers
+      if (this.dom.btnHeaderLiveVision) {
+        this.dom.btnHeaderLiveVision.onclick = () => this.launchLiveVisionTutor();
+      }
+      if (this.dom.toolLiveVisionTutor) {
+        this.dom.toolLiveVisionTutor.onclick = () => {
+          if (this.dom.toolsDropdown) this.dom.toolsDropdown.classList.remove('show');
+          this.launchLiveVisionTutor();
+        };
+      }
+      if (this.dom.actionLiveVisionTutor) {
+        this.dom.actionLiveVisionTutor.onclick = () => {
+          this.closeActionMenu();
+          this.launchLiveVisionTutor();
+        };
+      }
 
       // Tool Switching
       if (this.dom.toolChatMode) {
@@ -1179,6 +1215,86 @@ Be rigorous, precise, and pedagogically clear.`;
       };
 
       recognizer.start();
+    },
+
+    async launchLiveVisionTutor() {
+      if (window.Capacitor?.Plugins?.MarvoNativeBridge?.startLiveVisionTutor) {
+        try {
+          if (window.showToast) window.showToast('🚀 Launching Gemini Live Vision Tutor...');
+          await window.Capacitor.Plugins.MarvoNativeBridge.startLiveVisionTutor();
+          return;
+        } catch (e) {
+          console.warn('Native Live Vision Tutor launch failed, switching to modal:', e);
+        }
+      }
+      // Web / Preview Fallback Modal
+      this.openLiveVisionModal();
+    },
+
+    openLiveVisionModal() {
+      let modal = document.getElementById('studyLiveVisionModal');
+      if (!modal) {
+        const modalHTML = `
+          <div id="studyLiveVisionModal" class="study-live-vision-modal">
+            <div class="live-modal-backdrop"></div>
+            <div class="live-modal-card">
+              <div class="live-modal-header">
+                <div class="live-badge-wrap">
+                  <span class="live-dot-pulse"></span>
+                  <span class="live-title">LIVE VISION TUTOR</span>
+                </div>
+                <button class="live-modal-close" id="btnCloseLiveVisionModal" type="button">✕</button>
+              </div>
+              <div class="live-modal-body">
+                <div class="live-viewport-sim">
+                  <div class="live-scan-grid"></div>
+                  <div class="live-tutor-orb-container">
+                    <div class="live-orb-ring ring-1"></div>
+                    <div class="live-orb-ring ring-2"></div>
+                    <div class="live-pulsing-orb"></div>
+                  </div>
+                  <div class="live-hud-caption">Native Multimodal Real-Time Stream Active</div>
+                </div>
+                <div class="live-modal-info">
+                  <p class="live-desc">Edge-to-edge native CameraX + MediaProjection screen share with Acoustic Echo Cancellation &amp; Traffic Police 6 Deep Sleep.</p>
+                </div>
+              </div>
+              <div class="live-modal-pill">
+                <button class="live-pill-action" id="btnLiveFlipCam" title="Flip Camera" type="button">📷 Flip</button>
+                <button class="live-pill-action" id="btnLiveScreenShare" title="Share Screen" type="button">📱 Screen</button>
+                <button class="live-pill-action active" id="btnLiveMicToggle" title="Mic" type="button">🎙️ Mic</button>
+                <button class="live-pill-action end-call" id="btnLiveEndModal" title="End Call" type="button">✕ End</button>
+              </div>
+            </div>
+          </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        modal = document.getElementById('studyLiveVisionModal');
+
+        const closeBtn = document.getElementById('btnCloseLiveVisionModal');
+        if (closeBtn) closeBtn.onclick = () => this.closeLiveVisionModal();
+        const endBtn = document.getElementById('btnLiveEndModal');
+        if (endBtn) endBtn.onclick = () => this.closeLiveVisionModal();
+        const backdrop = modal.querySelector('.live-modal-backdrop');
+        if (backdrop) backdrop.onclick = () => this.closeLiveVisionModal();
+
+        const micBtn = document.getElementById('btnLiveMicToggle');
+        if (micBtn) {
+          micBtn.onclick = () => {
+            micBtn.classList.toggle('muted');
+            const isMuted = micBtn.classList.contains('muted');
+            micBtn.textContent = isMuted ? '🔇 Muted' : '🎙️ Mic';
+          };
+        }
+      }
+      modal.classList.add('active');
+    },
+
+    closeLiveVisionModal() {
+      const modal = document.getElementById('studyLiveVisionModal');
+      if (modal) {
+        modal.classList.remove('active');
+      }
     }
   };
 
