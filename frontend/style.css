@@ -5332,6 +5332,18 @@ body.island-active .main {
   z-index: 1000 !important;
 }
 
+@property --marvo-idle-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes marvo-idle-gradient-sweep {
+  to {
+    --marvo-idle-angle: 360deg;
+  }
+}
+
 #marvo-dynamic-island {
   position: fixed !important;
   top: var(--camera-anchor-top) !important;
@@ -5340,12 +5352,33 @@ body.island-active .main {
   height: var(--marvo-geo-idle-diameter) !important;
   transform: translateX(-50%) !important;
   border-radius: var(--marvo-geo-radius-idle) !important;
-  background: var(--marvo-color-blue) !important;
+  background: var(--marvo-conic-idle) !important;
   z-index: var(--marvo-z-indicator-layer) !important;
   pointer-events: none !important;
-  animation: none !important;
+  overflow: hidden !important;
   transition: none !important;
   will-change: auto !important;
+}
+
+#marvo-dynamic-island::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    var(--marvo-idle-highlight-layer),
+    var(--marvo-idle-shadow-layer),
+    var(--marvo-conic-idle);
+  border: var(--marvo-idle-rim-layer);
+  box-shadow: var(--marvo-idle-bloom-layer);
+  transform: rotate(var(--marvo-idle-angle));
+  transform-origin: center;
+}
+
+@supports (property: --marvo-idle-angle) {
+  #marvo-dynamic-island::before {
+    animation: marvo-idle-gradient-sweep 8s linear infinite;
+  }
 }
 
 /* ================================================================

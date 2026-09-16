@@ -107,4 +107,10 @@
   --marvo-z-indicator-layer:          9999;
   --marvo-z-overlay:                  10000;
   --marvo-z-modal:                    10001;
+
+   /* Idle bead depth layers; set any layer token to none to disable it. */
+   --marvo-idle-highlight-layer:       radial-gradient(ellipse at 50% 0%, var(--marvo-glass-border-highlight), transparent 70%);
+   --marvo-idle-shadow-layer:          linear-gradient(to bottom, transparent 52%, var(--marvo-glass-bg) 100%);
+   --marvo-idle-bloom-layer:           0 0 8px var(--marvo-color-cyan);
+   --marvo-idle-rim-layer:             1px solid var(--marvo-glass-border-subtle);
 }
