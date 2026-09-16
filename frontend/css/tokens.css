@@ -113,4 +113,9 @@
    --marvo-idle-shadow-layer:          linear-gradient(to bottom, transparent 52%, var(--marvo-glass-bg) 100%);
    --marvo-idle-bloom-layer:           0 0 8px var(--marvo-color-cyan);
    --marvo-idle-rim-layer:             1px solid var(--marvo-glass-border-subtle);
+   --marvo-idle-breathe-duration:      6s;
+   --marvo-idle-breathe-scale-rest:    0.98;
+   --marvo-idle-breathe-scale-peak:    1;
+   --marvo-idle-breathe-opacity-rest:  0.88;
+   --marvo-idle-breathe-opacity-peak:  1;
 }

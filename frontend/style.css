@@ -5344,6 +5344,17 @@ body.island-active .main {
   }
 }
 
+@keyframes marvo-idle-breathe {
+  0%, 100% {
+    transform: translateX(-50%) scale(var(--marvo-idle-breathe-scale-rest));
+    opacity: var(--marvo-idle-breathe-opacity-rest);
+  }
+  50% {
+    transform: translateX(-50%) scale(var(--marvo-idle-breathe-scale-peak));
+    opacity: var(--marvo-idle-breathe-opacity-peak);
+  }
+}
+
 #marvo-dynamic-island {
   position: fixed !important;
   top: var(--camera-anchor-top) !important;
@@ -5358,6 +5369,7 @@ body.island-active .main {
   overflow: hidden !important;
   transition: none !important;
   will-change: auto !important;
+  animation: marvo-idle-breathe var(--marvo-idle-breathe-duration) var(--marvo-ease-spring) infinite;
 }
 
 #marvo-dynamic-island::before {
