@@ -3046,13 +3046,31 @@ class DynamicIslandManager {
     return this.appRoot;
   }
 
+  getStateShape(state) {
+    const capsuleShape = {
+      width: 'var(--marvo-geo-capsule-width)',
+      height: 'var(--marvo-geo-capsule-height)',
+      radius: 'var(--marvo-geo-radius-capsule)'
+    };
+
+    if (state === 'listening' || state === 'thinking' || state === 'speaking') {
+      return capsuleShape;
+    }
+
+    return {
+      width: 'var(--marvo-geo-idle-diameter)',
+      height: 'var(--marvo-geo-height-idle)',
+      radius: 'var(--marvo-geo-radius-idle)'
+    };
+  }
+
   applyShape(targetWidth, targetHeight, options = {}) {
     const el = this.getIsland();
     if (!el) return null;
 
-    const width = typeof targetWidth === 'number' ? `${targetWidth}px` : (targetWidth || '24px');
-    const height = typeof targetHeight === 'number' ? `${targetHeight}px` : (targetHeight || '24px');
-    const radius = typeof options.radius === 'number' ? `${options.radius}px` : (options.radius || '50%');
+    const width = typeof targetWidth === 'number' ? `${targetWidth}px` : (targetWidth || 'var(--marvo-geo-idle-diameter)');
+    const height = typeof targetHeight === 'number' ? `${targetHeight}px` : (targetHeight || 'var(--marvo-geo-height-idle)');
+    const radius = typeof options.radius === 'number' ? `${options.radius}px` : (options.radius || 'var(--marvo-geo-radius-idle)');
     const top = options.top || 'var(--camera-anchor-top)';
 
     el.style.setProperty('--marvo-shape-width', width);
@@ -3110,6 +3128,8 @@ class DynamicIslandManager {
     if (el) {
       el.classList.remove('expanded', 'active', 'state-listening', 'state-thinking', 'state-speaking', 'state-error');
       el.classList.add('state-idle');
+      const shape = this.getStateShape('idle');
+      this.applyShape(shape.width, shape.height, { radius: shape.radius });
       setTimeout(() => {
         if (!this.active) el.classList.remove('island-open');
       }, 380);
@@ -3149,8 +3169,14 @@ class DynamicIslandManager {
     const validStates = ['idle', 'listening', 'thinking', 'speaking', 'error'];
     const s = validStates.includes(state) ? state : 'idle';
     const prevState = this.state;
+    const stateChanged = prevState !== s;
     this.state = s;
     this.volume = Math.max(0, Math.min(100, volume));
+
+    if (stateChanged) {
+      const shape = this.getStateShape(s);
+      this.applyShape(shape.width, shape.height, { radius: shape.radius });
+    }
 
     // Tick haptic on transition from thinking to speaking
     if (prevState === 'thinking' && s === 'speaking') {
@@ -3692,26 +3718,6 @@ function startSpeechRecognition() {
         resetSpeechSilenceTimer();
       }
     };
-
-    speechRecognizer.onerror = (err) => {
-      console.warn('[SpeechRec] Error:', err);
-      if (err.error === 'not-allowed') {
-        showToast('Microphone access denied');
-        closeVoiceDock();
-      }
-    };
-
-    speechRecognizer.onend = () => {
-      if (isVoiceRecording && !isVoicePaused && speechRecognizer) {
-        try { speechRecognizer.start(); } catch {}
-      }
-    };
-
-    speechRecognizer.start();
-  } catch (e) {
-    console.warn('[SpeechRec] Start error:', e);
-  }
-}
 
     speechRecognizer.onerror = (err) => {
       console.warn('[SpeechRec] Error:', err);
