@@ -67,56 +67,60 @@ Be rigorous, precise, and pedagogically clear.`;
       // 2. Study Mode Main Container
       const containerHTML = `
         <div id="studyModeContainer" class="study-mode-container">
-          <!-- Top Header -->
+          <!-- Top Header with Safe Area Insets -->
           <header class="study-header">
-            <div class="study-header-left">
-              <button id="btnStudyBack" class="btn-study-back" title="Exit Study Mode">
-                <svg viewBox="0 0 24 24" width="20" height="20"><polyline points="15 18 9 12 15 6" fill="none" stroke="currentColor" stroke-width="2.5"/></svg>
-              </button>
-              <div class="study-header-title-wrap">
-                <div class="study-header-title">
-                  <span>Study Mode</span>
-                  <span class="study-pulse-dot"></span>
+            <div class="study-header-main-row">
+              <div class="study-header-left">
+                <button id="btnStudyBack" class="btn-study-back" title="Exit Study Mode">
+                  <svg viewBox="0 0 24 24" width="20" height="20"><polyline points="15 18 9 12 15 6" fill="none" stroke="currentColor" stroke-width="2.5"/></svg>
+                </button>
+                <div class="study-header-title-wrap">
+                  <div class="study-header-title">
+                    <span>Study Mode</span>
+                    <span class="study-pulse-dot"></span>
+                  </div>
+                  <span class="study-header-sub" id="studySubHeader">Isolated Academic Workspace</span>
                 </div>
-                <span class="study-header-sub" id="studySubHeader">Isolated Academic Workspace</span>
+              </div>
+
+              <div class="study-header-right">
+                <!-- Isolated Focus Mode DND Toggle -->
+                <button id="btnStudyFocusToggle" class="btn-study-focus" title="Toggle Isolated Focus Mode (Do Not Disturb)">
+                  <span class="focus-dot"></span>
+                  <span id="focusToggleLabel">Focus: OFF</span>
+                </button>
+
+                <button id="btnStudyToolsMenu" class="btn-study-tools-menu" title="Learning Tools">
+                  <span>Tools</span>
+                  <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="19" cy="12" r="1.5" fill="currentColor"/><circle cx="5" cy="12" r="1.5" fill="currentColor"/></svg>
+                </button>
+
+                <div id="studyToolsDropdown" class="study-tools-dropdown">
+                  <button class="study-tool-item" id="toolChatMode">
+                    <span>💬</span> <span>Tutor Chat</span>
+                  </button>
+                  <button class="study-tool-item" id="toolFlashcardMode">
+                    <span>🗂️</span> <span>Flashcard Generator</span>
+                  </button>
+                  <button class="study-tool-item" id="toolQuizMode">
+                    <span>📝</span> <span>Interactive Quiz / MCQ</span>
+                  </button>
+                  <button class="study-tool-item" id="toolOcrMode">
+                    <span>📷</span> <span>On-Device Book OCR</span>
+                  </button>
+                  <button class="study-tool-item" id="toolControlCenter">
+                    <span>🎛️</span> <span>AI Control Center</span>
+                  </button>
+                </div>
               </div>
             </div>
 
-            <!-- Cognitive Modes Toggle [Fast] | [Thinking] | [Pro Thinking] -->
-            <div class="study-tier-switcher cognitive-modes-switcher" id="studyTierSwitcher">
-              <button class="study-tier-btn active" data-mode="Fast" type="button" title="Fast Mode — Instant Groq">Fast</button>
-              <button class="study-tier-btn" data-mode="Thinking" type="button" title="Thinking Mode — Gemini Reasoning">Thinking</button>
-              <button class="study-tier-btn" data-mode="Pro Thinking" type="button" title="Pro Thinking Mode — OpenRouter / Claude">Pro Thinking</button>
-            </div>
-
-            <div class="study-header-right">
-              <!-- Isolated Focus Mode DND Toggle -->
-              <button id="btnStudyFocusToggle" class="btn-study-focus" title="Toggle Isolated Focus Mode (Do Not Disturb)">
-                <span class="focus-dot"></span>
-                <span id="focusToggleLabel">Focus: OFF</span>
-              </button>
-
-              <button id="btnStudyToolsMenu" class="btn-study-tools-menu" title="Learning Tools">
-                <span>Tools</span>
-                <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="19" cy="12" r="1.5" fill="currentColor"/><circle cx="5" cy="12" r="1.5" fill="currentColor"/></svg>
-              </button>
-
-              <div id="studyToolsDropdown" class="study-tools-dropdown">
-                <button class="study-tool-item" id="toolChatMode">
-                  <span>💬</span> <span>Tutor Chat</span>
-                </button>
-                <button class="study-tool-item" id="toolFlashcardMode">
-                  <span>🗂️</span> <span>Flashcard Generator</span>
-                </button>
-                <button class="study-tool-item" id="toolQuizMode">
-                  <span>📝</span> <span>Interactive Quiz / MCQ</span>
-                </button>
-                <button class="study-tool-item" id="toolOcrMode">
-                  <span>📷</span> <span>On-Device Book OCR</span>
-                </button>
-                <button class="study-tool-item" id="toolControlCenter">
-                  <span>🎛️</span> <span>AI Control Center</span>
-                </button>
+            <!-- Cognitive Modes Toggle Bar (Positioned strictly below with vertical spacing) -->
+            <div class="study-header-modes-row">
+              <div class="study-tier-switcher cognitive-modes-switcher" id="studyTierSwitcher">
+                <button class="study-tier-btn active" data-mode="Fast" type="button" title="Fast Mode — Instant Groq">Fast</button>
+                <button class="study-tier-btn" data-mode="Thinking" type="button" title="Thinking Mode — Gemini Reasoning">Thinking</button>
+                <button class="study-tier-btn" data-mode="Pro Thinking" type="button" title="Pro Thinking Mode — OpenRouter / Claude">Pro Thinking</button>
               </div>
             </div>
           </header>
@@ -650,20 +654,21 @@ Be rigorous, precise, and pedagogically clear.`;
           aiResult.response = "Study router is configuring...";
         }
 
+        const cleanAiAnswer = this.sanitizeResponse(aiResult.response);
         this.removeLoadingBubble(loadingId);
-        this.appendMessage('ai', aiResult.response);
-        this.saveTurn('ai', aiResult.response);
+        this.appendMessage('ai', cleanAiAnswer);
+        this.saveTurn('ai', cleanAiAnswer);
 
         // Check if user requested flashcards or quiz
         if (/\b(?:make|generate|create)\s+(?:flashcards?|cards?)\b/i.test(promptText)) {
           if (window.FlashcardEngine) {
             this.switchTab('flashcards');
-            window.FlashcardEngine.generateFromContent(aiResult.response);
+            window.FlashcardEngine.generateFromContent(cleanAiAnswer);
           }
         } else if (/\b(?:quiz|test|mcq|exam)\b/i.test(promptText)) {
           if (window.QuizEngine) {
             this.switchTab('quiz');
-            window.QuizEngine.generateQuiz(aiResult.response);
+            window.QuizEngine.generateQuiz(cleanAiAnswer);
           }
         }
 
@@ -673,8 +678,49 @@ Be rigorous, precise, and pedagogically clear.`;
       }
     },
 
+    sanitizeResponse(raw) {
+      if (!raw || typeof raw !== 'string') return raw || '';
+      let text = raw;
+
+      // 1. Strip special token tags (<|system|>, <|user|>, <|assistant|>, <|end|>, <|endoftext|>, etc.)
+      text = text.replace(/<\|[a-z0-9_\-]+\|>/gi, '');
+
+      // 2. Strip structural / thinking / reasoning tags (<thought>, <think>, <coreResponse>, etc.)
+      text = text.replace(/<thought>[\s\S]*?<\/thought>/gi, '');
+      text = text.replace(/<think>[\s\S]*?<\/think>/gi, '');
+      text = text.replace(/<\/?(?:thought|think|coreResponse|suggestions|system|assistant)>/gi, '');
+
+      // 3. Strip entity and image xml wrappers
+      text = text.replace(/<imageCollection[^>]*>[\s\S]*?<\/imageCollection>/gi, '');
+      text = text.replace(/<image[^>]*\/?>/gi, '');
+      text = text.replace(/<\/?image>/gi, '');
+      text = text.replace(/<key_entity[^>]*>/gi, '');
+      text = text.replace(/<\/key_entity>/gi, '');
+
+      // 4. Remove duplicate text blocks (e.g. if response repeats itself or echoes coreResponse + full answer)
+      text = text.trim();
+      const half = Math.floor(text.length / 2);
+      if (half > 15) {
+        const first = text.substring(0, half).trim();
+        const second = text.substring(half).trim();
+        if (second.startsWith(first) || first === second) {
+          text = second;
+        }
+      }
+
+      // 5. Remove hardcoded recurring capabilities footers appended on queries
+      text = text.replace(/###\s*🤖\s*Marvo Offline Brain Active\s*/gi, '');
+      text = text.replace(/-\s*\*\*Offline Mode\*\*:\s*Active[^\n]*\n?/gi, '');
+      text = text.replace(/-\s*\*\*Capabilities\*\*:[^\n]*\n?/gi, '');
+      text = text.replace(/###\s*🧠\s*Offline AI Brain\s*/gi, '');
+
+      return text.trim();
+    },
+
     appendMessage(role, text) {
       if (!this.dom.messagesList) return;
+      const cleanText = (role === 'ai') ? this.sanitizeResponse(text) : text;
+
       const renderContent = (str) => {
         if (window.MathRenderer) return window.MathRenderer.renderFormattedText(str);
         return str;
@@ -684,7 +730,7 @@ Be rigorous, precise, and pedagogically clear.`;
       msgEl.className = `study-msg ${role}`;
       msgEl.innerHTML = `
         <div class="study-avatar">${role === 'user' ? '👤' : '⚛️'}</div>
-        <div class="study-bubble">${renderContent(text)}</div>
+        <div class="study-bubble">${renderContent(cleanText)}</div>
       `;
       this.dom.messagesList.appendChild(msgEl);
       this.scrollToBottom();

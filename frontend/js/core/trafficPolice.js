@@ -27,6 +27,46 @@
     openrouter: _k([115,107,45,111,114,45,118,49,45,57,54,48,50,49,98,51,57,48,55,54,54,51,53,50,101,100,101,51,102,97,52,57,53,49,53,51,99,98,54,48,101,101,49,53,97,52,51,50,56,48,54,56,102,100,50,98,98,55,57,50,49,48,102,51,50,56,97,101,52,99,102,49,100]),
   };
 
+  function sanitizeLlmResponse(raw) {
+    if (!raw || typeof raw !== 'string') return raw || '';
+    let text = raw;
+
+    // 1. Strip structural / thinking / reasoning tags (<thought>, <think>, <coreResponse>, etc.)
+    text = text.replace(/<thought>[\s\S]*?<\/thought>/gi, '');
+    text = text.replace(/<think>[\s\S]*?<\/think>/gi, '');
+    text = text.replace(/<\/?(?:thought|think|coreResponse|suggestions|system|assistant)>/gi, '');
+
+    // 2. Strip special token tags (<|system|>, <|user|>, <|assistant|>, <|end|>, <|endoftext|>, etc.)
+    text = text.replace(/<\|[a-z0-9_\-]+\|>/gi, '');
+
+    // 3. Strip entity and image xml wrappers
+    text = text.replace(/<imageCollection[^>]*>[\s\S]*?<\/imageCollection>/gi, '');
+    text = text.replace(/<image[^>]*\/?>/gi, '');
+    text = text.replace(/<\/?image>/gi, '');
+    text = text.replace(/<key_entity[^>]*>/gi, '');
+    text = text.replace(/<\/key_entity>/gi, '');
+
+    // 4. Remove duplicate text blocks (e.g. if response repeats itself or echoes coreResponse + full answer)
+    text = text.trim();
+    const half = Math.floor(text.length / 2);
+    if (half > 15) {
+      const first = text.substring(0, half).trim();
+      const second = text.substring(half).trim();
+      if (second.startsWith(first) || first === second) {
+        text = second;
+      }
+    }
+
+    // 5. Remove hardcoded recurring capabilities footers appended on queries
+    text = text.replace(/###\s*🤖\s*Marvo Offline Brain Active\s*/gi, '');
+    text = text.replace(/-\s*\*\*Offline Mode\*\*:\s*Active[^\n]*\n?/gi, '');
+    text = text.replace(/-\s*\*\*Capabilities\*\*:[^\n]*\n?/gi, '');
+    text = text.replace(/###\s*🧠\s*Offline AI Brain\s*/gi, '');
+
+    return text.trim();
+  }
+  window.sanitizeLlmResponse = sanitizeLlmResponse;
+
   const TrafficPolice = {
     state: {
       currentProvider: 'groq', // 'groq' | 'gemini' | 'openrouter' | 'local'
@@ -201,22 +241,23 @@
       const isOnline = navigator.onLine !== false;
       this.state.isOnline = isOnline;
 
+      let result;
       if (isOnline && this.state.currentProvider !== 'local') {
         try {
           if (this.state.mode === 'Fast') {
-            return await this.callGroq(prompt, contextHistory, systemInstruction, signal);
+            result = await this.callGroq(prompt, contextHistory, systemInstruction, signal);
           } else if (this.state.mode === 'Thinking') {
-            return await this.callGemini(prompt, contextHistory, systemInstruction, imageBase64, signal);
+            result = await this.callGemini(prompt, contextHistory, systemInstruction, imageBase64, signal);
           } else if (this.state.mode === 'Pro Thinking') {
-            return await this.callOpenRouter(prompt, contextHistory, systemInstruction, signal);
+            result = await this.callOpenRouter(prompt, contextHistory, systemInstruction, signal);
           } else {
             // Default based on selected provider
             if (this.state.currentProvider === 'groq') {
-              return await this.callGroq(prompt, contextHistory, systemInstruction, signal);
+              result = await this.callGroq(prompt, contextHistory, systemInstruction, signal);
             } else if (this.state.currentProvider === 'openrouter') {
-              return await this.callOpenRouter(prompt, contextHistory, systemInstruction, signal);
+              result = await this.callOpenRouter(prompt, contextHistory, systemInstruction, signal);
             } else {
-              return await this.callGemini(prompt, contextHistory, systemInstruction, imageBase64, signal);
+              result = await this.callGemini(prompt, contextHistory, systemInstruction, imageBase64, signal);
             }
           }
         } catch (err) {
@@ -224,18 +265,25 @@
           // Fallback to Gemini if Groq failed and Gemini is available
           if (this.state.mode === 'Fast' && this.state.keys.gemini) {
             try {
-              return await this.callGemini(prompt, contextHistory, systemInstruction, imageBase64, signal);
+              result = await this.callGemini(prompt, contextHistory, systemInstruction, imageBase64, signal);
             } catch (geminiErr) {
               console.warn('[TrafficPolice 1] Gemini fallback also failed:', geminiErr);
             }
           }
           // If all online attempts fail, fallback to local engine
-          return await this.callLocalLLM(prompt, contextHistory, systemInstruction, signal);
+          if (!result) {
+            result = await this.callLocalLLM(prompt, contextHistory, systemInstruction, signal);
+          }
         }
       } else {
         // Offline Mode: Route immediately to designated on-device model
-        return await this.callLocalLLM(prompt, contextHistory, systemInstruction, signal);
+        result = await this.callLocalLLM(prompt, contextHistory, systemInstruction, signal);
       }
+
+      if (result && typeof result.response === 'string') {
+        result.response = sanitizeLlmResponse(result.response);
+      }
+      return result;
     },
 
     /**

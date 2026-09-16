@@ -144,25 +144,39 @@
   transform: scale(1);
 }
 
-/* ═══════════ TOP HEADER ═══════════ */
+/* ═══════════ TOP HEADER (SAFE AREA & WINDOW INSETS) ═══════════ */
 .study-header {
-  height: 60px;
+  position: relative;
+  min-height: calc(66px + max(env(safe-area-inset-top, 0px), 28px));
+  height: auto;
+  padding-top: max(env(safe-area-inset-top, 0px), 28px);
+  padding-bottom: 10px;
+  padding-left: 16px;
+  padding-right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: rgba(8, 11, 18, 0.94);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-bottom: 1px solid var(--study-surface-border);
+  box-shadow: 0 4px 25px rgba(0, 0, 0, 0.5);
+  z-index: 100;
+  box-sizing: border-box;
+}
+
+.study-header-main-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px;
-  background: rgba(8, 11, 18, 0.85);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid var(--study-surface-border);
-  box-shadow: 0 4px 25px rgba(0, 0, 0, 0.4);
-  z-index: 100;
+  width: 100%;
 }
 
 .study-header-left {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
 }
 
 .btn-study-back {
@@ -176,6 +190,7 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  flex-shrink: 0;
   transition: all 0.2s ease;
 }
 
@@ -188,6 +203,7 @@
 .study-header-title-wrap {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .study-header-title {
@@ -198,6 +214,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  white-space: nowrap;
 }
 
 .study-pulse-dot {
@@ -218,29 +235,42 @@
   font-size: 11px;
   color: var(--study-accent-cyan);
   font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* Cognitive Modes Toggle in Study Header */
+/* Dedicated Cognitive Modes Bar below title (Eliminates horizontal collision) */
+.study-header-modes-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin-top: 4px;
+}
+
 .study-tier-switcher {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 3px;
+  justify-content: center;
+  gap: 4px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(0, 240, 255, 0.22);
   border-radius: 20px;
-  padding: 3px;
+  padding: 3px 6px;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  max-width: 100%;
 }
 
 .study-tier-btn {
-  padding: 5px 12px;
+  padding: 5px 14px;
   border-radius: 16px;
   background: transparent;
   border: none;
   color: var(--study-text-muted);
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -268,8 +298,9 @@
 .study-header-right {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   position: relative;
+  flex-shrink: 0;
 }
 
 .btn-study-tools-menu {
@@ -355,8 +386,11 @@
 /* Study Chat View */
 .study-chat-scroll {
   flex: 1;
+  width: 100%;
+  box-sizing: border-box;
   overflow-y: auto;
-  padding: 20px 16px;
+  overflow-x: hidden;
+  padding: 16px 14px 28px;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -370,6 +404,8 @@
   border: 1px solid rgba(0, 240, 255, 0.12);
   border-radius: 18px;
   margin-bottom: 8px;
+  box-sizing: border-box;
+  max-width: 100%;
 }
 
 .study-hero-book-icon {
@@ -402,8 +438,10 @@
 /* Message bubbles in Study Mode */
 .study-msg {
   display: flex;
-  gap: 12px;
-  max-width: 88%;
+  gap: 10px;
+  max-width: 92%;
+  width: fit-content;
+  box-sizing: border-box;
   animation: studyFadeUp 0.3s ease;
 }
 
@@ -450,6 +488,28 @@
   line-height: 1.6;
   color: var(--study-text);
   word-break: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.study-bubble pre,
+.study-bubble code {
+  max-width: 100%;
+  overflow-x: auto;
+  word-break: break-word;
+}
+
+.study-bubble table {
+  max-width: 100%;
+  overflow-x: auto;
+  display: block;
+}
+
+.study-bubble img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
 }
 
 .study-msg.user .study-bubble {

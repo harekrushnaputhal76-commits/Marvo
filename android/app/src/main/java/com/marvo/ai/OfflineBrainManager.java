@@ -166,10 +166,10 @@ public class OfflineBrainManager {
                     // Extract spoken core text inside <coreResponse>
                     String coreSpeech = extractCoreResponse(generatedText);
                     if (coreSpeech.isEmpty()) {
-                        coreSpeech = generatedText;
+                        coreSpeech = cleanAppleXmlTags(generatedText);
                     }
 
-                    final String finalFull = generatedText;
+                    final String finalFull = cleanAppleXmlTags(generatedText);
                     final String finalCore = coreSpeech;
                     state = ModelState.READY;
 
@@ -213,20 +213,17 @@ public class OfflineBrainManager {
             int pct = prog.optInt("progress", 0);
 
             if (modelDownloaded || "completed".equalsIgnoreCase(status)) {
-                String spoken = "Offline Brain model fully downloaded aur active hai, Sir.";
-                return "<coreResponse>" + spoken + "</coreResponse>\n\n### 🧠 Offline AI Brain\n\nModel is ready (~2.2GB verified). Native offline inference active.";
+                return "Offline Brain model is verified and ready. Native offline inference active.";
             } else if ("downloading".equalsIgnoreCase(status)) {
-                String spoken = "Offline Brain model download ho raha hai (" + pct + "%).";
-                return "<coreResponse>" + spoken + "</coreResponse>\n\n### 🧠 Offline AI Brain\n\nModel download in progress: **" + pct + "%** (~2.2GB Phi-3 Mini 4K).";
+                return "Offline Brain model download in progress: **" + pct + "%** (~2.2GB Phi-3 Mini 4K).";
             } else {
-                String spoken = "Offline model download nahi hua hai. Aap Settings mein jakar download shuru kar sakte hain.";
-                return "<coreResponse>" + spoken + "</coreResponse>\n\n### 🧠 Offline AI Brain\n\nOpen Settings &rarr; Offline Brain to start download.";
+                return "Offline model is not downloaded yet. Open Settings → Offline Brain to start download.";
             }
         }
 
-        // 2. Format prompt with Phi-3 Instruct template and Apple Intelligence directives
+        // 2. Format prompt with Phi-3 Instruct template
         String phi3FormattedPrompt = "<|system|>\n" +
-            "APPLE_INTELLIGENCE: 1.One Breath in <coreResponse> 2.Exhale after </coreResponse> 3.Images <image style=\"hero\"> 4.Entities <key_entity id=\"...\"> 5.Disambiguation ask_user_to_pick 6.Missing Property: State missing 7.Compound: Sequential 8.Device State Aware 9.Privacy: No narration 10.Find tools before core.<|end|>\n" +
+            "You are Marvo, an advanced personal AI assistant. Answer directly, concisely, and helpfully.<|end|>\n" +
             "<|user|>\n" + clean + "<|end|>\n<|assistant|>\n";
         Log.d(TAG, "Phi-3 formatted prompt:\n" + phi3FormattedPrompt);
 
@@ -236,7 +233,7 @@ public class OfflineBrainManager {
                 Object result = nativeGenerateMethod.invoke(nativeLlmSession, phi3FormattedPrompt);
                 if (result instanceof String && !((String) result).trim().isEmpty()) {
                     String nativeOut = ((String) result).trim();
-                    return "<coreResponse>" + nativeOut + "</coreResponse>\n\n" + nativeOut;
+                    return cleanAppleXmlTags(nativeOut);
                 }
             } catch (Exception e) {
                 Log.w(TAG, "Native execution call error, falling back to internal neural engine: " + e.getMessage());
@@ -251,12 +248,7 @@ public class OfflineBrainManager {
             if (parts.length == 2 && !parts[0].trim().isEmpty() && !parts[1].trim().isEmpty()) {
                 String res1 = executeSingleInference(parts[0].trim(), clean);
                 String res2 = executeSingleInference(parts[1].trim(), clean);
-                String core1 = extractCoreResponse(res1);
-                String core2 = extractCoreResponse(res2);
-                String combinedCore = core1 + " Also, " + core2;
-                return "<coreResponse>" + combinedCore + "</coreResponse>\n\n" +
-                       "### ⚡ Compound Request Resolved\n\n" +
-                       "**Part 1**: " + cleanAppleXmlTags(res1) + "\n\n" +
+                return "**Part 1**: " + cleanAppleXmlTags(res1) + "\n\n" +
                        "**Part 2**: " + cleanAppleXmlTags(res2);
             }
         }
@@ -268,63 +260,51 @@ public class OfflineBrainManager {
         // Directive 5: Speech Disambiguation Logic
         if (lower.equals("call him") || lower.equals("call her") || lower.equals("open it") ||
             lower.equals("play it") || lower.equals("send it") || lower.equals("do that")) {
-            return "<coreResponse>Please select which specific item or contact you would like me to act on.</coreResponse>\n\n" +
-                   "### 🔍 Speech Disambiguation (<key_entity id=\"action\">ask_user_to_pick</key_entity>)\n\n" +
-                   "The request is ambiguous. Please select from the following actions:\n" +
+            return "Please select which specific item or contact you would like me to act on:\n" +
                    "1. Open recent application\n" +
-                   "2. Connect with primary contact (Jatin)\n" +
+                   "2. Connect with primary contact\n" +
                    "3. Resume audio playback";
         }
 
         // Directive 6: Missing Property Respect (Zero Hallucination)
         if (lower.contains("flight number") || lower.contains("my password") || lower.contains("my pin") ||
             lower.contains("bank balance") || lower.contains("credit card") || lower.contains("hotel booking")) {
-            return "<coreResponse>That information is missing from local context. Marvo does not guess private credentials.</coreResponse>\n\n" +
-                   "### ⚠️ Missing Property Respect\n\n" +
-                   "The requested fact is missing from the on-device knowledge vault. To protect privacy and prevent hallucination, this operation was halted.";
+            return "That information is missing from local context. Marvo does not store or guess private credentials.";
         }
 
         // Directive 10: Dynamic Tool Routing (Math & Device Intent Modules)
         if (isMathExpression(lower)) {
             String mathAns = solveLocalMath(lower);
             if (mathAns != null) {
-                return "<coreResponse>" + mathAns + "</coreResponse>\n\n" +
-                       "### 📐 Calculation Result (<key_entity id=\"tool\">math_calculation</key_entity>)\n\n" +
+                return "### 📐 Calculation Result\n\n" +
                        "$$\\text{" + clean.replaceAll("[?]", "") + "} = \\mathbf{" + mathAns.replaceAll("(?i)^Uttar hai\\s*", "").replaceAll("[.]", "") + "}$$\n\n" +
                        "- **Result**: " + mathAns;
             }
         }
 
-        // 4.2 Polite Conversational & Persona Handling
+        // 4.2 Polite Conversational & Persona Handling (No hardcoded recurring capabilities footer)
         if (lower.matches("^(hi|hii|hello|hey|heyy|namaste|pranam|good morning|good afternoon|good evening|kya haal hai|kaise ho)\\b.*")) {
-            String greeting = "Namaste Sir! Main Marvo hoon, aapka on-device personal AI assistant. Offline mode mein bhi main aapke sawalon ka uttar dene aur phone control karne ke liye fully active hoon. Aaj main aapki kya madad kar sakta hoon?";
-            return "<coreResponse>" + greeting + "</coreResponse>\n\n" +
-                   "### 🤖 Marvo Offline Brain Active\n\n" +
-                   greeting + "\n\n" +
-                   "- **Offline Mode**: Active (Phi-3 Mini 4K)\n" +
-                   "- **Capabilities**: Math calculations, conceptual Q&A, definitions, and device control.";
+            return "Namaste! Main Marvo hoon, aapka personal AI assistant. Aaj main aapki kya madad kar sakta hoon?";
         }
 
         // 4.3 Science & Conceptual Explanations (Physics, Chemistry, Biology, CS)
         String scienceExplanation = resolveConceptualKnowledge(lower, clean);
         if (scienceExplanation != null) {
-            return scienceExplanation;
+            return cleanAppleXmlTags(scienceExplanation);
         }
 
         // 4.4 Programming & Code Generation
         String codeResponse = resolveCodingQuery(lower, clean);
         if (codeResponse != null) {
-            return codeResponse;
+            return cleanAppleXmlTags(codeResponse);
         }
 
         // 4.5 Fallback when Offline and model is not ready
         if (!isModelReady()) {
-            String offlineMsg = "You are currently offline. Connect to the internet or download the offline model in Settings to continue.";
-            return "<coreResponse>" + offlineMsg + "</coreResponse>";
+            return "You are currently offline. Connect to the internet or download the offline model in Settings to continue.";
         }
 
-        String offlineReadyMsg = "Offline model loaded. How can I assist you with your academic or device query?";
-        return "<coreResponse>" + offlineReadyMsg + "</coreResponse>";
+        return "Offline model active. How can I assist you with your academic or device query?";
     }
 
     private boolean isMathExpression(String text) {
@@ -481,15 +461,26 @@ public class OfflineBrainManager {
 
     public static String cleanAppleXmlTags(String text) {
         if (text == null || text.trim().isEmpty()) return "";
-        return text.replaceAll("(?is)<suggestions>[\\s\\S]*?</suggestions>", "")
+        return text.replaceAll("(?is)<thought>[\\s\\S]*?</thought>", "")
+                   .replaceAll("(?is)<think>[\\s\\S]*?</think>", "")
+                   .replaceAll("(?is)<suggestions>[\\s\\S]*?</suggestions>", "")
                    .replaceAll("(?i)</?suggestions>", "")
                    .replaceAll("(?i)</?coreResponse>", "")
+                   .replaceAll("(?i)</?thought>", "")
+                   .replaceAll("(?i)</?think>", "")
+                   .replaceAll("(?i)</?system>", "")
+                   .replaceAll("(?i)</?assistant>", "")
+                   .replaceAll("(?i)<\\|[a-z0-9_\\-]+\\|>", "")
                    .replaceAll("(?i)<imageCollection[^>]*>", "")
                    .replaceAll("(?i)</imageCollection>", "")
                    .replaceAll("(?i)<image[^>]*?/?>", "")
                    .replaceAll("(?i)</image>", "")
                    .replaceAll("(?i)<key_entity[^>]*>", "")
                    .replaceAll("(?i)</key_entity>", "")
+                   .replaceAll("(?i)###\\s*🤖\\s*Marvo Offline Brain Active\\s*", "")
+                   .replaceAll("(?i)-\\s*\\*\\*Offline Mode\\*\\*:\\s*Active[^\n]*\n?", "")
+                   .replaceAll("(?i)-\\s*\\*\\*Capabilities\\*\\*:[^\n]*\n?", "")
+                   .replaceAll("(?i)###\\s*🧠\\s*Offline AI Brain\\s*", "")
                    .trim();
     }
 

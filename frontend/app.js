@@ -1682,17 +1682,23 @@ async function persistCurrentSession() {
  */
 function stripAppleXmlTags(text) {
   if (!text || typeof text !== 'string') return text || '';
+  if (typeof window.sanitizeLlmResponse === 'function') {
+    return window.sanitizeLlmResponse(text);
+  }
   return text
-    .replace(/<suggestions>[\s\S]*?<\/suggestions>/gi, '')
-    .replace(/<\/?suggestions>/gi, '')
-    .replace(/<\/?coreResponse>/gi, '')
-    .replace(/<imageCollection[^>]*>/gi, '')
-    .replace(/<\/imageCollection>/gi, '')
+    .replace(/<thought>[\s\S]*?<\/thought>/gi, '')
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .replace(/<\/?(?:thought|think|coreResponse|suggestions|system|assistant)>/gi, '')
+    .replace(/<\|[a-z0-9_\-]+\|>/gi, '')
+    .replace(/<imageCollection[^>]*>[\s\S]*?<\/imageCollection>/gi, '')
     .replace(/<image[^>]*\/?>/gi, '')
-    .replace(/<\/image>/gi, '')
+    .replace(/<\/?image>/gi, '')
     .replace(/<key_entity[^>]*>/gi, '')
     .replace(/<\/key_entity>/gi, '')
-    .replace(/^\s+/, '')
+    .replace(/###\s*🤖\s*Marvo Offline Brain Active\s*/gi, '')
+    .replace(/-\s*\*\*Offline Mode\*\*:\s*Active[^\n]*\n?/gi, '')
+    .replace(/-\s*\*\*Capabilities\*\*:[^\n]*\n?/gi, '')
+    .replace(/###\s*🧠\s*Offline AI Brain\s*/gi, '')
     .trim();
 }
 

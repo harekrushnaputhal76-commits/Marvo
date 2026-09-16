@@ -370,8 +370,8 @@ public class MarvoNativeBridge extends Plugin {
             @Override
             public void onResponse(String fullResponse, String coreSpeech) {
                 JSObject res = new JSObject();
-                res.put("response", fullResponse);
-                res.put("speech", coreSpeech);
+                res.put("response", OfflineBrainManager.cleanAppleXmlTags(fullResponse));
+                res.put("speech", OfflineBrainManager.cleanAppleXmlTags(coreSpeech));
                 call.resolve(res);
             }
 
@@ -586,8 +586,8 @@ public class MarvoNativeBridge extends Plugin {
             @Override
             public void onResponse(String fullResponse, String coreSpeech) {
                 JSObject res = new JSObject();
-                res.put("text", fullResponse);
-                res.put("speech", coreSpeech);
+                res.put("text", OfflineBrainManager.cleanAppleXmlTags(fullResponse));
+                res.put("speech", OfflineBrainManager.cleanAppleXmlTags(coreSpeech));
                 call.resolve(res);
             }
 
