@@ -20,6 +20,7 @@ Be rigorous, precise, and pedagogically clear.`;
   const StudyModeUI = {
     isOpen: false,
     activeTab: 'chat', // 'chat' | 'flashcards' | 'quiz' | 'ocr'
+    activeCognitiveMode: null, // null | 'deep-thinking' | 'web-research'
     history: [],
     pendingAttachment: null, // { type: 'pdf'|'photo', name: '', dataUrl: '', text: '' }
     dom: {},
@@ -42,23 +43,89 @@ Be rigorous, precise, and pedagogically clear.`;
     },
 
     injectDOM() {
-      // 1. 3D Book Intro Overlay
+      // 1. Ultra-Premium 3D Academic Journal Intro Overlay
       const introHTML = `
         <div id="studyIntroOverlay" class="study-intro-overlay">
-          <div class="study-book-3d" id="studyBook3D">
-            <div class="book-cover-front">
-              <div class="book-emblem">
-                <svg viewBox="0 0 24 24" width="36" height="36"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+          <div class="study-journal-scene">
+            <div class="study-book-3d academic-journal" id="studyBook3D">
+              <!-- Leather Bound Spine with Gold Ribs -->
+              <div class="book-spine">
+                <span class="spine-text">MARVO STEM JOURNAL • VOL. IX</span>
+                <div class="spine-rib rib-1"></div>
+                <div class="spine-rib rib-2"></div>
+                <div class="spine-rib rib-3"></div>
+                <div class="spine-rib rib-4"></div>
               </div>
-              <div class="book-title">STUDY MODE</div>
-              <div class="book-subtitle">ACADEMIC & STEM</div>
-            </div>
-            <div class="book-pages-stack">
-              <div class="book-page-line accent"></div>
-              <div class="book-page-line"></div>
-              <div class="book-page-line short"></div>
-              <div class="book-page-line"></div>
-              <div class="book-page-line accent"></div>
+
+              <!-- Back Leather Cover -->
+              <div class="book-cover-back"></div>
+
+              <!-- Volumetric Parchment Pages Stack with Real Physics/Math Formulas -->
+              <div class="book-pages-stack">
+                <div class="academic-manuscript">
+                  <div class="manuscript-header">
+                    <span class="manuscript-tag">QUANTUM FIELD THEORY &amp; CALCULUS</span>
+                    <span class="manuscript-vol">VOL. IX • SEC. IV</span>
+                  </div>
+                  <div class="manuscript-title">Analytical Physics &amp; Differential Geometry</div>
+                  <div class="manuscript-formula-block">
+                    <div class="tex-line">$$\\nabla \\times \\mathbf{B} = \\mu_0 \\mathbf{J} + \\mu_0 \\varepsilon_0 \\frac{\\partial \\mathbf{E}}{\\partial t}$$</div>
+                    <div class="tex-line">$$\\int_{-\\infty}^{\\infty} e^{-x^2} dx = \\sqrt{\\pi}, \\quad \\mathcal{L} = \\bar{\\psi}(i\\gamma^\\mu D_\\mu - m)\\psi$$</div>
+                  </div>
+                  <div class="manuscript-abstract">
+                    Rigorous proof formulations, multi-agent cognitive derivations, and closed-form solutions initialized.
+                  </div>
+                </div>
+              </div>
+
+              <!-- 3D Turning Page with Academic Theorems -->
+              <div class="book-flipping-page">
+                <div class="page-front">
+                  <div class="manuscript-formula-block mini">
+                    <div class="tex-line">$$\\oint_{\\partial \\Sigma} \\mathbf{E} \\cdot d\\boldsymbol{\\ell} = -\\frac{d}{dt}\\iint_{\\Sigma} \\mathbf{B} \\cdot d\\mathbf{A}$$</div>
+                  </div>
+                  <div class="manuscript-lines">
+                    <div class="m-line"></div>
+                    <div class="m-line short"></div>
+                  </div>
+                </div>
+                <div class="page-back">
+                  <div class="manuscript-formula-block mini">
+                    <div class="tex-line">$$\\mathcal{H}\\psi = E\\psi, \\quad G_{\\mu\\nu} = \\frac{8\\pi G}{c^4}T_{\\mu\\nu}$$</div>
+                  </div>
+                  <div class="manuscript-lines">
+                    <div class="m-line"></div>
+                    <div class="m-line"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Sapphire Hardcover with Ornate Gold Foil Filigree & Seal -->
+              <div class="book-cover-front">
+                <div class="gold-foil-border">
+                  <div class="corner-filigree top-left">✦</div>
+                  <div class="corner-filigree top-right">✦</div>
+                  <div class="corner-filigree bottom-left">✦</div>
+                  <div class="corner-filigree bottom-right">✦</div>
+
+                  <div class="book-embossed-crest">
+                    <svg viewBox="0 0 100 100" width="56" height="56">
+                      <circle cx="50" cy="50" r="44" fill="none" stroke="#d4af37" stroke-width="2.5" stroke-dasharray="3,2"/>
+                      <circle cx="50" cy="50" r="38" fill="rgba(212,175,55,0.08)" stroke="#f3e5ab" stroke-width="1.5"/>
+                      <path d="M50 18 L58 38 L80 38 L62 51 L69 72 L50 59 L31 72 L38 51 L20 38 L42 38 Z" fill="none" stroke="#d4af37" stroke-width="1.5"/>
+                      <circle cx="50" cy="50" r="12" fill="rgba(0,240,255,0.2)" stroke="#00f0ff" stroke-width="1.5"/>
+                      <circle cx="50" cy="50" r="4" fill="#00f0ff"/>
+                    </svg>
+                  </div>
+
+                  <div class="book-journal-title">MARVO</div>
+                  <div class="book-journal-subtitle">ACADEMIC JOURNAL</div>
+                  <div class="book-journal-dept">HIGHER SECONDARY STEM &bull; ADVANCED COGNITION</div>
+                  <div class="gold-seal-ribbon">
+                    <span>VERITAS ET SCIENTIA</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -184,27 +251,90 @@ Be rigorous, precise, and pedagogically clear.`;
           <!-- Attachment Preview Shelf -->
           <div id="studyAttachmentShelf" class="study-attachment-shelf hidden"></div>
 
-          <!-- Clean Bottom Chatbar (Input, Mic, Attachment ONLY) -->
+          <!-- Bottom Chatbar & Action Menu Area -->
           <div class="study-chatbar-wrap">
+            <!-- Active Cognitive Mode Chip Indicator -->
+            <div id="studyActiveModeChip" class="study-active-mode-chip hidden">
+              <span class="mode-chip-icon">🧠</span>
+              <span class="mode-chip-label" id="studyActiveModeLabel">Deep Thinking Active</span>
+              <button class="btn-dismiss-mode" id="btnDismissActiveMode" title="Dismiss active mode">&times;</button>
+            </div>
+
+            <!-- Action Menu Sheet (Bottom Sheet / Popup Menu) -->
+            <div id="studyActionMenuSheet" class="study-action-menu-sheet">
+              <div class="action-menu-header">
+                <span class="action-menu-title">Study Assistant Tools</span>
+                <button class="action-menu-close" id="btnCloseActionMenu">&times;</button>
+              </div>
+
+              <!-- Category 1: ATTACHMENTS -->
+              <div class="action-menu-category">
+                <div class="category-label">ATTACHMENTS</div>
+                <div class="action-menu-grid">
+                  <button class="action-menu-btn" id="actionUploadPdf" type="button">
+                    <span class="action-btn-icon">📄</span>
+                    <div class="action-btn-text">
+                      <span class="action-btn-title">Upload PDF</span>
+                      <span class="action-btn-desc">Notes, papers &amp; textbooks</span>
+                    </div>
+                  </button>
+                  <button class="action-menu-btn" id="actionTakePhoto" type="button">
+                    <span class="action-btn-icon">📷</span>
+                    <div class="action-btn-text">
+                      <span class="action-btn-title">Take Photo</span>
+                      <span class="action-btn-desc">Camera &amp; textbook OCR</span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Category 2: ADVANCED MODES -->
+              <div class="action-menu-category">
+                <div class="category-label">ADVANCED MODES</div>
+                <div class="action-menu-grid">
+                  <button class="action-menu-btn" id="actionDeepThinking" data-mode="deep-thinking" type="button">
+                    <span class="action-btn-icon">🧠</span>
+                    <div class="action-btn-text">
+                      <span class="action-btn-title">Deep Thinking</span>
+                      <span class="action-btn-desc">Chain-of-thought derivations</span>
+                    </div>
+                    <span class="action-check-badge">✓</span>
+                  </button>
+                  <button class="action-menu-btn" id="actionWebResearch" data-mode="web-research" type="button">
+                    <span class="action-btn-icon">🌐</span>
+                    <div class="action-btn-text">
+                      <span class="action-btn-title">Web Research</span>
+                      <span class="action-btn-desc">Scholarly source synthesis</span>
+                    </div>
+                    <span class="action-check-badge">✓</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Input Bar -->
             <div class="study-chatbar">
               <!-- Hidden Attachment Input -->
               <input type="file" id="studyFileInput" accept="application/pdf,image/*" style="display:none;">
 
-              <!-- Attachment Plus Icon -->
-              <button id="btnStudyAttach" class="btn-study-action" title="Attach PDF or Photo">
-                <svg viewBox="0 0 24 24" width="20" height="20"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+              <!-- [ + ] Action Menu Button -->
+              <button id="btnStudyActionMenu" class="btn-study-action btn-action-plus" title="Actions &amp; Advanced Modes" type="button">
+                <svg viewBox="0 0 24 24" width="20" height="20">
+                  <line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                  <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                </svg>
               </button>
 
               <!-- Clean Input Field -->
               <input type="text" id="studyMsgInput" class="study-input" placeholder="Ask a question, formula, or topic..." autocomplete="off">
 
               <!-- Mic Button -->
-              <button id="btnStudyMic" class="btn-study-action" title="Voice Dictation">
+              <button id="btnStudyMic" class="btn-study-action" title="Voice Dictation" type="button">
                 <svg viewBox="0 0 24 24" width="20" height="20"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5z" fill="currentColor"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" fill="currentColor"/></svg>
               </button>
 
               <!-- Send Button -->
-              <button id="btnStudySend" class="btn-study-action btn-study-send" title="Send">
+              <button id="btnStudySend" class="btn-study-action btn-study-send" title="Send" type="button">
                 <svg viewBox="0 0 24 24" width="18" height="18"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"/></svg>
               </button>
             </div>
@@ -249,7 +379,17 @@ Be rigorous, precise, and pedagogically clear.`;
 
         attachmentShelf: document.getElementById('studyAttachmentShelf'),
         fileInput: document.getElementById('studyFileInput'),
-        btnAttach: document.getElementById('btnStudyAttach'),
+        btnActionMenu: document.getElementById('btnStudyActionMenu'),
+        actionMenuSheet: document.getElementById('studyActionMenuSheet'),
+        btnCloseActionMenu: document.getElementById('btnCloseActionMenu'),
+        actionUploadPdf: document.getElementById('actionUploadPdf'),
+        actionTakePhoto: document.getElementById('actionTakePhoto'),
+        actionDeepThinking: document.getElementById('actionDeepThinking'),
+        actionWebResearch: document.getElementById('actionWebResearch'),
+        activeModeChip: document.getElementById('studyActiveModeChip'),
+        activeModeLabel: document.getElementById('studyActiveModeLabel'),
+        btnDismissActiveMode: document.getElementById('btnDismissActiveMode'),
+        btnAttach: document.getElementById('btnStudyActionMenu') || document.getElementById('btnStudyAttach'),
         msgInput: document.getElementById('studyMsgInput'),
         btnMic: document.getElementById('btnStudyMic'),
         btnSend: document.getElementById('studySend') || document.getElementById('btnStudySend'),
@@ -289,8 +429,83 @@ Be rigorous, precise, and pedagogically clear.`;
         };
       }
 
-      document.addEventListener('click', () => {
+      // Action Menu Toggle & Dismiss
+      if (this.dom.btnActionMenu) {
+        this.dom.btnActionMenu.onclick = (e) => {
+          e.stopPropagation();
+          this.toggleActionMenu();
+        };
+      }
+      if (this.dom.btnCloseActionMenu) {
+        this.dom.btnCloseActionMenu.onclick = (e) => {
+          e.stopPropagation();
+          this.closeActionMenu();
+        };
+      }
+      if (this.dom.actionMenuSheet) {
+        this.dom.actionMenuSheet.onclick = (e) => {
+          e.stopPropagation();
+        };
+      }
+
+      // Action 1: Upload PDF
+      if (this.dom.actionUploadPdf) {
+        this.dom.actionUploadPdf.onclick = () => {
+          this.closeActionMenu();
+          if (this.dom.fileInput) {
+            this.dom.fileInput.accept = 'application/pdf,.pdf';
+            this.dom.fileInput.removeAttribute('capture');
+            this.dom.fileInput.click();
+          }
+        };
+      }
+
+      // Action 2: Take Photo
+      if (this.dom.actionTakePhoto) {
+        this.dom.actionTakePhoto.onclick = () => {
+          this.closeActionMenu();
+          if (this.dom.fileInput) {
+            this.dom.fileInput.accept = 'image/*';
+            this.dom.fileInput.setAttribute('capture', 'environment');
+            this.dom.fileInput.click();
+          }
+        };
+      }
+
+      // Action 3: Deep Thinking Mode
+      if (this.dom.actionDeepThinking) {
+        this.dom.actionDeepThinking.onclick = () => {
+          const next = (this.activeCognitiveMode === 'deep-thinking') ? null : 'deep-thinking';
+          this.setActiveCognitiveMode(next);
+          this.closeActionMenu();
+        };
+      }
+
+      // Action 4: Web Research Mode
+      if (this.dom.actionWebResearch) {
+        this.dom.actionWebResearch.onclick = () => {
+          if (!navigator.onLine) {
+            if (window.showToast) window.showToast('Research mode requires an active internet connection.');
+            return;
+          }
+          const next = (this.activeCognitiveMode === 'web-research') ? null : 'web-research';
+          this.setActiveCognitiveMode(next);
+          this.closeActionMenu();
+        };
+      }
+
+      // Dismiss Active Mode Chip
+      if (this.dom.btnDismissActiveMode) {
+        this.dom.btnDismissActiveMode.onclick = () => {
+          this.setActiveCognitiveMode(null);
+        };
+      }
+
+      document.addEventListener('click', (e) => {
         if (this.dom.toolsDropdown) this.dom.toolsDropdown.classList.remove('show');
+        if (this.dom.actionMenuSheet && !e.target.closest('#studyActionMenuSheet') && !e.target.closest('#btnStudyActionMenu')) {
+          this.closeActionMenu();
+        }
       });
 
       // Tool Switching
@@ -335,10 +550,7 @@ Be rigorous, precise, and pedagogically clear.`;
         };
       }
 
-      // File Attachment Handling
-      if (this.dom.btnAttach) {
-        this.dom.btnAttach.onclick = () => this.dom.fileInput.click();
-      }
+      // File Input Change Listener
       if (this.dom.fileInput) {
         this.dom.fileInput.onchange = (e) => this.handleFileSelected(e);
       }
@@ -354,6 +566,66 @@ Be rigorous, precise, and pedagogically clear.`;
       }
       if (this.dom.btnOcrMakeQuiz) {
         this.dom.btnOcrMakeQuiz.onclick = () => this.quizFromOcrText();
+      }
+    },
+
+    toggleActionMenu() {
+      const sheet = this.dom.actionMenuSheet;
+      const btn = this.dom.btnActionMenu;
+      if (!sheet) return;
+      const isShowing = sheet.classList.contains('show');
+      if (isShowing) {
+        this.closeActionMenu();
+      } else {
+        sheet.classList.add('show');
+        if (btn) btn.classList.add('active');
+      }
+    },
+
+    closeActionMenu() {
+      if (this.dom.actionMenuSheet) this.dom.actionMenuSheet.classList.remove('show');
+      if (this.dom.btnActionMenu) this.dom.btnActionMenu.classList.remove('active');
+    },
+
+    setActiveCognitiveMode(mode) {
+      if (mode === 'web-research' && !navigator.onLine) {
+        if (window.showToast) window.showToast('Research mode requires an active internet connection.');
+        return;
+      }
+
+      this.activeCognitiveMode = mode;
+      this.updateActiveModeUI();
+
+      if (mode === 'deep-thinking') {
+        if (window.showToast) window.showToast('🧠 Deep Thinking Mode Active (Chain-of-Thought)');
+      } else if (mode === 'web-research') {
+        if (window.showToast) window.showToast('🌐 Web Research Mode Active (Scholarly Synthesis)');
+      } else {
+        if (window.showToast) window.showToast('Standard Study Tutor Mode restored');
+      }
+    },
+
+    updateActiveModeUI() {
+      const chip = this.dom.activeModeChip;
+      const label = this.dom.activeModeLabel;
+      const btnDeep = this.dom.actionDeepThinking;
+      const btnWeb = this.dom.actionWebResearch;
+
+      if (btnDeep) btnDeep.classList.toggle('selected', this.activeCognitiveMode === 'deep-thinking');
+      if (btnWeb) btnWeb.classList.toggle('selected', this.activeCognitiveMode === 'web-research');
+
+      if (!this.activeCognitiveMode) {
+        if (chip) chip.classList.add('hidden');
+        return;
+      }
+
+      if (chip) chip.classList.remove('hidden');
+      if (this.activeCognitiveMode === 'deep-thinking') {
+        if (chip) chip.className = 'study-active-mode-chip deep-thinking';
+        if (label) label.textContent = '🧠 Deep Thinking Active';
+      } else if (this.activeCognitiveMode === 'web-research') {
+        if (chip) chip.className = 'study-active-mode-chip web-research';
+        if (label) label.textContent = '🌐 Web Research Active';
       }
     },
 
@@ -391,27 +663,41 @@ Be rigorous, precise, and pedagogically clear.`;
     },
 
     /**
-     * 3D Animated Book Entry Sequence
+     * Ultra-Premium 3D Academic Journal Entry Sequence
      */
     enter() {
       this.isOpen = true;
       const overlay = this.dom.introOverlay;
       const container = this.dom.container;
+      if (!overlay || !container) return;
 
+      overlay.classList.remove('opening', 'page-turning', 'zooming');
       overlay.classList.add('active');
-      overlay.classList.remove('opening');
 
+      // Step 1: Open sapphire leather front cover smoothly
       setTimeout(() => {
         overlay.classList.add('opening');
-      }, 200);
+      }, 250);
 
+      // Step 2: Realistic 3D page flip revealing derivations
+      setTimeout(() => {
+        overlay.classList.add('page-turning');
+      }, 650);
+
+      // Step 3: Cinematic camera zoom into journal manuscript
+      setTimeout(() => {
+        overlay.classList.add('zooming');
+      }, 1050);
+
+      // Step 4: Seamlessly transition into Study Mode workspace
       setTimeout(() => {
         container.classList.add('active');
-      }, 1000);
+      }, 1300);
 
+      // Step 5: Clean up overlay
       setTimeout(() => {
-        overlay.classList.remove('active', 'opening');
-      }, 1400);
+        overlay.classList.remove('active', 'opening', 'page-turning', 'zooming');
+      }, 1650);
 
       this.switchTab('chat');
 
@@ -648,7 +934,8 @@ Be rigorous, precise, and pedagogically clear.`;
           aiResult = await window.TrafficPolice.routeChat(promptText, {
             contextHistory: this.history,
             systemInstruction: STUDY_SYSTEM_INSTRUCTION,
-            imageBase64: imageBase64
+            imageBase64: imageBase64,
+            advancedMode: this.activeCognitiveMode
           });
         } else {
           aiResult.response = "Study router is configuring...";
@@ -685,10 +972,11 @@ Be rigorous, precise, and pedagogically clear.`;
       // 1. Strip special token tags (<|system|>, <|user|>, <|assistant|>, <|end|>, <|endoftext|>, etc.)
       text = text.replace(/<\|[a-z0-9_\-]+\|>/gi, '');
 
-      // 2. Strip structural / thinking / reasoning tags (<thought>, <think>, <coreResponse>, etc.)
+      // 2. Strip structural / thinking / reasoning tags (<thought>, <think>, <reasoning>, <coreResponse>, etc.)
       text = text.replace(/<thought>[\s\S]*?<\/thought>/gi, '');
       text = text.replace(/<think>[\s\S]*?<\/think>/gi, '');
-      text = text.replace(/<\/?(?:thought|think|coreResponse|suggestions|system|assistant)>/gi, '');
+      text = text.replace(/<reasoning>[\s\S]*?<\/reasoning>/gi, '');
+      text = text.replace(/<\/?(?:thought|think|reasoning|coreResponse|suggestions|system|assistant)>/gi, '');
 
       // 3. Strip entity and image xml wrappers
       text = text.replace(/<imageCollection[^>]*>[\s\S]*?<\/imageCollection>/gi, '');
@@ -728,10 +1016,86 @@ Be rigorous, precise, and pedagogically clear.`;
 
       const msgEl = document.createElement('div');
       msgEl.className = `study-msg ${role}`;
-      msgEl.innerHTML = `
-        <div class="study-avatar">${role === 'user' ? '👤' : '⚛️'}</div>
-        <div class="study-bubble">${renderContent(cleanText)}</div>
-      `;
+
+      if (role === 'user') {
+        msgEl.innerHTML = `
+          <div class="study-avatar">👤</div>
+          <div class="study-bubble">${renderContent(cleanText)}</div>
+        `;
+      } else {
+        msgEl.innerHTML = `
+          <div class="study-avatar">⚛️</div>
+          <div class="study-bubble-container">
+            <div class="study-bubble">${renderContent(cleanText)}</div>
+            <div class="study-msg-actions">
+              <button class="study-action-btn btn-copy-msg" title="Copy answer" type="button">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                <span>Copy</span>
+              </button>
+              <button class="study-action-btn btn-share-msg" title="Share answer" type="button">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                <span>Share</span>
+              </button>
+            </div>
+          </div>
+        `;
+
+        // Copy button handler
+        const copyBtn = msgEl.querySelector('.btn-copy-msg');
+        if (copyBtn) {
+          copyBtn.onclick = async () => {
+            try {
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(cleanText);
+              } else {
+                const ta = document.createElement('textarea');
+                ta.value = cleanText;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+              }
+              const label = copyBtn.querySelector('span');
+              if (label) label.textContent = '✓ Copied';
+              copyBtn.classList.add('copied');
+              setTimeout(() => {
+                if (label) label.textContent = 'Copy';
+                copyBtn.classList.remove('copied');
+              }, 1800);
+            } catch (err) {
+              if (window.showToast) window.showToast('Failed to copy to clipboard.');
+            }
+          };
+        }
+
+        // Share button handler
+        const shareBtn = msgEl.querySelector('.btn-share-msg');
+        if (shareBtn) {
+          shareBtn.onclick = async () => {
+            if (navigator.share) {
+              try {
+                await navigator.share({
+                  title: 'Marvo Academic AI Solution',
+                  text: cleanText
+                });
+              } catch (shareErr) {
+                // Ignore user dismiss
+              }
+            } else {
+              // Fallback to clipboard
+              try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                  await navigator.clipboard.writeText(cleanText);
+                }
+                if (window.showToast) window.showToast('Copied solution to clipboard for sharing');
+              } catch (e) {
+                if (window.showToast) window.showToast('Sharing not supported on this device');
+              }
+            }
+          };
+        }
+      }
+
       this.dom.messagesList.appendChild(msgEl);
       this.scrollToBottom();
     },

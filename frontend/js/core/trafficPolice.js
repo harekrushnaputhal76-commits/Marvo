@@ -31,10 +31,11 @@
     if (!raw || typeof raw !== 'string') return raw || '';
     let text = raw;
 
-    // 1. Strip structural / thinking / reasoning tags (<thought>, <think>, <coreResponse>, etc.)
+    // 1. Strip structural / thinking / reasoning tags (<thought>, <think>, <reasoning>, <coreResponse>, etc.)
     text = text.replace(/<thought>[\s\S]*?<\/thought>/gi, '');
     text = text.replace(/<think>[\s\S]*?<\/think>/gi, '');
-    text = text.replace(/<\/?(?:thought|think|coreResponse|suggestions|system|assistant)>/gi, '');
+    text = text.replace(/<reasoning>[\s\S]*?<\/reasoning>/gi, '');
+    text = text.replace(/<\/?(?:thought|think|reasoning|coreResponse|suggestions|system|assistant)>/gi, '');
 
     // 2. Strip special token tags (<|system|>, <|user|>, <|assistant|>, <|end|>, <|endoftext|>, etc.)
     text = text.replace(/<\|[a-z0-9_\-]+\|>/gi, '');
@@ -234,30 +235,86 @@
         contextHistory = [],
         systemInstruction = '',
         imageBase64 = null,
-        signal = null
+        signal = null,
+        advancedMode = null // 'deep-thinking' | 'web-research' | null
       } = options;
 
       // 1. Strict Active Connectivity Check (LTE / Wi-Fi)
       const isOnline = navigator.onLine !== false;
       this.state.isOnline = isOnline;
 
+      // Intercept Web Research if offline (Phase 2 Requirement 2)
+      if (advancedMode === 'web-research' && !isOnline) {
+        if (window.showToast) {
+          window.showToast('Research mode requires an active internet connection.');
+        }
+        return {
+          response: '⚠️ **Web Research Unavailable Offline**\n\nWeb Research mode requires an active internet connection to synthesize live scholarly literature. Please connect to Wi-Fi or Mobile Data, or switch to **Deep Thinking** or standard offline mode.',
+          provider: 'local',
+          model: 'offline',
+          state: 'state-idle'
+        };
+      }
+
+      // Inject advanced cognitive system prompts
+      let effectiveSystemInstruction = systemInstruction || '';
+      let effectivePrompt = prompt;
+
+      if (advancedMode === 'deep-thinking') {
+        effectiveSystemInstruction = `You are a world-class STEM professor and deep cognitive reasoning intelligence.
+For every query, conduct rigorous step-by-step Chain of Thought reasoning:
+1. Deconstruct the problem, define foundational variables, and state theoretical laws.
+2. Provide explicit step-by-step mathematical derivations or conceptual mechanisms without skipping logical steps.
+3. Formulate equations with high-precision LaTeX/KaTeX ($$...$$ and $...$).
+4. Cross-check intermediate results, units, and dimensional analysis.
+5. Provide a definitive, elegant conclusion.
+${effectiveSystemInstruction}`;
+      } else if (advancedMode === 'web-research') {
+        effectiveSystemInstruction = `You are an elite academic Web Research Intelligence Agent.
+Conduct an exhaustive, deep investigation into the user's research topic.
+Synthesize findings with structured sections, empirical data, cross-referenced literature, and academic citations.
+Format with:
+- **Executive Summary & Key Takeaways**
+- **In-Depth Scientific Analysis / Proof**
+- **Empirical Facts & Academic Sources**
+- **Methodology & Critical Conclusions**
+${effectiveSystemInstruction}`;
+      }
+
       let result;
-      if (isOnline && this.state.currentProvider !== 'local') {
+
+      // Advanced Modes Online Priority Routing (OpenRouter / Claude 3.5 Sonnet or Gemini 1.5 Pro)
+      if (isOnline && (advancedMode === 'deep-thinking' || advancedMode === 'web-research')) {
+        try {
+          if (this.state.keys.openrouter) {
+            result = await this.callOpenRouter(effectivePrompt, contextHistory, effectiveSystemInstruction, signal);
+          } else {
+            result = await this.callGemini(effectivePrompt, contextHistory, effectiveSystemInstruction, imageBase64, signal);
+          }
+        } catch (advErr) {
+          console.warn('[TrafficPolice] Advanced mode primary call failed, trying fallback:', advErr);
+          try {
+            result = await this.callGemini(effectivePrompt, contextHistory, effectiveSystemInstruction, imageBase64, signal);
+          } catch (gemErr) {
+            result = await this.callLocalLLM(effectivePrompt, contextHistory, effectiveSystemInstruction, signal);
+          }
+        }
+      } else if (isOnline && this.state.currentProvider !== 'local') {
         try {
           if (this.state.mode === 'Fast') {
-            result = await this.callGroq(prompt, contextHistory, systemInstruction, signal);
+            result = await this.callGroq(effectivePrompt, contextHistory, effectiveSystemInstruction, signal);
           } else if (this.state.mode === 'Thinking') {
-            result = await this.callGemini(prompt, contextHistory, systemInstruction, imageBase64, signal);
+            result = await this.callGemini(effectivePrompt, contextHistory, effectiveSystemInstruction, imageBase64, signal);
           } else if (this.state.mode === 'Pro Thinking') {
-            result = await this.callOpenRouter(prompt, contextHistory, systemInstruction, signal);
+            result = await this.callOpenRouter(effectivePrompt, contextHistory, effectiveSystemInstruction, signal);
           } else {
             // Default based on selected provider
             if (this.state.currentProvider === 'groq') {
-              result = await this.callGroq(prompt, contextHistory, systemInstruction, signal);
+              result = await this.callGroq(effectivePrompt, contextHistory, effectiveSystemInstruction, signal);
             } else if (this.state.currentProvider === 'openrouter') {
-              result = await this.callOpenRouter(prompt, contextHistory, systemInstruction, signal);
+              result = await this.callOpenRouter(effectivePrompt, contextHistory, effectiveSystemInstruction, signal);
             } else {
-              result = await this.callGemini(prompt, contextHistory, systemInstruction, imageBase64, signal);
+              result = await this.callGemini(effectivePrompt, contextHistory, effectiveSystemInstruction, imageBase64, signal);
             }
           }
         } catch (err) {
@@ -265,19 +322,19 @@
           // Fallback to Gemini if Groq failed and Gemini is available
           if (this.state.mode === 'Fast' && this.state.keys.gemini) {
             try {
-              result = await this.callGemini(prompt, contextHistory, systemInstruction, imageBase64, signal);
+              result = await this.callGemini(effectivePrompt, contextHistory, effectiveSystemInstruction, imageBase64, signal);
             } catch (geminiErr) {
               console.warn('[TrafficPolice 1] Gemini fallback also failed:', geminiErr);
             }
           }
           // If all online attempts fail, fallback to local engine
           if (!result) {
-            result = await this.callLocalLLM(prompt, contextHistory, systemInstruction, signal);
+            result = await this.callLocalLLM(effectivePrompt, contextHistory, effectiveSystemInstruction, signal);
           }
         }
       } else {
-        // Offline Mode: Route immediately to designated on-device model
-        result = await this.callLocalLLM(prompt, contextHistory, systemInstruction, signal);
+        // Offline Mode: Route immediately to designated on-device model with Chain of Thought if Deep Thinking
+        result = await this.callLocalLLM(effectivePrompt, contextHistory, effectiveSystemInstruction, signal);
       }
 
       if (result && typeof result.response === 'string') {

@@ -15,20 +15,22 @@
   --study-text-muted: #8e9bb0;
 }
 
-/* ═══════════ 3D BOOK ENTRY ANIMATION ═══════════ */
+/* ═══════════ ULTRA-PREMIUM 3D ACADEMIC JOURNAL ENTRY ANIMATION ═══════════ */
 .study-intro-overlay {
   position: fixed;
   inset: 0;
   z-index: 99998;
-  background: radial-gradient(circle at center, #0d121f 0%, #030407 100%);
+  background: radial-gradient(ellipse at center, #0a1122 0%, #03060c 60%, #000205 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  perspective: 1600px;
+  perspective: 2200px;
+  perspective-origin: 50% 50%;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.4s ease;
+  overflow: hidden;
 }
 
 .study-intro-overlay.active {
@@ -36,90 +38,334 @@
   pointer-events: auto;
 }
 
-.study-book-3d {
-  width: 220px;
-  height: 290px;
+.study-journal-scene {
+  width: 250px;
+  height: 330px;
   position: relative;
   transform-style: preserve-3d;
-  transform: rotateX(15deg) rotateY(-20deg) scale(0.7);
-  transition: transform 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.study-intro-overlay.opening .study-book-3d {
-  transform: rotateX(0deg) rotateY(0deg) scale(1.6);
+.study-book-3d.academic-journal {
+  width: 240px;
+  height: 320px;
+  position: relative;
+  transform-style: preserve-3d;
+  transform: rotateX(14deg) rotateY(-24deg) scale(0.85);
+  transition: transform 1.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease;
+  will-change: transform;
 }
 
+.study-intro-overlay.opening .study-book-3d.academic-journal {
+  transform: rotateX(6deg) rotateY(-8deg) scale(1.08);
+}
+
+.study-intro-overlay.page-turning .study-book-3d.academic-journal {
+  transform: rotateX(2deg) rotateY(-3deg) scale(1.28);
+}
+
+.study-intro-overlay.zooming .study-book-3d.academic-journal {
+  transform: translate3d(0, 0, 460px) scale(2.3);
+  opacity: 0.95;
+}
+
+/* Spine with Gold Foil Ribs */
+.book-spine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -20px;
+  width: 28px;
+  background: linear-gradient(90deg, #050b16 0%, #0b172c 50%, #050b16 100%);
+  border-radius: 4px 0 0 4px;
+  box-shadow: inset -2px 0 6px rgba(0, 0, 0, 0.6), -4px 0 14px rgba(0, 0, 0, 0.8);
+  border-left: 1.5px solid #d4af37;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+}
+
+.spine-text {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  font-size: 8.5px;
+  letter-spacing: 2.5px;
+  color: #f3e5ab;
+  font-weight: 700;
+  text-shadow: 0 0 4px rgba(212, 175, 55, 0.6);
+  opacity: 0.85;
+}
+
+.spine-rib {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #aa820a, #ffd700, #aa820a);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.7);
+}
+.spine-rib.rib-1 { top: 15%; }
+.spine-rib.rib-2 { top: 38%; }
+.spine-rib.rib-3 { top: 62%; }
+.spine-rib.rib-4 { top: 85%; }
+
+/* Back Hardcover */
+.book-cover-back {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, #081120 0%, #040912 100%);
+  border: 2px solid #997c23;
+  border-radius: 2px 14px 14px 2px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85);
+  transform: translateZ(-16px);
+}
+
+/* Volumetric Parchment Pages Stack */
+.book-pages-stack {
+  position: absolute;
+  inset: 5px 6px 5px 12px;
+  background: #fafaf7;
+  background-image: 
+    radial-gradient(ellipse at 50% 10%, rgba(212, 175, 55, 0.05) 0%, transparent 60%),
+    linear-gradient(90deg, #ede8dc 0%, #fafaf7 6%, #fafaf7 94%, #e2ddd0 100%);
+  border-radius: 2px 10px 10px 2px;
+  box-shadow: 
+    inset 3px 0 10px rgba(0, 0, 0, 0.18),
+    5px 8px 24px rgba(0, 0, 0, 0.5),
+    inset -2px 0 6px rgba(0, 0, 0, 0.08);
+  padding: 18px 16px;
+  box-sizing: border-box;
+  transform: translateZ(0px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.academic-manuscript {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Cambria', 'Georgia', serif;
+  color: #1a2233;
+}
+
+.manuscript-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 7px;
+  letter-spacing: 1px;
+  font-weight: bold;
+  color: #8b6e20;
+  border-bottom: 1px solid #dcd7ca;
+  padding-bottom: 4px;
+  margin-bottom: 8px;
+}
+
+.manuscript-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #0b1528;
+  margin-bottom: 8px;
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+
+.manuscript-formula-block {
+  background: rgba(14, 25, 45, 0.04);
+  border-left: 2px solid #d4af37;
+  padding: 6px 8px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.tex-line {
+  font-family: 'Times New Roman', 'Cambria Math', serif;
+  font-style: italic;
+  font-size: 10.5px;
+  color: #0d1e3d;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.manuscript-abstract {
+  font-size: 8px;
+  line-height: 1.35;
+  color: #556277;
+  font-style: italic;
+  margin-top: auto;
+  border-top: 1px dashed #dcd7ca;
+  padding-top: 5px;
+}
+
+/* 3D Realistic Turning Page */
+.book-flipping-page {
+  position: absolute;
+  inset: 5px 6px 5px 12px;
+  background: #fdfdfb;
+  border-radius: 2px 10px 10px 2px;
+  box-shadow: inset 4px 0 8px rgba(0, 0, 0, 0.12), 4px 4px 18px rgba(0,0,0,0.3);
+  transform-origin: left center;
+  transform-style: preserve-3d;
+  transform: rotateY(0deg);
+  transition: transform 1.1s cubic-bezier(0.25, 1, 0.35, 1);
+  backface-visibility: hidden;
+  padding: 16px;
+  box-sizing: border-box;
+  z-index: 6;
+}
+
+.study-intro-overlay.page-turning .book-flipping-page {
+  transform: rotateY(-152deg);
+}
+
+.book-flipping-page .page-front,
+.book-flipping-page .page-back {
+  position: absolute;
+  inset: 0;
+  padding: 16px;
+  box-sizing: border-box;
+  backface-visibility: hidden;
+}
+
+.book-flipping-page .page-back {
+  transform: rotateY(180deg);
+  background: #f8f8f4;
+}
+
+.manuscript-formula-block.mini {
+  padding: 4px;
+  margin-bottom: 6px;
+}
+.manuscript-formula-block.mini .tex-line {
+  font-size: 9.5px;
+}
+
+.manuscript-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 6px;
+}
+
+.m-line {
+  height: 4px;
+  background: #d8d3c5;
+  border-radius: 2px;
+  width: 90%;
+}
+.m-line.short {
+  width: 55%;
+}
+
+/* Front Hardcover with Sapphire Leather & Gold Foil */
 .book-cover-front {
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, #101c38 0%, #070b14 100%);
-  border: 2px solid var(--study-accent-cyan);
-  border-radius: 4px 14px 14px 4px;
-  box-shadow: 0 20px 50px rgba(0, 240, 255, 0.35), inset 0 0 25px rgba(0, 240, 255, 0.15);
+  background: linear-gradient(135deg, #0e1e3b 0%, #081224 45%, #040812 100%);
+  border: 2px solid #d4af37;
+  border-radius: 3px 14px 14px 3px;
+  box-shadow: 
+    0 25px 60px rgba(0, 0, 0, 0.7),
+    0 0 35px rgba(0, 240, 255, 0.18),
+    inset 0 0 20px rgba(0, 0, 0, 0.8);
   transform-origin: left center;
   transform-style: preserve-3d;
-  transition: transform 1.2s cubic-bezier(0.2, 0.9, 0.3, 1);
+  transition: transform 1.2s cubic-bezier(0.22, 1, 0.36, 1);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   backface-visibility: hidden;
   z-index: 10;
-}
-
-.study-intro-overlay.opening .book-cover-front {
-  transform: rotateY(-155deg);
-}
-
-.book-emblem {
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  border: 2px solid var(--study-accent-cyan);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 16px;
-  box-shadow: 0 0 20px var(--study-accent-glow);
-  color: var(--study-accent-cyan);
-}
-
-.book-title {
-  font-size: 19px;
-  font-weight: 800;
-  letter-spacing: 3px;
-  color: #fff;
-  text-shadow: 0 0 12px var(--study-accent-cyan);
-}
-
-.book-subtitle {
-  font-size: 11px;
-  color: var(--study-accent-cyan);
-  letter-spacing: 2px;
-  margin-top: 6px;
-}
-
-.book-pages-stack {
-  position: absolute;
-  inset: 4px 6px 4px 14px;
-  background: #f8fafc;
-  border-radius: 2px 10px 10px 2px;
-  box-shadow: inset 4px 0 10px rgba(0, 0, 0, 0.15), 5px 5px 20px rgba(0, 0, 0, 0.6);
-  display: flex;
-  flex-direction: column;
-  padding: 24px;
+  padding: 14px;
   box-sizing: border-box;
 }
 
-.book-page-line {
-  height: 7px;
-  background: #cbd5e1;
-  border-radius: 3px;
-  margin-bottom: 12px;
-  width: 85%;
+.study-intro-overlay.opening .book-cover-front {
+  transform: rotateY(-148deg);
 }
-.book-page-line.short { width: 50%; }
-.book-page-line.accent { background: rgba(0, 240, 255, 0.6); width: 70%; }
+
+.gold-foil-border {
+  width: 100%;
+  height: 100%;
+  border: 1px solid rgba(212, 175, 55, 0.75);
+  outline: 1px dashed rgba(212, 175, 55, 0.45);
+  outline-offset: -5px;
+  border-radius: 2px 10px 10px 2px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 12px 8px;
+  box-sizing: border-box;
+  background: radial-gradient(circle at 50% 40%, rgba(0, 240, 255, 0.04) 0%, transparent 70%);
+}
+
+.corner-filigree {
+  position: absolute;
+  font-size: 13px;
+  color: #ffd700;
+  text-shadow: 0 0 6px rgba(255, 215, 0, 0.8);
+  line-height: 1;
+}
+.corner-filigree.top-left { top: 8px; left: 8px; }
+.corner-filigree.top-right { top: 8px; right: 8px; }
+.corner-filigree.bottom-left { bottom: 8px; left: 8px; }
+.corner-filigree.bottom-right { bottom: 8px; right: 8px; }
+
+.book-embossed-crest {
+  margin-bottom: 12px;
+  filter: drop-shadow(0 0 10px rgba(0, 240, 255, 0.3));
+}
+
+.book-journal-title {
+  font-family: 'Cinzel', 'Georgia', serif;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 5px;
+  background: linear-gradient(135deg, #fff2b2 0%, #d4af37 50%, #aa820a 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.8));
+  margin-bottom: 2px;
+}
+
+.book-journal-subtitle {
+  font-size: 9.5px;
+  letter-spacing: 3px;
+  color: #f3e5ab;
+  font-weight: 700;
+  text-shadow: 0 0 8px rgba(212, 175, 55, 0.4);
+  margin-bottom: 10px;
+}
+
+.book-journal-dept {
+  font-size: 7px;
+  letter-spacing: 1.5px;
+  color: var(--study-accent-cyan);
+  text-transform: uppercase;
+  text-align: center;
+  opacity: 0.9;
+  margin-bottom: 14px;
+}
+
+.gold-seal-ribbon {
+  background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.2), transparent);
+  border-top: 1px solid rgba(212, 175, 55, 0.4);
+  border-bottom: 1px solid rgba(212, 175, 55, 0.4);
+  padding: 3px 12px;
+  font-size: 7.5px;
+  letter-spacing: 2px;
+  color: #f3e5ab;
+  font-style: italic;
+  text-transform: uppercase;
+}
 
 /* ═══════════ MAIN STUDY MODE CONTAINER ═══════════ */
 .study-mode-container {
@@ -525,6 +771,47 @@
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
+/* Enhanced Answer Experience: Bubble Container & Action Buttons (Copy & Share) */
+.study-bubble-container {
+  display: flex;
+  flex-direction: column;
+  max-width: 100%;
+}
+
+.study-msg-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  margin-left: 4px;
+}
+
+.study-action-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 4px 10px;
+  font-size: 11.5px;
+  color: var(--study-text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.study-action-btn:hover {
+  background: rgba(0, 240, 255, 0.12);
+  border-color: var(--study-accent-cyan);
+  color: #fff;
+}
+
+.study-action-btn.copied {
+  background: rgba(0, 255, 136, 0.18);
+  border-color: #00ff88;
+  color: #00ff88;
+}
+
 /* KaTeX Equations styling in Study Mode */
 .katex-display-wrapper {
   margin: 12px 0;
@@ -573,13 +860,236 @@
   align-items: center;
 }
 
-/* ═══════════ CLEAN BOTTOM CHATBAR ═══════════ */
+/* ═══════════ CLEAN BOTTOM CHATBAR & ACTION MENU ═══════════ */
 .study-chatbar-wrap {
+  position: relative;
   padding: 10px 16px max(16px, env(safe-area-inset-bottom, 16px));
   background: rgba(8, 11, 18, 0.92);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-top: 1px solid var(--study-surface-border);
+}
+
+.btn-action-plus {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s ease, background-color 0.2s ease;
+}
+
+.btn-action-plus.active {
+  transform: rotate(45deg);
+  color: #ff4757;
+  background: rgba(255, 71, 87, 0.15);
+}
+
+/* Active Mode Indicator Chip in Input Bar */
+.study-active-mode-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  width: fit-content;
+  margin-bottom: 8px;
+  animation: chipFadeIn 0.25s ease;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.study-active-mode-chip.hidden {
+  display: none !important;
+}
+
+.study-active-mode-chip.deep-thinking {
+  background: linear-gradient(135deg, rgba(157, 78, 221, 0.25), rgba(0, 240, 255, 0.15));
+  border: 1px solid rgba(157, 78, 221, 0.55);
+  color: #e0b0ff;
+  box-shadow: 0 0 16px rgba(157, 78, 221, 0.35);
+}
+
+.study-active-mode-chip.web-research {
+  background: linear-gradient(135deg, rgba(0, 240, 255, 0.25), rgba(0, 255, 136, 0.15));
+  border: 1px solid rgba(0, 240, 255, 0.55);
+  color: #80f2ff;
+  box-shadow: 0 0 16px rgba(0, 240, 255, 0.35);
+}
+
+.btn-dismiss-mode {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 15px;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+  opacity: 0.75;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.btn-dismiss-mode:hover {
+  opacity: 1;
+  transform: scale(1.2);
+}
+
+@keyframes chipFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Floating Bottom Sheet / Popup Menu for Action Plus */
+.study-action-menu-sheet {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 16px;
+  right: 16px;
+  max-width: 440px;
+  margin: 0 auto;
+  background: rgba(12, 17, 28, 0.96);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1.5px solid var(--study-surface-border);
+  border-radius: 20px;
+  padding: 16px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65), 0 0 25px rgba(0, 240, 255, 0.12);
+  transform: translateY(16px) scale(0.96);
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 120;
+  box-sizing: border-box;
+}
+
+.study-action-menu-sheet.show {
+  transform: translateY(0) scale(1);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.action-menu-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.action-menu-title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #fff;
+}
+
+.action-menu-close {
+  background: none;
+  border: none;
+  color: var(--study-text-muted);
+  font-size: 18px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.action-menu-close:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.action-menu-category {
+  margin-bottom: 12px;
+}
+.action-menu-category:last-child {
+  margin-bottom: 0;
+}
+
+.category-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--study-accent-cyan);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.action-menu-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.action-menu-btn {
+  background: rgba(18, 26, 42, 0.85);
+  border: 1px solid rgba(0, 240, 255, 0.15);
+  border-radius: 12px;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  text-align: left;
+  position: relative;
+  transition: all 0.2s ease;
+  color: var(--study-text);
+  box-sizing: border-box;
+}
+
+.action-menu-btn:hover {
+  background: rgba(24, 35, 58, 0.95);
+  border-color: var(--study-accent-cyan);
+  transform: translateY(-1px);
+}
+
+.action-menu-btn.selected {
+  background: rgba(0, 240, 255, 0.15);
+  border-color: var(--study-accent-cyan);
+  box-shadow: 0 0 14px rgba(0, 240, 255, 0.3);
+}
+
+.action-btn-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.action-btn-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.action-btn-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.action-btn-desc {
+  font-size: 10px;
+  color: var(--study-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+.action-check-badge {
+  display: none;
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  font-size: 10px;
+  color: #00ff88;
+  font-weight: bold;
+}
+
+.action-menu-btn.selected .action-check-badge {
+  display: block;
 }
 
 .study-chatbar {
