@@ -15,6 +15,9 @@
   --marvo-color-orange:        #ff6b35;
   --marvo-color-amber:         #ff9e00;
    --marvo-color-error:         #ef4444;
+   --marvo-color-white:         #ffffff;
+   --marvo-info-title-color:    var(--marvo-color-white);
+   --marvo-info-body-color:     rgba(255, 255, 255, 0.82);
 
   /* Idle Multi-Hue Gradient Stops */
   --marvo-grad-stop-blue:      var(--marvo-color-blue);
@@ -72,6 +75,7 @@
   --marvo-duration-base:              0.38s;
   --marvo-duration-slow:              0.6s;
    --marvo-action-intent-duration:     2s;
+   --marvo-info-intent-duration:       8s;
    --marvo-error-flash-duration:       1.5s;
 
   /* ─────────────────────────────────────────────────────────────────
@@ -126,6 +130,8 @@
   --marvo-geo-expanded-padding-x:      18px;
    --marvo-geo-action-card-width:       132px;
    --marvo-geo-action-card-height:      36px;
+   --marvo-geo-info-card-width:         300px;
+   --marvo-geo-info-card-height:        132px;
 
    /* Listening amplitude response bounds; JS maps smoothed RMS into this range. */
    --marvo-listening-response-min:      0.12;

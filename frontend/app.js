@@ -3053,6 +3053,10 @@ class DynamicIslandManager {
     this.actionIntentCard = document.getElementById('marvo-action-intent-card');
     this.actionIntentIcon = document.getElementById('marvo-action-intent-icon');
     this.actionIntentText = document.getElementById('marvo-action-intent-text');
+    this.infoIntentCard = document.getElementById('marvo-info-intent-card');
+    this.infoIntentIcon = document.getElementById('marvo-info-intent-icon');
+    this.infoIntentTitle = document.getElementById('marvo-info-intent-title');
+    this.infoIntentBody = document.getElementById('marvo-info-intent-body');
     this.canvas = document.getElementById('islandWaveCanvas');
     this.ctx = this.canvas ? this.canvas.getContext('2d') : null;
     this.state = VoiceIndicatorState.IDLE;
@@ -3065,6 +3069,7 @@ class DynamicIslandManager {
     this.expandTimer = null;
     this.errorTimer = null;
     this.actionIntentTimer = null;
+    this.infoIntentTimer = null;
     this.visibilityHandler = null;
     this.subscribers = new Set();
 
@@ -3133,6 +3138,47 @@ class DynamicIslandManager {
     const el = this.getIsland();
     if (!el) return;
     el.classList.remove('action-intent-visible');
+    if (restoreIdle) {
+      el.classList.remove('island-open');
+      el.classList.add('state-idle');
+      this.applyShape('var(--marvo-geo-idle-diameter)', 'var(--marvo-geo-height-idle)', {
+        radius: 'var(--marvo-geo-radius-idle)'
+      });
+    }
+  }
+
+  showInfoIntentCard({ intent_type, icon, title, body } = {}) {
+    const el = this.getIsland();
+    if (!el || !this.infoIntentCard) return false;
+
+    this.hideInfoIntentCard({ restoreIdle: false });
+    if (icon !== undefined && this.infoIntentIcon) this.infoIntentIcon.textContent = String(icon);
+    if (title !== undefined && this.infoIntentTitle) this.infoIntentTitle.textContent = String(title);
+    if (body !== undefined && this.infoIntentBody) this.infoIntentBody.textContent = String(body);
+    this.infoIntentCard.dataset.intentType = intent_type || '';
+    this.infoIntentCard.hidden = false;
+    el.classList.add('info-intent-visible');
+    this.applyShape('var(--marvo-geo-info-card-width)', 'var(--marvo-geo-info-card-height)', {
+      radius: 'var(--marvo-geo-expanded-radius)'
+    });
+
+    const durationMs = parseFloat(getComputedStyle(el).getPropertyValue('--marvo-info-intent-duration')) * 1000;
+    this.infoIntentTimer = setTimeout(() => {
+      this.infoIntentTimer = null;
+      this.hideInfoIntentCard();
+    }, Number.isFinite(durationMs) ? durationMs : 8000);
+    return true;
+  }
+
+  hideInfoIntentCard({ restoreIdle = true } = {}) {
+    if (this.infoIntentTimer) {
+      clearTimeout(this.infoIntentTimer);
+      this.infoIntentTimer = null;
+    }
+    if (this.infoIntentCard) this.infoIntentCard.hidden = true;
+    const el = this.getIsland();
+    if (!el) return;
+    el.classList.remove('info-intent-visible');
     if (restoreIdle) {
       el.classList.remove('island-open');
       el.classList.add('state-idle');
@@ -3231,6 +3277,7 @@ class DynamicIslandManager {
       }, 380);
     }
     this.hideActionIntentCard({ restoreIdle: false });
+    this.hideInfoIntentCard({ restoreIdle: false });
 
     // Restore root interface
     if (root) {
@@ -3285,6 +3332,9 @@ class DynamicIslandManager {
 
     if (stateChanged && this.actionIntentTimer) {
       this.hideActionIntentCard({ restoreIdle: false });
+    }
+    if (stateChanged && this.infoIntentTimer) {
+      this.hideInfoIntentCard({ restoreIdle: false });
     }
 
     if (stateChanged) {
@@ -3565,6 +3615,7 @@ function initDynamicIsland() {
     window.MarvoVoiceIndicatorState = VoiceIndicatorState;
     window.setVoiceState = (state, volume) => dynamicIslandInstance.setVoiceState(state, volume);
     window.showActionIntentCard = (props) => dynamicIslandInstance.showActionIntentCard(props);
+    window.showInfoIntentCard = (props) => dynamicIslandInstance.showInfoIntentCard(props);
   }
 }
 

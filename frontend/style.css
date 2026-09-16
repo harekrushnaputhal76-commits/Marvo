@@ -5473,6 +5473,71 @@ body.island-active .main {
   white-space: nowrap;
 }
 
+.marvo-info-intent-card {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 7px;
+  padding: var(--marvo-geo-expanded-padding-x);
+  border: 1px solid var(--marvo-glass-border-color);
+  border-radius: var(--marvo-geo-expanded-radius);
+  background: var(--marvo-glass-bg);
+  box-sizing: border-box;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--marvo-duration-fast) var(--marvo-ease-smooth);
+}
+
+#marvo-dynamic-island.info-intent-visible .marvo-info-intent-card {
+  display: flex;
+  opacity: 1;
+}
+
+.marvo-info-intent-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.marvo-info-intent-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--marvo-geo-radius-pill);
+  color: var(--marvo-color-cyan);
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.marvo-info-intent-title {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--marvo-info-title-color);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.marvo-info-intent-body {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: var(--marvo-info-body-color);
+  font-size: 12px;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
 #marvo-dynamic-island.state-listening::after {
   opacity: var(--marvo-listening-intensity);
   animation: marvo-listening-ripple var(--marvo-duration-slow) var(--marvo-ease-smooth) infinite;
