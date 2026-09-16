@@ -73,5 +73,9 @@
   }
 
   global.MarvoRenderingCapabilities = detect();
+  global.document?.documentElement?.classList.toggle(
+    'marvo-reduced-motion',
+    global.MarvoRenderingCapabilities.reducedMotion
+  );
   global.getMarvoRenderingCapabilities = detect;
 })(window);

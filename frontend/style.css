@@ -5402,6 +5402,18 @@ body.island-active .main {
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  #marvo-liquid-filter-context,
+  #marvo-dynamic-island::before {
+    animation: none !important;
+  }
+}
+
+.marvo-reduced-motion #marvo-liquid-filter-context,
+.marvo-reduced-motion #marvo-dynamic-island::before {
+  animation: none !important;
+}
+
 /* ================================================================
    PHASE 1: AGGRESSIVE BATTERY & BACKGROUND KILL-SWITCH
    ================================================================ */

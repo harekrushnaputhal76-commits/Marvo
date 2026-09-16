@@ -118,4 +118,7 @@
    --marvo-idle-breathe-scale-peak:    1;
    --marvo-idle-breathe-opacity-rest:  0.88;
    --marvo-idle-breathe-opacity-peak:  1;
+
+   /* Reduced motion convention: future shape morphs use opacity crossfades only. */
+   --marvo-motion-reduced-morph-transition: opacity var(--marvo-duration-fast) var(--marvo-ease-smooth);
 }
