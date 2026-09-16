@@ -4697,8 +4697,11 @@ body.island-active .main {
 }
 
 #marvo-dynamic-island {
+  --marvo-shape-width: var(--marvo-geo-idle-diameter);
+  --marvo-shape-height: var(--marvo-geo-height-idle);
+  --marvo-shape-radius: var(--marvo-geo-radius-idle);
+
   position: fixed;
-  top: calc(var(--island-top-offset) + 4px);
   top: var(--camera-anchor-top);
   left: 50%;
   transform: translateX(-50%);
@@ -4708,26 +4711,26 @@ body.island-active .main {
   box-sizing: border-box;
 
   /* Motorola Edge 60 Pro Punch-hole Camera Anchor (Idle Dot) */
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
+  width: var(--marvo-shape-width);
+  height: var(--marvo-shape-height);
+  border-radius: var(--marvo-shape-radius);
   background: #000000;
 
   pointer-events: none; /* Idle dot must never block touches or the real camera */
   overflow: visible;
 
-  /* 120Hz Hardware Acceleration & iOS Fluid Spring Curve */
+  /* 120Hz Hardware Acceleration & linear downward-only morph */
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
   will-change: width, height, border-radius, transform, opacity, background, box-shadow;
   transition:
-    width 0.38s cubic-bezier(0.32, 0.72, 0, 1),
-    height 0.38s cubic-bezier(0.32, 0.72, 0, 1),
-    border-radius 0.38s cubic-bezier(0.32, 0.72, 0, 1),
-    transform 0.38s cubic-bezier(0.32, 0.72, 0, 1),
-    background 0.32s cubic-bezier(0.32, 0.72, 0, 1),
-    box-shadow 0.32s cubic-bezier(0.32, 0.72, 0, 1),
-    opacity 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+    width 0.38s linear,
+    height 0.38s linear,
+    border-radius 0.38s linear,
+    transform 0.38s linear,
+    background 0.32s linear,
+    box-shadow 0.32s linear,
+    opacity 0.28s linear;
 }
 
 /* Island Summoned: Active pointer events */

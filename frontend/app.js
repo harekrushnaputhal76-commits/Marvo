@@ -3046,6 +3046,31 @@ class DynamicIslandManager {
     return this.appRoot;
   }
 
+  applyShape(targetWidth, targetHeight, options = {}) {
+    const el = this.getIsland();
+    if (!el) return null;
+
+    const width = typeof targetWidth === 'number' ? `${targetWidth}px` : (targetWidth || '24px');
+    const height = typeof targetHeight === 'number' ? `${targetHeight}px` : (targetHeight || '24px');
+    const radius = typeof options.radius === 'number' ? `${options.radius}px` : (options.radius || '50%');
+    const top = options.top || 'var(--camera-anchor-top)';
+
+    el.style.setProperty('--marvo-shape-width', width);
+    el.style.setProperty('--marvo-shape-height', height);
+    el.style.setProperty('--marvo-shape-radius', radius);
+    el.style.width = width;
+    el.style.height = height;
+    el.style.borderRadius = radius;
+    el.style.top = top;
+    el.style.left = '50%';
+    el.style.transform = 'translateX(-50%)';
+    el.style.transformOrigin = 'top center';
+    el.style.willChange = 'width, height, border-radius, transform';
+    el.style.transition = 'width 0.38s linear, height 0.38s linear, border-radius 0.38s linear, transform 0.38s linear';
+
+    return el;
+  }
+
   open() {
     const el = this.getIsland();
     const root = this.getAppRoot();
