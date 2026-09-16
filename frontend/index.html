@@ -1181,7 +1181,7 @@
 
 <!-- ═══════════ MARVO SVG GOOEY FILTER (LIQUID SURFACE TENSION) ═══════════ -->
 <svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute;overflow:hidden">
-  <filter id="marvo-goo">
+  <filter id="marvo-goo" x="-50%" y="-50%" width="200%" height="200%">
     <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur" />
     <feColorMatrix in="blur" mode="matrix"
       values="1 0 0 0 0
@@ -1194,7 +1194,9 @@
 </svg>
 
 <!-- ═══════════ MARVO TOP-ANCHORED IDLE VOICE INDICATOR ═══════════ -->
-<div id="marvo-dynamic-island" aria-hidden="true"></div>
+<div id="marvo-liquid-filter-context" aria-hidden="true">
+  <div id="marvo-dynamic-island"></div>
+</div>
 
 <!-- Toast notification helper -->
 <div id="appToast" class="app-toast"></div>

@@ -5353,21 +5353,32 @@ body.island-active .main {
   }
 }
 
-#marvo-dynamic-island {
+#marvo-liquid-filter-context {
   position: fixed !important;
   top: var(--camera-anchor-top) !important;
   left: 50% !important;
   width: var(--marvo-geo-idle-diameter) !important;
   height: var(--marvo-geo-idle-diameter) !important;
   transform: translateX(-50%) !important;
+  filter: url(#marvo-goo);
+  -webkit-filter: url(#marvo-goo);
+  overflow: visible !important;
+  pointer-events: none !important;
+  z-index: var(--marvo-z-indicator-layer) !important;
+  animation: marvo-idle-breathe var(--marvo-idle-breathe-duration) var(--marvo-ease-spring) infinite;
+}
+
+#marvo-dynamic-island {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
   border-radius: var(--marvo-geo-radius-idle) !important;
   background: var(--marvo-conic-idle) !important;
-  z-index: var(--marvo-z-indicator-layer) !important;
   pointer-events: none !important;
   overflow: hidden !important;
   transition: none !important;
   will-change: auto !important;
-  animation: marvo-idle-breathe var(--marvo-idle-breathe-duration) var(--marvo-ease-spring) infinite;
 }
 
 #marvo-dynamic-island::before {
