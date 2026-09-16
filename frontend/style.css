@@ -10,6 +10,7 @@
   --sab: env(safe-area-inset-bottom, 0px);
   --sal: env(safe-area-inset-left, 0px);
   --sar: env(safe-area-inset-right, 0px);
+  --island-top-offset: env(safe-area-inset-top, 12px);
 
   /* Deep Obsidian / Dark Slate Flagship Palette */
   --bg-primary: #07090e;
