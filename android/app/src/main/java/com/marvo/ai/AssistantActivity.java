@@ -266,7 +266,9 @@ public class AssistantActivity extends AppCompatActivity {
         }
     };
 
-    // Step 10 Part 1: Dynamic Apple-Style Notification Pill
+    // Dynamic Notification Pill & Voice Indicator
+    private View voiceIndicatorContainer;
+    private View voiceIndicatorDot;
     private View dynamicPillContainer;
     private ImageView pillIcon;
     private TextView pillText;
@@ -673,6 +675,8 @@ public class AssistantActivity extends AppCompatActivity {
         statusTextView = findViewById(R.id.statusTextView);
         subtitleTextView = findViewById(R.id.subtitleTextView);
         statusScrollView = findViewById(R.id.statusScrollView);
+        voiceIndicatorContainer = findViewById(R.id.voiceIndicatorContainer);
+        voiceIndicatorDot = findViewById(R.id.voiceIndicatorDot);
         dynamicPillContainer = findViewById(R.id.dynamicPillContainer);
         pillIcon = findViewById(R.id.pillIcon);
         pillText = findViewById(R.id.pillText);
@@ -5076,7 +5080,16 @@ public class AssistantActivity extends AppCompatActivity {
      * States: IDLE, LISTENING, THINKING, SPEAKING
      */
     public void setOrbState(final String state) {
-        // State tracking preserved; bottom orb WebGL dispatch removed
+        if (voiceIndicatorContainer != null) {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    if (voiceIndicatorContainer != null) {
+                        voiceIndicatorContainer.setVisibility(View.VISIBLE);
+                    }
+                }
+            });
+        }
     }
 
     /**

@@ -5,7 +5,26 @@
     android:layout_height="match_parent"
     android:background="@null">
 
-    <!-- Step 10: Dynamic Apple-Style Notification Pill (Top Island) -->
+    <!-- Camera-Anchored Voice Indicator (Top Camera Anchor) -->
+    <FrameLayout
+        android:id="@+id/voiceIndicatorContainer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="12dp"
+        android:elevation="32dp"
+        android:visibility="visible">
+
+        <View
+            android:id="@+id/voiceIndicatorDot"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center"
+            android:background="@drawable/bg_dynamic_pill" />
+    </FrameLayout>
+
+    <!-- Dynamic Notification Pill (Top Island) -->
     <LinearLayout
         android:id="@+id/dynamicPillContainer"
         android:layout_width="wrap_content"
@@ -66,7 +85,7 @@
         android:paddingBottom="0dp"
         android:elevation="0dp">
 
-        <!-- Response Scroll Container positioned above the Siri Orb -->
+        <!-- Response Scroll Container -->
         <ScrollView
             android:id="@+id/statusScrollView"
             android:layout_width="match_parent"

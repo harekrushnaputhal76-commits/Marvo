@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Apple Dynamic Island Style Frosted Translucent Pill Background -->
+<!-- Dynamic Island Style Frosted Translucent Pill Background -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Layer 1: Outer Glass Highlight Border -->
     <item>
