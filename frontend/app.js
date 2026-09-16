@@ -2323,6 +2323,9 @@ async function displaySmartReplyChips(aiText, userPrompt = '') {
 // Step 32: KaTeX Mathematical & Textbook Science Typography Renderer
 function renderFormattedAiResponse(rawText) {
   if (!rawText || typeof rawText !== 'string') return '';
+  if (window.MathRenderer && typeof window.MathRenderer.renderFormattedText === 'function') {
+    return window.MathRenderer.renderFormattedText(rawText);
+  }
 
   const mathEnabled = localStorage.getItem('marvo.math.katex_enabled') !== 'false';
   if (!mathEnabled) {
@@ -2773,30 +2776,44 @@ async function sendMessage(userText) {
       }
     }, 35000);
 
-    const res = await fetch(API_CHAT, {
-      method: 'POST',
-      signal: currentChatAbortController.signal,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message:          payloadMessage,
-        mode:             activeModeName,
-        thinking_mode:    selectedMode,
-        local_time:       deviceTime,
-        agent:            isStudentActive ? 'student' : activeAgent,
-        session_id:       requestSessionId,
-        context_history:  contextHistory,
-        is_student_mode:  isStudentActive,
-        image_base64:     activeLiveVisionFrame,
-        multimodal_image: activeLiveVisionFrame
-      }),
-    });
+    let data;
+    if (window.TrafficPolice && activeAgent !== 'huggingface' && activeAgent !== 'pollinations') {
+      const routed = await window.TrafficPolice.routeChat(payloadMessage, {
+        contextHistory: contextHistory,
+        imageBase64: activeLiveVisionFrame,
+        signal: currentChatAbortController.signal
+      });
+      data = {
+        type: 'text',
+        response: routed.response,
+        state: routed.state || 'state-speaking',
+        provider: routed.provider,
+        model: routed.model
+      };
+    } else {
+      const res = await fetch(API_CHAT, {
+        method: 'POST',
+        signal: currentChatAbortController.signal,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message:          payloadMessage,
+          mode:             activeModeName,
+          thinking_mode:    selectedMode,
+          local_time:       deviceTime,
+          agent:            isStudentActive ? 'student' : activeAgent,
+          session_id:       requestSessionId,
+          context_history:  contextHistory,
+          is_student_mode:  isStudentActive,
+          image_base64:     activeLiveVisionFrame,
+          multimodal_image: activeLiveVisionFrame
+        }),
+      });
+      if (!res.ok) throw new Error(`Server responded with ${res.status}`);
+      data = await res.json();
+    }
 
     clearTimeout(chatFetchTimeout);
-
     dots.remove();
-    if (!res.ok) throw new Error(`Server responded with ${res.status}`);
-
-    const data = await res.json();
     if (requestSessionId !== currentSessionId || requestVersion !== sessionVersion) return;
 
     // Handle Structured Backend Agent Response (type === 'image' vs 'text')
@@ -4318,16 +4335,90 @@ async function initApp() {
   LiveVisionManager.init();
   await renderAiControlRoom();
   initMemoryModalListeners();
-  // Step 29: Auto-focus keyboard disabled on boot
+
+  // Traffic Police & Model Quick-Switch Initialization
+  await initTrafficPoliceAndModelUI();
 }
 
-// ── Anti-Overheating & Battery Conservation: Pause heavy rendering & polling on background ──
+/* ================================================================
+   PHASE 1: AGGRESSIVE PAGE VISIBILITY & BATTERY MANAGEMENT (0% CPU)
+   ================================================================ */
+const ActiveIntervalRegistry = {
+  trackedIntervals: new Set(),
+  track(id) {
+    if (id) this.trackedIntervals.add(id);
+    return id;
+  },
+  untrack(id) {
+    if (id) this.trackedIntervals.delete(id);
+  },
+  clearAll() {
+    this.trackedIntervals.forEach(id => {
+      try { clearInterval(id); } catch (e) {}
+    });
+    this.trackedIntervals.clear();
+  }
+};
+
+// Wrap native setInterval/clearInterval to guarantee tracking
+const _nativeSetInterval = window.setInterval;
+const _nativeClearInterval = window.clearInterval;
+window.setInterval = function(fn, ms, ...args) {
+  const id = _nativeSetInterval(fn, ms, ...args);
+  ActiveIntervalRegistry.track(id);
+  return id;
+};
+window.clearInterval = function(id) {
+  ActiveIntervalRegistry.untrack(id);
+  return _nativeClearInterval(id);
+};
+
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
-    document.body.classList.add('page-paused');
-    stopDownloadPolling();
+    console.log('[BatterySaver] App minimized -> Enforcing 0% CPU: Halting intervals, animations, gyroscope & media streams');
+    document.body.classList.add('page-paused', 'app-background-paused');
+
+    // 1. Immediately halt all active intervals
+    ActiveIntervalRegistry.clearAll();
+    if (typeof stopDownloadPolling === 'function') {
+      stopDownloadPolling();
+    }
+    if (typeof downloadPollTimer !== 'undefined' && downloadPollTimer) {
+      clearInterval(downloadPollTimer);
+      downloadPollTimer = null;
+    }
+
+    // 2. Kill WebRTC Camera / Video stream immediately
+    if (typeof LiveVisionManager !== 'undefined' && LiveVisionManager.isActive()) {
+      LiveVisionManager.stop();
+    }
+
+    // 3. Kill WebRTC Mic audio stream and voice visualizer
+    if (typeof isVoiceRecording !== 'undefined' && isVoiceRecording) {
+      closeVoiceDock();
+    }
+
+    // 4. Halt 3D Gyroscope sensor
+    if (typeof GyroParallaxManager !== 'undefined') {
+      GyroParallaxManager.stop();
+    }
+
+    // 5. Cancel canvas visualizer animation frames
+    if (typeof visualizerAnimId !== 'undefined' && visualizerAnimId) {
+      cancelAnimationFrame(visualizerAnimId);
+      visualizerAnimId = null;
+    }
+
   } else {
-    document.body.classList.remove('page-paused');
+    console.log('[BatterySaver] App restored to foreground');
+    document.body.classList.remove('page-paused', 'app-background-paused');
+
+    // Resume Gyroscope if enabled in user settings
+    if (typeof GyroParallaxManager !== 'undefined') {
+      const gyroEnabled = localStorage.getItem('marvo.vision.gyro_parallax') !== 'false';
+      if (gyroEnabled) GyroParallaxManager.start();
+    }
+
     if (DOM.settingsModal?.classList.contains('show')) {
       const activeTab = document.querySelector('.settings-tab-btn.active')?.dataset.tab;
       if (activeTab === 'brain') {
@@ -4336,6 +4427,153 @@ document.addEventListener('visibilitychange', () => {
     }
   }
 });
+
+/* ================================================================
+   DYNAMIC MODEL SELECTION & TRAFFIC POLICE FRONTEND UI
+   ================================================================ */
+async function initTrafficPoliceAndModelUI() {
+  if (window.TrafficPolice) {
+    await window.TrafficPolice.init();
+
+    // Populate Sidebar API Keys
+    const cfgGroq = $('#cfgGroqKey');
+    const cfgGemini = $('#cfgGeminiKey');
+    const cfgOpenRouter = $('#cfgOpenRouterKey');
+
+    if (cfgGroq) cfgGroq.value = window.TrafficPolice.state.keys.groq || '';
+    if (cfgGemini) cfgGemini.value = window.TrafficPolice.state.keys.gemini || '';
+    if (cfgOpenRouter) cfgOpenRouter.value = window.TrafficPolice.state.keys.openrouter || '';
+
+    // Password visibility toggle buttons
+    document.querySelectorAll('.btn-toggle-key').forEach(btn => {
+      btn.onclick = () => {
+        const targetId = btn.getAttribute('data-target');
+        const input = document.getElementById(targetId);
+        if (input) {
+          input.type = input.type === 'password' ? 'text' : 'password';
+        }
+      };
+    });
+
+    // Save API Keys Button
+    const btnSaveKeys = $('#btnSaveApiConfig');
+    if (btnSaveKeys) {
+      btnSaveKeys.onclick = () => {
+        const groq = cfgGroq?.value || '';
+        const gemini = cfgGemini?.value || '';
+        const openrouter = cfgOpenRouter?.value || '';
+
+        window.TrafficPolice.setKeys({ groq, gemini, openrouter });
+        showToast('API Keys saved successfully!');
+      };
+    }
+
+    // Chatbar Model Quick-Switch Dropdown
+    const btnModelPill = $('#btnModelPill');
+    const modelPillMenu = $('#modelPillMenu');
+    const modelPillLabel = $('#modelPillLabel');
+    const subagentPillWrap = $('#subagentPillWrap');
+    const btnSubagentPill = $('#btnSubagentPill');
+    const subagentPillMenu = $('#subagentPillMenu');
+    const subagentPillLabel = $('#subagentPillLabel');
+
+    const labels = {
+      groq: 'Groq (Fast & Free)',
+      gemini: 'Gemini (Google Native)',
+      openrouter: 'OpenRouter (Multi-Agent)',
+      local: 'Local LLM (Offline Engine)'
+    };
+
+    const updatePillLabels = () => {
+      const provider = window.TrafficPolice.state.currentProvider;
+      if (modelPillLabel) modelPillLabel.textContent = labels[provider] || provider;
+
+      // Update active options in menu
+      document.querySelectorAll('.model-pill-opt').forEach(opt => {
+        opt.classList.toggle('active', opt.dataset.provider === provider);
+      });
+
+      // Show or hide secondary OpenRouter subagent dropdown
+      if (subagentPillWrap) {
+        subagentPillWrap.classList.toggle('hidden', provider !== 'openrouter');
+      }
+
+      if (subagentPillLabel) {
+        const currentModel = window.TrafficPolice.state.openRouterModel;
+        const subNames = {
+          'anthropic/claude-3.5-sonnet': 'Claude 3.5 Sonnet',
+          'openai/gpt-4o': 'GPT-4o',
+          'meta-llama/llama-3.1-405b-instruct': 'Llama 3.1 405B',
+          'meta-llama/llama-3.3-70b-instruct': 'Llama 3.3 70B',
+          'deepseek/deepseek-r1': 'DeepSeek R1',
+          'google/gemini-2.0-flash-001': 'Gemini 2.0 Flash'
+        };
+        subagentPillLabel.textContent = subNames[currentModel] || currentModel.split('/').pop();
+      }
+
+      document.querySelectorAll('.subagent-pill-opt').forEach(opt => {
+        opt.classList.toggle('active', opt.dataset.model === window.TrafficPolice.state.openRouterModel);
+      });
+    };
+
+    updatePillLabels();
+
+    if (btnModelPill) {
+      btnModelPill.onclick = (e) => {
+        e.stopPropagation();
+        modelPillMenu?.classList.toggle('show');
+        subagentPillMenu?.classList.remove('show');
+      };
+    }
+
+    document.querySelectorAll('.model-pill-opt').forEach(opt => {
+      opt.onclick = () => {
+        const provider = opt.dataset.provider;
+        window.TrafficPolice.setProvider(provider);
+        modelPillMenu?.classList.remove('show');
+        updatePillLabels();
+        showToast(`Model switched to ${labels[provider] || provider}`);
+      };
+    });
+
+    if (btnSubagentPill) {
+      btnSubagentPill.onclick = (e) => {
+        e.stopPropagation();
+        subagentPillMenu?.classList.toggle('show');
+        modelPillMenu?.classList.remove('show');
+      };
+    }
+
+    document.querySelectorAll('.subagent-pill-opt').forEach(opt => {
+      opt.onclick = () => {
+        const model = opt.dataset.model;
+        window.TrafficPolice.setOpenRouterModel(model);
+        subagentPillMenu?.classList.remove('show');
+        updatePillLabels();
+        showToast(`Sub-agent: ${opt.querySelector('.sub-model-name')?.textContent || model}`);
+      };
+    });
+
+    document.addEventListener('click', () => {
+      modelPillMenu?.classList.remove('show');
+      subagentPillMenu?.classList.remove('show');
+    });
+
+    window.TrafficPolice.onStateChange(() => {
+      updatePillLabels();
+    });
+  }
+
+  // Study Mode Trigger (Hamburger menu button)
+  $('#navStudyMode')?.addEventListener('click', () => {
+    // Close sidebar
+    DOM.sidebar?.classList.remove('open');
+    DOM.sidebarOverlay?.classList.remove('show');
+    if (window.StudyModeUI) {
+      window.StudyModeUI.enter();
+    }
+  });
+}
 
 initApp();
 

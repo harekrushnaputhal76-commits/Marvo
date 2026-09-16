@@ -6278,6 +6278,56 @@ public class AssistantActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onPause() {
+        super.onPause();
+        Log.d(TAG, "AssistantActivity onPause: Aggressively terminating active audio/mic/recognition threads to preserve battery (0% CPU)");
+        try {
+            if (speechRecognizer != null) {
+                speechRecognizer.cancel();
+            }
+        } catch (Exception ignored) {}
+        try {
+            if (tts != null) {
+                tts.stop();
+            }
+        } catch (Exception ignored) {}
+        if (audioPollHandler != null && audioPollRunnable != null) {
+            audioPollHandler.removeCallbacks(audioPollRunnable);
+        }
+        if (processingWatchdogHandler != null && processingWatchdogRunnable != null) {
+            processingWatchdogHandler.removeCallbacks(processingWatchdogRunnable);
+        }
+        if (pillHandler != null && pillDismissRunnable != null) {
+            pillHandler.removeCallbacks(pillDismissRunnable);
+        }
+        if (typewriterHandler != null && typewriterRunnable != null) {
+            typewriterHandler.removeCallbacks(typewriterRunnable);
+        }
+        if (orbWebView != null) {
+            try {
+                orbWebView.onPause();
+                orbWebView.pauseTimers();
+            } catch (Exception ignored) {}
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        Log.d(TAG, "AssistantActivity onResume: Resuming interactive surface");
+        if (orbWebView != null) {
+            try {
+                orbWebView.onResume();
+                orbWebView.resumeTimers();
+            } catch (Exception ignored) {}
+        }
+        if (audioPollHandler != null && audioPollRunnable != null) {
+            audioPollHandler.removeCallbacks(audioPollRunnable);
+            audioPollHandler.postDelayed(audioPollRunnable, 50);
+        }
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
         hideContactCardImmediate();

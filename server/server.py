@@ -112,6 +112,17 @@ def health_check():
     return jsonify({"status": "healthy", "service": "marvo-ai"}), 200
 
 
+@app.route('/api/config', methods=['GET'])
+def get_config():
+    """Returns active model provider keys and configuration from environment."""
+    return jsonify({
+        "gemini_api_key": os.environ.get("GEMINI_API_KEY", ""),
+        "groq_api_key": os.environ.get("GROQ_API_KEY", ""),
+        "openrouter_api_key": os.environ.get("OPENROUTER_API_KEY", ""),
+        "hf_api_key": os.environ.get("HF_API_KEY", "")
+    }), 200
+
+
 def _session_path(session_id):
     if not isinstance(session_id, str) or not session_id or os.path.basename(session_id) != session_id:
         return None

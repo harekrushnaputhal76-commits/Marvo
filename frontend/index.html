@@ -19,6 +19,7 @@
 <!-- Step 32: KaTeX Mathematical Typography -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="css/studyMode.css">
 </head>
 <body>
 
@@ -124,6 +125,11 @@
       <span>Student Mode</span>
       <span class="badge-student-toggle" id="studentModeBadge">OFF</span>
     </button>
+    <button class="sidebar-nav-item" id="navStudyMode" title="Enter 3D Isolated Study Mode">
+      <svg viewBox="0 0 24 24" width="18" height="18"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+      <span>Study Mode (3D)</span>
+      <span class="badge-beta" style="background:rgba(0,240,255,0.15);color:#00f0ff;border-color:rgba(0,240,255,0.3);">3D</span>
+    </button>
   </div>
 
   <!-- Creative Studio -->
@@ -156,6 +162,35 @@
       <svg viewBox="0 0 24 24" width="18" height="18"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" fill="none" stroke="currentColor" stroke-width="2"/><polyline points="7 10 12 15 17 10" fill="none" stroke="currentColor" stroke-width="2"/><line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2"/></svg>
       <span>Downloads & Storage</span>
     </button>
+  </div>
+
+  <!-- Model Configuration & API Settings Section -->
+  <div class="sidebar-nav-group sidebar-api-config-group">
+    <div class="sidebar-section-title">MODEL CONFIGURATION & API SETTINGS</div>
+    <div class="api-config-container">
+      <div class="api-field">
+        <label for="cfgGroqKey">Groq API Key (Fast & Free):</label>
+        <div class="api-input-wrap">
+          <input type="password" id="cfgGroqKey" placeholder="gsk_..." autocomplete="off">
+          <button type="button" class="btn-toggle-key" data-target="cfgGroqKey">👁</button>
+        </div>
+      </div>
+      <div class="api-field">
+        <label for="cfgGeminiKey">Gemini API Key (Google Native):</label>
+        <div class="api-input-wrap">
+          <input type="password" id="cfgGeminiKey" placeholder="AIzaSy..." autocomplete="off">
+          <button type="button" class="btn-toggle-key" data-target="cfgGeminiKey">👁</button>
+        </div>
+      </div>
+      <div class="api-field">
+        <label for="cfgOpenRouterKey">OpenRouter API Key (Multi-Agent):</label>
+        <div class="api-input-wrap">
+          <input type="password" id="cfgOpenRouterKey" placeholder="sk-or-v1-..." autocomplete="off">
+          <button type="button" class="btn-toggle-key" data-target="cfgOpenRouterKey">👁</button>
+        </div>
+      </div>
+      <button id="btnSaveApiConfig" class="btn-save-api-config">Save API Keys</button>
+    </div>
   </div>
 
   <!-- Scrollable Chat History -->
@@ -335,6 +370,71 @@
     <!-- Attachment Preview Shelf (Photos, Videos, PDFs, Files) -->
     <div id="attachmentPreviewShelf" class="attachment-preview-shelf hidden">
       <!-- Dynamically populated attachment chips -->
+    </div>
+
+    <!-- Traffic Police Quick Model Selector & OpenRouter Sub-Agent Switcher -->
+    <div class="model-quick-bar" id="modelQuickBar">
+      <!-- Main Provider Dropdown -->
+      <div class="model-pill-dropdown-wrap">
+        <button class="model-pill-btn" id="btnModelPill" type="button" aria-haspopup="true">
+          <span class="model-pill-dot"></span>
+          <span id="modelPillLabel">Groq (Fast & Free)</span>
+          <svg viewBox="0 0 24 24" width="12" height="12"><polyline points="6 9 12 15 18 9" fill="none" stroke="currentColor" stroke-width="2.5"/></svg>
+        </button>
+        <div class="model-pill-menu" id="modelPillMenu">
+          <button class="model-pill-opt active" data-provider="groq" type="button">
+            <span class="opt-name">Groq (Fast & Free)</span>
+            <span class="opt-badge">Ultra-Fast</span>
+          </button>
+          <button class="model-pill-opt" data-provider="gemini" type="button">
+            <span class="opt-name">Gemini (Google Native)</span>
+            <span class="opt-badge">Multimodal</span>
+          </button>
+          <button class="model-pill-opt" data-provider="openrouter" type="button">
+            <span class="opt-name">OpenRouter (Multi-Agent Gateway)</span>
+            <span class="opt-badge">Pro Models</span>
+          </button>
+          <button class="model-pill-opt" data-provider="local" type="button">
+            <span class="opt-name">Local LLM (Offline Engine)</span>
+            <span class="opt-badge">0% Net</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Secondary OpenRouter Sub-Agent Dropdown (Appears immediately when OpenRouter is selected) -->
+      <div class="subagent-pill-dropdown-wrap hidden" id="subagentPillWrap">
+        <button class="subagent-pill-btn" id="btnSubagentPill" type="button" aria-haspopup="true">
+          <span class="subagent-icon">⚡</span>
+          <span id="subagentPillLabel">Claude 3.5 Sonnet</span>
+          <svg viewBox="0 0 24 24" width="12" height="12"><polyline points="6 9 12 15 18 9" fill="none" stroke="currentColor" stroke-width="2.5"/></svg>
+        </button>
+        <div class="subagent-pill-menu" id="subagentPillMenu">
+          <button class="subagent-pill-opt active" data-model="anthropic/claude-3.5-sonnet" type="button">
+            <span class="sub-model-name">Claude 3.5 Sonnet</span>
+            <span class="sub-model-org">Anthropic</span>
+          </button>
+          <button class="subagent-pill-opt" data-model="openai/gpt-4o" type="button">
+            <span class="sub-model-name">GPT-4o (Omni)</span>
+            <span class="sub-model-org">OpenAI</span>
+          </button>
+          <button class="subagent-pill-opt" data-model="meta-llama/llama-3.1-405b-instruct" type="button">
+            <span class="sub-model-name">Llama 3.1 405B</span>
+            <span class="sub-model-org">Meta</span>
+          </button>
+          <button class="subagent-pill-opt" data-model="meta-llama/llama-3.3-70b-instruct" type="button">
+            <span class="sub-model-name">Llama 3.3 70B</span>
+            <span class="sub-model-org">Meta</span>
+          </button>
+          <button class="subagent-pill-opt" data-model="deepseek/deepseek-r1" type="button">
+            <span class="sub-model-name">DeepSeek R1</span>
+            <span class="sub-model-org">DeepSeek</span>
+          </button>
+          <button class="subagent-pill-opt" data-model="google/gemini-2.0-flash-001" type="button">
+            <span class="sub-model-name">Gemini 2.0 Flash</span>
+            <span class="sub-model-org">Google</span>
+          </button>
+        </div>
+      </div>
     </div>
 
     <div class="input-glass">
@@ -1181,6 +1281,11 @@
 
 <!-- Step 32: KaTeX Math Renderer -->
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
+<script src="js/utils/mathRenderer.js"></script>
+<script src="js/core/trafficPolice.js"></script>
+<script src="js/plugins/flashcardEngine.js"></script>
+<script src="js/plugins/quizEngine.js"></script>
+<script src="js/ui/studyMode.js"></script>
 <script src="app.js"></script>
 <script>
   window.addEventListener('load', function() {

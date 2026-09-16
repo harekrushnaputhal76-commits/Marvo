@@ -20,4 +20,32 @@ public class MainActivity extends BridgeActivity {
         }
         // Wake-Word permanently disabled: 100% Zero background battery drain
     }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        Log.d(TAG, "MainActivity onPause: halting background threads and pausing webview timers for 0% battery drain");
+        try {
+            if (getBridge() != null && getBridge().getWebView() != null) {
+                getBridge().getWebView().onPause();
+                getBridge().getWebView().pauseTimers();
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Error pausing bridge webview: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        Log.d(TAG, "MainActivity onResume: resuming webview timers");
+        try {
+            if (getBridge() != null && getBridge().getWebView() != null) {
+                getBridge().getWebView().onResume();
+                getBridge().getWebView().resumeTimers();
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Error resuming bridge webview: " + e.getMessage());
+        }
+    }
 }
