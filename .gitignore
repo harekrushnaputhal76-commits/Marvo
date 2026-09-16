@@ -41,6 +41,8 @@ android/.idea/
 android/*.iml
 android/app/*.iml
 android/local.properties
+*.apk
+*.aab
 
 # Logs & Temporary Files
 logs/
