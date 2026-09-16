@@ -175,6 +175,14 @@ public class AssistantActivity extends AppCompatActivity {
         return currentVoiceProfile;
     }
 
+    public SpeechRecognizer getSpeechRecognizer() {
+        return speechRecognizer;
+    }
+
+    public OfflineIntentRouter getOfflineIntentRouter() {
+        return offlineIntentRouter;
+    }
+
     /**
      * Step 13.5: Lock Screen Security Gateway check.
      * Returns true if the device is currently keyguard locked (PIN, pattern, password, biometric).
@@ -4343,6 +4351,11 @@ public class AssistantActivity extends AppCompatActivity {
             return;
         }
 
+        // Traffic Police V3 & V4: Context, Hardware & Resource Router (Deep Sleep Gatekeeper)
+        if (TrafficPoliceManager.getInstance().route(this, command)) {
+            return;
+        }
+
         // Step 7 - Part 2: Massive Offline OS Brain (Entity Alias Dictionary & Native Device Tools)
         if (offlineIntentRouter != null && offlineIntentRouter.routeOffline(command)) {
             return;
@@ -5499,6 +5512,7 @@ public class AssistantActivity extends AppCompatActivity {
                             conn.disconnect();
                         } catch (Exception ignored) {}
                     }
+                    TrafficPoliceManager.getInstance().release(TrafficPoliceManager.HardwareModule.NETWORK_LLM);
                 }
             }
         }).start();
@@ -5726,6 +5740,7 @@ public class AssistantActivity extends AppCompatActivity {
                             conn.disconnect();
                         } catch (Exception ignored) {}
                     }
+                    TrafficPoliceManager.getInstance().release(TrafficPoliceManager.HardwareModule.NETWORK_LLM);
                 }
             }
         }).start();
@@ -6331,6 +6346,9 @@ public class AssistantActivity extends AppCompatActivity {
                 orbWebView.pauseTimers();
             } catch (Exception ignored) {}
         }
+
+        // Traffic Police 4: Strict Gatekeeper Deep Sleep Enforcement (0% CPU, all modules killed)
+        TrafficPoliceManager.getInstance().enforceDeepSleep(this);
     }
 
     @Override

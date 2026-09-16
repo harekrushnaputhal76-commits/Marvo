@@ -526,5 +526,44 @@ public class MarvoNativeBridge extends Plugin {
             call.reject("Error updating memory state: " + e.getMessage());
         }
     }
+
+    @PluginMethod
+    public void isNotificationAccessGranted(PluginCall call) {
+        try {
+            boolean granted = MarvoNotificationListener.isNotificationAccessGranted(getContext());
+            JSObject res = new JSObject();
+            res.put("granted", granted);
+            call.resolve(res);
+        } catch (Exception e) {
+            call.reject("Error checking notification access: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void getRecentNotifications(PluginCall call) {
+        try {
+            int limit = call.getInt("limit", 10);
+            String summary = MarvoNotificationListener.getFormattedRecentSummary(limit);
+            JSObject res = new JSObject();
+            res.put("summary", summary);
+            res.put("hasNotifications", !summary.isEmpty());
+            call.resolve(res);
+        } catch (Exception e) {
+            call.reject("Error fetching notifications: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void openNotificationListenerSettings(PluginCall call) {
+        try {
+            Context context = getContext();
+            Intent intent = new Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            context.startActivity(intent);
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("Error opening settings: " + e.getMessage());
+        }
+    }
 }
 
