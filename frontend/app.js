@@ -74,6 +74,10 @@ const DOM = {
   btnOpenStorageFolder: $('#btnOpenStorageFolder'),
   downloadsHistoryList: $('#downloadsHistoryList'),
   navDownloads:       $('#navDownloads'),
+  navAiControlCenter: $('#navAiControlCenter'),
+  btnOpenAiControlCenterBadge: $('#btnOpenAiControlCenterBadge'),
+  btnAppAiControlCenter: $('#btnAppAiControlCenter'),
+  btnLaunchAiControlCenter: $('#btnLaunchAiControlCenter'),
   eyeColorSection:    $('#eyeColorSection'),
   characterThemesGrid: $('#characterThemesGrid'),
   topbarTitle:        $('#topbarTitle'),
@@ -3555,6 +3559,32 @@ DOM.navDownloads?.addEventListener('click', () => {
   openSettingsModal('downloads');
 });
 
+// AI Control Center Open Handlers
+DOM.navAiControlCenter?.addEventListener('click', () => {
+  closeSidebar();
+  if (window.AiControlCenter) {
+    window.AiControlCenter.open();
+  }
+});
+DOM.btnOpenAiControlCenterBadge?.addEventListener('click', () => {
+  closeSidebar();
+  if (window.AiControlCenter) {
+    window.AiControlCenter.open();
+  }
+});
+DOM.btnAppAiControlCenter?.addEventListener('click', () => {
+  closeAllDropdowns();
+  if (window.AiControlCenter) {
+    window.AiControlCenter.open();
+  }
+});
+DOM.btnLaunchAiControlCenter?.addEventListener('click', () => {
+  closeSettingsModal();
+  if (window.AiControlCenter) {
+    window.AiControlCenter.open();
+  }
+});
+
 // Settings Tab Bar Navigation
 DOM.settingsTabBar?.addEventListener('click', (e) => {
   const btn = e.target.closest('.settings-tab-btn');
@@ -4607,7 +4637,18 @@ async function initTrafficPoliceAndModelUI() {
       window.StudyModeUI.enter();
     }
   });
+
+  // AI Control Center Hub Initializer
+  if (window.AiControlCenter && typeof window.AiControlCenter.init === 'function') {
+    window.AiControlCenter.init();
+  }
 }
+
+window.openAiControlCenter = function() {
+  if (window.AiControlCenter) {
+    window.AiControlCenter.open();
+  }
+};
 
 initApp();
 
@@ -4618,6 +4659,7 @@ window.marvo = {
   setTheme,
   playSpeech,
   showToast,
+  openAiControlCenter: () => window.openAiControlCenter(),
   openProjectModal,
   saveActiveProject,
   clearActiveProject,

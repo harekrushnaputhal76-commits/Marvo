@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 /**
@@ -49,6 +50,10 @@ public class OfflineBrainDownloader {
 
     // Supported Model Types
     public static final String TYPE_LLM = "llm";
+    public static final String TYPE_PHI3 = "phi-3-mini";
+    public static final String TYPE_GEMMA = "gemma-2b";
+    public static final String TYPE_LLAMA = "llama-3-8b";
+    public static final String TYPE_QWEN = "qwen-2.5-3b";
     public static final String TYPE_STT = "stt";
     public static final String TYPE_TTS = "tts";
 
@@ -81,24 +86,56 @@ public class OfflineBrainDownloader {
             TYPE_LLM,
             DEFAULT_MODEL_NAME,
             DEFAULT_MODEL_URL,
-            500L * 1024L * 1024L, // min 500MB
-            2200L * 1024L * 1024L, // ~2.2GB
+            500L * 1024L * 1024L,
+            2200L * 1024L * 1024L,
             "Phi-3 Mini 4K Instruct"
+        ));
+        specs.put(TYPE_PHI3, new ModelSpec(
+            TYPE_PHI3,
+            "phi-3-mini-4k-instruct-q4.gguf",
+            "https://huggingface.co/bartowski/Phi-3-mini-4k-instruct-GGUF/resolve/main/Phi-3-mini-4k-instruct-Q4_K_M.gguf",
+            500L * 1024L * 1024L,
+            2200L * 1024L * 1024L,
+            "Phi-3 Mini 4K Instruct (Microsoft)"
+        ));
+        specs.put(TYPE_GEMMA, new ModelSpec(
+            TYPE_GEMMA,
+            "gemma-2b-it-cpu.gguf",
+            "https://huggingface.co/google/gemma-2b-it-GGUF/resolve/main/2b_it_v2.gguf",
+            300L * 1024L * 1024L,
+            1500L * 1024L * 1024L,
+            "Gemma 2B IT (Google)"
+        ));
+        specs.put(TYPE_LLAMA, new ModelSpec(
+            TYPE_LLAMA,
+            "llama-3-8b-instruct.gguf",
+            "https://huggingface.co/QuantFactory/Meta-Llama-3-8B-Instruct-GGUF/resolve/main/Meta-Llama-3-8B-Instruct.Q4_K_M.gguf",
+            800L * 1024L * 1024L,
+            4300L * 1024L * 1024L,
+            "Llama 3 8B Instruct (Meta)"
+        ));
+        specs.put(TYPE_QWEN, new ModelSpec(
+            TYPE_QWEN,
+            "qwen-2.5-3b-instruct.gguf",
+            "https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/resolve/main/qwen2.5-3b-instruct-q4_k_m.gguf",
+            400L * 1024L * 1024L,
+            2000L * 1024L * 1024L,
+            "Qwen 2.5 3B Instruct (Alibaba)"
         ));
         specs.put(TYPE_STT, new ModelSpec(
             TYPE_STT,
             "whisper-tiny-en.bin",
             "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin",
-            50L * 1024L * 1024L, // min 50MB
-            151338400L, // ~150MB
+            50L * 1024L * 1024L,
+            151338400L,
             "Whisper Tiny Speech Recognition"
         ));
         specs.put(TYPE_TTS, new ModelSpec(
             TYPE_TTS,
             "vits-piper-en.onnx",
             "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx",
-            20L * 1024L * 1024L, // min 20MB
-            63800000L, // ~63.8MB
+            20L * 1024L * 1024L,
+            63800000L,
             "Piper Neural Voice Synthesis"
         ));
         MODEL_SPECS = Collections.unmodifiableMap(specs);
@@ -111,6 +148,10 @@ public class OfflineBrainDownloader {
         volatile long currentDownloadedBytes = 0L;
         volatile long totalBytesExpected = 0L;
         volatile int currentProgressPercent = 0;
+        volatile long lastBytesSample = 0L;
+        volatile long lastTimeSample = 0L;
+        volatile double currentSpeedMBps = 0.0;
+        volatile long estimatedSecondsRemaining = 0L;
         volatile HttpURLConnection activeConnection = null;
         volatile InputStream activeInputStream = null;
         volatile FileOutputStream activeOutputStream = null;
@@ -676,6 +717,35 @@ public class OfflineBrainDownloader {
             long currentDl = state.isDownloading ? state.currentDownloadedBytes : partSize;
             int progress = (int) Math.min(99, total > 0 ? (currentDl * 100) / total : 0);
 
+            File targetFile = getModelFile(context, type);
+            String storagePath = (targetFile != null) ? targetFile.getAbsolutePath() : "";
+            res.put("storagePath", storagePath);
+
+            long now = System.currentTimeMillis();
+            if (state.lastTimeSample == 0L) {
+                state.lastTimeSample = now;
+                state.lastBytesSample = currentDl;
+            } else {
+                long timeDiff = now - state.lastTimeSample;
+                if (timeDiff >= 1000) {
+                    long bytesDiff = currentDl - state.lastBytesSample;
+                    if (bytesDiff > 0) {
+                        state.currentSpeedMBps = (double) bytesDiff / (1024.0 * 1024.0) / ((double) timeDiff / 1000.0);
+                        long bytesLeft = Math.max(0L, total - currentDl);
+                        if (state.currentSpeedMBps > 0.02) {
+                            state.estimatedSecondsRemaining = (long) (bytesLeft / (state.currentSpeedMBps * 1024.0 * 1024.0));
+                        }
+                    } else if ("paused".equals(status) || "idle".equals(status) || "completed".equals(status)) {
+                        state.currentSpeedMBps = 0.0;
+                        state.estimatedSecondsRemaining = 0L;
+                    }
+                    state.lastBytesSample = currentDl;
+                    state.lastTimeSample = now;
+                }
+            }
+
+            res.put("speedMBps", Math.round(state.currentSpeedMBps * 100.0) / 100.0);
+            res.put("etaSeconds", state.estimatedSecondsRemaining);
             res.put("status", status);
             res.put("progress", progress);
             res.put("isReady", false);
@@ -690,6 +760,9 @@ public class OfflineBrainDownloader {
                 res.put("isReady", false);
                 res.put("downloadedBytes", 0);
                 res.put("totalBytes", spec.defaultTotalBytes);
+                res.put("speedMBps", 0.0);
+                res.put("etaSeconds", 0L);
+                res.put("storagePath", "");
             } catch (Exception ignored) {}
             return res;
         }
@@ -703,12 +776,99 @@ public class OfflineBrainDownloader {
         JSONObject res = new JSONObject();
         try {
             res.put(TYPE_LLM, getDownloadProgress(context, TYPE_LLM));
+            res.put(TYPE_PHI3, getDownloadProgress(context, TYPE_PHI3));
+            res.put(TYPE_GEMMA, getDownloadProgress(context, TYPE_GEMMA));
+            res.put(TYPE_LLAMA, getDownloadProgress(context, TYPE_LLAMA));
+            res.put(TYPE_QWEN, getDownloadProgress(context, TYPE_QWEN));
             res.put(TYPE_STT, getDownloadProgress(context, TYPE_STT));
             res.put(TYPE_TTS, getDownloadProgress(context, TYPE_TTS));
         } catch (Exception e) {
             Log.e(TAG, "getAllModelsProgress error: " + e.getMessage());
         }
         return res;
+    }
+
+    public static final String KEY_ACTIVE_OFFLINE_MODEL = "marvo_active_offline_model";
+
+    public void setActiveModel(Context context, String modelType) {
+        if (context == null) return;
+        getPrefs(context).edit().putString(KEY_ACTIVE_OFFLINE_MODEL, modelType != null ? modelType : TYPE_LLM).apply();
+    }
+
+    public String getActiveModel(Context context) {
+        if (context == null) return TYPE_LLM;
+        return getPrefs(context).getString(KEY_ACTIVE_OFFLINE_MODEL, TYPE_LLM);
+    }
+
+    public synchronized boolean deleteModel(Context context, String type) {
+        if (context == null) return false;
+        try {
+            pauseDownload(context, type);
+            File modelFile = getModelFile(context, type);
+            if (modelFile != null && modelFile.exists()) {
+                modelFile.delete();
+            }
+            File partFile = getPartFile(context, type);
+            if (partFile != null && partFile.exists()) {
+                partFile.delete();
+            }
+            getPrefs(context).edit()
+                .putString(getStatusKey(type), "idle")
+                .putLong(getDownloadedBytesKey(type), 0L)
+                .apply();
+            DownloadTaskState state = getState(type);
+            state.currentDownloadedBytes = 0L;
+            state.currentProgressPercent = 0;
+            state.currentSpeedMBps = 0.0;
+            state.estimatedSecondsRemaining = 0L;
+            return true;
+        } catch (Exception e) {
+            Log.e(TAG, "Error deleting model [" + type + "]: " + e.getMessage());
+            return false;
+        }
+    }
+
+    public JSONArray getAllOfflineModelsList(Context context) {
+        JSONArray arr = new JSONArray();
+        String activeModel = getActiveModel(context);
+
+        String[] modelKeys = new String[] {
+            TYPE_PHI3,
+            TYPE_GEMMA,
+            TYPE_LLAMA,
+            TYPE_QWEN,
+            TYPE_STT,
+            TYPE_TTS
+        };
+
+        for (String key : modelKeys) {
+            ModelSpec spec = getSpec(key);
+            File f = getModelFile(context, key);
+            boolean isDownloaded = isModelDownloaded(context, key);
+            long fileSizeBytes = (f != null && f.exists()) ? f.length() : spec.defaultTotalBytes;
+            JSONObject progress = getDownloadProgress(context, key);
+
+            JSONObject item = new JSONObject();
+            try {
+                item.put("id", key);
+                item.put("name", spec.displayName);
+                item.put("fileName", spec.fileName);
+                item.put("url", spec.url);
+                item.put("sizeBytes", fileSizeBytes);
+                item.put("sizeFormatted", String.format(java.util.Locale.US, "%.1f GB", (double) fileSizeBytes / (1024.0 * 1024.0 * 1024.0)));
+                item.put("storagePath", f != null ? f.getAbsolutePath() : "");
+                item.put("isDownloaded", isDownloaded);
+                item.put("isActive", key.equalsIgnoreCase(activeModel) || (TYPE_PHI3.equals(key) && TYPE_LLM.equals(activeModel)));
+                item.put("status", progress.optString("status", isDownloaded ? "completed" : "idle"));
+                item.put("progress", progress.optInt("progress", isDownloaded ? 100 : 0));
+                item.put("speedMBps", progress.optDouble("speedMBps", 0.0));
+                item.put("etaSeconds", progress.optLong("etaSeconds", 0L));
+                item.put("downloadedBytes", progress.optLong("downloadedBytes", isDownloaded ? fileSizeBytes : 0L));
+                item.put("totalBytes", progress.optLong("totalBytes", fileSizeBytes));
+                arr.put(item);
+            } catch (Exception ignored) {}
+        }
+        return arr;
     }
 
     public static void startForegroundDownloadService(Context context, String modelType, boolean allowMetered) {

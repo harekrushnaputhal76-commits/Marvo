@@ -133,6 +133,11 @@ ${sourceText}`;
         <div class="flashcard-deck-view">
           <div class="flashcard-deck-header">
             <span class="flashcard-badge">${card.topic || 'Revision'}</span>
+            <!-- Hands-Free Voice Indicator Chip -->
+            <button class="fc-voice-chip active" id="fcVoiceIndicator" title="Hands-Free Voice Active (Say 'Flip', 'Next', 'Back')">
+              <span class="fc-voice-dot"></span>
+              <span>Voice: "Flip" / "Next"</span>
+            </button>
             <div class="flashcard-progress-wrap">
               <span class="flashcard-counter">Card ${this.currentIndex + 1} of ${total}</span>
               <div class="flashcard-progress-bar">
@@ -142,7 +147,7 @@ ${sourceText}`;
           </div>
 
           <!-- 3D Card Scene -->
-          <div class="flashcard-scene" id="flashcardScene" title="Click or tap to flip">
+          <div class="flashcard-scene" id="flashcardScene" title="Click, tap, or say 'Flip' to reveal answer">
             <div class="flashcard-flipper ${this.isFlipped ? 'flipped' : ''}" id="flashcardFlipper">
               <!-- FRONT FACE -->
               <div class="flashcard-face flashcard-front">
@@ -150,7 +155,7 @@ ${sourceText}`;
                 <div class="face-content">${renderMath(card.front)}</div>
                 <div class="face-tap-hint">
                   <svg viewBox="0 0 24 24" width="14" height="14"><path d="M7 10l5 5 5-5z" fill="currentColor"/></svg>
-                  Tap to Reveal Answer
+                  Tap or Say "Flip" to Reveal Answer
                 </div>
               </div>
 
@@ -160,7 +165,7 @@ ${sourceText}`;
                 <div class="face-content">${renderMath(card.back)}</div>
                 <div class="face-tap-hint">
                   <svg viewBox="0 0 24 24" width="14" height="14"><path d="M7 14l5-5 5 5z" fill="currentColor"/></svg>
-                  Tap to Flip Back
+                  Tap or Say "Flip" to Flip Back
                 </div>
               </div>
             </div>
@@ -196,6 +201,17 @@ ${sourceText}`;
 
       const btnNext = document.getElementById('btnFcNext');
       if (btnNext) btnNext.onclick = () => this.nextCard();
+
+      const voiceChip = document.getElementById('fcVoiceIndicator');
+      if (voiceChip) {
+        voiceChip.onclick = () => {
+          if (this.isVoiceActive) this.stopVoiceListener();
+          else this.startVoiceListener();
+        };
+      }
+
+      // Automatically engage low-power offline voice commands
+      this.startVoiceListener();
     },
 
     toggleFlip() {
@@ -219,6 +235,101 @@ ${sourceText}`;
         this.currentIndex--;
         this.isFlipped = false;
         this.render();
+      }
+    },
+
+    /* ═══════════ PHASE 3: HANDS-FREE VOICE FLASHCARDS ═══════════ */
+    voiceRecognition: null,
+    isVoiceActive: false,
+
+    startVoiceListener() {
+      if (this.isVoiceActive) return;
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        console.warn('[FlashcardEngine] SpeechRecognition API not supported on this browser');
+        return;
+      }
+
+      try {
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = false;
+        recognition.lang = 'en-US';
+
+        recognition.onstart = () => {
+          this.isVoiceActive = true;
+          this.updateVoiceBadge(true);
+          console.log('[FlashcardEngine] Hands-Free Voice Listener active. Say "Flip", "Next", "Back".');
+        };
+
+        recognition.onresult = (event) => {
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+              const transcript = event.results[i][0].transcript.trim().toLowerCase();
+              console.log('[FlashcardEngine] Voice keyword heard:', transcript);
+
+              if (transcript.includes('flip') || transcript.includes('answer') || transcript.includes('turn') || transcript.includes('show') || transcript.includes('reveal')) {
+                this.toggleFlip();
+                if (window.showToast) window.showToast('Voice: Card Flipped');
+              } else if (transcript.includes('next') || transcript.includes('forward') || transcript.includes('skip') || transcript.includes('ahead')) {
+                this.nextCard();
+                if (window.showToast) window.showToast('Voice: Next Card');
+              } else if (transcript.includes('back') || transcript.includes('previous') || transcript.includes('prev')) {
+                this.prevCard();
+                if (window.showToast) window.showToast('Voice: Previous Card');
+              }
+            }
+          }
+        };
+
+        recognition.onerror = (err) => {
+          console.warn('[FlashcardEngine] Voice recognition warning:', err.error);
+          if (err.error === 'not-allowed' || err.error === 'service-not-allowed') {
+            this.stopVoiceListener();
+          }
+        };
+
+        recognition.onend = () => {
+          // Restart if still active and cards are mounted
+          if (this.isVoiceActive && this.currentCards && this.currentCards.length > 0) {
+            try {
+              recognition.start();
+            } catch (e) {
+              this.isVoiceActive = false;
+              this.updateVoiceBadge(false);
+            }
+          } else {
+            this.isVoiceActive = false;
+            this.updateVoiceBadge(false);
+          }
+        };
+
+        recognition.start();
+        this.voiceRecognition = recognition;
+      } catch (err) {
+        console.warn('[FlashcardEngine] Failed to initialize voice listener:', err);
+      }
+    },
+
+    stopVoiceListener() {
+      this.isVoiceActive = false;
+      if (this.voiceRecognition) {
+        try {
+          this.voiceRecognition.abort();
+        } catch (e) {}
+        this.voiceRecognition = null;
+      }
+      this.updateVoiceBadge(false);
+      console.log('[FlashcardEngine] Hands-Free Voice Listener stopped (Traffic Police Deep Sleep enforced).');
+    },
+
+    updateVoiceBadge(active) {
+      const chip = document.getElementById('fcVoiceIndicator');
+      if (chip) {
+        chip.classList.toggle('active', active);
+        chip.innerHTML = active
+          ? `<span class="fc-voice-dot"></span> <span>Voice: "Flip" / "Next"</span>`
+          : `<span class="fc-voice-dot off"></span> <span>Voice Muted</span>`;
       }
     }
   };

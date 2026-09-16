@@ -63,8 +63,13 @@ public class OfflineBrainManager {
         return state;
     }
 
+    public String getActiveModelKey() {
+        return OfflineBrainDownloader.getInstance().getActiveModel(context);
+    }
+
     public boolean isModelReady() {
-        return OfflineBrainDownloader.getInstance().isModelDownloaded(context, OfflineBrainDownloader.TYPE_LLM);
+        String activeKey = getActiveModelKey();
+        return OfflineBrainDownloader.getInstance().isModelDownloaded(context, activeKey);
     }
 
     public boolean isSttModelReady() {
@@ -76,7 +81,8 @@ public class OfflineBrainManager {
     }
 
     public File getModelFile() {
-        return OfflineBrainDownloader.getInstance().getModelFile(context, OfflineBrainDownloader.TYPE_LLM);
+        String activeKey = getActiveModelKey();
+        return OfflineBrainDownloader.getInstance().getModelFile(context, activeKey);
     }
 
     public File getSttModelFile() {

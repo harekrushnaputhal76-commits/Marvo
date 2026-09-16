@@ -90,6 +90,12 @@ Be rigorous, precise, and pedagogically clear.`;
             </div>
 
             <div class="study-header-right">
+              <!-- Isolated Focus Mode DND Toggle -->
+              <button id="btnStudyFocusToggle" class="btn-study-focus" title="Toggle Isolated Focus Mode (Do Not Disturb)">
+                <span class="focus-dot"></span>
+                <span id="focusToggleLabel">Focus: OFF</span>
+              </button>
+
               <button id="btnStudyToolsMenu" class="btn-study-tools-menu" title="Learning Tools">
                 <span>Tools</span>
                 <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="19" cy="12" r="1.5" fill="currentColor"/><circle cx="5" cy="12" r="1.5" fill="currentColor"/></svg>
@@ -107,6 +113,9 @@ Be rigorous, precise, and pedagogically clear.`;
                 </button>
                 <button class="study-tool-item" id="toolOcrMode">
                   <span>📷</span> <span>On-Device Book OCR</span>
+                </button>
+                <button class="study-tool-item" id="toolControlCenter">
+                  <span>🎛️</span> <span>AI Control Center</span>
                 </button>
               </div>
             </div>
@@ -213,10 +222,13 @@ Be rigorous, precise, and pedagogically clear.`;
         tierSwitcher: document.getElementById('studyTierSwitcher'),
         btnToolsMenu: document.getElementById('btnStudyToolsMenu'),
         toolsDropdown: document.getElementById('studyToolsDropdown'),
+        btnFocusToggle: document.getElementById('btnStudyFocusToggle'),
+        focusToggleLabel: document.getElementById('focusToggleLabel'),
         toolChatMode: document.getElementById('toolChatMode'),
         toolFlashcardMode: document.getElementById('toolFlashcardMode'),
         toolQuizMode: document.getElementById('toolQuizMode'),
         toolOcrMode: document.getElementById('toolOcrMode'),
+        toolControlCenter: document.getElementById('toolControlCenter'),
 
         chatView: document.getElementById('studyChatView'),
         messagesList: document.getElementById('studyMessagesList'),
@@ -290,6 +302,21 @@ Be rigorous, precise, and pedagogically clear.`;
       if (this.dom.toolOcrMode) {
         this.dom.toolOcrMode.onclick = () => this.switchTab('ocr');
       }
+      if (this.dom.toolControlCenter) {
+        this.dom.toolControlCenter.onclick = () => {
+          if (this.dom.toolsDropdown) this.dom.toolsDropdown.classList.remove('show');
+          if (window.AiControlCenter) {
+            window.AiControlCenter.open();
+          } else if (window.openAiControlCenter) {
+            window.openAiControlCenter();
+          }
+        };
+      }
+
+      // Isolated Focus Mode Toggle
+      if (this.dom.btnFocusToggle) {
+        this.dom.btnFocusToggle.onclick = () => this.toggleFocusMode();
+      }
 
       // Send chat
       if (this.dom.btnSend) {
@@ -326,6 +353,39 @@ Be rigorous, precise, and pedagogically clear.`;
       }
     },
 
+    isFocusModeEnabled: false,
+
+    async toggleFocusMode(forceState = null) {
+      const newState = (forceState !== null) ? forceState : !this.isFocusModeEnabled;
+      this.isFocusModeEnabled = newState;
+
+      try {
+        if (window.Capacitor?.Plugins?.MarvoNativeBridge?.setIsolatedFocusMode) {
+          const res = await window.Capacitor.Plugins.MarvoNativeBridge.setIsolatedFocusMode({ enabled: newState });
+          if (res && res.needsPermission) {
+            if (window.showToast) window.showToast('Grant "Do Not Disturb" access in Settings to enable Isolated Focus');
+            await window.Capacitor.Plugins.MarvoNativeBridge.openFocusModeSettings();
+            this.isFocusModeEnabled = false;
+          } else if (newState) {
+            if (window.showToast) window.showToast('🔕 Isolated Focus Active: Non-essential alerts silenced');
+          }
+        }
+      } catch (err) {
+        console.warn('[StudyMode] Focus Mode toggle error:', err);
+      }
+
+      this.updateFocusUI();
+    },
+
+    updateFocusUI() {
+      if (this.dom.btnFocusToggle) {
+        this.dom.btnFocusToggle.classList.toggle('active', this.isFocusModeEnabled);
+      }
+      if (this.dom.focusToggleLabel) {
+        this.dom.focusToggleLabel.textContent = this.isFocusModeEnabled ? 'Focus: ON' : 'Focus: OFF';
+      }
+    },
+
     /**
      * 3D Animated Book Entry Sequence
      */
@@ -350,12 +410,23 @@ Be rigorous, precise, and pedagogically clear.`;
       }, 1400);
 
       this.switchTab('chat');
+
+      // Automatically engage Isolated Focus Mode
+      this.toggleFocusMode(true);
     },
 
     exit() {
       this.isOpen = false;
       if (this.dom.container) {
         this.dom.container.classList.remove('active');
+      }
+
+      // Restore normal notification volume & settings
+      this.toggleFocusMode(false);
+
+      // Immediately terminate hands-free microphone listening (Traffic Police 4 Deep Sleep)
+      if (window.FlashcardEngine) {
+        window.FlashcardEngine.stopVoiceListener();
       }
     },
 
@@ -376,9 +447,21 @@ Be rigorous, precise, and pedagogically clear.`;
       };
       if (subHeader) subHeader.textContent = titles[tab] || 'Study Mode';
 
-      if (tab === 'flashcards' && window.FlashcardEngine && window.FlashcardEngine.currentCards.length === 0) {
-        window.FlashcardEngine.render();
+      if (tab === 'flashcards') {
+        if (window.FlashcardEngine) {
+          if (window.FlashcardEngine.currentCards.length === 0) {
+            window.FlashcardEngine.render();
+          } else {
+            window.FlashcardEngine.startVoiceListener();
+          }
+        }
+      } else {
+        // Automatically mute hands-free voice listener when leaving flashcards (Traffic Police 4)
+        if (window.FlashcardEngine) {
+          window.FlashcardEngine.stopVoiceListener();
+        }
       }
+
       if (tab === 'quiz' && window.QuizEngine && window.QuizEngine.questions.length === 0) {
         window.QuizEngine.render();
       }

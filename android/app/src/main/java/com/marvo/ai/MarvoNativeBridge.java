@@ -1,9 +1,12 @@
 package com.marvo.ai;
 
+import android.app.NotificationManager;
 import android.content.Context;
 import android.content.Intent;
 import android.media.MediaScannerConnection;
+import android.os.Build;
 import android.os.Environment;
+import android.provider.Settings;
 import android.util.Base64;
 import android.util.Log;
 import com.getcapacitor.JSObject;
@@ -605,6 +608,186 @@ public class MarvoNativeBridge extends Plugin {
         JSObject res = new JSObject();
         res.put("text", "Textbook Document: OCR scan completed.");
         call.resolve(res);
+    }
+
+    @PluginMethod
+    public void listOfflineModels(PluginCall call) {
+        try {
+            Context context = getContext();
+            JSONArray models = OfflineBrainDownloader.getInstance().getAllOfflineModelsList(context);
+            JSObject res = new JSObject();
+            res.put("models", models);
+            res.put("activeModel", OfflineBrainDownloader.getInstance().getActiveModel(context));
+            call.resolve(res);
+        } catch (Exception e) {
+            Log.e(TAG, "Error listing offline models: " + e.getMessage(), e);
+            call.reject("Failed to list models: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void startDownloadModel(PluginCall call) {
+        try {
+            Context context = getContext();
+            String modelType = call.getString("modelType", OfflineBrainDownloader.TYPE_LLM);
+            boolean allowMetered = call.getBoolean("allowMetered", true);
+            OfflineBrainDownloader.startForegroundDownloadService(context, modelType, allowMetered);
+            JSObject res = new JSObject();
+            res.put("started", true);
+            res.put("modelType", modelType);
+            call.resolve(res);
+        } catch (Exception e) {
+            Log.e(TAG, "Error starting model download: " + e.getMessage(), e);
+            call.reject("Failed to start download: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void pauseDownloadModel(PluginCall call) {
+        try {
+            Context context = getContext();
+            String modelType = call.getString("modelType", OfflineBrainDownloader.TYPE_LLM);
+            OfflineBrainDownloader.getInstance().pauseDownload(context, modelType);
+            JSObject res = new JSObject();
+            res.put("paused", true);
+            res.put("modelType", modelType);
+            call.resolve(res);
+        } catch (Exception e) {
+            call.reject("Failed to pause download: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void cancelDownloadModel(PluginCall call) {
+        try {
+            Context context = getContext();
+            String modelType = call.getString("modelType", OfflineBrainDownloader.TYPE_LLM);
+            OfflineBrainDownloader.getInstance().cancelDownload(context, modelType);
+            JSObject res = new JSObject();
+            res.put("cancelled", true);
+            res.put("modelType", modelType);
+            call.resolve(res);
+        } catch (Exception e) {
+            call.reject("Failed to cancel download: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void deleteOfflineModel(PluginCall call) {
+        try {
+            Context context = getContext();
+            String modelType = call.getString("modelType");
+            if (modelType == null || modelType.trim().isEmpty()) {
+                call.reject("Model type cannot be empty");
+                return;
+            }
+            boolean deleted = OfflineBrainDownloader.getInstance().deleteModel(context, modelType);
+            JSObject res = new JSObject();
+            res.put("deleted", deleted);
+            res.put("modelType", modelType);
+            call.resolve(res);
+        } catch (Exception e) {
+            call.reject("Failed to delete model: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void setActiveOfflineModel(PluginCall call) {
+        try {
+            Context context = getContext();
+            String modelType = call.getString("modelType");
+            if (modelType != null && !modelType.trim().isEmpty()) {
+                OfflineBrainDownloader.getInstance().setActiveModel(context, modelType);
+            }
+            JSObject res = new JSObject();
+            res.put("activeModel", OfflineBrainDownloader.getInstance().getActiveModel(context));
+            call.resolve(res);
+        } catch (Exception e) {
+            call.reject("Failed to set active model: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void setIsolatedFocusMode(PluginCall call) {
+        try {
+            Context context = getContext();
+            NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+            if (nm == null) {
+                call.reject("NotificationManager unavailable");
+                return;
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                if (!nm.isNotificationPolicyAccessGranted()) {
+                    JSObject res = new JSObject();
+                    res.put("success", false);
+                    res.put("needsPermission", true);
+                    res.put("enabled", false);
+                    call.resolve(res);
+                    return;
+                }
+                boolean enable = call.getBoolean("enabled", true);
+                if (enable) {
+                    nm.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_PRIORITY);
+                } else {
+                    nm.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL);
+                }
+                JSObject res = new JSObject();
+                res.put("success", true);
+                res.put("needsPermission", false);
+                res.put("enabled", enable);
+                call.resolve(res);
+            } else {
+                JSObject res = new JSObject();
+                res.put("success", true);
+                res.put("needsPermission", false);
+                res.put("enabled", call.getBoolean("enabled", true));
+                call.resolve(res);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error in setIsolatedFocusMode: " + e.getMessage(), e);
+            call.reject("Failed to toggle Isolated Focus Mode: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void checkFocusModeStatus(PluginCall call) {
+        try {
+            Context context = getContext();
+            NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+            boolean granted = false;
+            boolean isFocused = false;
+            if (nm != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                granted = nm.isNotificationPolicyAccessGranted();
+                int filter = nm.getCurrentInterruptionFilter();
+                isFocused = (filter == NotificationManager.INTERRUPTION_FILTER_PRIORITY ||
+                             filter == NotificationManager.INTERRUPTION_FILTER_ALARMS ||
+                             filter == NotificationManager.INTERRUPTION_FILTER_NONE);
+            }
+            JSObject res = new JSObject();
+            res.put("isGranted", granted);
+            res.put("isFocused", isFocused);
+            call.resolve(res);
+        } catch (Exception e) {
+            call.reject("Error checking focus mode status: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void openFocusModeSettings(PluginCall call) {
+        try {
+            Context context = getContext();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                Intent intent = new Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                context.startActivity(intent);
+                call.resolve();
+            } else {
+                call.resolve();
+            }
+        } catch (Exception e) {
+            call.reject("Error opening notification policy settings: " + e.getMessage());
+        }
     }
 }
 
