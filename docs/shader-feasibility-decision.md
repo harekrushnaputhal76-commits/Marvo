@@ -34,3 +34,4 @@
   - Preserves 100% stable, pure-CSS/SVG hardware-composited rendering pipeline.
   - Guarantees zero WebGL context loss errors or battery degradation during background wake-word listening.
   - Group B roadmap completes cleanly without introducing unnecessary graphics dependencies.
+

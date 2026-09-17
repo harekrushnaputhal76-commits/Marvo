@@ -3205,6 +3205,11 @@ class DynamicIslandManager {
     if (!el) return;
     el.classList.remove('action-intent-visible');
     if (restoreIdle) {
+      el.classList.remove('island-open');
+      el.classList.add('state-idle');
+      this.applyShape('var(--marvo-geo-idle-diameter)', 'var(--marvo-geo-height-idle)', {
+        radius: 'var(--marvo-geo-radius-idle)'
+      });
       if (this.state === 'idle') {
         el.classList.remove('island-open');
         el.classList.add('state-idle');
@@ -3259,6 +3264,11 @@ class DynamicIslandManager {
     if (!el) return;
     el.classList.remove('info-intent-visible');
     if (restoreIdle) {
+      el.classList.remove('island-open');
+      el.classList.add('state-idle');
+      this.applyShape('var(--marvo-geo-idle-diameter)', 'var(--marvo-geo-height-idle)', {
+        radius: 'var(--marvo-geo-radius-idle)'
+      });
       if (this.state === 'idle') {
         el.classList.remove('island-open');
         el.classList.add('state-idle');
