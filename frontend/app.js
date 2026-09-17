@@ -3107,13 +3107,17 @@ class DynamicIslandManager {
     return this.appRoot;
   }
 
-  showActionIntentCard({ intent_type, icon, text } = {}) {
+  showActionIntentCard({ intent_type, icon, text, response_text } = {}) {
     const el = this.getIsland();
     if (!el || !this.actionIntentCard) return false;
 
     this.hideActionIntentCard({ restoreIdle: false });
-    if (icon !== undefined && this.actionIntentIcon) this.actionIntentIcon.textContent = String(icon);
-    if (text !== undefined && this.actionIntentText) this.actionIntentText.textContent = String(text);
+    const resolvedText = text !== undefined ? text : response_text;
+    const displayText = (resolvedText !== undefined && resolvedText !== '') ? String(resolvedText) : 'Awaiting live response wiring';
+    const displayIcon = (icon !== undefined && icon !== '') ? String(icon) : '…';
+
+    if (this.actionIntentIcon) this.actionIntentIcon.textContent = displayIcon;
+    if (this.actionIntentText) this.actionIntentText.textContent = displayText;
     this.actionIntentCard.dataset.intentType = intent_type || '';
     this.actionIntentCard.hidden = false;
     el.classList.add('action-intent-visible');
@@ -3147,14 +3151,19 @@ class DynamicIslandManager {
     }
   }
 
-  showInfoIntentCard({ intent_type, icon, title, body } = {}) {
+  showInfoIntentCard({ intent_type, icon, title, body, response_text } = {}) {
     const el = this.getIsland();
     if (!el || !this.infoIntentCard) return false;
 
     this.hideInfoIntentCard({ restoreIdle: false });
-    if (icon !== undefined && this.infoIntentIcon) this.infoIntentIcon.textContent = String(icon);
-    if (title !== undefined && this.infoIntentTitle) this.infoIntentTitle.textContent = String(title);
-    if (body !== undefined && this.infoIntentBody) this.infoIntentBody.textContent = String(body);
+    const resolvedBody = body !== undefined ? body : response_text;
+    const displayTitle = (title !== undefined && title !== '') ? String(title) : 'Awaiting Live Routing';
+    const displayBody = (resolvedBody !== undefined && resolvedBody !== '') ? String(resolvedBody) : 'Awaiting live response wiring from Group C traffic router.';
+    const displayIcon = (icon !== undefined && icon !== '') ? String(icon) : '…';
+
+    if (this.infoIntentIcon) this.infoIntentIcon.textContent = displayIcon;
+    if (this.infoIntentTitle) this.infoIntentTitle.textContent = displayTitle;
+    if (this.infoIntentBody) this.infoIntentBody.textContent = displayBody;
     this.infoIntentCard.dataset.intentType = intent_type || '';
     this.infoIntentCard.hidden = false;
     el.classList.add('info-intent-visible');
@@ -3449,6 +3458,18 @@ class DynamicIslandManager {
         } else {
           this.close();
         }
+      }
+    }, { passive: true });
+
+    // Tap-outside dismissal pattern: collapses visible intent cards back to idle
+    document.addEventListener('pointerdown', (e) => {
+      const island = this.getIsland();
+      if (!island || island.contains(e.target)) return;
+      if (this.actionIntentTimer) {
+        this.hideActionIntentCard();
+      }
+      if (this.infoIntentTimer) {
+        this.hideInfoIntentCard();
       }
     }, { passive: true });
   }
