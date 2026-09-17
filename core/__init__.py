@@ -36,6 +36,7 @@ from core.response_schema import (
 # ── Router: Offline-first router (Node 1) ──────────────────────────
 from core.offline_router import (
     route_offline,
+    route_offline_async,
     query_local_knowledge_base,
 )
 
@@ -63,7 +64,7 @@ from core.key_pool import (
     DEFAULT_FAILING_THRESHOLD,
 )
 
-# ── Traffic Police: Unified Master Router ──────────────────────────
+# ── Master Unified Traffic Police (C11) ────────────────────────────
 from core.traffic_police import (
     route_traffic,
     route_traffic_async,
@@ -74,8 +75,6 @@ __version__ = "1.0.0"
 __author__  = "Marvo AI"
 __all__     = [
     "think_and_respond",
-    "route_traffic",
-    "route_traffic_async",
     "speak",
     "listen",
     "set_voice_rate",
@@ -92,6 +91,7 @@ __all__     = [
     "IntentPayload",
     "RouterResponse",
     "route_offline",
+    "route_offline_async",
     "query_local_knowledge_base",
     "route_online",
     "route_online_async",
@@ -109,5 +109,9 @@ __all__     = [
     "DEFAULT_RATE_LIMIT_COOLDOWN_SECONDS",
     "DEFAULT_FAILING_COOLDOWN_SECONDS",
     "DEFAULT_FAILING_THRESHOLD",
+    "route_traffic",
+    "route_traffic_async",
 ]
+
+
 

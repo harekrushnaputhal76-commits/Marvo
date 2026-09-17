@@ -159,6 +159,24 @@ class TestOfflineRouter(unittest.TestCase):
                 f"Violation: {forbidden} is imported from in offline_router.py!",
             )
 
+    def test_offline_async_execution(self):
+        """route_offline_async returns a Future that resolves non-blocking on worker thread."""
+        from core.offline_router import route_offline_async
+        future = route_offline_async("who are you")
+        self.assertFalse(future.done() and not future.running())
+        res = future.result(timeout=2.0)
+        self.assertTrue(res.success)
+        self.assertEqual(res.source, ResponseSource.OFFLINE)
+        self.assertEqual(res.intent_type, ResponseIntentType.CONVERSATION)
+
+    def test_offline_kb_caching(self):
+        """Knowledge base caching returns identical results rapidly across multiple calls."""
+        res1 = route_offline("who are you")
+        res2 = route_offline("who are you")
+        self.assertEqual(res1.response_text, res2.response_text)
+        self.assertEqual(res1.source, res2.source)
+
+
 
 def run_standalone_suite() -> int:
     """Executes the test suite directly with formatted reporting."""

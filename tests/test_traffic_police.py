@@ -209,6 +209,31 @@ class TestTrafficPolice(unittest.TestCase):
         self.assertTrue(res.success)
         self.assertEqual(res.source, ResponseSource.OFFLINE)
 
+    def test_concurrent_non_blocking_execution(self):
+        """Multiple concurrent requests execute in parallel without deadlock or thread starvation."""
+        queries = ["who are you", "open camera", "hello", "set alarm for 7am", "tell me a joke"]
+        futures = [route_traffic_async(q) for q in queries]
+        
+        # All futures must resolve within a tight timeout (concurrency guarantee)
+        results = [f.result(timeout=3.0) for f in futures]
+        self.assertEqual(len(results), 5)
+        for res in results:
+            self.assertTrue(res.success)
+            self.assertEqual(res.source, ResponseSource.OFFLINE)
+
+    def test_server_api_chat_endpoint_contract(self):
+        """Test that Flask /api/chat endpoint processes requests and returns full C4 response."""
+        from server.server import app
+        with app.test_client() as client:
+            resp = client.post("/api/chat", json={"message": "who are you"})
+            self.assertEqual(resp.status_code, 200)
+            data = resp.get_json()
+            self.assertTrue(data.get("success"))
+            self.assertEqual(data.get("source"), "offline")
+            self.assertEqual(data.get("intent_type"), "CONVERSATION")
+            self.assertIn("Marvo", data.get("response"))
+
+
 
 def run_standalone_suite() -> int:
     """Executes the test suite directly with formatted reporting."""

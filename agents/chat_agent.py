@@ -11,8 +11,12 @@ from typing import Tuple, Dict, Any
 logger = logging.getLogger("marvo.agents.chat")
 
 try:
+    from core.brain import think_and_respond
     from core.traffic_police import route_traffic
 except Exception as err:
+    logger.error(f"Failed to import core.brain in chat_agent: {err}", exc_info=True)
+    def think_and_respond(prompt: str, thinking_mode: str = 'medium', session_id: str = 'default') -> Tuple[str, str]:
+        return "I couldn't access my reasoning core right now.", "state-idle"
     logger.error(f"Failed to import core.traffic_police in chat_agent: {err}", exc_info=True)
     def route_traffic(prompt: str, **kwargs):
         from core.response_schema import RouterResponse, ResponseSource, ResponseIntentType, ErrorCode, ResponseError
@@ -51,5 +55,8 @@ def generate_chat_response(
     out = res.to_dict()
     out["type"] = "text"
     out["session_id"] = session_id
+    out["response"] = res.response_text or (res.error.message if res.error else "")
+    out["state"] = "state-speaking" if res.success else "state-error"
     return out
+
 

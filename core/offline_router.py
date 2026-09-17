@@ -15,6 +15,8 @@ import os
 import re
 import json
 import logging
+import threading
+import concurrent.futures
 from pathlib import Path
 from typing import Optional, Dict, Any, Tuple
 
@@ -37,6 +39,43 @@ _logger = logging.getLogger("marvo.routing.offline")
 # Path to the local knowledge base (custom_qa.json)
 _project_root = Path(__file__).resolve().parent.parent
 DEFAULT_KB_PATH = _project_root / "knowledge_base" / "custom_qa.json"
+
+# In-memory KB cache to prevent blocking file I/O on every request
+_KB_CACHE: Dict[str, Tuple[float, Any]] = {}
+_KB_CACHE_LOCK = threading.Lock()
+
+# Worker thread pool for asynchronous offline routing
+_OFFLINE_EXECUTOR = concurrent.futures.ThreadPoolExecutor(
+    max_workers=2,
+    thread_name_prefix="marvo-offline-worker",
+)
+
+
+def _load_kb_data(kb_path: Path) -> Any:
+    """
+    Load knowledge base data from disk with in-memory caching.
+    Re-reads from disk only if file modification time (mtime) changes.
+    Guarantees thread-safe access without blocking subsequent reads.
+    """
+    if not kb_path.is_file():
+        raise FileNotFoundError(f"Offline knowledge base file not found at: {kb_path}")
+
+    path_str = str(kb_path.resolve())
+    mtime = kb_path.stat().st_mtime
+
+    with _KB_CACHE_LOCK:
+        if path_str in _KB_CACHE:
+            cached_mtime, cached_data = _KB_CACHE[path_str]
+            if cached_mtime == mtime:
+                return cached_data
+
+    with open(kb_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    with _KB_CACHE_LOCK:
+        _KB_CACHE[path_str] = (mtime, data)
+
+    return data
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -68,11 +107,7 @@ def query_local_knowledge_base(query: str, kb_path: Path = DEFAULT_KB_PATH) -> O
     if not cleaned:
         return None
 
-    if not kb_path.is_file():
-        raise FileNotFoundError(f"Offline knowledge base file not found at: {kb_path}")
-
-    with open(kb_path, "r", encoding="utf-8") as f:
-        kb_data = json.load(f)
+    kb_data = _load_kb_data(kb_path)
 
     if not isinstance(kb_data, list):
         raise ValueError(f"Corrupt knowledge base format in {kb_path}: expected list of entries")
@@ -278,3 +313,21 @@ def route_offline(
             details={"query": query, "reason": "kb_miss"},
         ),
     )
+
+
+def route_offline_async(
+    query: str,
+    classification: Optional[ClassificationResult] = None,
+    kb_path: Path = DEFAULT_KB_PATH,
+) -> concurrent.futures.Future:
+    """
+    Non-blocking asynchronous offline routing returning a Future.
+    Offloads CPU/disk processing to the dedicated offline worker pool.
+    """
+    return _OFFLINE_EXECUTOR.submit(
+        route_offline,
+        query=query,
+        classification=classification,
+        kb_path=kb_path,
+    )
+

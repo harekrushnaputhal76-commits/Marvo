@@ -182,6 +182,9 @@ def think_and_respond(
     Maintains backward compatibility with legacy (response_text, state) callers
     while executing the full C5 -> Node 1 / Node 2 / Node 3 cascade with zero bypass paths.
     """
+    if not user_message or not user_message.strip():
+        return ("I didn't catch that. Could you say something?", "state-idle")
+
     from core.traffic_police import route_traffic
 
     res = route_traffic(
@@ -193,3 +196,4 @@ def think_and_respond(
     state = "state-speaking" if res.success else "state-error"
     text = res.response_text or (res.error.message if res.error else "")
     return (text, state)
+

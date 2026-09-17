@@ -35,6 +35,7 @@ import urllib.parse
 try:
     from agents.manager import handle_request
 except Exception as _agent_err:
+    logging.error(f"Failed to import agents.manager: {_agent_err}", exc_info=True)
     try:
         from core.traffic_police import route_traffic
         def handle_request(message, thinking_mode='medium', session_id='default', local_time=None, **kwargs):
@@ -42,6 +43,8 @@ except Exception as _agent_err:
             d = res.to_dict()
             d["type"] = "text"
             d["session_id"] = session_id
+            d["response"] = res.response_text or (res.error.message if res.error else "")
+            d["state"] = "state-speaking" if res.success else "state-error"
             return d
     except Exception:
         from core.response_schema import RouterResponse, ResponseSource, ResponseIntentType, ErrorCode, ResponseError
@@ -59,7 +62,9 @@ except Exception as _agent_err:
             )
             d = err_res.to_dict()
             d["type"] = "text"
-            d["session_id"] = session_id
+            d["session_id"] = session_id or "default"
+            d["response"] = ""
+            d["state"] = "state-error"
             return d
 
 # 2. Voice Module Integration
@@ -295,6 +300,8 @@ def chat_endpoint():
         d = err_res.to_dict()
         d["type"] = "text"
         d["session_id"] = session_id or "default"
+        d["response"] = ""
+        d["state"] = "state-error"
         return jsonify(d), 500
 
 
@@ -393,4 +400,4 @@ def history_endpoint(session_id):
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
