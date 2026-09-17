@@ -23,6 +23,22 @@ from core.classifier import (
     ClassificationResult,
 )
 
+# ── Schema: Authoritative C4 response and error schemas ───────────
+from core.response_schema import (
+    ResponseSource,
+    ResponseIntentType,
+    ErrorCode,
+    ResponseError,
+    IntentPayload,
+    RouterResponse,
+)
+
+# ── Router: Offline-first router (Node 1) ──────────────────────────
+from core.offline_router import (
+    route_offline,
+    query_local_knowledge_base,
+)
+
 # Package-level metadata
 __version__ = "1.0.0"
 __author__  = "Marvo AI"
@@ -38,5 +54,12 @@ __all__     = [
     "RouteCategory",
     "ResponseIntentType",
     "ClassificationResult",
+    "ResponseSource",
+    "ErrorCode",
+    "ResponseError",
+    "IntentPayload",
+    "RouterResponse",
+    "route_offline",
+    "query_local_knowledge_base",
 ]
 

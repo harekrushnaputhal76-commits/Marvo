@@ -149,38 +149,15 @@ def _get_or_create_chat(model_name: str, session_id: str = "default", thinking_m
 # ──────────────────────────────────────────────────────────────────────
 def offline_fallback_response(query: str) -> tuple[str, str]:
     """Search custom_qa.json for a matching local answer."""
-    cleaned = re.sub(r"[^\w\s]", "", query.lower()).strip()
+    cleaned = re.sub(r"[^\w\s]", "", (query or "").lower()).strip()
     if not cleaned:
         return ("I didn't catch that. Say something?", "state-idle")
 
     try:
-        if _KB_PATH.is_file():
-            with open(_KB_PATH, "r", encoding="utf-8") as f:
-                kb_data = json.load(f)
-
-            # 1. Exact or substring match
-            for entry in kb_data:
-                q_raw = entry.get("q", "").lower()
-                q_clean = re.sub(r"[^\w\s]", "", q_raw).strip()
-                if q_clean and (cleaned == q_clean or cleaned in q_clean or q_clean in cleaned):
-                    ans = entry.get("a", "")
-                    if ans:
-                        return (ans, "state-speaking")
-
-            # 2. Token overlap match
-            query_words = set(cleaned.split())
-            best_match = None
-            best_score = 0
-            for entry in kb_data:
-                q_words = set(re.sub(r"[^\w\s]", "", entry.get("q", "").lower()).split())
-                overlap = len(query_words & q_words)
-                if overlap > best_score and overlap >= 1:
-                    best_score = overlap
-                    best_match = entry.get("a", "")
-
-            if best_match and best_score >= 1:
-                return (best_match, "state-speaking")
-
+        from core.offline_router import query_local_knowledge_base
+        ans = query_local_knowledge_base(query, kb_path=_KB_PATH)
+        if ans:
+            return (ans, "state-speaking")
     except Exception as e:
         _logger.error(f"Offline KB read error: {e}")
 
