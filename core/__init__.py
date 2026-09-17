@@ -14,6 +14,15 @@ from core.brain import think_and_respond
 # ── Voice: Offline TTS and STT stubs ────────────────────────────────
 from core.voice import speak, listen, set_voice_rate, set_voice_volume, marvo_voice
 
+# ── Classifier: Fast heuristic intent & routing classifier ─────────
+from core.classifier import (
+    classify_intent,
+    route_query,
+    RouteCategory,
+    ResponseIntentType,
+    ClassificationResult,
+)
+
 # Package-level metadata
 __version__ = "1.0.0"
 __author__  = "Marvo AI"
@@ -24,5 +33,10 @@ __all__     = [
     "set_voice_rate",
     "set_voice_volume",
     "marvo_voice",
+    "classify_intent",
+    "route_query",
+    "RouteCategory",
+    "ResponseIntentType",
+    "ClassificationResult",
 ]
 
