@@ -39,6 +39,16 @@ from core.offline_router import (
     query_local_knowledge_base,
 )
 
+# ── Router: Online escalation router (Node 2) ──────────────────────
+from core.online_router import (
+    route_online,
+    route_online_async,
+    DEFAULT_ONLINE_TIMEOUT_SECONDS,
+    DEFAULT_ONLINE_MODEL,
+    OnlineRequestContext,
+    categorize_online_exception,
+)
+
 # Package-level metadata
 __version__ = "1.0.0"
 __author__  = "Marvo AI"
@@ -61,5 +71,11 @@ __all__     = [
     "RouterResponse",
     "route_offline",
     "query_local_knowledge_base",
+    "route_online",
+    "route_online_async",
+    "DEFAULT_ONLINE_TIMEOUT_SECONDS",
+    "DEFAULT_ONLINE_MODEL",
+    "OnlineRequestContext",
+    "categorize_online_exception",
 ]
 
