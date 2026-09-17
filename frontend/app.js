@@ -3025,6 +3025,35 @@ const VoiceIndicatorState = Object.freeze({
 });
 
 /**
+ * Authoritative Response Intent Types.
+ * Orthogonal response dimension alongside base indicator states.
+ * @readonly
+ * @enum {string}
+ */
+const ResponseIntentType = Object.freeze({
+  ACTION: 'ACTION',
+  INFO: 'INFO',
+  CONVERSATION: 'CONVERSATION',
+  NONE: 'NONE'
+});
+
+/**
+ * Normalize an incoming response intent string to canonical uppercase enum.
+ * Unrecognized or missing values fall back safely to CONVERSATION.
+ * @param {string|null|undefined} intent
+ * @returns {string} Canonical ResponseIntentType
+ */
+function normalizeIntentType(intent) {
+  if (!intent || typeof intent !== 'string') return ResponseIntentType.CONVERSATION;
+  const upper = intent.trim().toUpperCase();
+  if (upper === ResponseIntentType.ACTION) return ResponseIntentType.ACTION;
+  if (upper === ResponseIntentType.INFO) return ResponseIntentType.INFO;
+  if (upper === ResponseIntentType.NONE) return ResponseIntentType.NONE;
+  if (upper === ResponseIntentType.CONVERSATION) return ResponseIntentType.CONVERSATION;
+  return ResponseIntentType.CONVERSATION;
+}
+
+/**
  * Valid Voice Indicator State Transitions.
  * @readonly
  */
@@ -3070,6 +3099,7 @@ class DynamicIslandManager {
     this.errorTimer = null;
     this.actionIntentTimer = null;
     this.infoIntentTimer = null;
+    this.currentIntentType = ResponseIntentType.NONE;
     this.visibilityHandler = null;
     this.subscribers = new Set();
 
@@ -3107,10 +3137,42 @@ class DynamicIslandManager {
     return this.appRoot;
   }
 
+  routeResponseIntent({ intent_type, icon, title, body, text, response_text } = {}) {
+    // Priority 1: Error state always preempts intent cards
+    if (this.state === 'error') {
+      console.warn('[ResponseIntent] Ignored intent routing while indicator is in error state');
+      return false;
+    }
+
+    const canonical = normalizeIntentType(intent_type);
+    this.currentIntentType = canonical;
+
+    if (canonical === ResponseIntentType.ACTION) {
+      return this.showActionIntentCard({ intent_type: canonical, icon, text, response_text });
+    }
+
+    if (canonical === ResponseIntentType.INFO) {
+      return this.showInfoIntentCard({ intent_type: canonical, icon, title, body, response_text });
+    }
+
+    // Fallback: CONVERSATION or NONE (plain conversational capsule)
+    this.hideActionIntentCard({ restoreIdle: false });
+    this.hideInfoIntentCard({ restoreIdle: false });
+
+    if (this.state === 'speaking' || this.state === 'thinking' || this.state === 'listening') {
+      const shape = this.getStateShape(this.state);
+      this.applyShape(shape.width, shape.height, { radius: shape.radius });
+    }
+    return true;
+  }
+
   showActionIntentCard({ intent_type, icon, text, response_text } = {}) {
+    if (this.state === 'error') return false;
     const el = this.getIsland();
     if (!el || !this.actionIntentCard) return false;
 
+    // Mutually exclusive: hide info card first without resetting idle
+    this.hideInfoIntentCard({ restoreIdle: false });
     this.hideActionIntentCard({ restoreIdle: false });
     const resolvedText = text !== undefined ? text : response_text;
     const displayText = (resolvedText !== undefined && resolvedText !== '') ? String(resolvedText) : 'Awaiting live response wiring';
@@ -3143,18 +3205,26 @@ class DynamicIslandManager {
     if (!el) return;
     el.classList.remove('action-intent-visible');
     if (restoreIdle) {
-      el.classList.remove('island-open');
-      el.classList.add('state-idle');
-      this.applyShape('var(--marvo-geo-idle-diameter)', 'var(--marvo-geo-height-idle)', {
-        radius: 'var(--marvo-geo-radius-idle)'
-      });
+      if (this.state === 'idle') {
+        el.classList.remove('island-open');
+        el.classList.add('state-idle');
+        this.applyShape('var(--marvo-geo-idle-diameter)', 'var(--marvo-geo-height-idle)', {
+          radius: 'var(--marvo-geo-radius-idle)'
+        });
+      } else {
+        const shape = this.getStateShape(this.state);
+        this.applyShape(shape.width, shape.height, { radius: shape.radius });
+      }
     }
   }
 
   showInfoIntentCard({ intent_type, icon, title, body, response_text } = {}) {
+    if (this.state === 'error') return false;
     const el = this.getIsland();
     if (!el || !this.infoIntentCard) return false;
 
+    // Mutually exclusive: hide action card first without resetting idle
+    this.hideActionIntentCard({ restoreIdle: false });
     this.hideInfoIntentCard({ restoreIdle: false });
     const resolvedBody = body !== undefined ? body : response_text;
     const displayTitle = (title !== undefined && title !== '') ? String(title) : 'Awaiting Live Routing';
@@ -3189,11 +3259,16 @@ class DynamicIslandManager {
     if (!el) return;
     el.classList.remove('info-intent-visible');
     if (restoreIdle) {
-      el.classList.remove('island-open');
-      el.classList.add('state-idle');
-      this.applyShape('var(--marvo-geo-idle-diameter)', 'var(--marvo-geo-height-idle)', {
-        radius: 'var(--marvo-geo-radius-idle)'
-      });
+      if (this.state === 'idle') {
+        el.classList.remove('island-open');
+        el.classList.add('state-idle');
+        this.applyShape('var(--marvo-geo-idle-diameter)', 'var(--marvo-geo-height-idle)', {
+          radius: 'var(--marvo-geo-radius-idle)'
+        });
+      } else {
+        const shape = this.getStateShape(this.state);
+        this.applyShape(shape.width, shape.height, { radius: shape.radius });
+      }
     }
   }
 
@@ -3420,6 +3495,9 @@ class DynamicIslandManager {
 
     // Error state: brief flash then auto-dismiss back to idle after the token duration.
     if (s === 'error') {
+      this.hideActionIntentCard({ restoreIdle: false });
+      this.hideInfoIntentCard({ restoreIdle: false });
+      this.currentIntentType = ResponseIntentType.NONE;
       if (this.errorTimer) clearTimeout(this.errorTimer);
       const durationMs = el
         ? parseFloat(getComputedStyle(el).getPropertyValue('--marvo-error-flash-duration')) * 1000
@@ -3634,9 +3712,12 @@ function initDynamicIsland() {
     window.dynamicIslandInstance = dynamicIslandInstance;
     window.VoiceIndicatorState = VoiceIndicatorState;
     window.MarvoVoiceIndicatorState = VoiceIndicatorState;
+    window.ResponseIntentType = ResponseIntentType;
+    window.MarvoResponseIntentType = ResponseIntentType;
     window.setVoiceState = (state, volume) => dynamicIslandInstance.setVoiceState(state, volume);
     window.showActionIntentCard = (props) => dynamicIslandInstance.showActionIntentCard(props);
     window.showInfoIntentCard = (props) => dynamicIslandInstance.showInfoIntentCard(props);
+    window.handleResponseIntent = (props) => dynamicIslandInstance.routeResponseIntent(props);
   }
 }
 
@@ -5456,5 +5537,7 @@ window.marvo = {
   get mode() { return selectedMode; },
   renderingCapabilities: window.MarvoRenderingCapabilities,
   VOICE_STATES: VoiceIndicatorState,
+  RESPONSE_INTENTS: ResponseIntentType,
+  routeResponseIntent: (props) => window.handleResponseIntent && window.handleResponseIntent(props),
   STATES,
 };

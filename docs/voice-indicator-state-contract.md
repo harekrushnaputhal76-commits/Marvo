@@ -82,3 +82,52 @@ Any transition not explicitly listed in the table above is invalid and will be r
 | `thinking` | `submitVoiceRecording` | `frontend/app.js:3605, 3607` | **YES** |
 | `speaking` | `playSpeech` (audio playback start) | `frontend/app.js:1614, 1704` | **YES** |
 | `error` | Dynamic error handler / permission rejection | `frontend/app.js:3682` | **PARTIAL** (triggers toast & closeDock; direct `setVoiceState('error')` call can be invoked via `window.setVoiceState('error')`) |
+
+---
+
+## 5. Orthogonal Response Intent Dimension
+
+While `VoiceIndicatorState` (`idle`, `listening`, `thinking`, `speaking`, `error`) manages the foundational lifecycle and hardware audio loop, incoming model responses carry an **orthogonal intent dimension**:
+
+```javascript
+/**
+ * Authoritative Response Intent Types
+ * @readonly
+ * @enum {string}
+ */
+const ResponseIntentType = Object.freeze({
+  ACTION: 'ACTION',             // Short confirmation card (e.g. alarm set, call placed)
+  INFO: 'INFO',                 // Multiline structured info card (facts, weather, summary)
+  CONVERSATION: 'CONVERSATION', // Base speech capsule without card overlay (default)
+  NONE: 'NONE'                  // Non-response or reset state
+});
+```
+
+### Canonical Casing & Fallback Rules
+1. **Canonical Casing**: All intent types are normalized to uppercase strings (`ACTION`, `INFO`, `CONVERSATION`, `NONE`).
+2. **Case Insensitivity**: Consumers and routing switches parse incoming string inputs with `.trim().toUpperCase()`.
+3. **Safe Fallback**: Any missing, `null`, `undefined`, or unrecognized intent type (e.g., `"unknown"`, `"widget"`) automatically falls back to `ResponseIntentType.CONVERSATION` (the base conversational capsule). No unhandled crashes or blank states can occur.
+
+---
+
+## 6. Priority Order & Simultaneous-State Conflict Resolution
+
+When visual states, transitions, and intent cards intersect, the visual indicator enforces a deterministic priority hierarchy:
+
+1. **`ERROR` (Priority 1 — Highest)**:
+   - Always preempts active cards and conversations.
+   - Any in-flight `ACTION` or `INFO` intent card or timer is cancelled immediately.
+   - Any incoming intent card is rejected while indicator is in `error` state.
+2. **`ACTION` / `INFO` Intent Cards (Priority 2)**:
+   - When a structured intent arrives, it transitions the container to the card's target geometry with spring physics.
+   - **Mutual Exclusivity**: `showActionIntentCard` hides any active `INFO` card; `showInfoIntentCard` hides any active `ACTION` card. Exactly one card can render at any instant.
+   - If an intent card arrives while base speaking is transitioning to idle, the card immediately captures the shape and resets idle timers.
+   - Once dismissed (timeout, tap outside, or swipe up), the shape smoothly returns to the base state (`idle` or `speaking`).
+3. **`CONVERSATION` / `NONE` (Priority 3)**:
+   - Renders the base conversational capsule (`speaking`, `thinking`, `listening`) without card overlays.
+4. **`IDLE` (Priority 4 — Lowest)**:
+   - Camera punch-hole resting circle (24×24px).
+
+### Single Active Hull Guarantee
+The liquid filter context (`#marvo-liquid-filter-context`) contains strictly **one** root indicator element (`#marvo-dynamic-island`). Card elements are internal flex children toggled via `opacity` and `hidden` properties; they never render as separate sibling DOM nodes. This eliminates double-hull or overlapping blob visual artifacts under the gooey filter.
+
