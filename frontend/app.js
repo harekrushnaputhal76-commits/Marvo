@@ -3175,17 +3175,23 @@ class DynamicIslandManager {
     this.hideInfoIntentCard({ restoreIdle: false });
     this.hideActionIntentCard({ restoreIdle: false });
     const resolvedText = text !== undefined ? text : response_text;
-    const displayText = (resolvedText !== undefined && resolvedText !== '') ? String(resolvedText) : 'Awaiting live response wiring';
-    const displayIcon = (icon !== undefined && icon !== '') ? String(icon) : '…';
+    const displayText = (resolvedText !== undefined && resolvedText !== null) ? String(resolvedText) : '';
+    const displayIcon = (icon !== undefined && icon !== null && icon !== '') ? String(icon) : '✓';
 
-    if (this.actionIntentIcon) this.actionIntentIcon.textContent = displayIcon;
+    if (this.actionIntentIcon) {
+      if (displayIcon.startsWith('<svg') || displayIcon.startsWith('<img')) {
+        this.actionIntentIcon.innerHTML = displayIcon;
+      } else {
+        this.actionIntentIcon.textContent = displayIcon;
+      }
+    }
     if (this.actionIntentText) this.actionIntentText.textContent = displayText;
     this.actionIntentCard.dataset.intentType = intent_type || '';
     this.actionIntentCard.hidden = false;
     el.classList.add('action-intent-visible');
     const width = 'var(--marvo-geo-action-card-width)';
     const height = 'var(--marvo-geo-action-card-height)';
-    this.applyShape(width, height, { radius: 'var(--marvo-geo-expanded-radius)' });
+    this.applyShape(width, height, { radius: 'var(--marvo-geo-action-card-radius)' });
 
     const durationMs = parseFloat(getComputedStyle(el).getPropertyValue('--marvo-action-intent-duration')) * 1000;
     this.actionIntentTimer = setTimeout(() => {
@@ -3232,25 +3238,31 @@ class DynamicIslandManager {
     this.hideActionIntentCard({ restoreIdle: false });
     this.hideInfoIntentCard({ restoreIdle: false });
     const resolvedBody = body !== undefined ? body : response_text;
-    const displayTitle = (title !== undefined && title !== '') ? String(title) : 'Awaiting Live Routing';
-    const displayBody = (resolvedBody !== undefined && resolvedBody !== '') ? String(resolvedBody) : 'Awaiting live response wiring from Group C traffic router.';
-    const displayIcon = (icon !== undefined && icon !== '') ? String(icon) : '…';
+    const displayTitle = (title !== undefined && title !== null) ? String(title) : '';
+    const displayBody = (resolvedBody !== undefined && resolvedBody !== null) ? String(resolvedBody) : '';
+    const displayIcon = (icon !== undefined && icon !== null && icon !== '') ? String(icon) : 'ℹ';
 
-    if (this.infoIntentIcon) this.infoIntentIcon.textContent = displayIcon;
+    if (this.infoIntentIcon) {
+      if (displayIcon.startsWith('<svg') || displayIcon.startsWith('<img')) {
+        this.infoIntentIcon.innerHTML = displayIcon;
+      } else {
+        this.infoIntentIcon.textContent = displayIcon;
+      }
+    }
     if (this.infoIntentTitle) this.infoIntentTitle.textContent = displayTitle;
     if (this.infoIntentBody) this.infoIntentBody.textContent = displayBody;
     this.infoIntentCard.dataset.intentType = intent_type || '';
     this.infoIntentCard.hidden = false;
     el.classList.add('info-intent-visible');
     this.applyShape('var(--marvo-geo-info-card-width)', 'var(--marvo-geo-info-card-height)', {
-      radius: 'var(--marvo-geo-expanded-radius)'
+      radius: 'var(--marvo-geo-info-card-radius)'
     });
 
     const durationMs = parseFloat(getComputedStyle(el).getPropertyValue('--marvo-info-intent-duration')) * 1000;
     this.infoIntentTimer = setTimeout(() => {
       this.infoIntentTimer = null;
       this.hideInfoIntentCard();
-    }, Number.isFinite(durationMs) ? durationMs : 8000);
+    }, Number.isFinite(durationMs) ? durationMs : 6000);
     return true;
   }
 
@@ -3395,7 +3407,8 @@ class DynamicIslandManager {
   setAudioLevel(rms) {
     if (!this.active || this.state !== 'listening') return;
     const normalizedRms = Math.max(0, Math.min(1, Number(rms) || 0));
-    this.smoothedAudioLevel += (normalizedRms - this.smoothedAudioLevel) * 0.18;
+    // EMA smoothing with alpha = 0.25
+    this.smoothedAudioLevel += (normalizedRms - this.smoothedAudioLevel) * 0.25;
     const el = this.getIsland();
     if (el) {
       const styles = getComputedStyle(el);
@@ -3405,6 +3418,12 @@ class DynamicIslandManager {
       const max = Number.isFinite(responseMax) ? responseMax : 0.82;
       const intensity = min + this.smoothedAudioLevel * (max - min);
       el.style.setProperty('--marvo-listening-intensity', intensity.toFixed(3));
+
+      // Liquid ripple displacement mapped from 2px to 10px
+      const rippleMin = parseFloat(styles.getPropertyValue('--marvo-ripple-displacement-min')) || 2;
+      const rippleMax = parseFloat(styles.getPropertyValue('--marvo-ripple-displacement-max')) || 10;
+      const rippleDisp = (rippleMin + this.smoothedAudioLevel * (rippleMax - rippleMin)).toFixed(1) + 'px';
+      el.style.setProperty('--marvo-ripple-displacement', rippleDisp);
     }
 
     const raw = Math.min(100, Math.max(0, normalizedRms * 340));
@@ -3622,8 +3641,9 @@ class DynamicIslandManager {
 
       if (this.state === 'speaking') {
         // No TTS output-level API is exposed, so use an explicit smooth fallback pulse.
-        const syntheticLevel = 0.5 + Math.sin(time * 2.4) * 0.5;
-        this.smoothedAudioLevel += (syntheticLevel - this.smoothedAudioLevel) * 0.18;
+        // Cycle ~0.4s to 0.7s varying slightly so it does not look robotic
+        const syntheticLevel = 0.5 + Math.sin(time * 2.2) * 0.3 + Math.sin(time * 3.8) * 0.2;
+        this.smoothedAudioLevel += (syntheticLevel - this.smoothedAudioLevel) * 0.25;
         const el = this.getIsland();
         if (el) {
           const styles = getComputedStyle(el);

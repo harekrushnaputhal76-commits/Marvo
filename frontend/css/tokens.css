@@ -7,17 +7,17 @@
   /* ─────────────────────────────────────────────────────────────────
      1. COLOR & GRADIENT TOKENS (Blue -> Violet -> Magenta -> Orange)
      ───────────────────────────────────────────────────────────────── */
-  --marvo-color-blue:          #0072ff;
-  --marvo-color-cyan:          #00f0ff;
-  --marvo-color-violet:        #7b2cbf;
-  --marvo-color-fuchsia:       #c026d3;
-  --marvo-color-magenta:       #ff007f;
-  --marvo-color-orange:        #ff6b35;
-  --marvo-color-amber:         #ff9e00;
-   --marvo-color-error:         #ef4444;
-   --marvo-color-white:         #ffffff;
-   --marvo-info-title-color:    var(--marvo-color-white);
-   --marvo-info-body-color:     rgba(255, 255, 255, 0.82);
+  --marvo-color-blue:          #4FC3F7;
+  --marvo-color-cyan:          #4FC3F7;
+  --marvo-color-violet:        #9C27B0;
+  --marvo-color-fuchsia:       #E91E63;
+  --marvo-color-magenta:       #E91E63;
+  --marvo-color-orange:        #FF9800;
+  --marvo-color-amber:         #FF9800;
+  --marvo-color-error:         rgba(244, 67, 54, 0.9);
+  --marvo-color-white:         #ffffff;
+  --marvo-info-title-color:    #E0E0E0;
+  --marvo-info-body-color:     #BDBDBD;
 
   /* Idle Multi-Hue Gradient Stops */
   --marvo-grad-stop-blue:      var(--marvo-color-blue);
@@ -35,20 +35,21 @@
   );
   --marvo-conic-idle:          conic-gradient(
     from 0deg,
-    var(--marvo-color-cyan) 0deg,
-    var(--marvo-color-violet) 90deg,
-    var(--marvo-color-magenta) 180deg,
-    var(--marvo-color-orange) 270deg,
-    var(--marvo-color-cyan) 360deg
+    #4FC3F7 0deg,
+    #9C27B0 90deg,
+    #E91E63 180deg,
+    #FF9800 270deg,
+    #4FC3F7 360deg
   );
   --marvo-gradient-thinking:   linear-gradient(
     90deg,
-    #060913 0%,
-    var(--marvo-color-cyan) 25%,
-    var(--marvo-color-violet) 50%,
-    var(--marvo-color-magenta) 75%,
-    #060913 100%
+    #9C27B0 0%,
+    #E91E63 35%,
+    #4FC3F7 70%,
+    #9C27B0 100%
   );
+  --marvo-thinking-static-tint: rgba(156, 39, 176, 0.25);
+  --marvo-thinking-sweep-duration: 1.5s;
 
   /* ─────────────────────────────────────────────────────────────────
      2. GLASS SURFACE TOKENS
@@ -71,12 +72,22 @@
   --marvo-ease-spring:                cubic-bezier(0.32, 0.72, 0, 1);
   --marvo-ease-bounce:                cubic-bezier(0.34, 1.56, 0.64, 1);
   --marvo-ease-smooth:                cubic-bezier(0.16, 1, 0.3, 1);
+  --marvo-ease-spring-overshoot:      cubic-bezier(0.34, 1.56, 0.64, 1);
+  --marvo-ease-snap-back:             cubic-bezier(0.25, 1, 0.5, 1);
   --marvo-duration-fast:              0.2s;
-  --marvo-duration-base:              0.38s;
+  --marvo-duration-base:              0.4s;
+  --marvo-duration-morph:             0.4s;
   --marvo-duration-slow:              0.6s;
-   --marvo-action-intent-duration:     2s;
-   --marvo-info-intent-duration:       8s;
-   --marvo-error-flash-duration:       1.5s;
+  --marvo-trans-idle-to-listening:    300ms;
+  --marvo-trans-listening-to-thinking:200ms;
+  --marvo-trans-thinking-to-speaking: 250ms;
+  --marvo-trans-to-action:            350ms;
+  --marvo-trans-to-info:              400ms;
+  --marvo-trans-to-idle:              300ms;
+  --marvo-trans-to-error:             200ms;
+  --marvo-action-intent-duration:     2s;
+  --marvo-info-intent-duration:       6s;
+  --marvo-error-flash-duration:       1.5s;
 
   /* ─────────────────────────────────────────────────────────────────
      4. GEOMETRY & SHAPE TOKENS
@@ -93,25 +104,23 @@
   --marvo-geo-height-listening:       40px;
   --marvo-geo-height-thinking:        40px;
   --marvo-geo-height-speaking:        40px;
-  --marvo-geo-height-error:           40px;
+  --marvo-geo-height-error:           24px;
   --marvo-geo-height-expanded:        230px;
 
   /* Corner radii */
   --marvo-geo-radius-idle:            50%;
-  --marvo-geo-radius-capsule:         20px;
-  --marvo-geo-radius-expanded:        38px;
+  --marvo-geo-radius-capsule:         999px;
+  --marvo-geo-radius-expanded:        20px;
   --marvo-geo-radius-pill:            999px;
 
-  /* Expanded-state geometry tokens for listening / thinking / speaking.
-     Thinking and speaking intentionally reuse the listening capsule family.
-     Error flash keeps the same idle circle diameter but uses a different tint.
-     The shared expanded corner radius and horizontal padding are reused by
-     the capsule states and the future Group B12/B13 cards. */
-  --marvo-geo-listening-min-width:     180px;
-  --marvo-geo-listening-max-width:     360px;
-  --marvo-geo-listening-height-min:    36px;
-  --marvo-geo-listening-height-max:    48px;
+  /* Expanded-state geometry tokens for listening / thinking / speaking. */
+  --marvo-geo-listening-min-width:     140px;
+  --marvo-geo-listening-max-width:     140px;
+  --marvo-geo-listening-height-min:    40px;
+  --marvo-geo-listening-height-max:    40px;
   --marvo-geo-listening-radius:        999px;
+  --marvo-listening-bg:                rgba(0, 0, 0, 0.85);
+  --marvo-listening-border:            1px solid rgba(79, 195, 247, 0.5);
 
   --marvo-geo-thinking-min-width:      var(--marvo-geo-listening-min-width);
   --marvo-geo-thinking-max-width:      var(--marvo-geo-listening-max-width);
@@ -126,17 +135,36 @@
   --marvo-geo-speaking-radius:         var(--marvo-geo-listening-radius);
 
   --marvo-geo-error-diameter:          var(--marvo-geo-idle-diameter);
-  --marvo-geo-expanded-radius:        24px;
-  --marvo-geo-expanded-padding-x:      18px;
-   --marvo-geo-action-card-width:       132px;
-   --marvo-geo-action-card-height:      36px;
-   --marvo-geo-info-card-width:         300px;
-   --marvo-geo-info-card-height:        132px;
+  --marvo-geo-expanded-radius:        20px;
+  --marvo-geo-expanded-padding-x:      16px;
+  --marvo-geo-action-card-width:       180px;
+  --marvo-geo-action-card-height:      48px;
+  --marvo-geo-action-card-radius:      999px;
+  --marvo-action-card-bg:              rgba(0, 0, 0, 0.88);
+  --marvo-action-card-border:          1px solid rgba(255, 255, 255, 0.12);
+  --marvo-action-icon-size:            20px;
+  --marvo-action-text-size:            13px;
+  --marvo-action-text-weight:          500;
+  --marvo-action-text-color:           #F5F5F5;
 
-   /* Listening amplitude response bounds; JS maps smoothed RMS into this range. */
-   --marvo-listening-response-min:      0.12;
-   --marvo-listening-response-max:      0.82;
-   --marvo-listening-response-fallback: 0.22;
+  --marvo-geo-info-card-width:         280px;
+  --marvo-geo-info-card-height:        120px;
+  --marvo-geo-info-card-max-height:    120px;
+  --marvo-geo-info-card-radius:        20px;
+  --marvo-info-card-bg:                rgba(10, 10, 20, 0.92);
+  --marvo-info-card-border:            1px solid rgba(255, 255, 255, 0.08);
+  --marvo-info-card-shadow:            inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --marvo-info-title-size:             13px;
+  --marvo-info-title-weight:           600;
+  --marvo-info-body-size:              12px;
+  --marvo-info-body-line-height:       1.5;
+
+  /* Listening amplitude response bounds; JS maps smoothed RMS into this range. */
+  --marvo-listening-response-min:      0.12;
+  --marvo-listening-response-max:      0.82;
+  --marvo-listening-response-fallback: 0.22;
+  --marvo-ripple-displacement-min:     2px;
+  --marvo-ripple-displacement-max:     10px;
 
   /* ─────────────────────────────────────────────────────────────────
      5. ELEVATION & Z-INDEX TOKENS
@@ -151,17 +179,18 @@
   --marvo-z-overlay:                  10000;
   --marvo-z-modal:                    10001;
 
-   /* Idle bead depth layers; set any layer token to none to disable it. */
-   --marvo-idle-highlight-layer:       radial-gradient(ellipse at 50% 0%, var(--marvo-glass-border-highlight), transparent 70%);
-   --marvo-idle-shadow-layer:          linear-gradient(to bottom, transparent 52%, var(--marvo-glass-bg) 100%);
-   --marvo-idle-bloom-layer:           0 0 8px var(--marvo-color-cyan);
-   --marvo-idle-rim-layer:             1px solid var(--marvo-glass-border-subtle);
-   --marvo-idle-breathe-duration:      6s;
-   --marvo-idle-breathe-scale-rest:    0.98;
-   --marvo-idle-breathe-scale-peak:    1;
-   --marvo-idle-breathe-opacity-rest:  0.88;
-   --marvo-idle-breathe-opacity-peak:  1;
+  /* Idle bead depth layers */
+  --marvo-idle-highlight-layer:       radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.3) 0%, transparent 60%);
+  --marvo-idle-shadow-layer:          linear-gradient(to bottom, transparent 52%, rgba(0, 0, 0, 0.3) 100%);
+  --marvo-idle-bloom-layer:           0 0 6px rgba(79, 195, 247, 0.4);
+  --marvo-idle-rim-layer:             none;
+  --marvo-idle-breathe-duration:      3.5s;
+  --marvo-idle-breathe-scale-rest:    1.0;
+  --marvo-idle-breathe-scale-peak:    1.08;
+  --marvo-idle-breathe-opacity-rest:  1.0;
+  --marvo-idle-breathe-opacity-peak:  0.85;
+  --marvo-idle-rotation-duration:     8s;
 
-   /* Reduced motion convention: future shape morphs use opacity crossfades only. */
-   --marvo-motion-reduced-morph-transition: opacity var(--marvo-duration-fast) var(--marvo-ease-smooth);
+  /* Reduced motion convention: shape morphs use opacity crossfades only. */
+  --marvo-motion-reduced-morph-transition: opacity 0.2s ease;
 }

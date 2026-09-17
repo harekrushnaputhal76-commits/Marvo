@@ -4696,136 +4696,12 @@ body.island-active .main {
   overflow: visible;
 }
 
-#marvo-dynamic-island {
-  --marvo-shape-width: var(--marvo-geo-idle-diameter);
-  --marvo-shape-height: var(--marvo-geo-height-idle);
-  --marvo-shape-radius: var(--marvo-geo-radius-idle);
-
-  position: fixed;
-  top: var(--camera-anchor-top);
-  left: 50%;
-  transform: translateX(-50%);
-  -webkit-transform: translateX(-50%);
-  transform-origin: top center;
-  z-index: 9999;
-  box-sizing: border-box;
-
-  /* Motorola Edge 60 Pro Punch-hole Camera Anchor (Idle Dot) */
-  width: var(--marvo-shape-width);
-  height: var(--marvo-shape-height);
-  border-radius: var(--marvo-shape-radius);
-  background: #000000;
-
-  pointer-events: none; /* Idle dot must never block touches or the real camera */
-  overflow: visible;
-
-  /* 120Hz Hardware Acceleration & linear downward-only morph */
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
-  will-change: width, height, border-radius, transform, opacity, background, box-shadow;
-  transition:
-    width 0.38s linear,
-    height 0.38s linear,
-    border-radius 0.38s linear,
-    transform 0.38s linear,
-    background 0.32s linear,
-    box-shadow 0.32s linear,
-    opacity 0.28s linear;
-}
-
-/* Island Summoned: Active pointer events */
+/* ═══════════════════════════════════════════════════════════════════
+   MARVO TOP-ANCHORED VOICE INDICATOR (Camera Punch-Hole Silhouette)
+   Defers to authoritative rules defined in Section 15 below.
+   ═══════════════════════════════════════════════════════════════════ */
 #marvo-dynamic-island.island-open {
   pointer-events: auto;
-}
-
-/* 1. Idle State: 24x24px circle centered on camera */
-#marvo-dynamic-island.state-idle {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: #000000;
-  box-shadow: none;
-  animation: none;
-  pointer-events: none;
-}
-
-/* 2. Listening State: Capsule ~140px wide x 40px tall expanding downward */
-#marvo-dynamic-island.state-listening {
-  width: 140px;
-  height: 40px;
-  border-radius: 20px;
-  background: #060913;
-  box-shadow:
-    0 4px 20px rgba(0, 240, 255, 0.3),
-    0 0 1px rgba(255, 255, 255, 0.25);
-  pointer-events: auto;
-}
-
-/* 3. Thinking State: Capsule with animated internal gradient sweep */
-#marvo-dynamic-island.state-thinking {
-  width: 140px;
-  height: 40px;
-  border-radius: 20px;
-  box-shadow:
-    0 4px 24px rgba(147, 51, 234, 0.35),
-    0 0 1px rgba(255, 255, 255, 0.3);
-  pointer-events: auto;
-}
-
-/* 4. Speaking State: Capsule with amplitude-reactive pulsing */
-#marvo-dynamic-island.state-speaking {
-  width: 140px;
-  height: 40px;
-  border-radius: 20px;
-  background: #060913;
-  box-shadow:
-    0 4px 24px rgba(0, 240, 255, 0.35),
-    0 0 1px rgba(255, 255, 255, 0.3);
-  animation: marvoSpeakingPulse 0.7s ease-in-out infinite alternate;
-  pointer-events: auto;
-}
-
-@keyframes marvoSpeakingPulse {
-  0% {
-    transform: translateX(-50%) scale3d(1, 1, 1);
-    box-shadow: 0 4px 16px rgba(0, 240, 255, 0.25);
-  }
-  100% {
-    transform: translateX(-50%) scale3d(calc(1.02 + var(--island-volume, 0.05) * 0.05), calc(1.04 + var(--island-volume, 0.05) * 0.08), 1);
-    box-shadow: 0 6px 28px rgba(0, 240, 255, 0.5);
-  }
-}
-
-@keyframes marvo-speaking-ripple {
-  0%, 100% {
-    transform: scale3d(0.99, 0.96, 1);
-  }
-  50% {
-    transform: scale3d(1.03, 1.06, 1);
-  }
-}
-
-#marvo-dynamic-island.state-speaking::after {
-  opacity: var(--island-volume, var(--marvo-listening-response-fallback));
-  animation: marvo-speaking-ripple var(--marvo-duration-base) var(--marvo-ease-smooth) infinite;
-}
-
-/* 5. Error State: Brief red-tinted flash (~1.5s) then back to idle */
-#marvo-dynamic-island.state-error {
-  width: var(--marvo-geo-error-diameter);
-  height: var(--marvo-geo-error-diameter);
-  border-radius: var(--marvo-geo-radius-idle);
-  background: var(--marvo-color-error) !important;
-  box-shadow:
-    0 4px 24px rgba(239, 68, 68, 0.8),
-    0 0 1px rgba(255, 255, 255, 0.35);
-  animation: marvoErrorFlash var(--marvo-duration-fast) var(--marvo-ease-smooth) 3 alternate;
-  pointer-events: auto;
-}
-
-@keyframes marvoErrorFlash {
-  0% { transform: translateX(-50%) scale3d(0.98, 0.98, 1); }
-  100% { transform: translateX(-50%) scale3d(1.03, 1.05, 1); }
 }
 
 /* Compact Capsule State Display */
@@ -5354,47 +5230,154 @@ body.island-active .main {
   }
 }
 
+/* Liquid Gooey Morphing Container (SVG Filter applied here) */
 #marvo-liquid-filter-context {
-  position: fixed !important;
-  top: var(--camera-anchor-top) !important;
-  left: 50% !important;
-  width: var(--marvo-geo-expanded-max-width) !important;
-  height: var(--marvo-geo-height-expanded) !important;
-  transform: translateX(-50%) !important;
-  transform-origin: top center !important;
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: inherit !important;
   filter: url(#marvo-goo);
   -webkit-filter: url(#marvo-goo);
   overflow: visible !important;
   pointer-events: none !important;
-  z-index: var(--marvo-z-indicator-layer) !important;
-  animation: marvo-idle-breathe var(--marvo-idle-breathe-duration) var(--marvo-ease-spring) infinite;
+  z-index: 1 !important;
+}
+
+.marvo-liquid-surface {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: inherit;
+  pointer-events: none;
+}
+
+/* Content Layer: Sharp Text & Icons (Sitting ABOVE the gooey filter) */
+#marvo-content-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  z-index: 5;
+  pointer-events: auto;
 }
 
 #marvo-dynamic-island {
+  --marvo-shape-width: var(--marvo-geo-idle-diameter);
+  --marvo-shape-height: var(--marvo-geo-height-idle);
+  --marvo-shape-radius: var(--marvo-geo-radius-idle);
   --marvo-listening-intensity: var(--marvo-listening-response-fallback);
-  position: absolute !important;
-  top: 0 !important;
+  --marvo-ripple-displacement: var(--marvo-ripple-displacement-min);
+
+  position: fixed !important;
+  top: var(--camera-anchor-top) !important;
   left: 50% !important;
-  width: var(--marvo-shape-width) !important;
-  height: var(--marvo-shape-height) !important;
   transform: translateX(-50%) !important;
   transform-origin: top center !important;
+  z-index: var(--marvo-z-indicator-layer) !important;
+  box-sizing: border-box;
+
+  width: var(--marvo-shape-width) !important;
+  height: var(--marvo-shape-height) !important;
   border-radius: var(--marvo-shape-radius) !important;
-  background: var(--marvo-conic-idle) !important;
-  pointer-events: none !important;
-  overflow: hidden !important;
-  transition:
-    width var(--marvo-duration-base) var(--marvo-ease-bounce),
-    height var(--marvo-duration-base) var(--marvo-ease-bounce),
-    border-radius var(--marvo-duration-base) var(--marvo-ease-bounce) !important;
+  background: #000000;
+
+  pointer-events: none;
+  overflow: visible;
+
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
   will-change: auto;
+  transition:
+    width var(--marvo-trans-to-idle) var(--marvo-ease-snap-back),
+    height var(--marvo-trans-to-idle) var(--marvo-ease-snap-back),
+    border-radius var(--marvo-trans-to-idle) var(--marvo-ease-snap-back),
+    transform var(--marvo-trans-to-idle) var(--marvo-ease-snap-back),
+    background var(--marvo-duration-fast) ease,
+    box-shadow var(--marvo-duration-fast) ease,
+    border var(--marvo-duration-fast) ease !important;
 }
 
 #marvo-dynamic-island.island-open,
 #marvo-dynamic-island:not(.state-idle),
 #marvo-dynamic-island.action-intent-visible,
 #marvo-dynamic-island.info-intent-visible {
-  will-change: width, height, border-radius;
+  pointer-events: auto;
+  will-change: width, height, border-radius, transform;
+}
+
+/* State-specific transition profiles */
+#marvo-dynamic-island.state-listening {
+  transition:
+    width var(--marvo-trans-idle-to-listening) var(--marvo-ease-spring-overshoot),
+    height var(--marvo-trans-idle-to-listening) var(--marvo-ease-spring-overshoot),
+    border-radius var(--marvo-trans-idle-to-listening) var(--marvo-ease-spring-overshoot),
+    transform var(--marvo-trans-idle-to-listening) var(--marvo-ease-spring-overshoot),
+    background 200ms ease,
+    box-shadow 200ms ease,
+    border 200ms ease !important;
+}
+
+#marvo-dynamic-island.state-thinking {
+  transition:
+    width var(--marvo-trans-listening-to-thinking) ease,
+    height var(--marvo-trans-listening-to-thinking) ease,
+    border-radius var(--marvo-trans-listening-to-thinking) ease,
+    transform var(--marvo-trans-listening-to-thinking) ease,
+    background 200ms ease,
+    box-shadow 200ms ease,
+    border 200ms ease !important;
+}
+
+#marvo-dynamic-island.state-speaking {
+  transition:
+    width var(--marvo-trans-thinking-to-speaking) ease,
+    height var(--marvo-trans-thinking-to-speaking) ease,
+    border-radius var(--marvo-trans-thinking-to-speaking) ease,
+    transform var(--marvo-trans-thinking-to-speaking) ease,
+    background 250ms ease,
+    box-shadow 250ms ease,
+    border 250ms ease !important;
+}
+
+#marvo-dynamic-island.action-intent-visible {
+  transition:
+    width var(--marvo-trans-to-action) var(--marvo-ease-spring-overshoot),
+    height var(--marvo-trans-to-action) var(--marvo-ease-spring-overshoot),
+    border-radius var(--marvo-trans-to-action) var(--marvo-ease-spring-overshoot),
+    transform var(--marvo-trans-to-action) var(--marvo-ease-spring-overshoot) !important;
+}
+
+#marvo-dynamic-island.info-intent-visible {
+  transition:
+    width var(--marvo-trans-to-info) var(--marvo-ease-spring-overshoot),
+    height var(--marvo-trans-to-info) var(--marvo-ease-spring-overshoot),
+    border-radius var(--marvo-trans-to-info) var(--marvo-ease-spring-overshoot),
+    transform var(--marvo-trans-to-info) var(--marvo-ease-spring-overshoot) !important;
+}
+
+#marvo-dynamic-island.state-error {
+  transition:
+    width var(--marvo-trans-to-error) ease,
+    height var(--marvo-trans-to-error) ease,
+    border-radius var(--marvo-trans-to-error) ease,
+    transform var(--marvo-trans-to-error) ease,
+    background 200ms ease,
+    box-shadow 200ms ease,
+    border 200ms ease !important;
+}
+
+/* 1. IDLE STATE: 24x24px glowing liquid orb centered on camera */
+#marvo-dynamic-island.state-idle {
+  width: var(--marvo-geo-idle-diameter) !important;
+  height: var(--marvo-geo-height-idle) !important;
+  border-radius: var(--marvo-geo-radius-idle) !important;
+  border: none !important;
+  box-shadow: var(--marvo-idle-bloom-layer);
+  animation: marvo-idle-breathe var(--marvo-idle-breathe-duration) ease-in-out infinite;
+  pointer-events: none !important;
+  will-change: auto;
 }
 
 #marvo-dynamic-island::before {
@@ -5412,12 +5395,30 @@ body.island-active .main {
   transform-origin: center;
 }
 
+@supports (property: --marvo-idle-angle) {
+  #marvo-dynamic-island.state-idle::before {
+    animation: marvo-idle-gradient-sweep var(--marvo-idle-rotation-duration) linear infinite;
+  }
+}
+
+/* 2. LISTENING STATE: 140x40px pill expanding downward */
+#marvo-dynamic-island.state-listening {
+  animation: none;
+  background: var(--marvo-listening-bg) !important;
+  border: var(--marvo-listening-border) !important;
+  box-shadow: 0 0 calc(4px + var(--marvo-listening-intensity, 0.2) * 12px) rgba(79, 195, 247, calc(0.3 + var(--marvo-listening-intensity, 0.2) * 0.6));
+}
+
+#marvo-dynamic-island.state-listening::before {
+  display: none;
+}
+
 @keyframes marvo-listening-ripple {
   0%, 100% {
-    transform: scale3d(0.98, 0.92, 1);
+    transform: scale3d(0.98, 0.94, 1);
   }
   50% {
-    transform: scale3d(1.02, 1.08, 1);
+    transform: scale3d(1.02, 1.06, 1);
   }
 }
 
@@ -5427,24 +5428,118 @@ body.island-active .main {
   inset: 1px;
   border: 1px solid var(--marvo-color-cyan);
   border-radius: inherit;
-  background: var(--marvo-conic-idle);
   opacity: 0;
   transform: scale3d(0.98, 0.92, 1);
   transform-origin: center;
   pointer-events: none;
 }
+
+#marvo-dynamic-island.state-listening::after {
+  opacity: var(--marvo-listening-intensity);
+  animation: marvo-listening-ripple var(--marvo-duration-slow) var(--marvo-ease-smooth) infinite;
+  box-shadow: inset 0 0 var(--marvo-ripple-displacement) rgba(79, 195, 247, 0.4);
+}
+
+/* 3. THINKING STATE: 140x40px pill with flowing gradient sweep */
+@keyframes marvo-thinking-gradient-sweep {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+#marvo-dynamic-island.state-thinking {
+  animation: none;
+  background: rgba(0, 0, 0, 0.85) !important;
+  border: 1px solid rgba(156, 39, 176, 0.5) !important;
+  box-shadow: 0 0 12px rgba(156, 39, 176, 0.4) !important;
+}
+
+#marvo-dynamic-island.state-thinking::before {
+  display: block;
+  background: var(--marvo-gradient-thinking);
+  background-size: 200% 100%;
+  background-position: 0% 50%;
+  transform: none;
+  opacity: 0.85;
+  animation: marvo-thinking-gradient-sweep var(--marvo-thinking-sweep-duration) linear infinite;
+}
+
+#marvo-dynamic-island.state-thinking::after {
+  opacity: 0;
+  animation: none;
+}
+
+/* 4. SPEAKING STATE: 140x40px pill with rhythmic vocal pulse */
+@keyframes marvoSpeakingPulse {
+  0% {
+    transform: translateX(-50%) scale3d(1, 1, 1);
+    box-shadow: 0 0 6px rgba(79, 195, 247, 0.4);
+  }
+  100% {
+    transform: translateX(-50%) scale3d(1.04, 1.04, 1);
+    box-shadow: 0 0 14px rgba(79, 195, 247, 0.8);
+  }
+}
+
+#marvo-dynamic-island.state-speaking {
+  background: rgba(0, 0, 0, 0.85) !important;
+  border: 1px solid rgba(79, 195, 247, 0.7) !important;
+  box-shadow: 0 0 calc(6px + var(--island-volume, 0.3) * 8px) rgba(79, 195, 247, 0.6);
+  animation: marvoSpeakingPulse 0.55s ease-in-out infinite alternate;
+}
+
+#marvo-dynamic-island.state-speaking::before {
+  display: none;
+}
+
+#marvo-dynamic-island.state-speaking::after {
+  opacity: var(--island-volume, var(--marvo-listening-response-fallback));
+  border-color: var(--marvo-color-cyan);
+  animation: marvo-listening-ripple var(--marvo-duration-base) var(--marvo-ease-smooth) infinite;
+}
+
+/* 5. ERROR STATE: 24x24px soft red pulse */
+@keyframes marvoErrorPulse {
+  0% {
+    transform: translateX(-50%) scale(0.96);
+  }
+  100% {
+    transform: translateX(-50%) scale(1.04);
+  }
+}
+
+#marvo-dynamic-island.state-error {
+  width: var(--marvo-geo-error-diameter) !important;
+  height: var(--marvo-geo-error-diameter) !important;
+  border-radius: var(--marvo-geo-radius-idle) !important;
+  background: var(--marvo-color-error) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  box-shadow: 0 0 14px rgba(244, 67, 54, 0.9) !important;
+  animation: marvoErrorPulse 0.3s ease-in-out 5 alternate;
+  pointer-events: auto;
+}
+
+#marvo-dynamic-island.state-error::before,
+#marvo-dynamic-island.state-error::after {
+  display: none;
+}
+
+/* 6. ACTION INTENT CARD (180x48px, 999px radius) */
 .marvo-action-intent-card {
   position: absolute;
   inset: 0;
   display: none;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   padding: 0 var(--marvo-geo-expanded-padding-x);
-  border: 1px solid var(--marvo-glass-border-color);
-  border-radius: var(--marvo-geo-expanded-radius);
-  background: var(--marvo-glass-bg);
+  border: var(--marvo-action-card-border);
+  border-radius: var(--marvo-geo-action-card-radius);
+  background: var(--marvo-action-card-bg);
   box-sizing: border-box;
-  color: var(--marvo-glass-border-highlight);
+  color: var(--marvo-action-text-color);
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--marvo-duration-fast) var(--marvo-ease-smooth);
@@ -5460,37 +5555,38 @@ body.island-active .main {
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: var(--marvo-action-icon-size);
+  height: var(--marvo-action-icon-size);
   border-radius: var(--marvo-geo-radius-pill);
   color: var(--marvo-color-cyan);
-  font-size: 9px;
-  font-weight: 700;
+  font-size: 14px;
   line-height: 1;
 }
 
 .marvo-action-intent-text {
   min-width: 0;
   overflow: hidden;
-  color: inherit;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1;
+  color: var(--marvo-action-text-color);
+  font-size: var(--marvo-action-text-size);
+  font-weight: var(--marvo-action-text-weight);
+  line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+/* 7. INFO INTENT CARD (280x120px max, 20px radius) */
 .marvo-info-intent-card {
   position: absolute;
   inset: 0;
   display: none;
   flex-direction: column;
   justify-content: center;
-  gap: 7px;
-  padding: var(--marvo-geo-expanded-padding-x);
-  border: 1px solid var(--marvo-glass-border-color);
-  border-radius: var(--marvo-geo-expanded-radius);
-  background: var(--marvo-glass-bg);
+  gap: 8px;
+  padding: 14px var(--marvo-geo-expanded-padding-x);
+  border: var(--marvo-info-card-border);
+  border-radius: var(--marvo-geo-info-card-radius);
+  background: var(--marvo-info-card-bg);
+  box-shadow: var(--marvo-info-card-shadow);
   box-sizing: border-box;
   opacity: 0;
   pointer-events: none;
@@ -5523,12 +5619,10 @@ body.island-active .main {
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
-  border-radius: var(--marvo-geo-radius-pill);
+  width: 16px;
+  height: 16px;
   color: var(--marvo-color-cyan);
-  font-size: 8px;
-  font-weight: 700;
+  font-size: 12px;
   line-height: 1;
 }
 
@@ -5536,8 +5630,8 @@ body.island-active .main {
   min-width: 0;
   overflow: hidden;
   color: var(--marvo-info-title-color);
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--marvo-info-title-size);
+  font-weight: var(--marvo-info-title-weight);
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -5548,46 +5642,20 @@ body.island-active .main {
   margin: 0;
   overflow: hidden;
   color: var(--marvo-info-body-color);
-  font-size: 12px;
-  line-height: 1.35;
+  font-size: var(--marvo-info-body-size);
+  line-height: var(--marvo-info-body-line-height);
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
 }
 
-#marvo-dynamic-island.state-listening::after {
-  opacity: var(--marvo-listening-intensity);
-  animation: marvo-listening-ripple var(--marvo-duration-slow) var(--marvo-ease-smooth) infinite;
-}
-
-@supports (property: --marvo-idle-angle) {
-  #marvo-dynamic-island::before {
-    animation: marvo-idle-gradient-sweep 8s linear infinite;
-  }
-}
-
-@keyframes marvo-thinking-gradient-sweep {
-  from {
-    background-position: 0% 50%;
-  }
-  to {
-    background-position: 100% 50%;
-  }
-}
-
-#marvo-dynamic-island.state-thinking::before {
-  background: var(--marvo-gradient-thinking);
-  background-size: 250% 100%;
-  background-position: 0% 50%;
-  transform: none;
-  animation: marvo-thinking-gradient-sweep var(--marvo-duration-slow) linear infinite;
-}
-
+/* 10. ACCESSIBILITY: REDUCED MOTION */
 @media (prefers-reduced-motion: reduce) {
   #marvo-liquid-filter-context,
   #marvo-dynamic-island,
   #marvo-dynamic-island::before,
   #marvo-dynamic-island::after,
-  #marvo-dynamic-island.state-error {
+  #marvo-dynamic-island.state-error,
+  #marvo-dynamic-island.state-speaking {
     animation: none !important;
   }
 
@@ -5596,13 +5664,22 @@ body.island-active .main {
   .marvo-info-intent-card {
     transition: opacity 0.15s ease !important;
   }
+
+  #marvo-dynamic-island.state-thinking::before {
+    background: var(--marvo-gradient-thinking) !important;
+    background-size: 100% 100% !important;
+    background-position: 50% 50% !important;
+    transform: none !important;
+    animation: none !important;
+  }
 }
 
 .marvo-reduced-motion #marvo-liquid-filter-context,
 .marvo-reduced-motion #marvo-dynamic-island,
 .marvo-reduced-motion #marvo-dynamic-island::before,
 .marvo-reduced-motion #marvo-dynamic-island::after,
-.marvo-reduced-motion #marvo-dynamic-island.state-error {
+.marvo-reduced-motion #marvo-dynamic-island.state-error,
+.marvo-reduced-motion #marvo-dynamic-island.state-speaking {
   animation: none !important;
 }
 
@@ -5610,17 +5687,6 @@ body.island-active .main {
 .marvo-reduced-motion .marvo-action-intent-card,
 .marvo-reduced-motion .marvo-info-intent-card {
   transition: opacity 0.15s ease !important;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  #marvo-dynamic-island.state-thinking::before,
-  .marvo-reduced-motion #marvo-dynamic-island.state-thinking::before {
-    background: var(--marvo-gradient-thinking) !important;
-    background-size: 100% 100% !important;
-    background-position: 50% 50% !important;
-    transform: none !important;
-    animation: none !important;
-  }
 }
 
 .marvo-reduced-motion #marvo-dynamic-island.state-thinking::before {
@@ -5631,9 +5697,9 @@ body.island-active .main {
   animation: none !important;
 }
 
-.marvo-idle-paused #marvo-liquid-filter-context,
+.marvo-idle-paused #marvo-dynamic-island,
 .marvo-idle-paused #marvo-dynamic-island::before,
-body.app-background-paused #marvo-liquid-filter-context,
+body.app-background-paused #marvo-dynamic-island,
 body.app-background-paused #marvo-dynamic-island::before {
   animation-play-state: paused !important;
 }

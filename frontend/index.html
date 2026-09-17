@@ -1180,32 +1180,38 @@
 </div>
 
 <!-- ═══════════ MARVO SVG GOOEY FILTER (LIQUID SURFACE TENSION) ═══════════ -->
-<svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute;overflow:hidden">
+<svg width="0" height="0" style="position:absolute;pointer-events:none" aria-hidden="true" focusable="false">
   <filter id="marvo-goo" x="-50%" y="-50%" width="200%" height="200%">
-    <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur" />
+    <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="blur"/>
     <feColorMatrix in="blur" mode="matrix"
       values="1 0 0 0 0
               0 1 0 0 0
               0 0 1 0 0
-              0 0 0 18 -8"
-      result="goo" />
-    <feComposite in="SourceGraphic" in2="goo" operator="atop" />
+              0 0 0 20 -10"
+      result="goo"/>
+    <feComposite in="SourceGraphic" in2="goo" operator="atop"/>
   </filter>
 </svg>
 
 <!-- ═══════════ MARVO TOP-ANCHORED IDLE VOICE INDICATOR ═══════════ -->
-<div id="marvo-liquid-filter-context" aria-hidden="true">
-  <div id="marvo-dynamic-island">
+<div id="marvo-dynamic-island" class="state-idle">
+  <!-- Liquid Gooey Morphing Container (SVG Filter applied here) -->
+  <div id="marvo-liquid-filter-context" class="marvo-liquid-filter-context" aria-hidden="true" style="filter: url(#marvo-goo); -webkit-filter: url(#marvo-goo)">
+    <div class="marvo-liquid-surface"></div>
+  </div>
+
+  <!-- Content Layer: Sharp Text & Icons (Sitting ABOVE the gooey filter) -->
+  <div id="marvo-content-layer" class="marvo-content-layer">
     <div id="marvo-action-intent-card" class="marvo-action-intent-card" hidden>
-      <span id="marvo-action-intent-icon" class="marvo-action-intent-icon" aria-hidden="true">…</span>
-      <span id="marvo-action-intent-text" class="marvo-action-intent-text">Awaiting live response wiring</span>
+      <span id="marvo-action-intent-icon" class="marvo-action-intent-icon" aria-hidden="true"></span>
+      <span id="marvo-action-intent-text" class="marvo-action-intent-text"></span>
     </div>
     <div id="marvo-info-intent-card" class="marvo-info-intent-card" hidden>
       <div class="marvo-info-intent-heading">
-        <span id="marvo-info-intent-icon" class="marvo-info-intent-icon" aria-hidden="true">…</span>
-        <span id="marvo-info-intent-title" class="marvo-info-intent-title">Awaiting Live Routing</span>
+        <span id="marvo-info-intent-icon" class="marvo-info-intent-icon" aria-hidden="true"></span>
+        <span id="marvo-info-intent-title" class="marvo-info-intent-title"></span>
       </div>
-      <p id="marvo-info-intent-body" class="marvo-info-intent-body">Awaiting live response wiring from Group C traffic router.</p>
+      <p id="marvo-info-intent-body" class="marvo-info-intent-body"></p>
     </div>
   </div>
 </div>
