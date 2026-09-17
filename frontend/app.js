@@ -3205,6 +3205,11 @@ class DynamicIslandManager {
     if (!el) return;
     el.classList.remove('action-intent-visible');
     if (restoreIdle) {
+      el.classList.remove('island-open');
+      el.classList.add('state-idle');
+      this.applyShape('var(--marvo-geo-idle-diameter)', 'var(--marvo-geo-height-idle)', {
+        radius: 'var(--marvo-geo-radius-idle)'
+      });
       if (this.state === 'idle') {
         el.classList.remove('island-open');
         el.classList.add('state-idle');
@@ -3259,6 +3264,11 @@ class DynamicIslandManager {
     if (!el) return;
     el.classList.remove('info-intent-visible');
     if (restoreIdle) {
+      el.classList.remove('island-open');
+      el.classList.add('state-idle');
+      this.applyShape('var(--marvo-geo-idle-diameter)', 'var(--marvo-geo-height-idle)', {
+        radius: 'var(--marvo-geo-radius-idle)'
+      });
       if (this.state === 'idle') {
         el.classList.remove('island-open');
         el.classList.add('state-idle');
@@ -3540,7 +3550,7 @@ class DynamicIslandManager {
     }, { passive: true });
 
     // Tap-outside dismissal pattern: collapses visible intent cards back to idle
-    document.addEventListener('pointerdown', (e) => {
+    this._pointerDownDismissHandler = (e) => {
       const island = this.getIsland();
       if (!island || island.contains(e.target)) return;
       if (this.actionIntentTimer) {
@@ -3549,7 +3559,8 @@ class DynamicIslandManager {
       if (this.infoIntentTimer) {
         this.hideInfoIntentCard();
       }
-    }, { passive: true });
+    };
+    document.addEventListener('pointerdown', this._pointerDownDismissHandler, { passive: true });
   }
 
   _bindButtons() {
@@ -3698,6 +3709,10 @@ class DynamicIslandManager {
       document.removeEventListener('visibilitychange', this.visibilityHandler);
       this.visibilityHandler = null;
     }
+    if (this._pointerDownDismissHandler) {
+      document.removeEventListener('pointerdown', this._pointerDownDismissHandler);
+      this._pointerDownDismissHandler = null;
+    }
   }
 }
 
@@ -3718,6 +3733,11 @@ function initDynamicIsland() {
     window.showActionIntentCard = (props) => dynamicIslandInstance.showActionIntentCard(props);
     window.showInfoIntentCard = (props) => dynamicIslandInstance.showInfoIntentCard(props);
     window.handleResponseIntent = (props) => dynamicIslandInstance.routeResponseIntent(props);
+    window.MarvoIdleIndicatorLifecycle?.registerTeardown(() => {
+      if (dynamicIslandInstance) {
+        dynamicIslandInstance.destroy();
+      }
+    });
   }
 }
 

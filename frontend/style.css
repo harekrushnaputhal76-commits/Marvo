@@ -5584,16 +5584,32 @@ body.island-active .main {
 
 @media (prefers-reduced-motion: reduce) {
   #marvo-liquid-filter-context,
+  #marvo-dynamic-island,
   #marvo-dynamic-island::before,
-  #marvo-dynamic-island::after {
+  #marvo-dynamic-island::after,
+  #marvo-dynamic-island.state-error {
     animation: none !important;
+  }
+
+  #marvo-dynamic-island,
+  .marvo-action-intent-card,
+  .marvo-info-intent-card {
+    transition: opacity 0.15s ease !important;
   }
 }
 
 .marvo-reduced-motion #marvo-liquid-filter-context,
+.marvo-reduced-motion #marvo-dynamic-island,
 .marvo-reduced-motion #marvo-dynamic-island::before,
-.marvo-reduced-motion #marvo-dynamic-island::after {
+.marvo-reduced-motion #marvo-dynamic-island::after,
+.marvo-reduced-motion #marvo-dynamic-island.state-error {
   animation: none !important;
+}
+
+.marvo-reduced-motion #marvo-dynamic-island,
+.marvo-reduced-motion .marvo-action-intent-card,
+.marvo-reduced-motion .marvo-info-intent-card {
+  transition: opacity 0.15s ease !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
