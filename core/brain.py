@@ -169,7 +169,7 @@ def offline_fallback_response(query: str) -> tuple[str, str]:
 
 
 # ──────────────────────────────────────────────────────────────────────
-# MAIN PUBLIC ENTRY POINT
+# MAIN PUBLIC ENTRY POINT (UNIFIED TRAFFIC POLICE ROUTING)
 # ──────────────────────────────────────────────────────────────────────
 def think_and_respond(
     user_message: str,
@@ -178,50 +178,18 @@ def think_and_respond(
     image_base64: str = None
 ) -> tuple[str, str]:
     """
-    Process a user message and return (response_text, animation_state).
-    Uses a multi-model failover cascade so quota exhaustion on one model
-    automatically falls through to available models before going offline.
-    Supports multimodal inputs (Text + Live Vision image frames).
+    Process a user message through the unified Traffic Police routing engine.
+    Maintains backward compatibility with legacy (response_text, state) callers
+    while executing the full C5 -> Node 1 / Node 2 / Node 3 cascade with zero bypass paths.
     """
-    if not user_message or not user_message.strip():
-        return ("I didn't catch that. Could you say something?", "state-idle")
+    from core.traffic_police import route_traffic
 
-    raw_image_data = None
-    if image_base64:
-        try:
-            import base64
-            clean_b64 = image_base64
-            if "," in clean_b64:
-                clean_b64 = clean_b64.split(",", 1)[1]
-            raw_image_data = base64.b64decode(clean_b64)
-        except Exception as _b64_err:
-            _logger.warning(f"Failed decoding image_base64: {_b64_err}")
-
-    # Try each model in the cascade
-    for model_name in MODELS:
-        chat = _get_or_create_chat(model_name, session_id=session_id, thinking_mode=thinking_mode)
-        if chat is None:
-            continue
-
-        try:
-            if raw_image_data:
-                part_img = types.Part.from_bytes(data=raw_image_data, mime_type="image/jpeg")
-                part_txt = types.Part.from_text(text=user_message.strip())
-                response = chat.send_message([part_img, part_txt])
-            else:
-                response = chat.send_message(user_message.strip())
-            reply_text = response.text.strip() if response and response.text else ""
-
-            if reply_text:
-                return (reply_text, "state-speaking")
-
-        except Exception as e:
-            err_str = str(e)
-            _logger.warning(f"Model '{model_name}' failed ({err_str[:60]}), failing over to next model...")
-            cache_key = f"{session_id}::{model_name}"
-            _chat_sessions.pop(cache_key, None)
-            continue  # Try next model
-
-    # If all online models fail or offline, trigger local knowledge base
-    _logger.info("All online models exhausted or unreachable. Triggering offline fallback.")
-    return offline_fallback_response(user_message)
+    res = route_traffic(
+        query=user_message,
+        session_id=session_id,
+        thinking_mode=thinking_mode,
+        image_base64=image_base64,
+    )
+    state = "state-speaking" if res.success else "state-error"
+    text = res.response_text or (res.error.message if res.error else "")
+    return (text, state)

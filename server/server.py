@@ -35,15 +35,32 @@ import urllib.parse
 try:
     from agents.manager import handle_request
 except Exception as _agent_err:
-    logging.error(f"Failed to import agents.manager: {_agent_err}", exc_info=True)
     try:
-        from core.brain import think_and_respond
-        def handle_request(message, thinking_mode='medium', session_id='default', local_time=None):
-            resp, state = think_and_respond(message, thinking_mode=thinking_mode, session_id=session_id)
-            return {"type": "text", "response": resp, "state": state, "session_id": session_id}
+        from core.traffic_police import route_traffic
+        def handle_request(message, thinking_mode='medium', session_id='default', local_time=None, **kwargs):
+            res = route_traffic(message, thinking_mode=thinking_mode, session_id=session_id)
+            d = res.to_dict()
+            d["type"] = "text"
+            d["session_id"] = session_id
+            return d
     except Exception:
-        def handle_request(message, thinking_mode='medium', session_id='default', local_time=None):
-            return {"type": "text", "response": "Brain module is offline.", "state": "state-idle", "session_id": session_id}
+        from core.response_schema import RouterResponse, ResponseSource, ResponseIntentType, ErrorCode, ResponseError
+        def handle_request(message, thinking_mode='medium', session_id='default', local_time=None, **kwargs):
+            err_res = RouterResponse(
+                success=False,
+                response_text="",
+                source=ResponseSource.OFFLINE,
+                intent_type=ResponseIntentType.NONE,
+                error=ResponseError(
+                    code=ErrorCode.INTERNAL_ERROR,
+                    message="Traffic Police routing module is currently unavailable.",
+                    retryable=True,
+                ),
+            )
+            d = err_res.to_dict()
+            d["type"] = "text"
+            d["session_id"] = session_id
+            return d
 
 # 2. Voice Module Integration
 try:
@@ -241,19 +258,44 @@ def chat_endpoint():
             ])
             _save_session(session_id, session['messages'])
 
-            return jsonify({
+            # Merge full C4 response contract fields
+            payload = {
                 "type": "text",
+                "success": result.get("success", True),
                 "response": ai_response,
+                "response_text": result.get("response_text", ai_response),
+                "source": result.get("source", "online"),
+                "intent_type": result.get("intent_type", "CONVERSATION"),
+                "provider": result.get("provider", "gemini"),
+                "model": result.get("model", "gemini-flash-latest"),
+                "is_fallback": result.get("is_fallback", False),
+                "fallback_occurred": result.get("fallback_occurred", False),
+                "intent_payload": result.get("intent_payload"),
+                "error": result.get("error"),
                 "state": animation_state,
                 "session_id": session_id
-            }), 200
+            }
+            return jsonify(payload), 200
 
     except Exception as e:
         logging.error(f"Server Error during chat processing: {str(e)}", exc_info=True)
-        return jsonify({
-            "response": "I encountered an internal error. Please check the logs.",
-            "state": "state-idle"
-        }), 500
+        from core.response_schema import RouterResponse, ResponseSource, ResponseIntentType, ErrorCode, ResponseError
+        err_res = RouterResponse(
+            success=False,
+            response_text="",
+            source=ResponseSource.OFFLINE,
+            intent_type=ResponseIntentType.NONE,
+            error=ResponseError(
+                code=ErrorCode.INTERNAL_ERROR,
+                message=f"Server error during chat processing: {str(e)}",
+                retryable=True,
+                http_status=500,
+            ),
+        )
+        d = err_res.to_dict()
+        d["type"] = "text"
+        d["session_id"] = session_id or "default"
+        return jsonify(d), 500
 
 
 @app.route('/api/speak', methods=['POST'])

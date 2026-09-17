@@ -63,11 +63,19 @@ from core.key_pool import (
     DEFAULT_FAILING_THRESHOLD,
 )
 
+# ── Traffic Police: Unified Master Router ──────────────────────────
+from core.traffic_police import (
+    route_traffic,
+    route_traffic_async,
+)
+
 # Package-level metadata
 __version__ = "1.0.0"
 __author__  = "Marvo AI"
 __all__     = [
     "think_and_respond",
+    "route_traffic",
+    "route_traffic_async",
     "speak",
     "listen",
     "set_voice_rate",

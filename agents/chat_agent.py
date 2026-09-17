@@ -11,11 +11,22 @@ from typing import Tuple, Dict, Any
 logger = logging.getLogger("marvo.agents.chat")
 
 try:
-    from core.brain import think_and_respond
+    from core.traffic_police import route_traffic
 except Exception as err:
-    logger.error(f"Failed to import core.brain in chat_agent: {err}", exc_info=True)
-    def think_and_respond(prompt: str, thinking_mode: str = 'medium', session_id: str = 'default') -> Tuple[str, str]:
-        return "I couldn't access my reasoning core right now.", "state-idle"
+    logger.error(f"Failed to import core.traffic_police in chat_agent: {err}", exc_info=True)
+    def route_traffic(prompt: str, **kwargs):
+        from core.response_schema import RouterResponse, ResponseSource, ResponseIntentType, ErrorCode, ResponseError
+        return RouterResponse(
+            success=False,
+            response_text="",
+            source=ResponseSource.OFFLINE,
+            intent_type=ResponseIntentType.NONE,
+            error=ResponseError(
+                code=ErrorCode.INTERNAL_ERROR,
+                message="Traffic Police module unreachable.",
+                retryable=True,
+            ),
+        )
 
 
 def generate_chat_response(
@@ -25,35 +36,20 @@ def generate_chat_response(
     image_base64: str = None
 ) -> Dict[str, Any]:
     """
-    Executes reasoning and text generation for user queries.
-    Supports multimodal image inputs from Live Vision mode.
+    Executes reasoning and text generation for user queries via Traffic Police.
+    Eliminates silent failure swallowing and canned stand-in strings.
     Returns:
-        dict: {
-            "type": "text",
-            "response": "<ai_text>",
-            "state": "<animation_state>",
-            "session_id": "<session_id>"
-        }
+        dict: Full C4 schema response dictionary + {"type": "text", "session_id": session_id}.
     """
-    try:
-        response_text, state = think_and_respond(
-            prompt,
-            thinking_mode=thinking_mode,
-            session_id=session_id,
-            image_base64=image_base64
-        )
-        return {
-            "type": "text",
-            "response": response_text,
-            "state": state or "state-speaking",
-            "session_id": session_id
-        }
-    except Exception as e:
-        logger.error(f"[ChatAgent] Error generating chat response: {e}", exc_info=True)
-        return {
-            "type": "text",
-            "response": "I encountered a hiccup while thinking through that. Let's try again.",
-            "state": "state-error",
-            "session_id": session_id
-        }
+    res = route_traffic(
+        query=prompt,
+        thinking_mode=thinking_mode,
+        session_id=session_id,
+        image_base64=image_base64,
+    )
+
+    out = res.to_dict()
+    out["type"] = "text"
+    out["session_id"] = session_id
+    return out
 
