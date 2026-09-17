@@ -33,6 +33,7 @@ Every execution path through the backend router MUST produce a payload conformin
   "provider": "gemini",
   "model": "gemini-flash-latest",
   "is_fallback": false,
+  "fallback_occurred": false,
   "intent_payload": null,
   "error": null
 }
@@ -49,6 +50,7 @@ Every execution path through the backend router MUST produce a payload conformin
 | `provider` | `string` | `"gemini"` \| `"groq"` \| `"openrouter"` \| `"local"` \| `"knowledge_base"` | The underlying service provider that executed the request. |
 | `model` | `string` | e.g. `"gemini-flash-latest"`, `"llama-3.3-70b-versatile"`, `"phi-3-mini"` | Specific model identifier used for inference. |
 | `is_fallback` | `boolean` | `true` \| `false` | `true` if the primary model failed (e.g. hit quota) and a secondary or offline engine answered. |
+| `fallback_occurred` | `boolean` | `true` \| `false` | Node 3 contract extension: `true` if all online keys failed/exhausted and graceful failover to offline engine occurred. |
 | `intent_payload` | `object` \| `null` | `null` for `CONVERSATION` / `NONE`; structured dict for `ACTION` / `INFO` | Additional payload parameters required by Group B intent cards. |
 | `error` | `object` \| `null` | `null` on success; `ResponseError` on failure | Structured error object explaining failure diagnostics. |
 
@@ -208,10 +210,18 @@ class RouterResponse:
     provider: str = "gemini"
     model: str = "gemini-flash-latest"
     is_fallback: bool = False
+    fallback_occurred: bool = False
     intent_payload: Optional[IntentPayload] = None
     error: Optional[ResponseError] = None
 
+    def __post_init__(self):
+        if self.fallback_occurred and not self.is_fallback:
+            self.is_fallback = True
+        elif self.is_fallback and not self.fallback_occurred:
+            self.fallback_occurred = True
+
     def to_dict(self) -> Dict[str, Any]:
+        has_fallen_back = self.fallback_occurred or self.is_fallback
         return {
             "success": self.success,
             "response": self.response_text,  # Backwards-compatible alias for existing frontend
@@ -220,7 +230,8 @@ class RouterResponse:
             "intent_type": self.intent_type.value if isinstance(self.intent_type, Enum) else self.intent_type,
             "provider": self.provider,
             "model": self.model,
-            "is_fallback": self.is_fallback,
+            "is_fallback": has_fallen_back,
+            "fallback_occurred": has_fallen_back,
             "intent_payload": self.intent_payload.to_dict() if self.intent_payload else None,
             "error": self.error.to_dict() if self.error else None,
             # Voice indicator bridge:
@@ -242,6 +253,7 @@ export interface RouterResponsePayload {
   provider: string;
   model: string;
   is_fallback: boolean;
+  fallback_occurred: boolean;
   intent_payload?: ActionIntentPayload | InfoIntentPayload | null;
   error?: ResponseErrorPayload | null;
   state?: string;

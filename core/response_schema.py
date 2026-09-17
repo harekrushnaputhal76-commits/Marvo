@@ -95,14 +95,23 @@ class RouterResponse:
     provider: str = "knowledge_base"
     model: str = "custom_qa"
     is_fallback: bool = False
+    fallback_occurred: bool = False
     intent_payload: Optional[IntentPayload] = None
     error: Optional[ResponseError] = None
+
+    def __post_init__(self):
+        # Keep fallback_occurred and is_fallback mutually aligned
+        if self.fallback_occurred and not self.is_fallback:
+            self.is_fallback = True
+        elif self.is_fallback and not self.fallback_occurred:
+            self.fallback_occurred = True
 
     def to_dict(self) -> Dict[str, Any]:
         """
         Convert to JSON-serializable dictionary matching the C4 contract and
         frontend interface expectations.
         """
+        has_fallen_back = self.fallback_occurred or self.is_fallback
         return {
             "success": self.success,
             "response": self.response_text,  # Backwards-compatible alias for existing frontend
@@ -111,7 +120,8 @@ class RouterResponse:
             "intent_type": self.intent_type.value if isinstance(self.intent_type, Enum) else self.intent_type,
             "provider": self.provider,
             "model": self.model,
-            "is_fallback": self.is_fallback,
+            "is_fallback": has_fallen_back,
+            "fallback_occurred": has_fallen_back,
             "intent_payload": self.intent_payload.to_dict() if self.intent_payload else None,
             "error": self.error.to_dict() if self.error else None,
             # Voice indicator bridge:

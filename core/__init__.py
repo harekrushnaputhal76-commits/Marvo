@@ -49,6 +49,17 @@ from core.online_router import (
     categorize_online_exception,
 )
 
+# ── Router: Key Pool & Failover Layer (Node 3) ─────────────────────
+from core.key_pool import (
+    KeyPool,
+    KeySlot,
+    route_with_failover,
+    route_with_failover_async,
+    get_default_key_pool,
+    load_gemini_keys_from_env,
+    DEFAULT_RATE_LIMIT_COOLDOWN_SECONDS,
+)
+
 # Package-level metadata
 __version__ = "1.0.0"
 __author__  = "Marvo AI"
@@ -77,5 +88,12 @@ __all__     = [
     "DEFAULT_ONLINE_MODEL",
     "OnlineRequestContext",
     "categorize_online_exception",
+    "KeyPool",
+    "KeySlot",
+    "route_with_failover",
+    "route_with_failover_async",
+    "get_default_key_pool",
+    "load_gemini_keys_from_env",
+    "DEFAULT_RATE_LIMIT_COOLDOWN_SECONDS",
 ]
 
