@@ -5387,7 +5387,14 @@ body.island-active .main {
     width var(--marvo-duration-base) var(--marvo-ease-bounce),
     height var(--marvo-duration-base) var(--marvo-ease-bounce),
     border-radius var(--marvo-duration-base) var(--marvo-ease-bounce) !important;
-  will-change: width, height, border-radius !important;
+  will-change: auto;
+}
+
+#marvo-dynamic-island.island-open,
+#marvo-dynamic-island:not(.state-idle),
+#marvo-dynamic-island.action-intent-visible,
+#marvo-dynamic-island.info-intent-visible {
+  will-change: width, height, border-radius;
 }
 
 #marvo-dynamic-island::before {
