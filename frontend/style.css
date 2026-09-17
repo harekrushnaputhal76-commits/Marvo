@@ -5495,6 +5495,15 @@ body.island-active .main {
   opacity: 1;
 }
 
+/* Priority enforcement: error and idle states strictly suppress any intent card overlays */
+#marvo-dynamic-island.state-error .marvo-action-intent-card,
+#marvo-dynamic-island.state-error .marvo-info-intent-card,
+#marvo-dynamic-island.state-idle .marvo-action-intent-card,
+#marvo-dynamic-island.state-idle .marvo-info-intent-card {
+  display: none !important;
+  opacity: 0 !important;
+}
+
 .marvo-info-intent-heading {
   display: flex;
   align-items: center;
