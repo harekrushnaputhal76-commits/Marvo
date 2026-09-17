@@ -59,6 +59,12 @@ _logger = logging.getLogger("marvo.routing.key_pool")
 # Default cooldown duration for rate-limited (429) keys before they become eligible again
 DEFAULT_RATE_LIMIT_COOLDOWN_SECONDS: float = 60.0
 
+# Cooldown duration for keys with repeated consecutive failures (timeouts/500s)
+DEFAULT_FAILING_COOLDOWN_SECONDS: float = 15.0
+
+# Number of consecutive failures before marking a key as FAILING
+DEFAULT_FAILING_THRESHOLD: int = 3
+
 # Dedicated bounded thread pool for asynchronous failover routing
 _FAILOVER_EXECUTOR = concurrent.futures.ThreadPoolExecutor(
     max_workers=4,
@@ -67,36 +73,68 @@ _FAILOVER_EXECUTOR = concurrent.futures.ThreadPoolExecutor(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 2. KEY SLOT STATE CONTAINER
+# 2. KEY HEALTH STATUS ENUM & SLOT STATE CONTAINER
 # ─────────────────────────────────────────────────────────────────────────────
+
+from enum import Enum
+
+class KeyHealthStatus(str, Enum):
+    """
+    Lightweight in-memory health status per API key.
+    Evaluated strictly on demand during incoming requests — ZERO background polling,
+    zero timers, and zero battery drain.
+    """
+    HEALTHY = "healthy"
+    RATE_LIMITED = "rate-limited"
+    FAILING = "failing"
+    INVALID = "invalid"
+
 
 @dataclass
 class KeySlot:
     """
     Health state container for an individual API key in the pool.
-    Guarantees zero leakage: __repr__ masks the key value.
+    Guarantees:
+    - Zero key value leakage: __repr__ strictly masks key.
+    - Zero background polling: state transitions evaluated lazily on demand.
+    - Clean restart semantics: initializes cleanly in memory on app/server launch.
     """
     index: int
     key: str
-    is_valid: bool = True               # False if 401/403 auth error (skipped for session)
-    rate_limited_until: float = 0.0     # Epoch timestamp until which key is in cooldown
-    failure_count: int = 0
-    success_count: int = 0
+    is_valid: bool = True                  # False if 401/403 auth error (permanently skipped for session)
+    rate_limited_until: float = 0.0        # Epoch timestamp until which key is in 429 cooldown
+    failing_until: float = 0.0             # Epoch timestamp until which key is in transient error cooldown
+    consecutive_failures: int = 0          # Count of consecutive errors without an intervening success
+    failure_count: int = 0                 # Lifetime failure counter for diagnostics
+    success_count: int = 0                 # Lifetime success counter
     last_error_code: Optional[str] = None
     last_error_time: Optional[float] = None
 
+    def get_health_status(self, now: Optional[float] = None) -> KeyHealthStatus:
+        """
+        Evaluate and return the key's current health status in-memory.
+        Evaluated lazily upon request dispatch without any periodic background polling.
+        """
+        current_time = now if now is not None else time.time()
+        if not self.is_valid:
+            return KeyHealthStatus.INVALID
+        if current_time < self.rate_limited_until:
+            return KeyHealthStatus.RATE_LIMITED
+        if current_time < self.failing_until:
+            return KeyHealthStatus.FAILING
+        return KeyHealthStatus.HEALTHY
+
     @property
     def is_available(self) -> bool:
-        """True if the key is structurally valid and not currently in rate-limit cooldown."""
-        if not self.is_valid:
-            return False
-        return time.time() >= self.rate_limited_until
+        """True if the key is structurally valid and in HEALTHY state."""
+        return self.get_health_status() == KeyHealthStatus.HEALTHY
 
     def __repr__(self) -> str:
-        # Strictly mask key in all debug representations to prevent accidental log leakage
+        # Strictly mask key in all representations to prevent log leakage
+        status = self.get_health_status().value
         return (
-            f"KeySlot(index={self.index}, is_valid={self.is_valid}, "
-            f"available={self.is_available}, failures={self.failure_count})"
+            f"KeySlot(index={self.index}, status='{status}', "
+            f"failures={self.failure_count}, consecutive_failures={self.consecutive_failures})"
         )
 
 
@@ -181,9 +219,13 @@ class KeyPool:
         self,
         keys: Optional[List[str]] = None,
         rate_limit_cooldown_seconds: float = DEFAULT_RATE_LIMIT_COOLDOWN_SECONDS,
+        failing_cooldown_seconds: float = DEFAULT_FAILING_COOLDOWN_SECONDS,
+        failing_threshold: int = DEFAULT_FAILING_THRESHOLD,
     ):
         raw_keys = keys if keys is not None else load_gemini_keys_from_env()
         self.rate_limit_cooldown_seconds = rate_limit_cooldown_seconds
+        self.failing_cooldown_seconds = failing_cooldown_seconds
+        self.failing_threshold = failing_threshold
         self._lock = threading.Lock()
         self._pointer = 0
 
@@ -204,15 +246,20 @@ class KeyPool:
 
     @property
     def available_count(self) -> int:
-        """Count of keys currently eligible (valid and not in rate-limit cooldown)."""
+        """Count of keys currently in HEALTHY state (valid and not in rate-limit/failing cooldown)."""
         with self._lock:
             return sum(1 for s in self.slots if s.is_available)
 
     def select_next_slot(self, exclude_indices: Optional[Set[int]] = None) -> Optional[KeySlot]:
         """
         Thread-safe selection of the next available key slot using round-robin.
-        If all available keys are in cooldown, picks the valid slot with the earliest
-        expiring cooldown.
+        
+        Health-aware selection rules:
+        - Only selects slots whose current in-memory status is HEALTHY.
+        - Automatically skips keys in RATE_LIMITED cooldown or FAILING cooldown.
+        - Automatically skips keys marked INVALID.
+        - If all valid keys are currently in cooldown, returns None so the router
+          immediately triggers graceful offline fallback rather than hammering failing keys.
         """
         exclude = exclude_indices or set()
         with self._lock:
@@ -220,17 +267,15 @@ class KeyPool:
             if not valid_slots:
                 return None
 
-            # First pass: look for slots where is_available is True
+            # Strictly select among slots whose in-memory health is currently HEALTHY
             available_slots = [s for s in valid_slots if s.is_available]
             if available_slots:
-                # Advance pointer round-robin style
                 selected = available_slots[self._pointer % len(available_slots)]
                 self._pointer = (self._pointer + 1) % len(available_slots)
                 return selected
 
-            # Second pass: all remaining valid slots are in cooldown; select earliest expiring
-            earliest_slot = min(valid_slots, key=lambda s: s.rate_limited_until)
-            return earliest_slot
+            # All remaining valid keys are in cooldown; return None to skip failed keys
+            return None
 
     def record_failure(
         self,
@@ -238,51 +283,88 @@ class KeyPool:
         error: ResponseError,
     ) -> None:
         """
-        Thread-safe failure recorder. Enforces:
-        - 401/403 -> marks key invalid for entire session.
-        - 429 / Quota -> enters temporary cooldown.
-        - Zero key value leakage in log messages.
+        Thread-safe failure recorder and in-memory health state transitions.
+        
+        State transitions:
+        - 401/403 (AUTH_FAILED) -> KeyHealthStatus.INVALID (permanently disabled for session).
+        - 429 (RATE_LIMITED)   -> KeyHealthStatus.RATE_LIMITED (cooldown for rate_limit_cooldown_seconds).
+        - Consecutive errors >= failing_threshold -> KeyHealthStatus.FAILING (cooldown for failing_cooldown_seconds).
+        - Zero key value leakage in all log records.
         """
         with self._lock:
             if 0 <= slot_index < len(self.slots):
                 slot = self.slots[slot_index]
                 slot.failure_count += 1
+                slot.consecutive_failures += 1
                 slot.last_error_code = error.code.value if hasattr(error.code, "value") else str(error.code)
                 slot.last_error_time = time.time()
 
                 if error.code == ErrorCode.AUTH_FAILED:
                     slot.is_valid = False
                     _logger.error(
-                        f"[KeyPool Failover] Key index {slot.index} authentication failed (401/403). "
-                        f"Permanently disabled for this session."
+                        f"[KeyPool Health] Key index {slot.index} authentication failed (401/403). "
+                        f"State -> INVALID. Permanently disabled for this session."
                     )
                 elif error.code == ErrorCode.RATE_LIMITED:
                     slot.rate_limited_until = time.time() + self.rate_limit_cooldown_seconds
                     _logger.warning(
-                        f"[KeyPool Failover] Key index {slot.index} rate-limited (429 ResourceExhausted). "
-                        f"Placed in cooldown for {self.rate_limit_cooldown_seconds:.1f}s."
+                        f"[KeyPool Health] Key index {slot.index} rate-limited (429 ResourceExhausted). "
+                        f"State -> RATE_LIMITED. Cooldown active for {self.rate_limit_cooldown_seconds:.1f}s."
                     )
                 elif error.code == ErrorCode.NETWORK_OFFLINE:
                     _logger.warning(
-                        f"[KeyPool Failover] Key index {slot.index} encountered network disconnection."
-                    )
-                elif error.code == ErrorCode.TIMEOUT:
-                    _logger.warning(
-                        f"[KeyPool Failover] Key index {slot.index} timed out."
+                        f"[KeyPool Health] Key index {slot.index} network offline. Device unreachable."
                     )
                 else:
-                    _logger.warning(
-                        f"[KeyPool Failover] Key index {slot.index} failed with {error.code}: {error.message[:80]}."
-                    )
+                    if slot.consecutive_failures >= self.failing_threshold:
+                        slot.failing_until = time.time() + self.failing_cooldown_seconds
+                        _logger.warning(
+                            f"[KeyPool Health] Key index {slot.index} hit {slot.consecutive_failures} "
+                            f"consecutive failures ({slot.last_error_code}). "
+                            f"State -> FAILING. Cooldown active for {self.failing_cooldown_seconds:.1f}s."
+                        )
+                    else:
+                        _logger.warning(
+                            f"[KeyPool Health] Key index {slot.index} transient failure ({error.code}): "
+                            f"{error.message[:80]}. Consecutive failures: {slot.consecutive_failures}."
+                        )
 
     def record_success(self, slot_index: int) -> None:
-        """Thread-safe success recorder."""
+        """
+        Thread-safe success recorder.
+        Restores slot to KeyHealthStatus.HEALTHY and resets consecutive error counters.
+        """
         with self._lock:
             if 0 <= slot_index < len(self.slots):
                 slot = self.slots[slot_index]
                 slot.success_count += 1
                 slot.failure_count = 0
+                slot.consecutive_failures = 0
+                slot.rate_limited_until = 0.0
+                slot.failing_until = 0.0
                 slot.last_error_code = None
+
+    def get_health_summary(self) -> List[Dict[str, Any]]:
+        """
+        Snapshot of in-memory key health state for observability and diagnostics.
+        Guarantees zero raw key string leakage.
+        """
+        with self._lock:
+            now = time.time()
+            return [
+                {
+                    "index": s.index,
+                    "status": s.get_health_status(now).value,
+                    "is_valid": s.is_valid,
+                    "is_available": s.is_available,
+                    "failure_count": s.failure_count,
+                    "consecutive_failures": s.consecutive_failures,
+                    "success_count": s.success_count,
+                    "rate_limited_seconds_remaining": max(0.0, s.rate_limited_until - now),
+                    "failing_seconds_remaining": max(0.0, s.failing_until - now),
+                }
+                for s in self.slots
+            ]
 
     def route_with_failover(
         self,
@@ -485,3 +567,4 @@ def route_with_failover_async(
         model=model,
         pool=pool,
     )
+

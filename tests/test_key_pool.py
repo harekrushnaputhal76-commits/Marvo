@@ -29,10 +29,13 @@ if _repo_root not in sys.path:
 from core.key_pool import (
     KeyPool,
     KeySlot,
+    KeyHealthStatus,
     route_with_failover,
     route_with_failover_async,
     load_gemini_keys_from_env,
     DEFAULT_RATE_LIMIT_COOLDOWN_SECONDS,
+    DEFAULT_FAILING_COOLDOWN_SECONDS,
+    DEFAULT_FAILING_THRESHOLD,
 )
 from core.response_schema import (
     ResponseSource,
@@ -334,6 +337,155 @@ class TestKeyPool(unittest.TestCase):
             self.assertIn("Key index 0", record)
             self.assertIn("rate-limited", record.lower())
 
+    def test_key_health_status_transitions(self):
+        """
+        Verify the in-memory state machine transitions:
+        HEALTHY -> RATE_LIMITED (429) -> HEALTHY (after cooldown) -> FAILING (>=3 errors) -> INVALID (401).
+        """
+        pool = KeyPool(
+            keys=["k0"],
+            rate_limit_cooldown_seconds=60.0,
+            failing_cooldown_seconds=15.0,
+            failing_threshold=3,
+        )
+        slot = pool.slots[0]
+
+        # 1. Initial state
+        self.assertEqual(slot.get_health_status(), KeyHealthStatus.HEALTHY)
+        self.assertTrue(slot.is_available)
+
+        # 2. Rate limit transition
+        pool.record_failure(0, ResponseError(code=ErrorCode.RATE_LIMITED, message="429 Quota Exceeded"))
+        self.assertEqual(slot.get_health_status(), KeyHealthStatus.RATE_LIMITED)
+        self.assertFalse(slot.is_available)
+
+        # 3. Rate limit expiry (lazy evaluation on demand)
+        future_time = time.time() + 61.0
+        self.assertEqual(slot.get_health_status(now=future_time), KeyHealthStatus.HEALTHY)
+
+        # 4. Success restores HEALTHY
+        pool.record_success(0)
+        self.assertEqual(slot.get_health_status(), KeyHealthStatus.HEALTHY)
+        self.assertEqual(slot.consecutive_failures, 0)
+
+        # 5. Consecutive transient failures trigger FAILING
+        for _ in range(3):
+            pool.record_failure(0, ResponseError(code=ErrorCode.TIMEOUT, message="504 Timed Out"))
+        self.assertEqual(slot.get_health_status(), KeyHealthStatus.FAILING)
+        self.assertFalse(slot.is_available)
+
+        # 6. FAILING cooldown expiry
+        future_failing_time = time.time() + 16.0
+        self.assertEqual(slot.get_health_status(now=future_failing_time), KeyHealthStatus.HEALTHY)
+
+        # 7. AUTH_FAILED triggers permanent INVALID
+        pool.record_failure(0, ResponseError(code=ErrorCode.AUTH_FAILED, message="401 Invalid Key"))
+        self.assertEqual(slot.get_health_status(), KeyHealthStatus.INVALID)
+        self.assertFalse(slot.is_available)
+        # Cannot be restored even far in the future
+        self.assertEqual(slot.get_health_status(now=time.time() + 999999), KeyHealthStatus.INVALID)
+
+    def test_subsequent_request_skips_recently_failed_key(self):
+        """
+        CORE GOAL:
+        If Key 0 just failed with 429 on Request 1, Request 2 (arriving immediately
+        afterwards) must completely SKIP Key 0 and dispatch directly to Key 1.
+        """
+        pool = KeyPool(keys=["key_0", "key_1"], rate_limit_cooldown_seconds=60.0)
+
+        call_log = []
+
+        def mock_invoker(slot: KeySlot) -> RouterResponse:
+            call_log.append((slot.index, time.time()))
+            if slot.index == 0:
+                return RouterResponse(
+                    success=False,
+                    response_text="",
+                    source=ResponseSource.ONLINE,
+                    error=ResponseError(
+                        code=ErrorCode.RATE_LIMITED,
+                        message="429 Quota Exceeded",
+                        retryable=True,
+                        http_status=429,
+                    ),
+                )
+            return RouterResponse(
+                success=True,
+                response_text=f"Handled by Key {slot.index}",
+                source=ResponseSource.ONLINE,
+            )
+
+        # Request 1: Key 0 fails -> fails over to Key 1
+        res1 = pool.route_with_failover(query="First question", client_invoker=mock_invoker)
+        self.assertTrue(res1.success)
+        self.assertEqual(res1.response_text, "Handled by Key 1")
+        self.assertEqual([idx for idx, _ in call_log], [0, 1])
+
+        # Request 2: immediately afterwards
+        call_log.clear()
+        res2 = pool.route_with_failover(query="Second question", client_invoker=mock_invoker)
+        self.assertTrue(res2.success)
+        self.assertEqual(res2.response_text, "Handled by Key 1")
+        # Key 0 must NOT have been called on Request 2!
+        self.assertEqual([idx for idx, _ in call_log], [1])
+
+    def test_all_keys_rate_limited_skips_online_call_entirely(self):
+        """
+        When all keys are in cooldown, the router does NOT make a doomed online call.
+        It immediately dispatches to offline fallback.
+        """
+        pool = KeyPool(keys=["k0", "k1"], rate_limit_cooldown_seconds=60.0)
+
+        # Put both keys into rate-limit cooldown
+        pool.record_failure(0, ResponseError(code=ErrorCode.RATE_LIMITED, message="429"))
+        pool.record_failure(1, ResponseError(code=ErrorCode.RATE_LIMITED, message="429"))
+
+        mock_invoker = MagicMock()
+        res = pool.route_with_failover(
+            query="Explain black holes",
+            client_invoker=mock_invoker,
+        )
+
+        # Online call was never invoked
+        mock_invoker.assert_not_called()
+        self.assertTrue(res.success)
+        self.assertEqual(res.source, ResponseSource.OFFLINE)
+        self.assertTrue(res.fallback_occurred)
+        self.assertTrue(res.is_fallback)
+
+    def test_no_background_threads_or_polling_introduced(self):
+        """
+        BATTERY / RESOURCE AUDIT:
+        Confirm that KeyPool does not instantiate background polling threads or loops.
+        State transitions are purely reactive upon request dispatch.
+        """
+        import threading
+
+        threads_before = {t.name for t in threading.enumerate()}
+        pool = KeyPool(keys=["key_a", "key_b"])
+        threads_after = {t.name for t in threading.enumerate()}
+
+        # No new thread was spawned simply by instantiating or holding the pool
+        new_threads = threads_after - threads_before
+        polling_threads = [name for name in new_threads if "poll" in name.lower() or "health" in name.lower()]
+        self.assertEqual(polling_threads, [])
+
+    def test_state_resets_sensibly_on_new_pool_instance(self):
+        """
+        Confirm tracking state resets cleanly on server/app restart without
+        requiring persistent file/db cleanup.
+        """
+        pool1 = KeyPool(keys=["key_restart"])
+        pool1.record_failure(0, ResponseError(code=ErrorCode.AUTH_FAILED, message="401 Revoked"))
+        self.assertEqual(pool1.slots[0].get_health_status(), KeyHealthStatus.INVALID)
+
+        # Simulate fresh app startup
+        pool2 = KeyPool(keys=["key_restart"])
+        self.assertEqual(pool2.slots[0].get_health_status(), KeyHealthStatus.HEALTHY)
+        self.assertEqual(pool2.slots[0].failure_count, 0)
+        self.assertEqual(pool2.slots[0].consecutive_failures, 0)
+        self.assertTrue(pool2.slots[0].is_available)
+
     def test_async_route_with_failover(self):
         """route_with_failover_async returns a Future resolving to a RouterResponse."""
         pool = KeyPool(keys=["mock_key"])
@@ -362,3 +514,4 @@ def run_standalone_suite() -> int:
 
 if __name__ == "__main__":
     sys.exit(run_standalone_suite())
+

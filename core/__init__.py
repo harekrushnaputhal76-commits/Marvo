@@ -53,11 +53,14 @@ from core.online_router import (
 from core.key_pool import (
     KeyPool,
     KeySlot,
+    KeyHealthStatus,
     route_with_failover,
     route_with_failover_async,
     get_default_key_pool,
     load_gemini_keys_from_env,
     DEFAULT_RATE_LIMIT_COOLDOWN_SECONDS,
+    DEFAULT_FAILING_COOLDOWN_SECONDS,
+    DEFAULT_FAILING_THRESHOLD,
 )
 
 # Package-level metadata
@@ -90,10 +93,13 @@ __all__     = [
     "categorize_online_exception",
     "KeyPool",
     "KeySlot",
+    "KeyHealthStatus",
     "route_with_failover",
     "route_with_failover_async",
     "get_default_key_pool",
     "load_gemini_keys_from_env",
     "DEFAULT_RATE_LIMIT_COOLDOWN_SECONDS",
+    "DEFAULT_FAILING_COOLDOWN_SECONDS",
+    "DEFAULT_FAILING_THRESHOLD",
 ]
 
