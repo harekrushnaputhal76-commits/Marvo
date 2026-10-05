@@ -176,7 +176,7 @@
     <div class="api-status-badge-container" id="btnOpenAiControlCenterBadge" style="padding: 8px 12px; background: rgba(0, 240, 255, 0.06); border: 1px solid rgba(0, 240, 255, 0.18); border-radius: 12px; margin: 4px 8px; cursor: pointer;" title="Click to open AI Control Center">
       <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#00f0ff;font-weight:600;">
         <span style="width:8px;height:8px;border-radius:50%;background:#00ff88;box-shadow:0 0 8px #00ff88;display:inline-block;"></span>
-        <span>Groq • Gemini • Claude Active</span>
+        <span>Gemini Cloud & Phi-3 Local Active</span>
       </div>
       <div style="font-size:10.5px;color:var(--text-muted);margin-top:3px;">
         Zero cross-billing & instant hybrid routing
@@ -278,7 +278,7 @@
 
     <!-- Header Modes: [Fast] | [Thinking] | [Pro Thinking] -->
     <div class="tier-switcher cognitive-modes-switcher" id="tierSwitcher">
-      <button class="tier-btn active" data-mode="Fast" id="btnTierFast" type="button" title="Fast Mode — Instant Groq Response">
+      <button class="tier-btn active" data-mode="Fast" id="btnTierFast" type="button" title="Fast Mode — Instant Response">
         <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
         <span>Fast</span>
       </button>
@@ -286,7 +286,7 @@
         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         <span>Thinking</span>
       </button>
-      <button class="tier-btn" data-mode="Pro Thinking" id="btnTierPro" type="button" title="Pro Thinking Mode — Heavy OpenRouter / Claude Logic">
+      <button class="tier-btn" data-mode="Pro Thinking" id="btnTierPro" type="button" title="Pro Thinking Mode — Deep Multi-Step Reasoning">
         <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
         <span>Pro Thinking</span>
       </button>
@@ -374,66 +374,23 @@
       <!-- Dynamically populated attachment chips -->
     </div>
 
-    <!-- Traffic Police Quick Model Selector & OpenRouter Sub-Agent Switcher -->
+    <!-- Traffic Police Quick Model Selector -->
     <div class="model-quick-bar" id="modelQuickBar">
       <!-- Main Provider Dropdown -->
       <div class="model-pill-dropdown-wrap">
         <button class="model-pill-btn" id="btnModelPill" type="button" aria-haspopup="true">
           <span class="model-pill-dot"></span>
-          <span id="modelPillLabel">Groq (Fast & Free)</span>
+          <span id="modelPillLabel">Gemini (Cloud AI)</span>
           <svg viewBox="0 0 24 24" width="12" height="12"><polyline points="6 9 12 15 18 9" fill="none" stroke="currentColor" stroke-width="2.5"/></svg>
         </button>
         <div class="model-pill-menu" id="modelPillMenu">
-          <button class="model-pill-opt active" data-provider="groq" type="button">
-            <span class="opt-name">Groq (Fast & Free)</span>
-            <span class="opt-badge">Ultra-Fast</span>
-          </button>
-          <button class="model-pill-opt" data-provider="gemini" type="button">
-            <span class="opt-name">Gemini (Google Native)</span>
+          <button class="model-pill-opt active" data-provider="gemini" type="button">
+            <span class="opt-name">Gemini (Cloud AI)</span>
             <span class="opt-badge">Multimodal</span>
           </button>
-          <button class="model-pill-opt" data-provider="openrouter" type="button">
-            <span class="opt-name">OpenRouter (Multi-Agent Gateway)</span>
-            <span class="opt-badge">Pro Models</span>
-          </button>
           <button class="model-pill-opt" data-provider="local" type="button">
-            <span class="opt-name">Local LLM (Offline Engine)</span>
+            <span class="opt-name">Phi-3-mini (Local Offline)</span>
             <span class="opt-badge">0% Net</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Secondary OpenRouter Sub-Agent Dropdown (Appears immediately when OpenRouter is selected) -->
-      <div class="subagent-pill-dropdown-wrap hidden" id="subagentPillWrap">
-        <button class="subagent-pill-btn" id="btnSubagentPill" type="button" aria-haspopup="true">
-          <span class="subagent-icon">⚡</span>
-          <span id="subagentPillLabel">Claude 3.5 Sonnet</span>
-          <svg viewBox="0 0 24 24" width="12" height="12"><polyline points="6 9 12 15 18 9" fill="none" stroke="currentColor" stroke-width="2.5"/></svg>
-        </button>
-        <div class="subagent-pill-menu" id="subagentPillMenu">
-          <button class="subagent-pill-opt active" data-model="anthropic/claude-3.5-sonnet" type="button">
-            <span class="sub-model-name">Claude 3.5 Sonnet</span>
-            <span class="sub-model-org">Anthropic</span>
-          </button>
-          <button class="subagent-pill-opt" data-model="openai/gpt-4o" type="button">
-            <span class="sub-model-name">GPT-4o (Omni)</span>
-            <span class="sub-model-org">OpenAI</span>
-          </button>
-          <button class="subagent-pill-opt" data-model="meta-llama/llama-3.1-405b-instruct" type="button">
-            <span class="sub-model-name">Llama 3.1 405B</span>
-            <span class="sub-model-org">Meta</span>
-          </button>
-          <button class="subagent-pill-opt" data-model="meta-llama/llama-3.3-70b-instruct" type="button">
-            <span class="sub-model-name">Llama 3.3 70B</span>
-            <span class="sub-model-org">Meta</span>
-          </button>
-          <button class="subagent-pill-opt" data-model="deepseek/deepseek-r1" type="button">
-            <span class="sub-model-name">DeepSeek R1</span>
-            <span class="sub-model-org">DeepSeek</span>
-          </button>
-          <button class="subagent-pill-opt" data-model="google/gemini-2.0-flash-001" type="button">
-            <span class="sub-model-name">Gemini 2.0 Flash</span>
-            <span class="sub-model-org">Google</span>
           </button>
         </div>
       </div>
@@ -481,9 +438,14 @@
 <div id="settingsModal" class="settings-modal-overlay">
   <div class="settings-modal">
     <div class="settings-header">
-      <div class="dialog-title-wrap">
-        <svg viewBox="0 0 24 24" width="20" height="20" style="color:var(--accent);"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" fill="currentColor"/></svg>
-        <h3 class="settings-title">Settings & Ecosystem</h3>
+      <div class="settings-header-left">
+        <button id="btnBackSettings" class="btn-icon modal-back-btn hidden" aria-label="Go Back" title="Go Back">
+          <svg viewBox="0 0 24 24" width="20" height="20"><path d="M19 12H5M12 19l-7-7 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="dialog-title-wrap">
+          <svg viewBox="0 0 24 24" width="20" height="20" style="color:var(--accent);"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" fill="currentColor"/></svg>
+          <h3 id="settingsModalTitle" class="settings-title">Settings & Ecosystem</h3>
+        </div>
       </div>
       <button id="btnCloseSettings" class="btn-icon modal-close-btn" aria-label="Close Settings">&times;</button>
     </div>
@@ -795,6 +757,7 @@
               <button id="btnDownloadBrain" class="btn-offline-action primary" type="button">Download Offline Brain</button>
               <button id="btnPauseBrain" class="btn-offline-action secondary" type="button" style="display:none;">Pause</button>
               <button id="btnCancelBrain" class="btn-offline-action danger" type="button" style="display:none;">Cancel</button>
+              <button class="btn-offline-action secondary btn-model-details" data-model="phi-3-mini" type="button">Model Details</button>
             </div>
           </div>
 
@@ -819,6 +782,7 @@
               <button id="btnDownloadStt" class="btn-offline-action primary" type="button">Download Whisper STT</button>
               <button id="btnPauseStt" class="btn-offline-action secondary" type="button" style="display:none;">Pause</button>
               <button id="btnCancelStt" class="btn-offline-action danger" type="button" style="display:none;">Cancel</button>
+              <button class="btn-offline-action secondary btn-model-details" data-model="stt" type="button">Model Details</button>
             </div>
           </div>
 
@@ -843,6 +807,7 @@
               <button id="btnDownloadTts" class="btn-offline-action primary" type="button">Download Piper TTS</button>
               <button id="btnPauseTts" class="btn-offline-action secondary" type="button" style="display:none;">Pause</button>
               <button id="btnCancelTts" class="btn-offline-action danger" type="button" style="display:none;">Cancel</button>
+              <button class="btn-offline-action secondary btn-model-details" data-model="tts" type="button">Model Details</button>
             </div>
           </div>
         </div>
@@ -964,6 +929,13 @@
         </div>
       </div>
 
+      <!-- ════════ SUBPAGE: MODEL DETAIL VIEW ════════ -->
+      <div class="settings-tab-panel" id="tabPanelModelDetail">
+        <div class="model-detail-container" id="modelDetailContainer">
+          <!-- Dynamically populated by renderModelDetailView(modelId) -->
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -972,9 +944,14 @@
 <div id="memoryModal" class="settings-modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="memoryModalTitle">
   <div class="settings-modal memory-modal-box">
     <div class="settings-header">
-      <div class="dialog-title-wrap">
-        <span style="font-size:22px;margin-right:8px;">🧠</span>
-        <h3 id="memoryModalTitle" class="settings-title">Long-Term Memory Vault</h3>
+      <div class="settings-header-left">
+        <button id="btnBackMemoryModal" class="btn-icon modal-back-btn" aria-label="Back to Settings" title="Back to Settings">
+          <svg viewBox="0 0 24 24" width="20" height="20"><path d="M19 12H5M12 19l-7-7 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="dialog-title-wrap">
+          <span style="font-size:22px;margin-right:8px;">🧠</span>
+          <h3 id="memoryModalTitle" class="settings-title">Long-Term Memory Vault</h3>
+        </div>
       </div>
       <button id="btnCloseMemoryModal" class="btn-icon modal-close-btn" aria-label="Close Memory Modal">&times;</button>
     </div>

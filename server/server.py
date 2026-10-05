@@ -4,7 +4,7 @@ import json
 import logging
 import threading
 from datetime import datetime, timezone
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, Response
 from flask_cors import CORS
 
 # Ensure the project root (marvo/) is on sys.path so 'core' package is importable
@@ -134,13 +134,95 @@ def health_check():
     return jsonify({"status": "healthy", "service": "marvo-ai"}), 200
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# AI_LIMITS.md ENFORCEMENT: PER-SESSION RPM & DAILY BUDGET
+# ─────────────────────────────────────────────────────────────────────────────
+_limits_lock = threading.Lock()
+_session_request_history = {}  # session_id -> list of float timestamps (last 60s)
+_daily_budget_state = {
+    "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+    "request_count": 0,
+    "token_count": 0,
+}
+
+MAX_SESSION_RPM = 15
+DAILY_REQUEST_BUDGET = 1500
+DAILY_TOKEN_BUDGET = 1000000
+
+
+def _check_and_update_limits(session_id: str):
+    """
+    Evaluates limits specified in docs/AI_LIMITS.md:
+    1. Per-session request-rate cap (15 RPM)
+    2. Daily request and token budget for shared Gemini key
+    Returns: (allowed: bool, error_payload: Optional[dict], http_status: int)
+    """
+    now = datetime.now(timezone.utc).timestamp()
+    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    with _limits_lock:
+        # 1. Reset daily budget if UTC date changed
+        if _daily_budget_state["date"] != today_str:
+            _daily_budget_state["date"] = today_str
+            _daily_budget_state["request_count"] = 0
+            _daily_budget_state["token_count"] = 0
+
+        # 2. Check Daily Budget Limit (1,500 requests or 1,000,000 tokens)
+        if (_daily_budget_state["request_count"] >= DAILY_REQUEST_BUDGET or 
+            _daily_budget_state["token_count"] >= DAILY_TOKEN_BUDGET):
+            return False, {
+                "error": "Daily cloud budget reached. Operating on local offline brain.",
+                "daily_budget_exhausted": True,
+                "fallback_to_local": True,
+                "type": "text",
+                "response": "ℹ️ **Daily Cloud Budget Reached**\n\nDaily cloud budget reached. Operating on local offline brain.",
+                "state": "state-idle"
+            }, 429
+
+        # 3. Check Session RPM (15 requests in rolling 60 seconds)
+        timestamps = _session_request_history.get(session_id, [])
+        cutoff = now - 60.0
+        timestamps = [t for t in timestamps if t > cutoff]
+        _session_request_history[session_id] = timestamps
+
+        if len(timestamps) >= MAX_SESSION_RPM:
+            return False, {
+                "error": "Cloud query rate limit reached. Routing locally.",
+                "rate_limited": True,
+                "fallback_to_local": True,
+                "type": "text",
+                "response": "⚠️ **Cloud Rate Limit (15 RPM) Reached**\n\nCloud query rate limit reached. Routing locally.",
+                "state": "state-idle"
+            }, 429
+
+        # Record this request timestamp and increment request count
+        timestamps.append(now)
+        _session_request_history[session_id] = timestamps
+        _daily_budget_state["request_count"] += 1
+        return True, None, 200
+
+
+def _record_token_usage(prompt: str, response_text: str):
+    """Approximates token consumption (~4 chars per token) and updates daily budget."""
+    approx_tokens = (len(prompt or '') + len(response_text or '')) // 4
+    with _limits_lock:
+        _daily_budget_state["token_count"] += approx_tokens
+
+
 @app.route('/api/config', methods=['GET'])
 def get_config():
-    """Returns active model provider keys and configuration from environment."""
+    """Returns active model provider configuration and resource limits from environment."""
+    with _limits_lock:
+        used_reqs = _daily_budget_state["request_count"]
+        used_tokens = _daily_budget_state["token_count"]
+        exhausted = (used_reqs >= DAILY_REQUEST_BUDGET or used_tokens >= DAILY_TOKEN_BUDGET)
     return jsonify({
-        "gemini_api_key": os.environ.get("GEMINI_API_KEY", ""),
-        "groq_api_key": os.environ.get("GROQ_API_KEY", ""),
-        "openrouter_api_key": os.environ.get("OPENROUTER_API_KEY", ""),
+        "gemini_available": bool(os.environ.get("GEMINI_API_KEY", "")),
+        "daily_requests_used": used_reqs,
+        "daily_requests_budget": DAILY_REQUEST_BUDGET,
+        "daily_tokens_used": used_tokens,
+        "daily_tokens_budget": DAILY_TOKEN_BUDGET,
+        "daily_budget_exhausted": exhausted,
         "hf_api_key": os.environ.get("HF_API_KEY", "")
     }), 200
 
@@ -201,6 +283,12 @@ def chat_endpoint():
         if not user_message:
             return jsonify({"error": "Empty message"}), 400
 
+        # AI_LIMITS.md enforcement: Check per-session 15 RPM and daily budget
+        allowed, limit_err, status_code = _check_and_update_limits(session_id)
+        if not allowed:
+            logging.warning(f"[RateLimit] Session {session_id} hit limit: {limit_err.get('error')}")
+            return jsonify(limit_err), status_code
+
         mode_param = data.get('mode') or data.get('thinking_mode', 'Thinking')
 
         # Log session context
@@ -210,7 +298,109 @@ def chat_endpoint():
         agent_persona = data.get('agent')
         image_base64 = data.get('image_base64') or data.get('multimodal_image')
 
-        # Process the message through the Agent Manager
+        # Real Token-by-Token Streaming Support via Server-Sent Events (SSE)
+        stream_requested = bool(data.get('stream')) or (request.headers.get('Accept') == 'text/event-stream')
+        if stream_requested:
+            from agents.manager import is_image_request
+            if is_image_request(user_message):
+                img_result = handle_request(
+                    message=user_message,
+                    thinking_mode=thinking_mode,
+                    mode=mode_param,
+                    session_id=session_id,
+                    local_time=local_time,
+                    agent=agent_persona,
+                    image_base64=image_base64
+                )
+                def img_stream():
+                    if img_result.get("type") == "image":
+                        yield f"data: {json.dumps({'type': 'image', 'content': img_result.get('content'), 'prompt': img_result.get('prompt', user_message), 'done': True, 'state': 'state-amazed'})}\n\n"
+                    else:
+                        yield f"data: {json.dumps({'token': img_result.get('response', ''), 'done': True, 'full_response': img_result.get('response', ''), 'state': 'state-speaking'})}\n\n"
+                return Response(img_stream(), mimetype='text/event-stream', headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
+
+            def generate_gemini_sse():
+                try:
+                    from google import genai
+                    from google.genai import types
+                    from core.brain import SYSTEM_PROMPT
+
+                    active_key = data.get('api_key') or os.environ.get('GEMINI_API_KEY')
+                    if not active_key:
+                        try:
+                            from core.key_pool import KeyPool
+                            active_key = KeyPool.get_instance().get_active_key_value()
+                        except Exception:
+                            pass
+
+                    if not active_key:
+                        yield f"data: {json.dumps({'error': 'No Gemini API key available.', 'done': True})}\n\n"
+                        return
+
+                    client = genai.Client(api_key=active_key)
+                    sys_inst = data.get('system_instruction') or SYSTEM_PROMPT
+
+                    cfg = types.GenerateContentConfig(
+                        system_instruction=sys_inst,
+                        temperature=0.7 if thinking_mode == "fast" else 0.8,
+                        max_output_tokens=1024 if thinking_mode == "high" else 512,
+                    )
+
+                    models_to_try = ["gemini-2.0-flash", "gemini-flash-latest", "gemini-flash-lite-latest"]
+                    stream_obj = None
+                    last_err = None
+
+                    for m in models_to_try:
+                        try:
+                            stream_obj = client.models.generate_content_stream(
+                                model=m,
+                                contents=user_message,
+                                config=cfg,
+                            )
+                            break
+                        except Exception as m_err:
+                            last_err = m_err
+                            continue
+
+                    if stream_obj is None:
+                        raise last_err or Exception("All Gemini streaming models failed.")
+
+                    full_text = ""
+                    for chunk in stream_obj:
+                        txt = chunk.text or ""
+                        if txt:
+                            full_text += txt
+                            yield f"data: {json.dumps({'token': txt, 'done': False})}\n\n"
+
+                    # Record token usage for budget tracking
+                    _record_token_usage(user_message, full_text)
+
+                    # Persist session history
+                    session = _read_session(session_id) or {'session_id': session_id, 'messages': []}
+                    session['messages'].extend([
+                        {'role': 'user', 'content': user_message},
+                        {'role': 'assistant', 'content': full_text}
+                    ])
+                    _save_session(session_id, session['messages'])
+
+                    yield f"data: {json.dumps({'token': '', 'done': True, 'full_response': full_text, 'state': 'state-speaking', 'session_id': session_id})}\n\n"
+
+                except Exception as exc:
+                    logging.error(f"[GeminiStream] Error during streaming: {exc}", exc_info=True)
+                    yield f"data: {json.dumps({'error': str(exc), 'done': True, 'state': 'state-error'})}\n\n"
+
+            return Response(
+                generate_gemini_sse(),
+                mimetype='text/event-stream',
+                headers={
+                    'Cache-Control': 'no-cache',
+                    'X-Accel-Buffering': 'no',
+                    'Connection': 'keep-alive',
+                    'Access-Control-Allow-Origin': '*'
+                }
+            )
+
+        # Process the message through the Agent Manager (Synchronous non-streaming path)
         result = handle_request(
             message=user_message,
             thinking_mode=thinking_mode,
@@ -223,6 +413,9 @@ def chat_endpoint():
 
         resp_type = result.get("type", "text")
         ai_response = result.get("response", "")
+
+        # Record approximate token usage for daily token budget tracking
+        _record_token_usage(user_message, ai_response)
         animation_state = result.get("state", "state-speaking")
         image_content = result.get("content")
 

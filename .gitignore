@@ -10,6 +10,45 @@
 ai.env
 !.env.example
 
+# Secrets, keys, and tokens
+*secret*
+*token*
+*key*
+!key_pool.py
+!test_key_pool.py
+!*example*
+!*template*
+
+# Signing files
+*.keystore
+*.jks
+
+# Output folders & build artifacts
+dist/
+build/
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+android/captures/
+android/.idea/
+android/*.iml
+android/app/*.iml
+
+# Built packages & binaries
+*.apk
+*.aab
+*.exe
+*.lnk
+*.zip
+marvo-debug-apk/
+Voice marvo*/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
 # Python Bytecode & Cache
 __pycache__/
 *.py[cod]
@@ -32,18 +71,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Android Build & Gradle Artifacts
-android/.gradle/
-android/app/build/
-android/build/
-android/captures/
-android/.idea/
-android/*.iml
-android/app/*.iml
-android/local.properties
-*.apk
-*.aab
-
 # Logs & Temporary Files
 logs/
 *.log
@@ -62,8 +89,3 @@ sessions/*.json
 *.njsproj
 *.sln
 *.sw?
-
-# OS Generated Files
-.DS_Store
-Thumbs.db
-desktop.ini

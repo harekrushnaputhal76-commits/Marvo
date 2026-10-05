@@ -1820,29 +1820,43 @@ async function renderDownloadedStorageViewer() {
     toggle.checked = isEnabled;
     toggle.addEventListener('change', () => {
       localStorage.setItem('marvo.offline.ecosystem', toggle.checked.toString());
-      showToast(toggle.checked ? '⚡ Offline Ecosystem & Local RAG: Active' : '☁️ Cloud Priority Active: Offline Fallback Silenced');
+      showToast(toggle.checked ? '⚡ Offline Ecosystem: Active' : '☁️ Cloud Priority Active: Offline Fallback Silenced');
     });
   }
 
-  let items = [];
+  // Exactly 3 allowed entries total: Phi-3 Mini, Whisper Tiny, Piper Voice
+  const ALLOWED_STORAGE_MODELS = [
+    {
+      id: 'phi-3-mini',
+      name: 'Phi-3 Mini',
+      badge: 'OFFLINE CHAT LLM',
+      size: '2.2 GB',
+      path: '/data/user/0/com.marvo.ai/files/models/phi-3-mini-4k-instruct-q4.gguf'
+    },
+    {
+      id: 'stt',
+      name: 'Whisper Tiny',
+      badge: 'VOICE STT',
+      size: '150 MB',
+      path: '/data/user/0/com.marvo.ai/files/models/whisper-tiny-en.bin'
+    },
+    {
+      id: 'tts',
+      name: 'Piper Voice',
+      badge: 'VOICE TTS',
+      size: '63.8 MB',
+      path: '/data/user/0/com.marvo.ai/files/models/vits-piper-en.onnx'
+    }
+  ];
 
-  // 1. Check native offline models via MarvoNativeBridge
+  let nativeMap = {};
   try {
     if (window.Capacitor?.Plugins?.MarvoNativeBridge?.listOfflineModels) {
       const res = await window.Capacitor.Plugins.MarvoNativeBridge.listOfflineModels();
       if (res && res.models) {
         const list = Array.isArray(res.models) ? res.models : JSON.parse(res.models);
         list.forEach(m => {
-          if (m.isDownloaded || m.status === 'completed' || m.downloadedBytes > 0) {
-            items.push({
-              type: 'model',
-              id: m.id,
-              name: m.name || m.fileName,
-              badge: 'GGUF MODEL',
-              size: m.sizeFormatted || `${Math.round((m.downloadedBytes || m.sizeBytes || 0) / (1024 * 1024))} MB`,
-              path: m.storagePath || `/data/user/0/com.marvo.ai/files/models/${m.fileName || m.id}`
-            });
-          }
+          if (m && m.id) nativeMap[m.id] = m;
         });
       }
     }
@@ -1850,44 +1864,17 @@ async function renderDownloadedStorageViewer() {
     console.warn('[StorageViewer] Error querying native models:', err);
   }
 
-  // Fallback to AiControlCenter or offline models if native list returned empty in browser preview
-  if (!items.length && window.AiControlCenter?.models) {
-    window.AiControlCenter.models.forEach(m => {
-      if (m.isDownloaded || m.progress === 100) {
-        items.push({
-          type: 'model',
-          id: m.id,
-          name: m.name,
-          badge: 'GGUF MODEL',
-          size: m.sizeFormatted,
-          path: m.storagePath
-        });
-      }
-    });
-  }
-
-  // 2. Check Local RAG indexed document
-  if (window.RagEngine?.hasActiveDocument && window.RagEngine.hasActiveDocument()) {
-    const doc = window.RagEngine.getActiveDocument();
-    items.push({
-      type: 'rag',
-      id: doc.docId || 'active_rag_doc',
-      name: doc.fileName || 'Local Textbook Document',
-      badge: 'RAG VECTOR DB',
-      size: `${doc.totalChunks || 1} chunks indexed`,
-      path: `SQLite: marvo_rag.db [${doc.totalChunks || 1} vectors]`
-    });
-  }
-
-  if (!items.length) {
-    container.innerHTML = `
-      <div class="downloads-empty-hint">
-        No offline models or RAG documents stored yet.
-        <br><span style="font-size:11px;opacity:0.75;">Download Phi-3/Gemma in AI Control Center or ingest a PDF in Study Mode to see it here.</span>
-      </div>
-    `;
-    return;
-  }
+  const items = ALLOWED_STORAGE_MODELS.map(def => {
+    const live = nativeMap[def.id] || (window.AiControlCenter?.models?.find(m => m.id === def.id));
+    return {
+      type: 'model',
+      id: def.id,
+      name: def.name,
+      badge: def.badge,
+      size: (live && live.sizeFormatted) || def.size,
+      path: (live && live.storagePath) || def.path
+    };
+  });
 
   container.innerHTML = items.map(item => `
     <div class="storage-item-card" data-storage-id="${escapeHtml(item.id)}" data-storage-type="${escapeHtml(item.type)}">
@@ -2516,7 +2503,14 @@ function addMessage(text, sender, attachments = []) {
   // Step 32: Textbook Science KaTeX Math & Markdown Rendering
   bubble.innerHTML = renderFormattedAiResponse(sanitizedText);
   wrapper.appendChild(bubble);
+  wrapper.appendChild(createAiActionBar(sanitizedText));
 
+  DOM.chatMessages.appendChild(wrapper);
+  scrollToBottom();
+  return wrapper;
+}
+
+function createAiActionBar(sanitizedText) {
   const actionBar = document.createElement('div');
   actionBar.className = 'msg-action-bar';
 
@@ -2553,11 +2547,7 @@ function addMessage(text, sender, attachments = []) {
   });
   actionBar.appendChild(retryBtn);
 
-  wrapper.appendChild(actionBar);
-
-  DOM.chatMessages.appendChild(wrapper);
-  scrollToBottom();
-  return wrapper;
+  return actionBar;
 }
 
 function showLoading() {
@@ -2807,11 +2797,34 @@ async function sendMessage(userText) {
     }, 35000);
 
     let data;
+    let streamWrapper = null;
+    let streamBubble = null;
+    let hasReceivedToken = false;
+
+    const onTokenHandler = (token, fullText) => {
+      if (requestSessionId !== currentSessionId || requestVersion !== sessionVersion) return;
+      if (!hasReceivedToken) {
+        hasReceivedToken = true;
+        if (dots && dots.parentNode) dots.remove();
+        streamWrapper = document.createElement('div');
+        streamWrapper.className = 'msg-ai-wrapper';
+        streamBubble = document.createElement('div');
+        streamBubble.className = 'msg msg-ai';
+        streamWrapper.appendChild(streamBubble);
+        DOM.chatMessages.appendChild(streamWrapper);
+      }
+      if (streamBubble) {
+        streamBubble.innerHTML = renderFormattedAiResponse(stripAppleXmlTags(fullText));
+        scrollToBottom();
+      }
+    };
+
     if (window.TrafficPolice && activeAgent !== 'huggingface' && activeAgent !== 'pollinations') {
       const routed = await window.TrafficPolice.routeChat(payloadMessage, {
         contextHistory: contextHistory,
         imageBase64: activeLiveVisionFrame,
-        signal: currentChatAbortController.signal
+        signal: currentChatAbortController.signal,
+        onToken: onTokenHandler
       });
       data = {
         type: 'text',
@@ -2843,11 +2856,12 @@ async function sendMessage(userText) {
     }
 
     clearTimeout(chatFetchTimeout);
-    dots.remove();
+    if (dots && dots.parentNode) dots.remove();
     if (requestSessionId !== currentSessionId || requestVersion !== sessionVersion) return;
 
     // Handle Structured Backend Agent Response (type === 'image' vs 'text')
     if (data.type === 'image' && data.content) {
+      if (streamWrapper && streamWrapper.parentNode) streamWrapper.remove();
       const imageContent = data.content;
       const promptUsed = data.prompt || cleanInput;
       const aiState = data.state || 'state-amazed';
@@ -2862,7 +2876,16 @@ async function sendMessage(userText) {
       const aiState = data.state || 'state-speaking';
 
       setEyeExpression(aiState);
-      addMessage(aiText, 'ai');
+      const sanitizedAiText = stripAppleXmlTags(aiText);
+
+      if (streamWrapper && streamBubble) {
+        streamBubble.innerHTML = renderFormattedAiResponse(sanitizedAiText);
+        streamWrapper.appendChild(createAiActionBar(sanitizedAiText));
+        scrollToBottom();
+      } else {
+        addMessage(aiText, 'ai');
+      }
+
       await saveLocalMessage(requestSessionId, 'ai', aiText);
       updateHistorySidebar(cleanInput, requestSessionId);
       displaySmartReplyChips(aiText, cleanInput);
@@ -2875,7 +2898,8 @@ async function sendMessage(userText) {
   } catch (err) {
     if (chatFetchTimeout) clearTimeout(chatFetchTimeout);
     if (requestSessionId !== currentSessionId || requestVersion !== sessionVersion) return;
-    dots.remove();
+    if (dots && dots.parentNode) dots.remove();
+    if (streamWrapper && streamWrapper.parentNode) streamWrapper.remove();
 
     if (err && err.name === 'AbortError') {
       setEyeExpression('state-idle');
@@ -5394,137 +5418,128 @@ document.addEventListener('visibilitychange', () => {
 
 /* ================================================================
    DYNAMIC MODEL SELECTION & TRAFFIC POLICE FRONTEND UI
+   Strict 2-Option Manual Switch:
+   1. Gemini (Online) — Cloud AI via backend proxy
+   2. Phi-3 Mini (Offline) — On-device model
+   Zero automatic switching between them under any condition.
    ================================================================ */
 async function initTrafficPoliceAndModelUI() {
   if (window.TrafficPolice) {
     await window.TrafficPolice.init();
 
-    // Populate Sidebar API Keys
-    const cfgGroq = $('#cfgGroqKey');
-    const cfgGemini = $('#cfgGeminiKey');
-    const cfgOpenRouter = $('#cfgOpenRouterKey');
+    // 2-Option Manual Provider Toggle Elements
+    const btnToggleGemini = $('#btnToggleGemini');
+    const btnTogglePhi3 = $('#btnTogglePhi3');
+    const btnEditGeminiKey = $('#btnEditGeminiKey');
 
-    if (cfgGroq) cfgGroq.value = window.TrafficPolice.state.keys.groq || '';
-    if (cfgGemini) cfgGemini.value = window.TrafficPolice.state.keys.gemini || '';
-    if (cfgOpenRouter) cfgOpenRouter.value = window.TrafficPolice.state.keys.openrouter || '';
+    // Gemini API Key Modal Elements
+    const geminiKeyModal = $('#geminiKeyModal');
+    const inputGeminiApiKey = $('#inputGeminiApiKey');
+    const btnCloseGeminiKeyModal = $('#btnCloseGeminiKeyModal');
+    const btnCancelGeminiKey = $('#btnCancelGeminiKey');
+    const btnSaveGeminiKey = $('#btnSaveGeminiKey');
+    const btnToggleKeyVis = $('#btnToggleKeyVis');
 
-    // Password visibility toggle buttons
-    document.querySelectorAll('.btn-toggle-key').forEach(btn => {
-      btn.onclick = () => {
-        const targetId = btn.getAttribute('data-target');
-        const input = document.getElementById(targetId);
-        if (input) {
-          input.type = input.type === 'password' ? 'text' : 'password';
-        }
-      };
-    });
-
-    // Save API Keys Button
-    const btnSaveKeys = $('#btnSaveApiConfig');
-    if (btnSaveKeys) {
-      btnSaveKeys.onclick = () => {
-        const groq = cfgGroq?.value || '';
-        const gemini = cfgGemini?.value || '';
-        const openrouter = cfgOpenRouter?.value || '';
-
-        window.TrafficPolice.setKeys({ groq, gemini, openrouter });
-        showToast('API Keys saved successfully!');
-      };
-    }
-
-    // Chatbar Model Quick-Switch Dropdown
-    const btnModelPill = $('#btnModelPill');
-    const modelPillMenu = $('#modelPillMenu');
-    const modelPillLabel = $('#modelPillLabel');
-    const subagentPillWrap = $('#subagentPillWrap');
-    const btnSubagentPill = $('#btnSubagentPill');
-    const subagentPillMenu = $('#subagentPillMenu');
-    const subagentPillLabel = $('#subagentPillLabel');
-
-    const labels = {
-      groq: 'Groq (Fast & Free)',
-      gemini: 'Gemini (Google Native)',
-      openrouter: 'OpenRouter (Multi-Agent)',
-      local: 'Local LLM (Offline Engine)'
-    };
-
-    const updatePillLabels = () => {
+    const updateToggleUI = () => {
       const provider = window.TrafficPolice.state.currentProvider;
-      if (modelPillLabel) modelPillLabel.textContent = labels[provider] || provider;
-
-      // Update active options in menu
-      document.querySelectorAll('.model-pill-opt').forEach(opt => {
-        opt.classList.toggle('active', opt.dataset.provider === provider);
-      });
-
-      // Show or hide secondary OpenRouter subagent dropdown
-      if (subagentPillWrap) {
-        subagentPillWrap.classList.toggle('hidden', provider !== 'openrouter');
+      if (btnToggleGemini) {
+        btnToggleGemini.classList.toggle('active', provider === 'gemini');
+        btnToggleGemini.setAttribute('aria-checked', provider === 'gemini');
       }
-
-      if (subagentPillLabel) {
-        const currentModel = window.TrafficPolice.state.openRouterModel;
-        const subNames = {
-          'anthropic/claude-3.5-sonnet': 'Claude 3.5 Sonnet',
-          'openai/gpt-4o': 'GPT-4o',
-          'meta-llama/llama-3.1-405b-instruct': 'Llama 3.1 405B',
-          'meta-llama/llama-3.3-70b-instruct': 'Llama 3.3 70B',
-          'deepseek/deepseek-r1': 'DeepSeek R1',
-          'google/gemini-2.0-flash-001': 'Gemini 2.0 Flash'
-        };
-        subagentPillLabel.textContent = subNames[currentModel] || currentModel.split('/').pop();
+      if (btnTogglePhi3) {
+        btnTogglePhi3.classList.toggle('active', provider === 'local');
+        btnTogglePhi3.setAttribute('aria-checked', provider === 'local');
       }
-
-      document.querySelectorAll('.subagent-pill-opt').forEach(opt => {
-        opt.classList.toggle('active', opt.dataset.model === window.TrafficPolice.state.openRouterModel);
-      });
     };
 
-    updatePillLabels();
+    updateToggleUI();
 
-    if (btnModelPill) {
-      btnModelPill.onclick = (e) => {
-        e.stopPropagation();
-        modelPillMenu?.classList.toggle('show');
-        subagentPillMenu?.classList.remove('show');
+    const openKeyModal = async () => {
+      const currentKey = await window.TrafficPolice.getGeminiKey();
+      if (inputGeminiApiKey) {
+        inputGeminiApiKey.value = currentKey || '';
+      }
+      if (geminiKeyModal) {
+        geminiKeyModal.classList.add('show');
+      }
+    };
+
+    const closeKeyModal = () => {
+      if (geminiKeyModal) {
+        geminiKeyModal.classList.remove('show');
+      }
+    };
+
+    if (btnToggleGemini) {
+      btnToggleGemini.onclick = async (e) => {
+        // If clicking directly on key badge, open key config modal
+        if (e.target.closest('#btnEditGeminiKey')) {
+          e.stopPropagation();
+          await openKeyModal();
+          return;
+        }
+
+        // Check if user has entered their Gemini API key
+        const hasKey = await window.TrafficPolice.hasUserEnteredGeminiKey();
+        if (!hasKey) {
+          await openKeyModal();
+          return;
+        }
+
+        window.TrafficPolice.setProvider('gemini');
+        updateToggleUI();
+        showToast('Switched to Gemini (Online)');
       };
     }
 
-    document.querySelectorAll('.model-pill-opt').forEach(opt => {
-      opt.onclick = () => {
-        const provider = opt.dataset.provider;
-        window.TrafficPolice.setProvider(provider);
-        modelPillMenu?.classList.remove('show');
-        updatePillLabels();
-        showToast(`Model switched to ${labels[provider] || provider}`);
-      };
-    });
-
-    if (btnSubagentPill) {
-      btnSubagentPill.onclick = (e) => {
+    if (btnEditGeminiKey) {
+      btnEditGeminiKey.onclick = async (e) => {
         e.stopPropagation();
-        subagentPillMenu?.classList.toggle('show');
-        modelPillMenu?.classList.remove('show');
+        await openKeyModal();
       };
     }
 
-    document.querySelectorAll('.subagent-pill-opt').forEach(opt => {
-      opt.onclick = () => {
-        const model = opt.dataset.model;
-        window.TrafficPolice.setOpenRouterModel(model);
-        subagentPillMenu?.classList.remove('show');
-        updatePillLabels();
-        showToast(`Sub-agent: ${opt.querySelector('.sub-model-name')?.textContent || model}`);
+    if (btnTogglePhi3) {
+      btnTogglePhi3.onclick = () => {
+        window.TrafficPolice.setProvider('local');
+        updateToggleUI();
+        showToast('Switched to Phi-3 Mini (Offline)');
       };
-    });
+    }
 
-    document.addEventListener('click', () => {
-      modelPillMenu?.classList.remove('show');
-      subagentPillMenu?.classList.remove('show');
-    });
+    // Modal Events
+    if (btnCloseGeminiKeyModal) btnCloseGeminiKeyModal.onclick = closeKeyModal;
+    if (btnCancelGeminiKey) btnCancelGeminiKey.onclick = closeKeyModal;
+
+    if (btnSaveGeminiKey) {
+      btnSaveGeminiKey.onclick = async () => {
+        const keyVal = (inputGeminiApiKey?.value || '').trim();
+        if (!keyVal) {
+          showToast('Please enter a valid Gemini API key.');
+          return;
+        }
+        await window.TrafficPolice.setGeminiKey(keyVal);
+        window.TrafficPolice.setProvider('gemini');
+        updateToggleUI();
+        closeKeyModal();
+        showToast('Gemini API key saved successfully!');
+      };
+    }
+
+    if (btnToggleKeyVis && inputGeminiApiKey) {
+      btnToggleKeyVis.onclick = () => {
+        inputGeminiApiKey.type = inputGeminiApiKey.type === 'password' ? 'text' : 'password';
+      };
+    }
+
+    if (geminiKeyModal) {
+      geminiKeyModal.onclick = (e) => {
+        if (e.target === geminiKeyModal) closeKeyModal();
+      };
+    }
 
     window.TrafficPolice.onStateChange(() => {
-      updatePillLabels();
+      updateToggleUI();
     });
   }
 

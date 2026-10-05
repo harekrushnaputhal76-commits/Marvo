@@ -1,10 +1,17 @@
 /**
- * MARVO AI — Traffic Police: Smart Hybrid MoE LLM Router
+ * MARVO AI — Traffic Police: Smart Hybrid LLM Router & Limit Controller
  * Module: js/core/trafficPolice.js
  * 
- * Strict architectural router managing Online APIs (Groq, Gemini, OpenRouter)
- * and Local Offline LLM inference (Phi-3-mini, Gemma-2B, Qwen 2.5, Llama-3).
- * Enforces zero cross-billing, dynamic sub-agent routing, and silent offline fallback.
+ * Strict architectural router managing Online Cloud AI (Google Gemini via backend proxy)
+ * and Local Offline LLM inference (Phi-3-mini 3.8B on-device engine).
+ * Enforces zero cross-billing, no raw client keys, silent offline fallback,
+ * and limits specified in docs/AI_LIMITS.md:
+ * - Max 15 RPM for Gemini per session (auto-routes locally if hit)
+ * - Daily cloud budget exhaustion handling (auto-routes locally with in-app notification)
+ * - Max 1 concurrent local inference with queue depth of 2 (overflow protection)
+ * - 12.0s cloud timeout watchdog (auto-switches to local)
+ * - 25.0s local inference timeout watchdog
+ * - 4,096 token local context length pruner
  */
 
 (function(window) {
@@ -12,19 +19,7 @@
 
   const STORAGE_KEYS = {
     PROVIDER: 'marvo.router.provider',
-    MODE: 'marvo.router.mode',
-    OPENROUTER_MODEL: 'marvo.router.openrouter_model',
-    GROQ_KEY: 'marvo.api.groq_key',
-    GEMINI_KEY: 'marvo.api.gemini_key',
-    OPENROUTER_KEY: 'marvo.api.openrouter_key',
-  };
-
-  const _k = (codes) => String.fromCharCode(...codes);
-
-  const DEFAULT_KEYS = {
-    groq: _k([103,115,107,95,51,65,76,57,104,68,121,101,104,114,105,119,117,120,81,53,109,117,108,50,87,71,100,121,98,51,70,89,67,54,79,74,118,82,98,84,116,120,52,76,82,50,90,65,117,51,121,78,67,50,73,76]),
-    gemini: _k([65,81,46,65,98,56,82,78,54,74,73,100,86,77,55,101,83,76,83,121,105,49,95,113,72,82,55,115,69,51,48,120,80,97,54,55,54,107,71,113,73,67,116,89,72,57,85,84,102,83,103,50,103]),
-    openrouter: _k([115,107,45,111,114,45,118,49,45,57,54,48,50,49,98,51,57,48,55,54,54,51,53,50,101,100,101,51,102,97,52,57,53,49,53,51,99,98,54,48,101,101,49,53,97,52,51,50,56,48,54,56,102,100,50,98,98,55,57,50,49,48,102,51,50,56,97,101,52,99,102,49,100]),
+    MODE: 'marvo.router.mode'
   };
 
   function sanitizeLlmResponse(raw) {
@@ -51,7 +46,7 @@
     text = text.replace(/<key_entity[^>]*>/gi, '');
     text = text.replace(/<\/key_entity>/gi, '');
 
-    // 4. Remove duplicate text blocks (e.g. if response repeats itself or echoes coreResponse + full answer)
+    // 4. Remove duplicate text blocks
     text = text.trim();
     const half = Math.floor(text.length / 2);
     if (half > 15) {
@@ -74,54 +69,45 @@
 
   const TrafficPolice = {
     state: {
-      currentProvider: 'groq', // 'groq' | 'gemini' | 'openrouter' | 'local'
-      currentModel: 'llama-3.3-70b-versatile',
-      openRouterModel: 'anthropic/claude-3.5-sonnet',
+      currentProvider: 'gemini', // 'gemini' | 'local'
+      currentModel: 'gemini-2.0-flash',
       mode: 'Fast', // 'Fast' | 'Thinking' | 'Pro Thinking'
       isOnline: navigator.onLine !== false,
-      keys: {
-        groq: DEFAULT_KEYS.groq,
-        gemini: DEFAULT_KEYS.gemini,
-        openrouter: DEFAULT_KEYS.openrouter,
-      },
+      dailyBudgetExhausted: false,
+      isLocalModelLoadedInMemory: false,
+      isLocalModelLoading: false,
       offlineModelMap: {
-        'Fast': 'Gemma-2B',
+        'Fast': 'Phi-3-mini (3.8B)',
         'Thinking': 'Phi-3-mini (3.8B)',
-        'Pro Thinking': 'Llama-3 (8B)'
+        'Pro Thinking': 'Phi-3-mini (3.8B)'
       }
     },
+
+    // ────────────── AI_LIMITS.md State Trackers ──────────────
+    cloudRequestHistory: [], // Timestamps of cloud calls in rolling 60s
+    MAX_CLOUD_RPM: 15,
+    CLOUD_TIMEOUT_MS: 12000,
+
+    localInferenceActive: false, // Concurrency lock (strictly max 1 concurrent)
+    localQueue: [], // Queue buffer (max depth 2)
+    MAX_LOCAL_QUEUE: 2,
+    LOCAL_TIMEOUT_MS: 25000,
+    MAX_LOCAL_CONTEXT_CHARS: 14000, // Approx ~3,500 tokens context cap
+
+    // ────────────── In-Memory Model Residency & Battery Guard (Group 1, Step 9) ──────────────
+    localIdleTimer: null,
+    IDLE_UNLOAD_TIMEOUT_MS: 3 * 60 * 1000, // 3 minutes idle unload timer
+    localModelLoadingPromise: null,
 
     listeners: [],
 
     async init() {
-      // 1. Load keys from localStorage or default
-      this.state.keys.groq = localStorage.getItem(STORAGE_KEYS.GROQ_KEY) || DEFAULT_KEYS.groq;
-      this.state.keys.gemini = localStorage.getItem(STORAGE_KEYS.GEMINI_KEY) || DEFAULT_KEYS.gemini;
-      this.state.keys.openrouter = localStorage.getItem(STORAGE_KEYS.OPENROUTER_KEY) || DEFAULT_KEYS.openrouter;
-
-      // 2. Fetch server-side keys from .env if available
-      try {
-        const res = await fetch('/api/config');
-        if (res.ok) {
-          const config = await res.json();
-          if (config.groq_api_key && !localStorage.getItem(STORAGE_KEYS.GROQ_KEY)) {
-            this.state.keys.groq = config.groq_api_key;
-          }
-          if (config.gemini_api_key && !localStorage.getItem(STORAGE_KEYS.GEMINI_KEY)) {
-            this.state.keys.gemini = config.gemini_api_key;
-          }
-          if (config.openrouter_api_key && !localStorage.getItem(STORAGE_KEYS.OPENROUTER_KEY)) {
-            this.state.keys.openrouter = config.openrouter_api_key;
-          }
-        }
-      } catch (e) {
-        // Server might not be running in purely static preview
-      }
-
-      // 3. Restore persisted provider & model
+      // 1. Restore persisted provider & mode
       const savedProvider = localStorage.getItem(STORAGE_KEYS.PROVIDER);
-      if (savedProvider && ['groq', 'gemini', 'openrouter', 'local'].includes(savedProvider)) {
+      if (savedProvider && ['gemini', 'local'].includes(savedProvider)) {
         this.state.currentProvider = savedProvider;
+      } else {
+        this.state.currentProvider = 'gemini';
       }
 
       const savedMode = localStorage.getItem(STORAGE_KEYS.MODE);
@@ -129,62 +115,225 @@
         this.state.mode = savedMode;
       }
 
-      const savedOrModel = localStorage.getItem(STORAGE_KEYS.OPENROUTER_MODEL);
-      if (savedOrModel) {
-        this.state.openRouterModel = savedOrModel;
+      // 2. Fetch server-side status & limits from /api/config
+      try {
+        const res = await fetch('/api/config');
+        if (res.ok) {
+          const config = await res.json();
+          this.state.geminiAvailable = !!config.gemini_available;
+          this.state.dailyBudgetExhausted = !!config.daily_budget_exhausted;
+          if (this.state.dailyBudgetExhausted) {
+            console.warn('[TrafficPolice] Daily cloud budget exhausted on backend. Local fallback engaged.');
+          }
+        }
+      } catch (e) {
+        // Server might not be running in purely static preview
       }
 
-      // 4. Network status listeners
+      // 3. Network status listeners
       window.addEventListener('online', () => {
         this.state.isOnline = true;
         this.notifyStateChange();
-        if (window.showToast) window.showToast('Online: Cloud LLM Engines Reconnected');
+        if (window.showToast) window.showToast('Online: Cloud connection restored');
       });
 
       window.addEventListener('offline', () => {
         this.state.isOnline = false;
         this.notifyStateChange();
-        if (window.showToast) window.showToast('Offline: Auto-routing to Local GGUF Engine');
+        if (window.showToast) window.showToast('Offline: Network disconnected');
       });
 
-      console.log('[TrafficPolice] Initialized. Active provider:', this.state.currentProvider, 'Mode:', this.state.mode);
+      console.log('[TrafficPolice] Initialized. Provider:', this.state.currentProvider, 'Mode:', this.state.mode);
       return this.state;
     },
 
+    DEFAULT_GEMINI_KEY: '',
+
+    async getGeminiKey() {
+      try {
+        if (window.NativeStorage?.get) {
+          const val = await window.NativeStorage.get('marvo.gemini.key');
+          if (val && val.trim()) return val.trim();
+        }
+      } catch (e) {}
+      const lsVal = localStorage.getItem('marvo.gemini.key');
+      if (lsVal && lsVal.trim()) return lsVal.trim();
+      return this.DEFAULT_GEMINI_KEY;
+    },
+
+    async setGeminiKey(key) {
+      const cleanKey = (key || '').trim();
+      try {
+        if (window.NativeStorage?.set) {
+          await window.NativeStorage.set('marvo.gemini.key', cleanKey);
+        }
+      } catch (e) {}
+      try {
+        localStorage.setItem('marvo.gemini.key', cleanKey);
+      } catch (e) {}
+      return cleanKey;
+    },
+
+    async hasUserEnteredGeminiKey() {
+      try {
+        if (window.NativeStorage?.get) {
+          const val = await window.NativeStorage.get('marvo.gemini.key');
+          if (val && val.trim()) return true;
+        }
+      } catch (e) {}
+      const lsVal = localStorage.getItem('marvo.gemini.key');
+      return !!(lsVal && lsVal.trim());
+    },
+
+    isLocalModelLoaded() {
+      return this.state.isLocalModelLoadedInMemory === true;
+    },
+
+    _resetLocalIdleTimer() {
+      if (this.localIdleTimer) {
+        clearTimeout(this.localIdleTimer);
+        this.localIdleTimer = null;
+      }
+      this.localIdleTimer = setTimeout(() => {
+        this.unloadLocalModel('idle_timeout_3m');
+      }, this.IDLE_UNLOAD_TIMEOUT_MS);
+    },
+
+    /**
+     * Loads Phi-3 Mini into memory ONCE.
+     * Keeps it resident in memory for as long as the user chats, then applies
+     * the idle-unload timer (3+ minutes without messages) to protect battery.
+     */
+    async ensureLocalModelLoaded(options = {}) {
+      const { showIndicator = true } = options;
+
+      if (this.state.isLocalModelLoadedInMemory) {
+        this._resetLocalIdleTimer();
+        return true;
+      }
+
+      if (this.localModelLoadingPromise) {
+        return this.localModelLoadingPromise;
+      }
+
+      this.state.isLocalModelLoading = true;
+      this.notifyStateChange();
+
+      if (showIndicator && window.showToast) {
+        window.showToast('⏳ Loading offline model into memory (~2.2GB)...', 3500);
+      }
+
+      this.localModelLoadingPromise = (async () => {
+        try {
+          // A. Android Capacitor Native Bridge (Preload GGUF session once)
+          if (window.Capacitor?.Plugins?.MarvoNativeBridge?.preloadOfflineModel) {
+            console.log('[TrafficPolice] Calling Native Bridge to preload Phi-3 into memory...');
+            const res = await window.Capacitor.Plugins.MarvoNativeBridge.preloadOfflineModel();
+            if (res && (res.isLoaded || res.success)) {
+              this.state.isLocalModelLoadedInMemory = true;
+              console.log('[TrafficPolice] Phi-3 model loaded and resident in native memory.');
+            }
+          }
+
+          // B. Local Ollama Desktop Endpoint (Warm up model with keep_alive: '5m')
+          try {
+            const ollamaCheck = await fetch('http://127.0.0.1:11434/api/generate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                model: 'phi3:mini',
+                keep_alive: '5m'
+              })
+            });
+            if (ollamaCheck.ok) {
+              this.state.isLocalModelLoadedInMemory = true;
+              console.log('[TrafficPolice] Ollama phi3:mini warmed up and resident in memory.');
+            }
+          } catch (ollamaErr) {}
+
+          // Mark loaded and arm the 3-minute idle timer
+          this.state.isLocalModelLoadedInMemory = true;
+          this._resetLocalIdleTimer();
+
+          if (showIndicator && window.showToast) {
+            window.showToast('✅ Offline model loaded and ready in memory', 2500);
+          }
+          return true;
+        } catch (err) {
+          console.warn('[TrafficPolice] Error warming up local model:', err);
+          this.state.isLocalModelLoadedInMemory = false;
+          throw err;
+        } finally {
+          this.state.isLocalModelLoading = false;
+          this.localModelLoadingPromise = null;
+          this.notifyStateChange();
+        }
+      })();
+
+      return this.localModelLoadingPromise;
+    },
+
+    /**
+     * Unloads the local model from memory after 3+ minutes of idle inactivity to protect battery.
+     */
+    async unloadLocalModel(reason = 'idle_timeout_3m') {
+      if (this.localIdleTimer) {
+        clearTimeout(this.localIdleTimer);
+        this.localIdleTimer = null;
+      }
+
+      if (!this.state.isLocalModelLoadedInMemory) return;
+
+      console.log(`[TrafficPolice] [BatteryGuard] Unloading Phi-3 model (${reason}) to save battery.`);
+
+      // A. Android Capacitor Native Bridge
+      if (window.Capacitor?.Plugins?.MarvoNativeBridge?.unloadOfflineModel) {
+        try {
+          await window.Capacitor.Plugins.MarvoNativeBridge.unloadOfflineModel({ reason });
+        } catch (e) {
+          console.warn('[TrafficPolice] Native unload call error:', e);
+        }
+      }
+
+      // B. Local Ollama Desktop Endpoint (unload instantly from memory)
+      try {
+        await fetch('http://127.0.0.1:11434/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'phi3:mini',
+            keep_alive: 0
+          })
+        });
+      } catch (e) {}
+
+      this.state.isLocalModelLoadedInMemory = false;
+      this.state.isLocalModelLoading = false;
+      this.notifyStateChange();
+
+      if (reason.startsWith('idle') && window.showToast) {
+        window.showToast('Offline model unloaded to preserve battery (idle 3m)', 2500);
+      }
+    },
+
     setProvider(provider) {
-      if (!['groq', 'gemini', 'openrouter', 'local'].includes(provider)) return;
+      if (!['gemini', 'local'].includes(provider)) return;
       this.state.currentProvider = provider;
       localStorage.setItem(STORAGE_KEYS.PROVIDER, provider);
       this.notifyStateChange();
-    },
 
-    setOpenRouterModel(model) {
-      if (!model) return;
-      this.state.openRouterModel = model;
-      localStorage.setItem(STORAGE_KEYS.OPENROUTER_MODEL, model);
-      this.notifyStateChange();
+      if (provider === 'local') {
+        // Load the model into memory ONCE when the user first selects "Phi-3 Mini (Offline)"
+        this.ensureLocalModelLoaded({ showIndicator: true }).catch(err => {
+          console.warn('[TrafficPolice] Initial model preload error on provider switch:', err);
+        });
+      }
     },
 
     setMode(mode) {
       if (!['Fast', 'Thinking', 'Pro Thinking'].includes(mode)) return;
       this.state.mode = mode;
       localStorage.setItem(STORAGE_KEYS.MODE, mode);
-      this.notifyStateChange();
-    },
-
-    setKeys(keys) {
-      if (keys.groq !== undefined) {
-        this.state.keys.groq = keys.groq.trim();
-        localStorage.setItem(STORAGE_KEYS.GROQ_KEY, this.state.keys.groq);
-      }
-      if (keys.gemini !== undefined) {
-        this.state.keys.gemini = keys.gemini.trim();
-        localStorage.setItem(STORAGE_KEYS.GEMINI_KEY, this.state.keys.gemini);
-      }
-      if (keys.openrouter !== undefined) {
-        this.state.keys.openrouter = keys.openrouter.trim();
-        localStorage.setItem(STORAGE_KEYS.OPENROUTER_KEY, this.state.keys.openrouter);
-      }
       this.notifyStateChange();
     },
 
@@ -198,9 +347,6 @@
       });
     },
 
-    /**
-     * Build standard OpenAI-compatible messages array from context history.
-     */
     buildOpenAiMessages(prompt, contextHistory = [], systemInstruction = '') {
       const messages = [];
       const defaultSystem = systemInstruction || 
@@ -223,27 +369,17 @@
       return messages;
     },
 
-    isCloudProviderEnabled(provider) {
+    isCloudProviderEnabled(provider = 'gemini') {
       const key = `marvo.cloud.enabled.${provider}`;
       return localStorage.getItem(key) !== 'false';
     },
 
     areAllCloudApisToggledOff() {
-      return !this.isCloudProviderEnabled('groq') &&
-             !this.isCloudProviderEnabled('gemini') &&
-             !this.isCloudProviderEnabled('openrouter');
+      return !this.isCloudProviderEnabled('gemini');
     },
 
     /**
-     * PRIMARY ROUTING DISPATCHER (TRAFFIC POLICE 1)
-     * Online (Network is ON):
-     *   - [Fast] Mode -> Route to Groq API (Instant response)
-     *   - [Thinking] Mode -> Route to Gemini API (Balanced reasoning)
-     *   - [Pro Thinking] Mode -> Route to OpenRouter / Claude (Heavy logic)
-     * Offline (Network is OFF):
-     *   - [Fast] Mode -> Route to local Gemma-2B
-     *   - [Thinking] Mode -> Route to local Phi-3-mini (3.8B)
-     *   - [Pro Thinking] Mode -> Route to local Llama-3 (8B) / Qwen 2.5
+     * PRIMARY ROUTING DISPATCHER WITH LIMIT ENFORCEMENT
      */
     async routeChat(prompt, options = {}) {
       const {
@@ -251,117 +387,88 @@
         systemInstruction = '',
         imageBase64 = null,
         signal = null,
-        advancedMode = null // 'deep-thinking' | 'web-research' | null
+        advancedMode = null, // 'deep-thinking' | 'web-research' | null
+        onToken = null
       } = options;
 
-      // 0. CRITICAL ROUTING INTERCEPTOR: MANUAL CLOUD OVERRIDE CHECK
-      // If ALL cloud engines are toggled OFF in AI Control Center, forcefully route directly to Offline Brain
-      const allCloudOff = this.areAllCloudApisToggledOff();
-      if (allCloudOff) {
-        console.log('[TrafficPolice] Manual Cloud Override: All cloud APIs are toggled OFF. Force routing directly to Offline LLM.');
-        let offlineResult = await this.callLocalLLM(prompt, contextHistory, systemInstruction, signal);
-        if (offlineResult && typeof offlineResult.response === 'string') {
-          offlineResult.response = sanitizeLlmResponse(offlineResult.response);
+      // ────────── CASE A: SELECTED PROVIDER IS OFFLINE MODEL (Phi-3 Mini) ──────────
+      if (this.state.currentProvider === 'local') {
+        try {
+          result = await this.callLocalLLM(effectivePrompt, contextHistory, effectiveSystemInstruction, signal, onToken);
+        } catch (err) {
+          console.error('[TrafficPolice] Local inference error:', err);
+          return {
+            response: '⚠️ Offline model failed to respond — try again',
+            provider: 'local',
+            model: 'Phi-3-mini (3.8B)',
+            state: 'state-error',
+            error: true
+          };
         }
-        return offlineResult;
+        if (result && typeof result.response === 'string') {
+          result.response = sanitizeLlmResponse(result.response);
+        }
+        return result;
       }
 
-      // 1. Strict Active Connectivity Check (LTE / Wi-Fi)
-      const isOnline = navigator.onLine !== false;
-      this.state.isOnline = isOnline;
+      // ────────── CASE B: SELECTED PROVIDER IS ONLINE (Gemini) ──────────
+      // Zero automatic switching — return clear error if conditions are not met
 
-      // Intercept Web Research if offline (Phase 2 Requirement 2)
-      if (advancedMode === 'web-research' && !isOnline) {
-        if (window.showToast) {
-          window.showToast('Research mode requires an active internet connection.');
-        }
+      // Network check
+      if (!isOnline) {
         return {
-          response: '⚠️ **Web Research Unavailable Offline**\n\nWeb Research mode requires an active internet connection to synthesize live scholarly literature. Please connect to Wi-Fi or Mobile Data, or switch to **Deep Thinking** or standard offline mode.',
-          provider: 'local',
-          model: 'offline',
-          state: 'state-idle'
+          response: '⚠️ Gemini request failed — check your connection or API key',
+          provider: 'gemini',
+          model: 'gemini-2.0-flash',
+          state: 'state-error',
+          error: true
         };
       }
 
-      // Inject advanced cognitive system prompts
-      let effectiveSystemInstruction = systemInstruction || '';
-      let effectivePrompt = prompt;
-
-      if (advancedMode === 'deep-thinking') {
-        effectiveSystemInstruction = `You are a world-class STEM professor and deep cognitive reasoning intelligence.
-For every query, conduct rigorous step-by-step Chain of Thought reasoning:
-1. Deconstruct the problem, define foundational variables, and state theoretical laws.
-2. Provide explicit step-by-step mathematical derivations or conceptual mechanisms without skipping logical steps.
-3. Formulate equations with high-precision LaTeX/KaTeX ($$...$$ and $...$).
-4. Cross-check intermediate results, units, and dimensional analysis.
-5. Provide a definitive, elegant conclusion.
-${effectiveSystemInstruction}`;
-      } else if (advancedMode === 'web-research') {
-        effectiveSystemInstruction = `You are an elite academic Web Research Intelligence Agent.
-Conduct an exhaustive, deep investigation into the user's research topic.
-Synthesize findings with structured sections, empirical data, cross-referenced literature, and academic citations.
-Format with:
-- **Executive Summary & Key Takeaways**
-- **In-Depth Scientific Analysis / Proof**
-- **Empirical Facts & Academic Sources**
-- **Methodology & Critical Conclusions**
-${effectiveSystemInstruction}`;
+      // Daily Cloud Budget Check (docs/AI_LIMITS.md)
+      if (this.state.dailyBudgetExhausted) {
+        console.warn('[TrafficPolice] Daily cloud budget reached.');
+        if (window.showToast) {
+          window.showToast('Daily Gemini cloud budget reached.');
+        }
+        return {
+          response: '⚠️ Gemini request failed — daily cloud budget exceeded. Please switch to Phi-3 Mini (Offline) or update your API key.',
+          provider: 'gemini',
+          model: 'gemini-2.0-flash',
+          state: 'state-error',
+          error: true
+        };
       }
 
-      let result;
+      // Session Cloud RPM Check (15 RPM limit)
+      const now = Date.now();
+      this.cloudRequestHistory = this.cloudRequestHistory.filter(t => now - t < 60000);
+      if (this.cloudRequestHistory.length >= this.MAX_CLOUD_RPM) {
+        console.warn('[TrafficPolice] Session Cloud Rate Limit (15 RPM) exceeded.');
+        if (window.showToast) {
+          window.showToast('Cloud query rate limit reached (15 RPM).');
+        }
+        return {
+          response: '⚠️ Gemini request failed — rate limit (15 requests/min) reached. Please wait a moment or switch to Phi-3 Mini (Offline).',
+          provider: 'gemini',
+          model: 'gemini-2.0-flash',
+          state: 'state-error',
+          error: true
+        };
+      }
 
-      // Advanced Modes Online Priority Routing (OpenRouter / Claude 3.5 Sonnet or Gemini 1.5 Pro)
-      if (isOnline && (advancedMode === 'deep-thinking' || advancedMode === 'web-research')) {
-        try {
-          if (this.state.keys.openrouter) {
-            result = await this.callOpenRouter(effectivePrompt, contextHistory, effectiveSystemInstruction, signal);
-          } else {
-            result = await this.callGemini(effectivePrompt, contextHistory, effectiveSystemInstruction, imageBase64, signal);
-          }
-        } catch (advErr) {
-          console.warn('[TrafficPolice] Advanced mode primary call failed, trying fallback:', advErr);
-          try {
-            result = await this.callGemini(effectivePrompt, contextHistory, effectiveSystemInstruction, imageBase64, signal);
-          } catch (gemErr) {
-            result = await this.callLocalLLM(effectivePrompt, contextHistory, effectiveSystemInstruction, signal);
-          }
-        }
-      } else if (isOnline && this.state.currentProvider !== 'local') {
-        try {
-          if (this.state.mode === 'Fast') {
-            result = await this.callGroq(effectivePrompt, contextHistory, effectiveSystemInstruction, signal);
-          } else if (this.state.mode === 'Thinking') {
-            result = await this.callGemini(effectivePrompt, contextHistory, effectiveSystemInstruction, imageBase64, signal);
-          } else if (this.state.mode === 'Pro Thinking') {
-            result = await this.callOpenRouter(effectivePrompt, contextHistory, effectiveSystemInstruction, signal);
-          } else {
-            // Default based on selected provider
-            if (this.state.currentProvider === 'groq') {
-              result = await this.callGroq(effectivePrompt, contextHistory, effectiveSystemInstruction, signal);
-            } else if (this.state.currentProvider === 'openrouter') {
-              result = await this.callOpenRouter(effectivePrompt, contextHistory, effectiveSystemInstruction, signal);
-            } else {
-              result = await this.callGemini(effectivePrompt, contextHistory, effectiveSystemInstruction, imageBase64, signal);
-            }
-          }
-        } catch (err) {
-          console.warn(`[TrafficPolice 1] Online dispatch failed:`, err);
-          // Fallback to Gemini if Groq failed and Gemini is available
-          if (this.state.mode === 'Fast' && this.state.keys.gemini) {
-            try {
-              result = await this.callGemini(effectivePrompt, contextHistory, effectiveSystemInstruction, imageBase64, signal);
-            } catch (geminiErr) {
-              console.warn('[TrafficPolice 1] Gemini fallback also failed:', geminiErr);
-            }
-          }
-          // If all online attempts fail, fallback to local engine
-          if (!result) {
-            result = await this.callLocalLLM(effectivePrompt, contextHistory, effectiveSystemInstruction, signal);
-          }
-        }
-      } else {
-        // Offline Mode: Route immediately to designated on-device model with Chain of Thought if Deep Thinking
-        result = await this.callLocalLLM(effectivePrompt, contextHistory, effectiveSystemInstruction, signal);
+      // Cloud Dispatch via Backend Proxy
+      try {
+        result = await this.callGemini(effectivePrompt, contextHistory, effectiveSystemInstruction, imageBase64, signal, onToken);
+      } catch (err) {
+        console.warn('[TrafficPolice] Gemini proxy call failed:', err.message);
+        return {
+          response: '⚠️ Gemini request failed — check your connection or API key',
+          provider: 'gemini',
+          model: 'gemini-2.0-flash',
+          state: 'state-error',
+          error: true
+        };
       }
 
       if (result && typeof result.response === 'string') {
@@ -371,259 +478,377 @@ ${effectiveSystemInstruction}`;
     },
 
     /**
-     * GROQ API DISPATCHER
-     * Fast & Free Ultra-low latency inference
+     * GEMINI CLOUD DISPATCHER
+     * Enforces 12.0s timeout watchdog and recognizes 429 budget/rate-limit responses
      */
-    async callGroq(prompt, contextHistory = [], systemInstruction = '', signal = null) {
-      if (!this.isCloudProviderEnabled('groq')) {
-        throw new Error("Groq Cloud Engine is manually toggled off via AI Control Center.");
-      }
-      const apiKey = this.state.keys.groq || DEFAULT_KEYS.groq;
-      if (!apiKey) {
-        throw new Error("GROQ_API_KEY is not configured.");
-      }
-
-      // Select model based on user mode
-      let model = 'llama-3.3-70b-versatile';
-      if (this.state.mode === 'Fast') {
-        model = 'llama-3.1-8b-instant';
-      } else if (this.state.mode === 'Pro Thinking') {
-        model = 'llama-3.3-70b-versatile';
-      }
-
-      const messages = this.buildOpenAiMessages(prompt, contextHistory, systemInstruction);
-
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        signal: signal,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-          model: model,
-          messages: messages,
-          temperature: 0.7,
-          max_tokens: 4096
-        })
-      });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`Groq API error (${response.status}): ${errText}`);
-      }
-
-      const data = await response.json();
-      const answer = data.choices?.[0]?.message?.content || "No response generated by Groq.";
-      return {
-        response: answer,
-        provider: 'groq',
-        model: model,
-        state: 'state-speaking'
-      };
-    },
-
-    /**
-     * GEMINI API DISPATCHER
-     * Google Native Generative Language API
-     */
-    async callGemini(prompt, contextHistory = [], systemInstruction = '', imageBase64 = null, signal = null) {
+    async callGemini(prompt, contextHistory = [], systemInstruction = '', imageBase64 = null, signal = null, onToken = null) {
       if (!this.isCloudProviderEnabled('gemini')) {
-        throw new Error("Google Gemini API is manually toggled off via AI Control Center.");
-      }
-      const apiKey = this.state.keys.gemini || DEFAULT_KEYS.gemini;
-      const modelName = this.state.mode === 'Pro Thinking' ? 'gemini-1.5-pro' : 'gemini-1.5-flash';
-
-      // Build Gemini contents payload format
-      const contents = [];
-      if (Array.isArray(contextHistory)) {
-        contextHistory.forEach(item => {
-          if (item && item.role && item.content) {
-            contents.push({
-              role: item.role === 'ai' ? 'model' : 'user',
-              parts: [{ text: item.content }]
-            });
-          }
-        });
+        throw new Error("Google Gemini is manually toggled off via AI Control Center.");
       }
 
-      const userParts = [];
-      if (imageBase64) {
-        const cleanBase64 = imageBase64.replace(/^data:image\/[a-z]+;base64,/, '');
-        userParts.push({
-          inline_data: {
-            mime_type: "image/jpeg",
-            data: cleanBase64
-          }
-        });
-      }
-      userParts.push({ text: prompt });
-      contents.push({ role: 'user', parts: userParts });
+      // Record request timestamp for 15 RPM sliding window
+      this.cloudRequestHistory.push(Date.now());
 
-      const payload = {
-        contents: contents,
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 4096
-        }
-      };
+      // 12.0s Timeout enforcement via AbortController (docs/AI_LIMITS.md)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+      }, this.CLOUD_TIMEOUT_MS);
 
-      if (systemInstruction) {
-        payload.system_instruction = {
-          parts: [{ text: systemInstruction }]
-        };
+      if (signal) {
+        signal.addEventListener('abort', () => controller.abort());
       }
 
-      // If apiKey is provided, call Google directly; otherwise proxy through Marvo server
-      let endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-      let fetchUrl = apiKey ? endpoint : '/api/chat';
-      let fetchBody = apiKey ? JSON.stringify(payload) : JSON.stringify({
-        message: prompt,
-        mode: this.state.mode,
-        thinking_mode: this.state.mode.toLowerCase(),
-        multimodal_image: imageBase64
-      });
+      const isStream = typeof onToken === 'function';
 
-      const response = await fetch(fetchUrl, {
-        method: 'POST',
-        signal: signal,
-        headers: { 'Content-Type': 'application/json' },
-        body: fetchBody
-      });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`Gemini API error (${response.status}): ${errText}`);
-      }
-
-      const data = await response.json();
-      let answer = "";
-      if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
-        answer = data.candidates[0].content.parts[0].text;
-      } else if (data.response) {
-        answer = data.response;
-      } else {
-        answer = "Gemini returned an empty response.";
-      }
-
-      return {
-        response: answer,
-        provider: 'gemini',
-        model: modelName,
-        state: 'state-speaking'
-      };
-    },
-
-    /**
-     * OPENROUTER API DISPATCHER
-     * Multi-Agent Gateway supporting Claude 3.5 Sonnet, GPT-4o, Llama 3.1 405B, DeepSeek R1
-     */
-    async callOpenRouter(prompt, contextHistory = [], systemInstruction = '', signal = null) {
-      if (!this.isCloudProviderEnabled('openrouter')) {
-        throw new Error("OpenRouter Multi-Agent Gateway is manually toggled off via AI Control Center.");
-      }
-      const apiKey = this.state.keys.openrouter || DEFAULT_KEYS.openrouter;
-      if (!apiKey) {
-        throw new Error("OPENROUTER_API_KEY is not configured.");
-      }
-
-      const model = this.state.openRouterModel || 'anthropic/claude-3.5-sonnet';
-      const messages = this.buildOpenAiMessages(prompt, contextHistory, systemInstruction);
-
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        signal: signal,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-          'HTTP-Referer': 'https://marvo.ai',
-          'X-Title': 'Marvo AI Assistant'
-        },
-        body: JSON.stringify({
-          model: model,
-          messages: messages,
-          temperature: 0.7,
-          max_tokens: 4096
-        })
-      });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`OpenRouter API error (${response.status}): ${errText}`);
-      }
-
-      const data = await response.json();
-      const answer = data.choices?.[0]?.message?.content || "No response generated by OpenRouter.";
-      return {
-        response: answer,
-        provider: 'openrouter',
-        model: model,
-        state: 'state-speaking'
-      };
-    },
-
-    /**
-     * LOCAL OFFLINE LLM DISPATCHER
-     * Routes to local inference (Native Android Bridge or Ollama endpoint) with 0 internet dependency.
-     */
-    async callLocalLLM(prompt, contextHistory = [], systemInstruction = '', signal = null) {
-      const activeOfflineModel = this.state.offlineModelMap[this.state.mode] || 'Phi-3-mini (3.8B)';
-      console.log(`[TrafficPolice] Local inference executing with: ${activeOfflineModel}`);
-
-      // 1. Try Native Android Capacitor Bridge (MediaPipe/GGUF Local Engine)
-      if (window.Capacitor?.Plugins?.MarvoNativeBridge?.runLocalInference) {
-        try {
-          const res = await window.Capacitor.Plugins.MarvoNativeBridge.runLocalInference({
-            prompt: prompt,
-            model: activeOfflineModel,
-            mode: this.state.mode
-          });
-          if (res && res.text) {
-            return {
-              response: res.text,
-              provider: 'local',
-              model: activeOfflineModel,
-              state: 'state-speaking'
-            };
-          }
-        } catch (bridgeErr) {
-          console.warn('[TrafficPolice] Capacitor Native offline bridge error:', bridgeErr);
-        }
-      }
-
-      // 2. Try Local Ollama Endpoint (http://127.0.0.1:11434)
       try {
-        const ollamaRes = await fetch('http://127.0.0.1:11434/api/chat', {
+        const response = await fetch('/api/chat', {
           method: 'POST',
-          signal: signal,
-          headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
+          headers: {
+            'Content-Type': 'application/json',
+            ...(isStream ? { 'Accept': 'text/event-stream' } : {})
+          },
           body: JSON.stringify({
-            model: 'phi3:mini',
-            messages: this.buildOpenAiMessages(prompt, contextHistory, systemInstruction),
-            stream: false
+            message: prompt,
+            mode: this.state.mode,
+            thinking_mode: this.state.mode.toLowerCase(),
+            system_instruction: systemInstruction,
+            context_history: contextHistory,
+            multimodal_image: imageBase64,
+            stream: isStream
           })
         });
-        if (ollamaRes.ok) {
-          const ollamaData = await ollamaRes.json();
+
+        clearTimeout(timeoutId);
+
+        // Check for 429 Rate Limit or Daily Budget limits from backend
+        if (response.status === 429) {
+          const errData = await response.json().catch(() => ({}));
+          if (errData.daily_budget_exhausted) {
+            this.state.dailyBudgetExhausted = true;
+            if (window.showToast) {
+              window.showToast('Daily cloud budget reached. Operating on local offline brain.');
+            }
+          } else if (errData.rate_limited) {
+            if (window.showToast) {
+              window.showToast('Cloud query rate limit reached. Routing locally.');
+            }
+          }
+          throw new Error(errData.error || `Cloud limit exceeded (${response.status})`);
+        }
+
+        if (!response.ok) {
+          const errText = await response.text();
+          throw new Error(`Gemini proxy error (${response.status}): ${errText}`);
+        }
+
+        // Handle SSE streaming response
+        if (isStream && response.body) {
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder('utf-8');
+          let fullText = '';
+          let buffer = '';
+          let finalState = 'state-speaking';
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (!trimmed.startsWith('data:')) continue;
+              const jsonStr = trimmed.slice(5).trim();
+              if (!jsonStr) continue;
+              try {
+                const chunk = JSON.parse(jsonStr);
+                if (chunk.error) {
+                  throw new Error(chunk.error);
+                }
+                if (chunk.state) {
+                  finalState = chunk.state;
+                }
+                if (chunk.token) {
+                  fullText += chunk.token;
+                  onToken(chunk.token, fullText);
+                } else if (chunk.full_response && !fullText) {
+                  fullText = chunk.full_response;
+                  onToken(chunk.full_response, fullText);
+                }
+              } catch (e) {
+                if (e.message && e.message.includes('error')) throw e;
+              }
+            }
+          }
+
           return {
-            response: ollamaData.message?.content || "Local Ollama completed.",
-            provider: 'local',
-            model: 'phi3:mini',
-            state: 'state-speaking'
+            response: fullText || "Gemini completed.",
+            provider: 'gemini',
+            model: 'gemini-2.0-flash',
+            state: finalState
+          };
+        } else {
+          const data = await response.json();
+          let answer = "";
+          if (data.response) {
+            answer = data.response;
+          } else if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
+            answer = data.candidates[0].content.parts[0].text;
+          } else {
+            answer = "Gemini returned an empty response.";
+          }
+
+          return {
+            response: answer,
+            provider: 'gemini',
+            model: 'gemini-2.0-flash',
+            state: data.state || 'state-speaking'
           };
         }
-      } catch (ollamaErr) {
-        // Ollama not active on desktop localhost
+      } catch (err) {
+        clearTimeout(timeoutId);
+        if (err.name === 'AbortError') {
+          console.warn('[TrafficPolice] Cloud request timed out after 12.0s.');
+          if (window.showToast) {
+            window.showToast('Cloud response delayed. Switched to on-device engine.');
+          }
+          throw new Error('Cloud request timed out after 12.0s.');
+        }
+        throw err;
+      }
+    },
+
+    /**
+     * LOCAL OFFLINE LLM DISPATCHER (Concurrency Guard & Queue Manager)
+     * Enforces strictly 1 concurrent inference and max 2 queued requests
+     */
+    async callLocalLLM(prompt, contextHistory = [], systemInstruction = '', signal = null, onToken = null) {
+      // 1. Check Concurrency: Is another local inference task already active?
+      if (this.localInferenceActive) {
+        // Check Queue Capacity (Max 2 queued requests per docs/AI_LIMITS.md)
+        if (this.localQueue.length >= this.MAX_LOCAL_QUEUE) {
+          console.warn('[TrafficPolice] Local inference queue overflow (>2). Dropping newest request.');
+          if (window.showToast) {
+            window.showToast('Device inference queue full. Please wait for current generation to finish.');
+          }
+          return {
+            response: '⚠️ Offline model failed to respond — try again',
+            provider: 'local',
+            model: 'Phi-3-mini (3.8B)',
+            state: 'state-error',
+            error: true
+          };
+        }
+
+        // Enqueue query in FIFO buffer (position 1 or 2)
+        console.log(`[TrafficPolice] Local engine busy. Enqueueing request (Position: ${this.localQueue.length + 1}/2).`);
+        if (window.showToast) {
+          window.showToast('Local engine busy. Request queued...');
+        }
+        return new Promise((resolve, reject) => {
+          this.localQueue.push({
+            prompt,
+            contextHistory,
+            systemInstruction,
+            signal,
+            onToken,
+            resolve,
+            reject
+          });
+        });
       }
 
-      // 3. Graceful offline model notification (Zero dummy answers)
-      return {
-        response: `⚠️ **Offline Model Not Found**\n\nThe on-device model **${activeOfflineModel}** is not installed on this device.\n\nTo run offline inference without an internet connection:\n1. Open the left menu (☰) → **Downloads & Storage**.\n2. Tap **Download Offline Brain** to download the on-device GGUF package.\n3. Alternatively, connect to Wi-Fi or Mobile Data to continue with instant cloud inference.`,
-        provider: 'local',
-        model: activeOfflineModel,
-        state: 'state-idle',
-        needsDownload: true
-      };
+      // 2. Lock concurrency and execute directly
+      return this._executeLocalInference(prompt, contextHistory, systemInstruction, signal, onToken);
+    },
+
+    async _executeLocalInference(prompt, contextHistory = [], systemInstruction = '', signal = null, onToken = null) {
+      this.localInferenceActive = true;
+      const activeOfflineModel = 'Phi-3-mini (3.8B)';
+      console.log(`[TrafficPolice] Local inference executing with: ${activeOfflineModel}`);
+
+      // 0. Ensure model is loaded into memory ONCE (First offline message in session)
+      if (!this.state.isLocalModelLoadedInMemory) {
+        try {
+          await this.ensureLocalModelLoaded({ showIndicator: true });
+        } catch (e) {
+          console.warn('[TrafficPolice] Could not ensure local model loaded:', e);
+        }
+      }
+
+      // 3. Context Length Pruning (Max 4,096 tokens per docs/AI_LIMITS.md)
+      const prunedContext = this._pruneContextForLocal(contextHistory, prompt, systemInstruction);
+
+      // 4. Setup 25.0s Watchdog Timeout (docs/AI_LIMITS.md)
+      let watchdogTimer = null;
+
+      const timeoutPromise = new Promise((resolve) => {
+        watchdogTimer = setTimeout(() => {
+          console.warn('[TrafficPolice] Local inference 25s watchdog expired.');
+          resolve({
+            response: '⚠️ Offline model failed to respond — try again',
+            provider: 'local',
+            model: activeOfflineModel,
+            state: 'state-error',
+            error: true
+          });
+        }, this.LOCAL_TIMEOUT_MS);
+      });
+
+      const inferencePromise = (async () => {
+        // A. Try Native Android Capacitor Bridge (MediaPipe/GGUF Local Engine)
+        if (window.Capacitor?.Plugins?.MarvoNativeBridge?.runLocalInference) {
+          let tokenListener = null;
+          try {
+            if (typeof onToken === 'function' && window.Capacitor?.Plugins?.MarvoNativeBridge?.addListener) {
+              tokenListener = await window.Capacitor.Plugins.MarvoNativeBridge.addListener('localLlmToken', (data) => {
+                if (data && data.token) onToken(data.token);
+              });
+            }
+            const res = await window.Capacitor.Plugins.MarvoNativeBridge.runLocalInference({
+              prompt: prompt,
+              model: activeOfflineModel,
+              mode: this.state.mode
+            });
+            if (res && res.text) {
+              return {
+                response: res.text,
+                provider: 'local',
+                model: activeOfflineModel,
+                state: 'state-speaking'
+              };
+            }
+          } catch (bridgeErr) {
+            console.warn('[TrafficPolice] Capacitor Native offline bridge error:', bridgeErr);
+          } finally {
+            if (tokenListener && tokenListener.remove) {
+              try { tokenListener.remove(); } catch (e) {}
+            }
+          }
+        }
+
+        // B. Try Local Ollama Endpoint (http://127.0.0.1:11434)
+        try {
+          const isStream = typeof onToken === 'function';
+          const ollamaRes = await fetch('http://127.0.0.1:11434/api/chat', {
+            method: 'POST',
+            signal: signal,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model: 'phi3:mini',
+              messages: this.buildOpenAiMessages(prompt, prunedContext, systemInstruction),
+              stream: isStream,
+              keep_alive: '5m' // Keeps model resident in memory during active chat
+            })
+          });
+
+          if (ollamaRes.ok) {
+            if (isStream && ollamaRes.body) {
+              const reader = ollamaRes.body.getReader();
+              const decoder = new TextDecoder('utf-8');
+              let fullText = '';
+              let buffer = '';
+
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                  const trimmed = line.trim();
+                  if (!trimmed) continue;
+                  try {
+                    const chunk = JSON.parse(trimmed);
+                    const token = chunk.message?.content || '';
+                    if (token) {
+                      fullText += token;
+                      onToken(token, fullText);
+                    }
+                  } catch (e) {}
+                }
+              }
+              return {
+                response: fullText || "Local Ollama completed.",
+                provider: 'local',
+                model: 'phi3:mini',
+                state: 'state-speaking'
+              };
+            } else {
+              const ollamaData = await ollamaRes.json();
+              return {
+                response: ollamaData.message?.content || "Local Ollama completed.",
+                provider: 'local',
+                model: 'phi3:mini',
+                state: 'state-speaking'
+              };
+            }
+          }
+        } catch (ollamaErr) {
+          // Ollama not active on desktop localhost
+        }
+
+        // C. Graceful offline model notification
+        return {
+          response: `⚠️ **Offline Model Not Found**\n\nThe on-device model **${activeOfflineModel}** is not installed on this device.\n\nTo run offline inference without an internet connection:\n1. Open the left menu (☰) → **Downloads & Storage**.\n2. Tap **Download Offline Brain** to download the on-device GGUF package.\n3. Alternatively, connect to Wi-Fi or Mobile Data to continue with instant cloud inference.`,
+          provider: 'local',
+          model: activeOfflineModel,
+          state: 'state-idle',
+          needsDownload: true
+        };
+      })();
+
+      try {
+        const result = await Promise.race([inferencePromise, timeoutPromise]);
+        clearTimeout(watchdogTimer);
+        return result;
+      } finally {
+        clearTimeout(watchdogTimer);
+        this.localInferenceActive = false;
+        // Re-arm the 3-minute idle timer upon generation completion so consecutive messages remain instant
+        this._resetLocalIdleTimer();
+        // Process next item in queue FIFO
+        this._drainLocalQueue();
+      }
+    },
+
+    _drainLocalQueue() {
+      if (this.localQueue.length > 0 && !this.localInferenceActive) {
+        const nextTask = this.localQueue.shift();
+        this._executeLocalInference(
+          nextTask.prompt,
+          nextTask.contextHistory,
+          nextTask.systemInstruction,
+          nextTask.signal,
+          nextTask.onToken
+        ).then(nextTask.resolve).catch(nextTask.reject);
+      }
+    },
+
+    _pruneContextForLocal(contextHistory, prompt, systemInstruction) {
+      if (!Array.isArray(contextHistory) || contextHistory.length === 0) {
+        return contextHistory || [];
+      }
+      // Target: max 3,500 tokens (~14,000 chars) for history
+      // Retains system prompt and latest user prompt
+      let totalChars = (prompt ? prompt.length : 0) + (systemInstruction ? systemInstruction.length : 0);
+      const pruned = [];
+
+      for (let i = contextHistory.length - 1; i >= 0; i--) {
+        const item = contextHistory[i];
+        const itemLen = (item.content || '').length;
+        if (totalChars + itemLen <= this.MAX_LOCAL_CONTEXT_CHARS) {
+          pruned.unshift(item);
+          totalChars += itemLen;
+        } else {
+          break;
+        }
+      }
+      return pruned;
     }
   };
 

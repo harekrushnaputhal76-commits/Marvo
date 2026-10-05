@@ -699,6 +699,65 @@ public class MarvoNativeBridge extends Plugin {
     }
 
     @PluginMethod
+    public void preloadOfflineModel(PluginCall call) {
+        try {
+            Context context = getContext();
+            OfflineBrainManager obm = OfflineBrainManager.getInstance(context);
+            if (!obm.isModelReady()) {
+                call.reject("Offline model is not downloaded yet");
+                return;
+            }
+            obm.loadModelInMemory(new OfflineBrainManager.LoadCallback() {
+                @Override
+                public void onLoaded(boolean success, String message) {
+                    JSObject res = new JSObject();
+                    res.put("success", success);
+                    res.put("message", message);
+                    res.put("isLoaded", true);
+                    call.resolve(res);
+                }
+
+                @Override
+                public void onError(String errorMessage) {
+                    call.reject(errorMessage);
+                }
+            });
+        } catch (Exception e) {
+            Log.e(TAG, "Error preloading model: " + e.getMessage(), e);
+            call.reject("Failed to preload offline model: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void isOfflineModelLoaded(PluginCall call) {
+        try {
+            Context context = getContext();
+            OfflineBrainManager obm = OfflineBrainManager.getInstance(context);
+            JSObject res = new JSObject();
+            res.put("isLoaded", obm.isModelLoadedInMemory());
+            res.put("state", obm.getState().name());
+            call.resolve(res);
+        } catch (Exception e) {
+            call.reject("Error checking model state: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void unloadOfflineModel(PluginCall call) {
+        try {
+            Context context = getContext();
+            OfflineBrainManager obm = OfflineBrainManager.getInstance(context);
+            String reason = call.getString("reason", "manual_unload");
+            obm.unloadModelFromMemory(reason);
+            JSObject res = new JSObject();
+            res.put("unloaded", true);
+            call.resolve(res);
+        } catch (Exception e) {
+            call.reject("Error unloading model: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
     public void runOnDeviceOcr(PluginCall call) {
         String imageBase64 = call.getString("imageBase64");
         if (imageBase64 == null || imageBase64.isEmpty()) {
