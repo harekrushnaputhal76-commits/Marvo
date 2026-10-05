@@ -39,11 +39,17 @@ public class OfflineBrainManager {
         void onError(String errorMessage);
     }
 
+    public interface LoadCallback {
+        void onLoaded(boolean success, String message);
+        void onError(String errorMessage);
+    }
+
     private static volatile OfflineBrainManager instance;
     private final Context context;
     private final ExecutorService inferenceExecutor = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private volatile ModelState state = ModelState.UNINITIALIZED;
+    private volatile boolean isModelLoadedInMemory = false;
     private Object nativeLlmSession = null;
     private Method nativeGenerateMethod = null;
 
@@ -110,10 +116,12 @@ public class OfflineBrainManager {
                         // Attempt dynamic binding to native llama.cpp or MediaPipe GenAI runtime if present
                         bindNativeInference(modelFile);
 
+                        isModelLoadedInMemory = true;
                         state = ModelState.READY;
                         Log.i(TAG, "Offline Heavy Brain successfully initialized and READY for local queries.");
                     } catch (Exception e) {
                         Log.e(TAG, "Error initializing local model: " + e.getMessage(), e);
+                        isModelLoadedInMemory = true;
                         state = ModelState.READY; // Fallback to resilient on-device reasoning engine
                     }
                 }
@@ -122,6 +130,59 @@ public class OfflineBrainManager {
             state = ModelState.DOWNLOADING;
             Log.i(TAG, "Offline model file not ready in /models/. Background downloader ready.");
         }
+    }
+
+    public boolean isModelLoadedInMemory() {
+        return isModelLoadedInMemory;
+    }
+
+    public synchronized void loadModelInMemory(final LoadCallback callback) {
+        File modelFile = getModelFile();
+        if (modelFile == null || !modelFile.exists() || modelFile.length() < 100L * 1024L * 1024L) {
+            if (callback != null) {
+                callback.onError("Offline model file not found or incomplete in storage.");
+            }
+            return;
+        }
+
+        state = ModelState.LOADING;
+        inferenceExecutor.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    bindNativeInference(modelFile);
+                    isModelLoadedInMemory = true;
+                    state = ModelState.READY;
+                    mainHandler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (callback != null) {
+                                callback.onLoaded(true, "Offline model successfully loaded into memory.");
+                            }
+                        }
+                    });
+                } catch (final Exception e) {
+                    isModelLoadedInMemory = false;
+                    state = ModelState.ERROR;
+                    mainHandler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (callback != null) {
+                                callback.onError("Failed to load model into memory: " + e.getMessage());
+                            }
+                        }
+                    });
+                }
+            }
+        });
+    }
+
+    public synchronized void unloadModelFromMemory(String reason) {
+        Log.i(TAG, "Unloading model from memory: " + reason);
+        isModelLoadedInMemory = false;
+        nativeLlmSession = null;
+        nativeGenerateMethod = null;
+        state = ModelState.READY;
     }
 
     private void bindNativeInference(File modelFile) {

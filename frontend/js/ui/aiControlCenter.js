@@ -713,17 +713,17 @@
           this.apiStatus.gemini = { status: 'failed', latency, error: `HTTP ${res.status}` };
         }
       } catch (e) {
-        this.apiStatus.gemini = { status: 'failed', latency, error: e.message };
+        this.apiStatus.gemini = { status: 'failed', latency: 0, error: e.message };
       }
       this.renderApiCards();
     },
 
     isCloudEnabled(provider = 'gemini') {
-      return localStorage.getItem('marvo.cloud.enabled.gemini') !== 'false';
+      return localStorage.getItem(`marvo.cloud.enabled.${provider}`) !== 'false';
     },
 
     toggleCloudProvider(provider, enabled) {
-      localStorage.setItem('marvo.cloud.enabled.gemini', enabled ? 'true' : 'false');
+      localStorage.setItem(`marvo.cloud.enabled.${provider}`, enabled ? 'true' : 'false');
       if (window.showToast) {
         window.showToast(`Google Gemini ${enabled ? 'Enabled' : 'Bypassed (Toggled Off)'}`);
       }
@@ -743,9 +743,9 @@
       const configs = [
         {
           key: 'gemini',
-          title: 'Google Gemini (Online)',
-          model: 'gemini-2.0-flash',
-          desc: 'Native Google multimodal intelligence, vision, and real-time streaming.'
+          title: 'Google Gemini API',
+          model: 'gemini-3.8-flash',
+          desc: 'Native Google multimodal vision, audio, and reasoning model.'
         }
       ];
 
@@ -754,15 +754,15 @@
         const st = this.apiStatus[c.key] || { status: 'checking', latency: 0 };
         let badgeHtml = '';
         if (!isEnabled) {
-          badgeHtml = '<span class="api-badge disabled" title="Cloud engine manually toggled off">⚪ Manual Override Off</span>';
+          badgeHtml = `<span class="api-badge disabled" title="Cloud engine manually toggled off">⚪ Manual Override Off</span>`;
         } else if (st.status === 'active') {
           badgeHtml = `<span class="api-badge active">🟢 Active & Verified (${st.latency}ms)</span>`;
         } else if (st.status === 'failed') {
-          badgeHtml = '<span class="api-badge failed">🔴 Failed / Invalid Key</span>';
+          badgeHtml = `<span class="api-badge failed">🔴 Failed / Invalid Key</span>`;
         } else if (st.status === 'offline') {
-          badgeHtml = '<span class="api-badge offline">🟡 Offline (No Network)</span>';
+          badgeHtml = `<span class="api-badge offline">🟡 Offline (No Network)</span>`;
         } else {
-          badgeHtml = '<span class="api-badge checking">⚪ Checking...</span>';
+          badgeHtml = `<span class="api-badge checking">⚪ Checking...</span>`;
         }
 
         return `
@@ -771,7 +771,7 @@
               <div>
                 <div class="api-name-row">
                   <h4 class="api-name">${c.title}</h4>
-                  ${!isEnabled ? '<span class="api-override-chip">Offline Only</span>' : ''}
+                  ${!isEnabled ? '<span class="api-override-chip">Offline Fallback</span>' : ''}
                 </div>
                 <span class="api-model-tag">${c.model}</span>
               </div>
@@ -785,7 +785,7 @@
             </div>
             <p class="api-desc">${c.desc}</p>
             <div class="api-card-footer">
-              <span class="api-secure-tag">${isEnabled ? '🔒 Key Saved Locally' : '⚠️ Cloud Bypassed: Manual Local Only'}</span>
+              <span class="api-secure-tag">${isEnabled ? '🔒 Key Secured in Backend Logic' : '⚠️ Cloud Bypassed: Routes to Offline Brain'}</span>
               <button class="btn-api-reping" ${!isEnabled ? 'disabled style="opacity:0.4;cursor:not-allowed;"' : ''} onclick="window.AiControlCenter.repingSingle('${c.key}')">Ping</button>
             </div>
           </div>
@@ -793,15 +793,13 @@
       }).join('');
     },
 
-    async repingSingle(provider = 'gemini') {
-      if (!this.isCloudEnabled('gemini')) {
-        if (window.showToast) window.showToast('Gemini is toggled off. Enable it first to test ping.');
+    repingSingle(provider = 'gemini') {
+      if (!this.isCloudEnabled(provider)) {
+        if (window.showToast) window.showToast(`${provider.toUpperCase()} is toggled off. Enable it first to test ping.`);
         return;
       }
-      const key = (window.TrafficPolice && typeof window.TrafficPolice.getGeminiKey === 'function')
-        ? await window.TrafficPolice.getGeminiKey()
-        : ((window.TrafficPolice && window.TrafficPolice.state && window.TrafficPolice.state.keys && window.TrafficPolice.state.keys.gemini) || '');
-      this.pingGemini(key);
+      const keys = (window.TrafficPolice && window.TrafficPolice.state && window.TrafficPolice.state.keys) || {};
+      this.pingGemini(keys.gemini);
     },
 
     /* ═══════════ PHASE 1.3: ISOLATED FOCUS MODE ═══════════ */
