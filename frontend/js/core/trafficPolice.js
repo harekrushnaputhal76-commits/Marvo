@@ -147,6 +147,15 @@
       return this.state;
     },
 
+    PROVIDERS: [
+      { id: 'gemini', label: 'Gemini (Online)', badge: 'Cloud', type: 'online' },
+      { id: 'local', label: 'Phi-3-mini (Offline)', badge: 'On-Device', type: 'offline' }
+    ],
+
+    getProviders() {
+      return [...this.PROVIDERS];
+    },
+
     DEFAULT_GEMINI_KEY: '',
 
     async getGeminiKey() {
@@ -235,9 +244,9 @@
             }
           }
 
-          // B. Local Ollama Desktop Endpoint (Warm up model with keep_alive: '5m')
+          // B. Local Desktop Daemon Endpoint (Warm up model with keep_alive: '5m')
           try {
-            const ollamaCheck = await fetch('http://127.0.0.1:11434/api/generate', {
+            const localDaemonCheck = await fetch('http://127.0.0.1:11434/api/generate', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -245,11 +254,11 @@
                 keep_alive: '5m'
               })
             });
-            if (ollamaCheck.ok) {
+            if (localDaemonCheck.ok) {
               this.state.isLocalModelLoadedInMemory = true;
-              console.log('[TrafficPolice] Ollama phi3:mini warmed up and resident in memory.');
+              console.log('[TrafficPolice] Local daemon phi3:mini warmed up and resident in memory.');
             }
-          } catch (ollamaErr) {}
+          } catch (daemonErr) {}
 
           // Mark loaded and arm the 3-minute idle timer
           this.state.isLocalModelLoadedInMemory = true;
@@ -295,7 +304,7 @@
         }
       }
 
-      // B. Local Ollama Desktop Endpoint (unload instantly from memory)
+      // B. Local Desktop Daemon Endpoint (unload instantly from memory)
       try {
         await fetch('http://127.0.0.1:11434/api/generate', {
           method: 'POST',
@@ -730,10 +739,10 @@
           }
         }
 
-        // B. Try Local Ollama Endpoint (http://127.0.0.1:11434)
+        // B. Try Local Desktop Daemon Endpoint (http://127.0.0.1:11434)
         try {
           const isStream = typeof onToken === 'function';
-          const ollamaRes = await fetch('http://127.0.0.1:11434/api/chat', {
+          const daemonRes = await fetch('http://127.0.0.1:11434/api/chat', {
             method: 'POST',
             signal: signal,
             headers: { 'Content-Type': 'application/json' },
@@ -745,9 +754,9 @@
             })
           });
 
-          if (ollamaRes.ok) {
-            if (isStream && ollamaRes.body) {
-              const reader = ollamaRes.body.getReader();
+          if (daemonRes.ok) {
+            if (isStream && daemonRes.body) {
+              const reader = daemonRes.body.getReader();
               const decoder = new TextDecoder('utf-8');
               let fullText = '';
               let buffer = '';
@@ -773,23 +782,23 @@
                 }
               }
               return {
-                response: fullText || "Local Ollama completed.",
+                response: fullText || "Local daemon completed.",
                 provider: 'local',
                 model: 'phi3:mini',
                 state: 'state-speaking'
               };
             } else {
-              const ollamaData = await ollamaRes.json();
+              const daemonData = await daemonRes.json();
               return {
-                response: ollamaData.message?.content || "Local Ollama completed.",
+                response: daemonData.message?.content || "Local daemon completed.",
                 provider: 'local',
                 model: 'phi3:mini',
                 state: 'state-speaking'
               };
             }
           }
-        } catch (ollamaErr) {
-          // Ollama not active on desktop localhost
+        } catch (daemonErr) {
+          // Daemon not active on desktop localhost
         }
 
         // C. Graceful offline model notification

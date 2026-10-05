@@ -111,9 +111,9 @@ PEDAGOGICAL DIRECTIVES:
             <!-- Row 3: Model Selectors ("Fast", "Thinking", "Pro Thinking") below the chips -->
             <div class="study-header-row study-header-row-3">
               <div class="study-tier-switcher cognitive-modes-switcher" id="studyTierSwitcher">
-                <button class="study-tier-btn active" data-mode="Fast" type="button" title="Fast Mode — Instant Groq">Fast</button>
+                <button class="study-tier-btn active" data-mode="Fast" type="button" title="Fast Mode — Gemini Flash">Fast</button>
                 <button class="study-tier-btn" data-mode="Thinking" type="button" title="Thinking Mode — Gemini Reasoning">Thinking</button>
-                <button class="study-tier-btn" data-mode="Pro Thinking" type="button" title="Pro Thinking Mode — OpenRouter / Claude">Pro Thinking</button>
+                <button class="study-tier-btn" data-mode="Pro Thinking" type="button" title="Pro Thinking Mode — Deep Reasoning">Pro Thinking</button>
               </div>
             </div>
           </header>

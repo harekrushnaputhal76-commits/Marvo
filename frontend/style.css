@@ -5785,6 +5785,136 @@ body.app-background-paused *::after {
   overflow-x: auto;
 }
 
+.model-pill-dropdown-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.model-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 12px 4px 10px;
+  height: 28px;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: var(--glass-border);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--glass-shadow-soft);
+  color: var(--text-primary);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+.model-pill-btn:hover {
+  background: var(--glass-bg-subtle);
+  border-color: var(--glass-border-accent);
+}
+
+.model-pill-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #00f0ff;
+  box-shadow: 0 0 6px rgba(0, 240, 255, 0.8);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.model-pill-dropdown-wrap.offline .model-pill-dot {
+  background: #00ff88;
+  box-shadow: 0 0 6px rgba(0, 255, 136, 0.8);
+}
+
+.model-pill-btn svg {
+  opacity: 0.6;
+  transition: transform 0.2s ease;
+}
+
+.model-pill-menu.show ~ .model-pill-btn svg,
+.model-pill-dropdown-wrap:has(.model-pill-menu.show) .model-pill-btn svg {
+  transform: rotate(180deg);
+}
+
+.model-pill-menu {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  min-width: 200px;
+  display: none;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px;
+  background: var(--glass-bg-elevated);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow-deep);
+  z-index: 100;
+}
+
+.model-pill-menu.show {
+  display: flex;
+}
+
+.model-pill-opt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  width: 100%;
+  text-align: left;
+}
+
+.model-pill-opt:hover {
+  background: var(--glass-bg-subtle);
+  color: var(--text-primary);
+}
+
+.model-pill-opt.active {
+  background: var(--glass-bg-active);
+  border-color: var(--glass-border-accent);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+body.theme-light .model-pill-opt.active {
+  color: #0072ff;
+}
+
+.model-pill-opt .opt-name {
+  white-space: nowrap;
+}
+
+.model-pill-opt .opt-badge {
+  font-size: 9.5px;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--glass-bg-subtle);
+  border: var(--glass-border-subtle);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.model-pill-opt.active .opt-badge {
+  background: rgba(0, 240, 255, 0.18);
+  border-color: rgba(0, 240, 255, 0.4);
+  color: #00f0ff;
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    2-OPTION MANUAL PROVIDER SWITCH (Gemini Online vs Phi-3 Mini Offline)
    ═══════════════════════════════════════════════════════════════════ */

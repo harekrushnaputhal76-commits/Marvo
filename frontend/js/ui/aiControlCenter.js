@@ -3,9 +3,9 @@
  * Module: js/ui/aiControlCenter.js
  * 
  * Central hub for LLM management:
- * 1. Offline Models (Phi-3, Gemma-2B, Llama-3, Qwen-2.5) with Foreground Service downloader,
+ * 1. Offline Models (Phi-3 Mini, Whisper Tiny, Piper Voice) with Foreground Service downloader,
  *    live MB/s speed, ETA, pause/resume/delete/setActive, and isolated storage paths.
- * 2. Online Cloud Engine Status (Groq, Gemini, OpenRouter) with live background ping/validation.
+ * 2. Online Cloud Engine Status (Google Gemini) with live background ping/validation.
  * 3. Strict Isolated Focus Mode (Do Not Disturb API).
  */
 
@@ -18,48 +18,12 @@
       name: 'Phi-3 Mini 4K Instruct',
       vendor: 'Microsoft',
       fileName: 'phi-3-mini-4k-instruct-q4.gguf',
-      sizeBytes: 2306867200,
+      sizeBytes: 2393231360,
       sizeFormatted: '2.2 GB',
       storagePath: '/data/user/0/com.marvo.ai/files/models/phi-3-mini-4k-instruct-q4.gguf',
       isDownloaded: false,
       isActive: true,
       description: '3.8B Lightweight Neural Engine. Recommended for balanced speed and reasoning.'
-    },
-    {
-      id: 'gemma-2b',
-      name: 'Gemma 2B IT (CPU)',
-      vendor: 'Google',
-      fileName: 'gemma-2b-it-cpu.gguf',
-      sizeBytes: 1572864000,
-      sizeFormatted: '1.5 GB',
-      storagePath: '/data/user/0/com.marvo.ai/files/models/gemma-2b-it-cpu.gguf',
-      isDownloaded: false,
-      isActive: false,
-      description: 'Ultra-lightweight on-device model for quick mobile answers and low RAM usage.'
-    },
-    {
-      id: 'llama-3-8b',
-      name: 'Llama 3 8B Instruct',
-      vendor: 'Meta',
-      fileName: 'llama-3-8b-instruct.gguf',
-      sizeBytes: 4508876800,
-      sizeFormatted: '4.3 GB',
-      storagePath: '/data/user/0/com.marvo.ai/files/models/llama-3-8b-instruct.gguf',
-      isDownloaded: false,
-      isActive: false,
-      description: 'Heavy 8B Parameter Reasoning Giant. Ideal for complex STEM derivations.'
-    },
-    {
-      id: 'qwen-2.5-3b',
-      name: 'Qwen 2.5 3B Instruct',
-      vendor: 'Alibaba Cloud',
-      fileName: 'qwen-2.5-3b-instruct.gguf',
-      sizeBytes: 2097152000,
-      sizeFormatted: '2.0 GB',
-      storagePath: '/data/user/0/com.marvo.ai/files/models/qwen-2.5-3b-instruct.gguf',
-      isDownloaded: false,
-      isActive: false,
-      description: 'Specialized STEM, Mathematics, and Coding intelligence.'
     },
     {
       id: 'stt',
@@ -94,9 +58,7 @@
     activeModelId: 'phi-3-mini',
     pollInterval: null,
     apiStatus: {
-      groq: { status: 'checking', latency: 0, error: null, name: 'Groq Cloud (LPU)', model: 'llama-3.3-70b-versatile' },
-      gemini: { status: 'checking', latency: 0, error: null, name: 'Google Gemini', model: 'gemini-2.0-flash' },
-      openrouter: { status: 'checking', latency: 0, error: null, name: 'OpenRouter Gateway', model: 'claude-3.5-sonnet' }
+      gemini: { status: 'checking', latency: 0, error: null, name: 'Google Gemini (Online)', model: 'gemini-2.0-flash' }
     },
     focusMode: {
       enabled: false,
@@ -519,8 +481,12 @@
         if (fill) fill.style.width = `${pct}%`;
         const speed = m.speedMBps ? `${m.speedMBps} MB/s • ` : '';
         const eta = m.etaSeconds ? `ETA ${Math.floor(m.etaSeconds / 60)}m ${m.etaSeconds % 60}s` : '';
-        if (text) text.textContent = `${pct}% • ${speed}${eta}`;
-        if (btnProgText) btnProgText.textContent = `Downloading... ${pct}%`;
+        if (text) {
+          text.textContent = m.previewNotice ? m.previewNotice : `${pct}% • ${speed}${eta}`;
+        }
+        if (btnProgText) {
+          btnProgText.textContent = m.previewNotice ? 'Preview Only (No Native Bridge)' : `Downloading... ${pct}%`;
+        }
         if (wrap) {
           wrap.classList.toggle('show', m.status === 'downloading' || m.status === 'paused');
         }
@@ -539,37 +505,51 @@
           return;
         }
 
-        let updatedFromNative = false;
-        if (window.Capacitor?.Plugins?.MarvoNativeBridge?.listOfflineModels) {
+        const hasNativeBridge = Boolean(window.Capacitor?.Plugins?.MarvoNativeBridge);
+
+        if (hasNativeBridge) {
           try {
             const res = await window.Capacitor.Plugins.MarvoNativeBridge.listOfflineModels();
             if (res && res.models) {
               const nativeModel = res.models.find(x => x.id === modelId);
-              if (nativeModel && nativeModel.progress != null && nativeModel.progress > 0) {
-                m.progress = nativeModel.progress;
-                m.speedMBps = nativeModel.speedMBps || m.speedMBps;
-                m.etaSeconds = nativeModel.etaSeconds || m.etaSeconds;
-                if (nativeModel.isDownloaded || nativeModel.status === 'completed' || nativeModel.progress >= 100) {
+              if (nativeModel) {
+                // Trust real progress value even when it is 0 (0% is a valid real state at download start)
+                if (typeof nativeModel.progress === 'number' || (nativeModel.progress != null && !isNaN(Number(nativeModel.progress)))) {
+                  m.progress = Number(nativeModel.progress);
+                }
+                if (nativeModel.speedMBps !== undefined && nativeModel.speedMBps !== null) {
+                  m.speedMBps = nativeModel.speedMBps;
+                }
+                if (nativeModel.etaSeconds !== undefined && nativeModel.etaSeconds !== null) {
+                  m.etaSeconds = nativeModel.etaSeconds;
+                }
+                if (nativeModel.status) {
+                  m.status = nativeModel.status;
+                }
+                if (nativeModel.isDownloaded || nativeModel.status === 'completed' || m.progress >= 100) {
                   m.progress = 100;
                   m.status = 'completed';
                   m.isDownloaded = true;
                   m.isActive = true;
                   this.activeModelId = m.id;
                 }
-                updatedFromNative = true;
               }
             }
-          } catch (e) {}
-        }
-
-        if (!updatedFromNative) {
-          const step = Math.floor(Math.random() * 6) + 4;
-          m.progress = Math.min(100, (m.progress || 0) + step);
-          if (m.progress >= 100) {
-            m.status = 'completed';
-            m.isDownloaded = true;
-            m.isActive = true;
-            this.activeModelId = m.id;
+          } catch (e) {
+            console.warn('[AiControlCenter] Native progress polling error:', e);
+          }
+        } else {
+          // MarvoNativeBridge does not exist in this runtime (e.g. browser preview)
+          // NEVER fabricate progress with Math.random() or fake increment.
+          m.progress = 0;
+          m.speedMBps = '';
+          m.etaSeconds = 0;
+          m.previewNotice = 'Real download requires the installed app — this preview cannot download the model';
+          if (!this._previewToastShown) {
+            this._previewToastShown = true;
+            if (window.showToast) {
+              window.showToast('Real download requires the installed app — this preview cannot download the model');
+            }
           }
         }
 
@@ -590,9 +570,9 @@
       const m = this.models.find(x => x.id === modelId);
       if (m) {
         m.status = 'downloading';
-        m.progress = m.progress || 2;
-        m.speedMBps = m.speedMBps || '14.2';
-        m.etaSeconds = m.etaSeconds || 120;
+        m.progress = m.progress || 0;
+        m.speedMBps = '';
+        m.etaSeconds = 0;
         this.renderModelCards();
       }
 
@@ -700,48 +680,16 @@
     async pingAllApis() {
       const isOnline = navigator.onLine !== false;
       if (!isOnline) {
-        ['groq', 'gemini', 'openrouter'].forEach(k => {
-          this.apiStatus[k] = { status: 'offline', latency: 0, error: 'No network connection' };
-        });
+        this.apiStatus.gemini = { status: 'offline', latency: 0, error: 'No network connection' };
         this.renderApiCards();
         return;
       }
 
-      const keys = (window.TrafficPolice && window.TrafficPolice.state && window.TrafficPolice.state.keys) || {};
+      const key = (window.TrafficPolice && typeof window.TrafficPolice.getGeminiKey === 'function')
+        ? await window.TrafficPolice.getGeminiKey()
+        : ((window.TrafficPolice && window.TrafficPolice.state && window.TrafficPolice.state.keys && window.TrafficPolice.state.keys.gemini) || '');
 
-      // 1. Ping Groq
-      this.pingGroq(keys.groq);
-      // 2. Ping Gemini
-      this.pingGemini(keys.gemini);
-      // 3. Ping OpenRouter
-      this.pingOpenRouter(keys.openrouter);
-    },
-
-    async pingGroq(key) {
-      this.apiStatus.groq.status = 'checking';
-      this.renderApiCards();
-      if (!key) {
-        this.apiStatus.groq = { status: 'failed', latency: 0, error: 'Key not found' };
-        this.renderApiCards();
-        return;
-      }
-
-      const t0 = performance.now();
-      try {
-        const res = await fetch('https://api.groq.com/openai/v1/models', {
-          method: 'GET',
-          headers: { 'Authorization': `Bearer ${key}` }
-        });
-        const latency = Math.round(performance.now() - t0);
-        if (res.ok) {
-          this.apiStatus.groq = { status: 'active', latency, error: null };
-        } else {
-          this.apiStatus.groq = { status: 'failed', latency, error: `HTTP ${res.status}` };
-        }
-      } catch (e) {
-        this.apiStatus.groq = { status: 'failed', latency: 0, error: e.message };
-      }
-      this.renderApiCards();
+      this.pingGemini(key);
     },
 
     async pingGemini(key) {
@@ -765,47 +713,19 @@
           this.apiStatus.gemini = { status: 'failed', latency, error: `HTTP ${res.status}` };
         }
       } catch (e) {
-        this.apiStatus.gemini = { status: 'failed', latency: 0, error: e.message };
+        this.apiStatus.gemini = { status: 'failed', latency, error: e.message };
       }
       this.renderApiCards();
     },
 
-    async pingOpenRouter(key) {
-      this.apiStatus.openrouter.status = 'checking';
-      this.renderApiCards();
-      if (!key) {
-        this.apiStatus.openrouter = { status: 'failed', latency: 0, error: 'Key not found' };
-        this.renderApiCards();
-        return;
-      }
-
-      const t0 = performance.now();
-      try {
-        const res = await fetch('https://openrouter.ai/api/v1/auth/key', {
-          method: 'GET',
-          headers: { 'Authorization': `Bearer ${key}` }
-        });
-        const latency = Math.round(performance.now() - t0);
-        if (res.ok) {
-          this.apiStatus.openrouter = { status: 'active', latency, error: null };
-        } else {
-          this.apiStatus.openrouter = { status: 'failed', latency, error: `HTTP ${res.status}` };
-        }
-      } catch (e) {
-        this.apiStatus.openrouter = { status: 'failed', latency: 0, error: e.message };
-      }
-      this.renderApiCards();
-    },
-
-    isCloudEnabled(provider) {
-      return localStorage.getItem(`marvo.cloud.enabled.${provider}`) !== 'false';
+    isCloudEnabled(provider = 'gemini') {
+      return localStorage.getItem('marvo.cloud.enabled.gemini') !== 'false';
     },
 
     toggleCloudProvider(provider, enabled) {
-      localStorage.setItem(`marvo.cloud.enabled.${provider}`, enabled ? 'true' : 'false');
+      localStorage.setItem('marvo.cloud.enabled.gemini', enabled ? 'true' : 'false');
       if (window.showToast) {
-        const title = provider === 'groq' ? 'Groq LPU' : provider === 'gemini' ? 'Google Gemini' : 'OpenRouter';
-        window.showToast(`${title} ${enabled ? 'Enabled' : 'Bypassed (Toggled Off)'}`);
+        window.showToast(`Google Gemini ${enabled ? 'Enabled' : 'Bypassed (Toggled Off)'}`);
       }
       if (window.TrafficPolice && typeof window.TrafficPolice.notifyStateChange === 'function') {
         window.TrafficPolice.notifyStateChange();
@@ -814,7 +734,7 @@
     },
 
     areAllCloudApisToggledOff() {
-      return !this.isCloudEnabled('groq') && !this.isCloudEnabled('gemini') && !this.isCloudEnabled('openrouter');
+      return !this.isCloudEnabled('gemini');
     },
 
     renderApiCards() {
@@ -822,22 +742,10 @@
 
       const configs = [
         {
-          key: 'groq',
-          title: 'Groq Cloud API (LPU)',
-          model: 'llama-3.3-70b-versatile',
-          desc: 'High-speed hardware accelerator for instant chat completion.'
-        },
-        {
           key: 'gemini',
-          title: 'Google Gemini API',
+          title: 'Google Gemini (Online)',
           model: 'gemini-2.0-flash',
-          desc: 'Native Google multimodal vision, audio, and reasoning model.'
-        },
-        {
-          key: 'openrouter',
-          title: 'OpenRouter Multi-Agent Gateway',
-          model: 'anthropic/claude-3.5-sonnet',
-          desc: 'Heavy logic gateway supporting Claude 3.5 Sonnet, GPT-4o & Llama 3.1 405B.'
+          desc: 'Native Google multimodal intelligence, vision, and real-time streaming.'
         }
       ];
 
@@ -846,15 +754,15 @@
         const st = this.apiStatus[c.key] || { status: 'checking', latency: 0 };
         let badgeHtml = '';
         if (!isEnabled) {
-          badgeHtml = `<span class="api-badge disabled" title="Cloud engine manually toggled off">⚪ Manual Override Off</span>`;
+          badgeHtml = '<span class="api-badge disabled" title="Cloud engine manually toggled off">⚪ Manual Override Off</span>';
         } else if (st.status === 'active') {
           badgeHtml = `<span class="api-badge active">🟢 Active & Verified (${st.latency}ms)</span>`;
         } else if (st.status === 'failed') {
-          badgeHtml = `<span class="api-badge failed">🔴 Failed / Invalid Key</span>`;
+          badgeHtml = '<span class="api-badge failed">🔴 Failed / Invalid Key</span>';
         } else if (st.status === 'offline') {
-          badgeHtml = `<span class="api-badge offline">🟡 Offline (No Network)</span>`;
+          badgeHtml = '<span class="api-badge offline">🟡 Offline (No Network)</span>';
         } else {
-          badgeHtml = `<span class="api-badge checking">⚪ Checking...</span>`;
+          badgeHtml = '<span class="api-badge checking">⚪ Checking...</span>';
         }
 
         return `
@@ -863,7 +771,7 @@
               <div>
                 <div class="api-name-row">
                   <h4 class="api-name">${c.title}</h4>
-                  ${!isEnabled ? '<span class="api-override-chip">Offline Fallback</span>' : ''}
+                  ${!isEnabled ? '<span class="api-override-chip">Offline Only</span>' : ''}
                 </div>
                 <span class="api-model-tag">${c.model}</span>
               </div>
@@ -877,7 +785,7 @@
             </div>
             <p class="api-desc">${c.desc}</p>
             <div class="api-card-footer">
-              <span class="api-secure-tag">${isEnabled ? '🔒 Key Secured in Backend Logic' : '⚠️ Cloud Bypassed: Routes to Offline Brain'}</span>
+              <span class="api-secure-tag">${isEnabled ? '🔒 Key Saved Locally' : '⚠️ Cloud Bypassed: Manual Local Only'}</span>
               <button class="btn-api-reping" ${!isEnabled ? 'disabled style="opacity:0.4;cursor:not-allowed;"' : ''} onclick="window.AiControlCenter.repingSingle('${c.key}')">Ping</button>
             </div>
           </div>
@@ -885,15 +793,15 @@
       }).join('');
     },
 
-    repingSingle(provider) {
-      if (!this.isCloudEnabled(provider)) {
-        if (window.showToast) window.showToast(`${provider.toUpperCase()} is toggled off. Enable it first to test ping.`);
+    async repingSingle(provider = 'gemini') {
+      if (!this.isCloudEnabled('gemini')) {
+        if (window.showToast) window.showToast('Gemini is toggled off. Enable it first to test ping.');
         return;
       }
-      const keys = (window.TrafficPolice && window.TrafficPolice.state && window.TrafficPolice.state.keys) || {};
-      if (provider === 'groq') this.pingGroq(keys.groq);
-      else if (provider === 'gemini') this.pingGemini(keys.gemini);
-      else if (provider === 'openrouter') this.pingOpenRouter(keys.openrouter);
+      const key = (window.TrafficPolice && typeof window.TrafficPolice.getGeminiKey === 'function')
+        ? await window.TrafficPolice.getGeminiKey()
+        : ((window.TrafficPolice && window.TrafficPolice.state && window.TrafficPolice.state.keys && window.TrafficPolice.state.keys.gemini) || '');
+      this.pingGemini(key);
     },
 
     /* ═══════════ PHASE 1.3: ISOLATED FOCUS MODE ═══════════ */

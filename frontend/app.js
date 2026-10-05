@@ -1373,7 +1373,7 @@ function initDownloadCardControls() {
         }
 
         try {
-          btnDl.innerHTML = '<span class="spinner-inline"></span> <span>Downloading... 1%</span>';
+          btnDl.innerHTML = '<span class="spinner-inline"></span> <span>Starting download...</span>';
           btnDl.className = 'btn-offline-action progress-mode';
           if (window.Capacitor?.Plugins?.MarvoNativeBridge) {
             showToast(`Starting ${modelLabel} download in background...`);
@@ -5427,7 +5427,12 @@ async function initTrafficPoliceAndModelUI() {
   if (window.TrafficPolice) {
     await window.TrafficPolice.init();
 
-    // 2-Option Manual Provider Toggle Elements
+    // 2-Option Manual Provider Dropdown Elements
+    const btnModelPill = $('#btnModelPill');
+    const modelPillMenu = $('#modelPillMenu');
+    const modelPillLabel = $('#modelPillLabel');
+
+    // 2-Option Manual Provider Toggle Elements (if present)
     const btnToggleGemini = $('#btnToggleGemini');
     const btnTogglePhi3 = $('#btnTogglePhi3');
     const btnEditGeminiKey = $('#btnEditGeminiKey');
@@ -5442,6 +5447,21 @@ async function initTrafficPoliceAndModelUI() {
 
     const updateToggleUI = () => {
       const provider = window.TrafficPolice.state.currentProvider;
+      const providers = window.TrafficPolice.getProviders ? window.TrafficPolice.getProviders() : [];
+      const activeObj = providers.find(p => p.id === provider);
+      
+      // Update dropdown pill label & active option
+      if (modelPillLabel) {
+        modelPillLabel.textContent = activeObj ? activeObj.label : (provider === 'local' ? 'Phi-3-mini (Offline)' : 'Gemini (Online)');
+      }
+      const wrap = modelPillLabel?.closest('.model-pill-dropdown-wrap');
+      if (wrap) {
+        wrap.classList.toggle('offline', provider === 'local');
+      }
+      document.querySelectorAll('.model-pill-opt').forEach(opt => {
+        opt.classList.toggle('active', opt.dataset.provider === provider);
+      });
+
       if (btnToggleGemini) {
         btnToggleGemini.classList.toggle('active', provider === 'gemini');
         btnToggleGemini.setAttribute('aria-checked', provider === 'gemini');
@@ -5451,8 +5471,6 @@ async function initTrafficPoliceAndModelUI() {
         btnTogglePhi3.setAttribute('aria-checked', provider === 'local');
       }
     };
-
-    updateToggleUI();
 
     const openKeyModal = async () => {
       const currentKey = await window.TrafficPolice.getGeminiKey();
@@ -5470,16 +5488,68 @@ async function initTrafficPoliceAndModelUI() {
       }
     };
 
+    // Rebuild the bottom-left model switch directly from TrafficPolice.getProviders()
+    const renderDropdownOptions = () => {
+      if (!modelPillMenu || !window.TrafficPolice.getProviders) return;
+      const providers = window.TrafficPolice.getProviders();
+      const current = window.TrafficPolice.state.currentProvider;
+      modelPillMenu.innerHTML = providers.map(p => `
+        <button class="model-pill-opt ${p.id === current ? 'active' : ''}" data-provider="${p.id}" type="button">
+          <span class="opt-name">${p.label}</span>
+          <span class="opt-badge">${p.badge}</span>
+        </button>
+      `).join('');
+
+      modelPillMenu.querySelectorAll('.model-pill-opt').forEach(opt => {
+        opt.onclick = async (e) => {
+          e.stopPropagation();
+          const provider = opt.dataset.provider;
+          modelPillMenu.classList.remove('show');
+
+          if (provider === 'gemini') {
+            const hasKey = await window.TrafficPolice.hasUserEnteredGeminiKey();
+            if (!hasKey) {
+              await openKeyModal();
+              return;
+            }
+            window.TrafficPolice.setProvider('gemini');
+            updateToggleUI();
+            showToast('Switched to Gemini (Online)');
+          } else if (provider === 'local') {
+            window.TrafficPolice.setProvider('local');
+            updateToggleUI();
+            showToast('Switched to Phi-3-mini (Offline)');
+          }
+        };
+      });
+    };
+
+    renderDropdownOptions();
+    updateToggleUI();
+
+    // Dropdown toggle button click
+    if (btnModelPill) {
+      btnModelPill.onclick = (e) => {
+        e.stopPropagation();
+        modelPillMenu?.classList.toggle('show');
+      };
+    }
+
+    // Close dropdown menu when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#modelQuickBar')) {
+        modelPillMenu?.classList.remove('show');
+      }
+    });
+
     if (btnToggleGemini) {
       btnToggleGemini.onclick = async (e) => {
-        // If clicking directly on key badge, open key config modal
         if (e.target.closest('#btnEditGeminiKey')) {
           e.stopPropagation();
           await openKeyModal();
           return;
         }
 
-        // Check if user has entered their Gemini API key
         const hasKey = await window.TrafficPolice.hasUserEnteredGeminiKey();
         if (!hasKey) {
           await openKeyModal();
@@ -5503,7 +5573,7 @@ async function initTrafficPoliceAndModelUI() {
       btnTogglePhi3.onclick = () => {
         window.TrafficPolice.setProvider('local');
         updateToggleUI();
-        showToast('Switched to Phi-3 Mini (Offline)');
+        showToast('Switched to Phi-3-mini (Offline)');
       };
     }
 

@@ -173,34 +173,70 @@ public class MemoryVault {
 
     public static File getModelsDir(Context context) {
         if (context == null) return null;
-        File documents = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
-        File dir = new File(documents, "Marvo_Models");
-        if (!dir.exists() && !dir.mkdirs() && !dir.exists()) {
-            return null;
+        File dir = null;
+
+        // 1. Primary: App-specific external storage (no permissions required, full capacity)
+        try {
+            File extDir = context.getExternalFilesDir("models");
+            if (extDir != null && (extDir.exists() || extDir.mkdirs())) {
+                dir = extDir;
+            }
+        } catch (Exception e) {
+            android.util.Log.w("MarvoStorage", "External files dir unavailable: " + e.getMessage());
         }
 
-        // Move models downloaded by older builds into the uninstall-resistant public location.
-        File legacyDir = new File(context.getFilesDir(), "models");
-        if (legacyDir.isDirectory()) {
-            File[] legacyFiles = legacyDir.listFiles();
-            if (legacyFiles != null) {
-                for (File legacyFile : legacyFiles) {
-                    if (!legacyFile.isFile()) continue;
-                    File migratedFile = new File(dir, legacyFile.getName());
-                    if (migratedFile.exists()) continue;
-                    try {
-                        if (!legacyFile.renameTo(migratedFile)) {
-                            copyFile(legacyFile, migratedFile);
-                            if (!legacyFile.delete()) {
-                                android.util.Log.w("MarvoStorage", "Could not remove migrated file: " + legacyFile.getName());
+        // 2. Secondary: Internal app sandbox (always writable)
+        if (dir == null) {
+            try {
+                File intDir = new File(context.getFilesDir(), "models");
+                if (intDir.exists() || intDir.mkdirs()) {
+                    dir = intDir;
+                }
+            } catch (Exception e) {
+                android.util.Log.w("MarvoStorage", "Internal files dir unavailable: " + e.getMessage());
+            }
+        }
+
+        // 3. Fallback: Public Documents/Marvo_Models if accessible
+        if (dir == null) {
+            try {
+                File documents = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
+                File pubDir = new File(documents, "Marvo_Models");
+                if (pubDir.exists() || pubDir.mkdirs()) {
+                    dir = pubDir;
+                }
+            } catch (Exception e) {
+                android.util.Log.w("MarvoStorage", "Public documents dir unavailable: " + e.getMessage());
+            }
+        }
+
+        // Move models downloaded by older builds or alternate paths into active directory
+        try {
+            File legacyDir = new File(context.getFilesDir(), "models");
+            if (legacyDir.isDirectory() && !legacyDir.equals(dir)) {
+                File[] legacyFiles = legacyDir.listFiles();
+                if (legacyFiles != null) {
+                    for (File legacyFile : legacyFiles) {
+                        if (!legacyFile.isFile()) continue;
+                        File migratedFile = new File(dir, legacyFile.getName());
+                        if (migratedFile.exists()) continue;
+                        try {
+                            if (!legacyFile.renameTo(migratedFile)) {
+                                copyFile(legacyFile, migratedFile);
+                                if (!legacyFile.delete()) {
+                                    android.util.Log.w("MarvoStorage", "Could not remove migrated file: " + legacyFile.getName());
+                                }
                             }
+                        } catch (Exception e) {
+                            android.util.Log.w("MarvoStorage", "Model migration failed: " + legacyFile.getName(), e);
                         }
-                    } catch (Exception e) {
-                        android.util.Log.w("MarvoStorage", "Model migration failed: " + legacyFile.getName(), e);
                     }
                 }
             }
+        } catch (Exception e) {
+            android.util.Log.w("MarvoStorage", "Migration check failed: " + e.getMessage());
         }
+
         return dir;
     }
 

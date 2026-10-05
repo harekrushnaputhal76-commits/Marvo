@@ -51,11 +51,9 @@ public class OfflineBrainDownloader {
     // Supported Model Types
     public static final String TYPE_LLM = "llm";
     public static final String TYPE_PHI3 = "phi-3-mini";
-    public static final String TYPE_GEMMA = "gemma-2b";
-    public static final String TYPE_LLAMA = "llama-3-8b";
-    public static final String TYPE_QWEN = "qwen-2.5-3b";
     public static final String TYPE_STT = "stt";
     public static final String TYPE_TTS = "tts";
+    public static final String ACTION_MODEL_DOWNLOAD_PROGRESS = "com.marvo.ai.action.MODEL_DOWNLOAD_PROGRESS";
 
     // Backward-compatible LLM constants
     public static final String DEFAULT_MODEL_NAME = "phi-3-mini-4k-instruct-q4.gguf";
@@ -97,30 +95,6 @@ public class OfflineBrainDownloader {
             500L * 1024L * 1024L,
             2200L * 1024L * 1024L,
             "Phi-3 Mini 4K Instruct (Microsoft)"
-        ));
-        specs.put(TYPE_GEMMA, new ModelSpec(
-            TYPE_GEMMA,
-            "gemma-2b-it-cpu.gguf",
-            "https://huggingface.co/google/gemma-2b-it-GGUF/resolve/main/2b_it_v2.gguf",
-            300L * 1024L * 1024L,
-            1500L * 1024L * 1024L,
-            "Gemma 2B IT (Google)"
-        ));
-        specs.put(TYPE_LLAMA, new ModelSpec(
-            TYPE_LLAMA,
-            "llama-3-8b-instruct.gguf",
-            "https://huggingface.co/QuantFactory/Meta-Llama-3-8B-Instruct-GGUF/resolve/main/Meta-Llama-3-8B-Instruct.Q4_K_M.gguf",
-            800L * 1024L * 1024L,
-            4300L * 1024L * 1024L,
-            "Llama 3 8B Instruct (Meta)"
-        ));
-        specs.put(TYPE_QWEN, new ModelSpec(
-            TYPE_QWEN,
-            "qwen-2.5-3b-instruct.gguf",
-            "https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/resolve/main/qwen2.5-3b-instruct-q4_k_m.gguf",
-            400L * 1024L * 1024L,
-            2000L * 1024L * 1024L,
-            "Qwen 2.5 3B Instruct (Alibaba)"
         ));
         specs.put(TYPE_STT, new ModelSpec(
             TYPE_STT,
@@ -226,6 +200,22 @@ public class OfflineBrainDownloader {
     public File getModelFile(Context context, String type) {
         File dir = getModelsDir(context);
         ModelSpec spec = getSpec(type);
+        if (dir != null) {
+            File f = new File(dir, spec.fileName);
+            if (f.exists()) return f;
+        }
+        if (context != null) {
+            try {
+                File intDir = new File(context.getFilesDir(), "models");
+                File f = new File(intDir, spec.fileName);
+                if (f.exists()) return f;
+            } catch (Exception ignored) {}
+            try {
+                File pubDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), "Marvo_Models");
+                File f = new File(pubDir, spec.fileName);
+                if (f.exists()) return f;
+            } catch (Exception ignored) {}
+        }
         return dir != null ? new File(dir, spec.fileName) : null;
     }
 
@@ -294,48 +284,27 @@ public class OfflineBrainDownloader {
             return true;
         }
 
-        try {
-            DownloadManager dm = (DownloadManager) context.getSystemService(Context.DOWNLOAD_SERVICE);
-            if (dm == null) {
-                Log.e(TAG, "DownloadManager service unavailable");
-                return false;
-            }
-
-            // Ensure destination directory in public Documents/Marvo_Models/
-            File publicDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), "Marvo_Models");
-            if (!publicDir.exists()) {
-                publicDir.mkdirs();
-            }
-
-            // Clean up any stale download ID
-            long existingId = getPrefs(context).getLong(getDownloadIdKey(type), -1L);
-            if (existingId != -1L) {
-                try { dm.remove(existingId); } catch (Exception ignored) {}
-            }
-
-            Uri uri = Uri.parse(spec.url);
-            DownloadManager.Request req = new DownloadManager.Request(uri);
-            req.setTitle("Marvo " + spec.displayName);
-            req.setDescription("Downloading on-device AI model (~" + (spec.defaultTotalBytes / (1024 * 1024)) + " MB)");
-            req.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-            req.setAllowedOverMetered(allowMetered);
-            req.setAllowedOverRoaming(false);
-            req.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOCUMENTS, "Marvo_Models/" + spec.fileName);
-
-            long downloadId = dm.enqueue(req);
-            getPrefs(context).edit()
-                .putLong(getDownloadIdKey(type), downloadId)
-                .putString(getStatusKey(type), "downloading")
-                .putBoolean(getAllowMeteredKey(type), allowMetered)
-                .apply();
-
-            Log.i(TAG, "[" + type + "] Enqueued DownloadManager task id: " + downloadId + " -> Documents/Marvo_Models/" + spec.fileName);
+        final DownloadTaskState state = getState(type);
+        if (state.isDownloading) {
+            Log.d(TAG, "[" + type + "] Download task already actively running.");
             return true;
-        } catch (Exception e) {
-            Log.e(TAG, "[" + type + "] Failed to enqueue DownloadManager: " + e.getMessage(), e);
-            getPrefs(context).edit().putString(getStatusKey(type), "failed").apply();
-            return false;
         }
+
+        state.isDownloading = true;
+        state.isPaused = false;
+        state.isCancelled = false;
+        getPrefs(context).edit().putString(getStatusKey(type), "downloading").apply();
+
+        final Context appContext = context.getApplicationContext();
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                executeDownloadTask(appContext, type);
+            }
+        });
+
+        Log.i(TAG, "[" + type + "] Enqueued streaming download on thread pool.");
+        return true;
     }
 
     public synchronized boolean startDownload(final Context context, boolean allowMetered) {
@@ -354,6 +323,19 @@ public class OfflineBrainDownloader {
             getPrefs(context).edit().putString(getStatusKey(type), "failed").apply();
             return;
         }
+
+        File partParent = partFile.getParentFile();
+        if (partParent != null && !partParent.exists()) {
+            partParent.mkdirs();
+        }
+        File finalParent = finalFile.getParentFile();
+        if (finalParent != null && !finalParent.exists()) {
+            finalParent.mkdirs();
+        }
+
+        state.isDownloading = true;
+        state.isPaused = false;
+        state.isCancelled = false;
 
         long existingBytes = partFile.exists() ? partFile.length() : 0L;
         state.currentDownloadedBytes = existingBytes;
@@ -472,6 +454,20 @@ public class OfflineBrainDownloader {
                         .putLong(getDownloadedBytesKey(type), state.currentDownloadedBytes)
                         .putLong(getTotalBytesKey(type), state.totalBytesExpected)
                         .apply();
+
+                    if (context != null) {
+                        try {
+                            Intent progressIntent = new Intent(ACTION_MODEL_DOWNLOAD_PROGRESS);
+                            progressIntent.putExtra("modelType", type);
+                            progressIntent.putExtra("progress", state.currentProgressPercent);
+                            progressIntent.putExtra("downloadedBytes", state.currentDownloadedBytes);
+                            progressIntent.putExtra("totalBytes", state.totalBytesExpected);
+                            progressIntent.putExtra("speedMBps", state.currentSpeedMBps);
+                            progressIntent.putExtra("status", "downloading");
+                            context.sendBroadcast(progressIntent);
+                        } catch (Exception ignored) {}
+                    }
+
                     lastFlushTime = now;
                 }
 
@@ -558,6 +554,19 @@ public class OfflineBrainDownloader {
                 .putLong(getDownloadedBytesKey(type), targetFile.length())
                 .putLong(getTotalBytesKey(type), targetFile.length())
                 .apply();
+
+            if (context != null) {
+                try {
+                    Intent completeIntent = new Intent(ACTION_MODEL_DOWNLOAD_PROGRESS);
+                    completeIntent.putExtra("modelType", type);
+                    completeIntent.putExtra("progress", 100);
+                    completeIntent.putExtra("downloadedBytes", targetFile.length());
+                    completeIntent.putExtra("totalBytes", targetFile.length());
+                    completeIntent.putExtra("status", "completed");
+                    completeIntent.putExtra("isReady", true);
+                    context.sendBroadcast(completeIntent);
+                } catch (Exception ignored) {}
+            }
 
             Log.d(TAG, "SUCCESS: Installed " + type + " model to " + targetFile.getAbsolutePath() + " (" + (targetFile.length() / (1024 * 1024)) + " MB)");
         } catch (Exception e) {
@@ -777,9 +786,6 @@ public class OfflineBrainDownloader {
         try {
             res.put(TYPE_LLM, getDownloadProgress(context, TYPE_LLM));
             res.put(TYPE_PHI3, getDownloadProgress(context, TYPE_PHI3));
-            res.put(TYPE_GEMMA, getDownloadProgress(context, TYPE_GEMMA));
-            res.put(TYPE_LLAMA, getDownloadProgress(context, TYPE_LLAMA));
-            res.put(TYPE_QWEN, getDownloadProgress(context, TYPE_QWEN));
             res.put(TYPE_STT, getDownloadProgress(context, TYPE_STT));
             res.put(TYPE_TTS, getDownloadProgress(context, TYPE_TTS));
         } catch (Exception e) {
@@ -834,9 +840,6 @@ public class OfflineBrainDownloader {
 
         String[] modelKeys = new String[] {
             TYPE_PHI3,
-            TYPE_GEMMA,
-            TYPE_LLAMA,
-            TYPE_QWEN,
             TYPE_STT,
             TYPE_TTS
         };
