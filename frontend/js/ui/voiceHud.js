@@ -263,7 +263,16 @@
   function bindControls() {
     initDOMElements();
 
-
+    // 1. Mic Button on Input Bar -> Open Voice HUD
+    const btnMic = document.getElementById('btnMic');
+    if (btnMic) {
+      btnMic.addEventListener('click', (e) => {
+        // Prevent default toggle if opening HUD
+        if (!isRecording) {
+          openVoiceHud();
+        }
+      });
+    }
 
     // 2. Cancel Button -> Discard & Restore Input Bar
     if (btnCancel) {

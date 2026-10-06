@@ -3884,13 +3884,34 @@ async function initAudioVisualizer() {
       micRmsCount++;
       dynamicAmp = Math.max(4, Math.min(32, rms * 80));
 
-      // Directly feed real microphone frequency/volume to Apple Siri Fluid Orb!
-      const rawVol = Math.min(100, Math.max(0, rms * 400));
-      if (window.setSiriVoiceState && isVoiceRecording) {
-        window.setSiriVoiceState(isVoicePaused ? 'idle' : 'listening', isVoicePaused ? 0 : rawVol);
+      // Directly feed real microphone frequency/volume to Marvo Dynamic Island!
+      if (window.dynamicIslandInstance && isVoiceRecording && !isVoicePaused) {
+        window.dynamicIslandInstance.setAudioLevel(rms);
       }
       if (window.setVoiceState && isVoiceRecording) {
+        const rawVol = Math.min(100, Math.max(0, rms * 350));
         window.setVoiceState(isVoicePaused ? 'idle' : 'listening', isVoicePaused ? 0 : rawVol);
+      }
+      if (window.setSiriVoiceState && isVoiceRecording) {
+        const rawVol = Math.min(100, Math.max(0, rms * 350));
+        window.setSiriVoiceState(isVoicePaused ? 'idle' : 'listening', isVoicePaused ? 0 : rawVol);
+      }
+    } else {
+      // Android APK Autonomous Voice Fallback: Natural 60fps breathing & cadence
+      const t = Date.now() * 0.003;
+      const pseudoRms = isVoicePaused ? 0.01 : Math.max(0.04, 0.14 + 0.10 * Math.sin(t * 3.2) * Math.cos(t * 1.7) + 0.05 * Math.sin(t * 6.5));
+      micAmplitude = pseudoRms;
+      dynamicAmp = Math.max(6, Math.min(26, pseudoRms * 70));
+
+      if (window.dynamicIslandInstance && isVoiceRecording && !isVoicePaused) {
+        window.dynamicIslandInstance.setAudioLevel(pseudoRms);
+      }
+      const rawVol = Math.min(100, Math.max(0, pseudoRms * 280));
+      if (window.setVoiceState && isVoiceRecording) {
+        window.setVoiceState(isVoicePaused ? 'idle' : 'listening', isVoicePaused ? 0 : rawVol);
+      }
+      if (window.setSiriVoiceState && isVoiceRecording) {
+        window.setSiriVoiceState(isVoicePaused ? 'idle' : 'listening', isVoicePaused ? 0 : rawVol);
       }
     }
 
@@ -3944,11 +3965,15 @@ function openVoiceDock() {
   DOM.btnMic?.classList.add('recording');
   setEyeExpression('state-listening');
 
-  const siriTranscriptEl = document.getElementById('voiceTranscriptText');
-  if (siriTranscriptEl) siriTranscriptEl.textContent = 'Listening to you...';
-
-  if (typeof window.openSiriOrb === 'function') {
+  initDynamicIsland();
+  if (window.dynamicIslandInstance) {
+    window.dynamicIslandInstance.open();
+  }
+  if (window.openSiriOrb) {
     window.openSiriOrb();
+  }
+  if (window.setVoiceState) {
+    window.setVoiceState('listening', 0);
   }
   if (window.setSiriVoiceState) {
     window.setSiriVoiceState('listening', 0);
@@ -3982,8 +4007,14 @@ function closeVoiceDock() {
   if (speechRecognizer) {
     try { speechRecognizer.stop(); } catch {}
   }
-  if (typeof window.closeSiriOrb === 'function') {
+  if (window.dynamicIslandInstance) {
+    window.dynamicIslandInstance.close();
+  }
+  if (window.closeSiriOrb) {
     window.closeSiriOrb();
+  }
+  if (window.setVoiceState) {
+    window.setVoiceState('idle', 0);
   }
   if (window.setSiriVoiceState) {
     window.setSiriVoiceState('idle', 0);
@@ -3995,23 +4026,17 @@ function toggleVoicePauseResume() {
   if (!isVoiceRecording) return;
   isVoicePaused = !isVoicePaused;
 
-  const lblSiriPause = document.getElementById('labelVoicePauseResume');
-  const iconSiriPause = document.getElementById('iconVoicePause');
-  const iconSiriResume = document.getElementById('iconVoiceResume');
-
   if (isVoicePaused) {
     if (speechSilenceTimer) {
       clearTimeout(speechSilenceTimer);
       speechSilenceTimer = null;
     }
     if (DOM.islandStatusPill) DOM.islandStatusPill.textContent = 'Paused';
-    if (lblSiriPause) lblSiriPause.textContent = 'Resume';
-    iconSiriPause?.classList.add('hidden');
-    iconSiriResume?.classList.remove('hidden');
     DOM.iconIslandPause?.classList.add('hidden');
     DOM.iconIslandResume?.classList.remove('hidden');
     if (DOM.labelIslandPauseResume) DOM.labelIslandPauseResume.textContent = 'Resume';
     setEyeExpression('state-idle');
+    if (window.setVoiceState) window.setVoiceState('idle', 0);
     if (window.setSiriVoiceState) window.setSiriVoiceState('idle', 0);
     if (speechRecognizer) {
       try { speechRecognizer.stop(); } catch {}
@@ -4019,13 +4044,11 @@ function toggleVoicePauseResume() {
     stopAudioAmplitudePipeline();
   } else {
     if (DOM.islandStatusPill) DOM.islandStatusPill.textContent = 'Listening...';
-    if (lblSiriPause) lblSiriPause.textContent = 'Pause';
-    iconSiriPause?.classList.remove('hidden');
-    iconSiriResume?.classList.add('hidden');
     DOM.iconIslandPause?.classList.remove('hidden');
     DOM.iconIslandResume?.classList.add('hidden');
     if (DOM.labelIslandPauseResume) DOM.labelIslandPauseResume.textContent = 'Pause';
     setEyeExpression('state-listening');
+    if (window.setVoiceState) window.setVoiceState('listening', 0);
     if (window.setSiriVoiceState) window.setSiriVoiceState('listening', 0);
     initAudioVisualizer();
     startSpeechRecognition();
@@ -4051,6 +4074,7 @@ function submitVoiceRecording() {
 
   const textToSend = currentVoiceTranscript.trim();
   if (textToSend) {
+    // Keep Dynamic Island open and transition: Listening -> Thinking
     isVoiceRecording = false;
     if (visualizerAnimId) cancelAnimationFrame(visualizerAnimId);
     if (speechRecognizer) {
@@ -4059,6 +4083,11 @@ function submitVoiceRecording() {
     stopAudioAmplitudePipeline();
     DOM.btnMic?.classList.remove('recording');
     setEyeExpression('state-thinking');
+    if (window.dynamicIslandInstance) {
+      window.dynamicIslandInstance.setVoiceState('thinking', 20);
+    } else if (window.setVoiceState) {
+      window.setVoiceState('thinking', 20);
+    }
     if (window.setSiriVoiceState) {
       window.setSiriVoiceState('thinking', 20);
     }
@@ -4066,6 +4095,7 @@ function submitVoiceRecording() {
   } else {
     closeVoiceDock();
     setEyeExpression('state-idle');
+    if (window.setVoiceState) window.setVoiceState('idle', 0);
     if (window.setSiriVoiceState) window.setSiriVoiceState('idle', 0);
     showToast('No speech detected');
   }
@@ -4119,8 +4149,6 @@ function startSpeechRecognition() {
       }
       const display = (currentVoiceTranscript + ' ' + interim).trim();
       if (display) {
-        const siriTranscriptEl = document.getElementById('voiceTranscriptText');
-        if (siriTranscriptEl) siriTranscriptEl.textContent = display;
         if (DOM.islandResponseText) DOM.islandResponseText.textContent = display;
         resetSpeechSilenceTimer();
       }
@@ -4736,12 +4764,6 @@ DOM.btnIslandClose?.addEventListener('click', closeVoiceDock);
 DOM.btnIslandCancel?.addEventListener('click', closeVoiceDock);
 DOM.btnIslandPauseResume?.addEventListener('click', toggleVoicePauseResume);
 DOM.btnIslandSend?.addEventListener('click', submitVoiceRecording);
-
-// Apple Siri Fluid Orb Dock Action Controls
-document.getElementById('btnVoiceClose')?.addEventListener('click', closeVoiceDock);
-document.getElementById('btnVoiceCancel')?.addEventListener('click', closeVoiceDock);
-document.getElementById('btnVoicePauseResume')?.addEventListener('click', toggleVoicePauseResume);
-document.getElementById('btnVoiceSend')?.addEventListener('click', submitVoiceRecording);
 
 // History Context Menu (Sidebar)
 DOM.btnRenameChat.addEventListener('click', async () => {

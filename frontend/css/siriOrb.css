@@ -109,30 +109,30 @@
    ══════════════════════════════════════════════════════════════ */
 .siri-orb-wrap,
 #siri-orb-wrap {
-  width: 130px;
-  height: 130px;
+  width: 120px;
+  height: 120px;
   position: relative;
   overflow: visible !important; /* Glow aura never clips */
   display: flex;
   align-items: center;
   justify-content: center;
-  filter: drop-shadow(0 0 var(--orb-blur1, 24px) var(--orb-glow, rgba(139, 92, 246, 0.6)))
-          drop-shadow(0 0 var(--orb-blur2, 48px) var(--orb-glow2, rgba(0, 122, 255, 0.45)));
-  transition: filter 0.08s ease-out;
+  filter: drop-shadow(0 0 20px var(--orb-glow, rgba(139, 92, 246, 0.5)))
+          drop-shadow(0 0 40px var(--orb-glow2, rgba(0, 122, 255, 0.3)));
+  transition: filter 0.4s ease;
   will-change: filter;
 }
 
-/* Rigid Proportions: Exactly 130px x 130px with Dynamic Sound Reactivity */
+/* Rigid Proportions: Exactly 120px x 120px with Subtle Scale Breathing */
 .siri-master-container {
-  width: 130px;
-  height: 130px;
+  width: 120px;
+  height: 120px;
   position: relative;
   border-radius: 50%;
   overflow: hidden;
   background: #02040a;
-  box-shadow: 0 0 32px rgba(0, 0, 0, 0.85), inset 0 0 18px rgba(255, 255, 255, 0.15);
+  box-shadow: 0 0 28px rgba(0, 0, 0, 0.85), inset 0 0 16px rgba(255, 255, 255, 0.1);
   will-change: transform;
-  transform: scale(var(--siri-vol-scale, 1.0)) translate3d(0, 0, 0);
+  transform: translate3d(0, 0, 0);
   animation: siriOrbBreathe 3.6s ease-in-out infinite alternate;
 }
 
@@ -254,7 +254,7 @@
 }
 .siri-master-container.state-listening {
   transform: scale(var(--siri-vol-scale, 1.02)) translate3d(0, 0, 0);
-  transition: transform 0.05s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  transition: transform 0.08s ease-out;
 }
 
 /* 2. Speaking State: Rapid subtle audio-sync vibration (scale 1.0 to 1.08 max) */

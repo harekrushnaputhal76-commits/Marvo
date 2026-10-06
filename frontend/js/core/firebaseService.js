@@ -122,7 +122,7 @@ function handleAuthError(err) {
 // 4. SIGN-IN & SIGN-OUT IMPLEMENTATION
 // ═══════════════════════════════════════════════════════════════════
 /**
- * Sign in with Google (In-App popup; avoids external browser redirect in APK)
+ * Sign in with Google (Popup with automatic Redirect fallback)
  */
 async function signInWithGoogle() {
   if (window.MarvoAuthUI) {
@@ -138,24 +138,22 @@ async function signInWithGoogle() {
   } catch (error) {
     console.warn('[MarvoAuth] Popup sign-in error:', error.code, error.message);
 
-    // In Android APK WebView or if popup is blocked:
-    // DO NOT navigate away via signInWithRedirect (which kicks user to external Chrome)!
+    // Fallback to signInWithRedirect if popup is blocked or unsupported in WebView
     if (error.code === 'auth/popup-blocked' || 
-        error.code === 'auth/operation-not-supported-in-this-environment' ||
-        error.code === 'auth/unauthorized-domain') {
-      if (window.MarvoAuthUI) {
-        window.MarvoAuthUI.showError('APK In-App Mode: Enter your Google email below to connect without leaving the app.');
-        const inAppBox = document.getElementById('inAppAuthBox');
-        if (inAppBox) {
-          inAppBox.classList.add('pulse-highlight');
-          const emailInput = document.getElementById('inAppUserEmail');
-          if (emailInput) emailInput.focus();
+        error.code === 'auth/operation-not-supported-in-this-environment') {
+      try {
+        console.log('[MarvoAuth] Popup blocked or unsupported. Falling back to signInWithRedirect...');
+        if (window.MarvoAuthUI) {
+          window.MarvoAuthUI.showError('Redirecting to Google Sign-In...');
         }
+        await signInWithRedirect(auth, provider);
+        return; // Redirect initiated
+      } catch (redirectErr) {
+        handleAuthError(redirectErr);
       }
-      return;
     } else if (error.code === 'auth/popup-closed-by-user') {
       if (window.MarvoAuthUI) {
-        window.MarvoAuthUI.showError('Sign-in window closed. You can retry or use In-App Sync below.');
+        window.MarvoAuthUI.showError('Sign-in cancelled. Please tap Continue with Google to retry.');
       }
     } else {
       handleAuthError(error);
@@ -165,52 +163,6 @@ async function signInWithGoogle() {
       window.MarvoAuthUI.setLoading(false);
     }
   }
-}
-
-/**
- * In-App Google Profile Sign-In (Zero external browser redirect for Android APK)
- */
-async function signInInApp(displayName, email) {
-  const cleanEmail = (email || '').trim().toLowerCase();
-  const cleanName = (displayName || '').trim() || (cleanEmail ? cleanEmail.split('@')[0] : 'Marvo User');
-  if (!cleanEmail || !cleanEmail.includes('@')) {
-    if (window.MarvoAuthUI) window.MarvoAuthUI.showError('Please enter a valid Google email address.');
-    return null;
-  }
-
-  // Deterministic UID based on email hash so the user always reconnects to the exact same Firestore memory!
-  let hash = 0;
-  for (let i = 0; i < cleanEmail.length; i++) {
-    hash = ((hash << 5) - hash) + cleanEmail.charCodeAt(i);
-    hash |= 0;
-  }
-  const safeUid = 'usr_' + Math.abs(hash).toString(36) + '_' + cleanEmail.replace(/[^a-z0-9]/g, '').slice(0, 8);
-
-  const inAppUser = {
-    uid: safeUid,
-    email: cleanEmail,
-    displayName: cleanName,
-    photoURL: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(cleanEmail)}`
-  };
-
-  currentUser = inAppUser;
-  isAuthResolved = true;
-  try {
-    localStorage.setItem('marvo_auth_user', JSON.stringify(inAppUser));
-  } catch (e) {}
-
-  if (window.MarvoAuthUI) {
-    window.MarvoAuthUI.clearError();
-    window.MarvoAuthUI.renderUserProfile(inAppUser);
-    window.MarvoAuthUI.hideLoginScreen();
-  }
-
-  notifyAuthReady(inAppUser);
-
-  if (typeof window.showToast === 'function') {
-    window.showToast(`Welcome ${cleanName} • Cloud Memory Active`);
-  }
-  return inAppUser;
 }
 
 /**
@@ -339,20 +291,6 @@ function wireWithMarvoAuthUI() {
       signOutUser();
     });
 
-    // Wire In-App APK Account Fast Sync Button
-    const btnInAppSync = document.getElementById('btnInAppSync');
-    if (btnInAppSync && !btnInAppSync.__hasMarvoListener) {
-      btnInAppSync.__hasMarvoListener = true;
-      btnInAppSync.addEventListener('click', (e) => {
-        e.preventDefault();
-        const nameInput = document.getElementById('inAppUserName');
-        const emailInput = document.getElementById('inAppUserEmail');
-        const name = nameInput ? nameInput.value : '';
-        const email = emailInput ? emailInput.value : '';
-        signInInApp(name, email);
-      });
-    }
-
     // If we have cached user, ensure UI reflects it before async check finishes
     if (currentUser && !isAuthResolved) {
       window.MarvoAuthUI.renderUserProfile(currentUser);
@@ -375,7 +313,6 @@ const MarvoAuth = {
   getUid: () => (currentUser ? currentUser.uid : null),
   onAuthReady,
   signInWithGoogle,
-  signInInApp,
   signOutUser,
   app,
   auth,
@@ -400,7 +337,6 @@ export {
   serverTimestamp,
   provider,
   signInWithGoogle,
-  signInInApp,
   signOutUser,
   onAuthReady,
   MarvoAuth

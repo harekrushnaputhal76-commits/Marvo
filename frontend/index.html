@@ -1413,21 +1413,6 @@
           </div>
         </button>
 
-        <!-- In-App Fast Sync Box (Zero External Browser Redirect for Android APK) -->
-        <div id="inAppAuthBox" class="in-app-auth-box">
-          <div class="in-app-auth-divider">
-            <span>OR SYNC IN-APP (NO BROWSER NEEDED)</span>
-          </div>
-          <div class="in-app-auth-inputs">
-            <input type="text" id="inAppUserName" class="in-app-input" placeholder="Your Name (e.g. Gudu)" autocomplete="name">
-            <input type="email" id="inAppUserEmail" class="in-app-input" placeholder="Google / User Email" autocomplete="email">
-            <button id="btnInAppSync" class="btn-inapp-sync" type="button">
-              <span>Sync Cloud Memory In-App</span>
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
-          </div>
-        </div>
-
         <!-- Secondary Guest Mode / Offline Bypass Link -->
         <button id="btnContinueGuest" class="btn-continue-guest" type="button">
           <span>Continue with Local On-Device Engine (Guest Mode)</span>
@@ -1528,6 +1513,13 @@
     const btnClose = document.getElementById('btnVoiceClose');
     const btnCancel = document.getElementById('btnVoiceCancel');
 
+    const btnPauseResume = document.getElementById('btnVoicePauseResume');
+    const btnSend = document.getElementById('btnVoiceSend');
+
+    let currentSiriState = 'idle';
+    let siriAnimFrame = null;
+    let externalVolume = 0;
+
     const SIRI_STATES = {
       idle: { glow: 'rgba(139,92,246,.45)', glow2: 'rgba(0,122,255,.3)', label: 'Marvo Ready' },
       listening: { glow: 'rgba(59,130,246,.75)', glow2: 'rgba(6,182,212,.5)', label: 'Listening…' },
@@ -1535,42 +1527,87 @@
       speaking: { glow: 'rgba(16,185,129,.75)', glow2: 'rgba(59,130,246,.5)', label: 'Speaking…' }
     };
 
+    // Autonomous 60fps reactive oscillation loop for Android APK WebView
+    function siriPulseLoop() {
+      if (!overlay || !overlay.classList.contains('show')) return;
+      siriAnimFrame = requestAnimationFrame(siriPulseLoop);
+
+      const t = performance.now() * 0.003;
+      let targetScale = 1.0;
+
+      if (currentSiriState === 'listening') {
+        const organicOsc = 0.035 * Math.sin(t * 3.4) * Math.cos(t * 1.8) + 0.015 * Math.sin(t * 7.1);
+        const dynamicVol = (externalVolume / 100) * 0.08;
+        targetScale = 1.01 + Math.max(0, dynamicVol + organicOsc);
+      } else if (currentSiriState === 'speaking') {
+        const speechOsc = 0.03 * Math.abs(Math.sin(t * 8.2)) + 0.015 * Math.cos(t * 4.5);
+        targetScale = 1.02 + speechOsc;
+      } else if (currentSiriState === 'thinking') {
+        targetScale = 1.01 + 0.02 * Math.sin(t * 2.2);
+      }
+
+      if (plasma) {
+        plasma.style.setProperty('--siri-vol-scale', targetScale.toFixed(3));
+      }
+    }
+
     window.openSiriOrb = function() {
       if (overlay) overlay.classList.add('show');
       if (plasma) plasma.classList.remove('siri-paused');
+      currentSiriState = 'listening';
       window.setSiriVoiceState('listening', 0);
+      if (!siriAnimFrame) siriPulseLoop();
     };
 
     window.closeSiriOrb = function() {
       if (overlay) overlay.classList.remove('show');
       if (plasma) plasma.classList.add('siri-paused');
+      currentSiriState = 'idle';
+      if (siriAnimFrame) {
+        cancelAnimationFrame(siriAnimFrame);
+        siriAnimFrame = null;
+      }
+      if (typeof window.closeVoiceDock === 'function') {
+        window.closeVoiceDock();
+      }
     };
 
     window.setSiriVoiceState = function(state, volume) {
+      currentSiriState = state;
+      externalVolume = Math.max(0, Math.min(100, volume || 0));
       const cfg = SIRI_STATES[state] || SIRI_STATES.idle;
-      const volNorm = Math.max(0, Math.min(1, (volume || 0) / 100));
-
       if (wrap) {
         wrap.style.setProperty('--orb-glow', cfg.glow);
         wrap.style.setProperty('--orb-glow2', cfg.glow2);
-        const blur1 = Math.round(20 + volNorm * 32);
-        const blur2 = Math.round(40 + volNorm * 50);
-        wrap.style.setProperty('--orb-blur1', `${blur1}px`);
-        wrap.style.setProperty('--orb-blur2', `${blur2}px`);
       }
       if (plasma) {
         plasma.classList.remove('state-idle', 'state-listening', 'state-thinking', 'state-speaking');
         plasma.classList.add(`state-${state}`);
-        const dynamicScale = (0.98 + volNorm * 0.30).toFixed(3);
-        plasma.style.setProperty('--siri-vol-scale', dynamicScale);
       }
       if (label && cfg.label) {
         label.textContent = cfg.label;
+      }
+      if (overlay && overlay.classList.contains('show') && !siriAnimFrame) {
+        siriPulseLoop();
       }
     };
 
     btnClose?.addEventListener('click', window.closeSiriOrb);
     btnCancel?.addEventListener('click', window.closeSiriOrb);
+
+    btnPauseResume?.addEventListener('click', () => {
+      if (typeof window.toggleVoicePauseResume === 'function') {
+        window.toggleVoicePauseResume();
+      }
+    });
+
+    btnSend?.addEventListener('click', () => {
+      if (typeof window.submitVoiceRecording === 'function') {
+        window.submitVoiceRecording();
+      } else {
+        window.closeSiriOrb();
+      }
+    });
 
     // Initial 0% CPU battery saver pause
     if (plasma) plasma.classList.add('siri-paused');
