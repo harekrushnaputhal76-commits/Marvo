@@ -365,9 +365,19 @@
 
     buildOpenAiMessages(prompt, contextHistory = [], systemInstruction = '') {
       const messages = [];
-      const defaultSystem = systemInstruction || 
+      let defaultSystem = systemInstruction || 
         "You are Marvo, an advanced intelligent AI assistant. Provide sharp, insightful, helpful, and highly accurate answers with textbook-quality LaTeX for equations.";
       
+      // Inject user memory context if available and not already present
+      try {
+        const memContext = window.MarvoMemory?.getFormattedContext?.() || '';
+        if (memContext && !defaultSystem.includes(memContext.trim())) {
+          defaultSystem = `${defaultSystem}\n\n${memContext.trim()}`;
+        }
+      } catch (err) {
+        console.warn('[TrafficPolice] Memory injection notice for offline model:', err);
+      }
+
       messages.push({ role: "system", content: defaultSystem });
 
       if (Array.isArray(contextHistory)) {
@@ -395,7 +405,7 @@
     },
 
     /**
-     * PRIMARY ROUTING DISPATCHER WITH LIMIT ENFORCEMENT
+     * PRIMARY ROUTING DISPATCHER WITH LIMIT ENFORCEMENT & CRISPY MEMORY SYNC
      */
     async routeChat(prompt, options = {}) {
       const {
@@ -407,13 +417,42 @@
         onToken = null
       } = options;
 
-      const isOnline = navigator.onLine !== false;
-      this.state.isOnline = isOnline;
+      // 1. Silent Crispy Memory Extraction (Zero extra API tokens, Non-blocking)
+      try {
+        if (typeof prompt === 'string' && window.MarvoMemory?.processUserMessage) {
+          Promise.resolve().then(() => {
+            window.MarvoMemory.processUserMessage(prompt);
+          }).catch(memErr => console.warn('[TrafficPolice] Silent memory extractor notice:', memErr));
+        }
+      } catch (err) {
+        console.warn('[TrafficPolice] Memory extraction trigger notice:', err);
+      }
 
+      // 2. Fetch User's Compact Crispy Memory Context (Max ~150 tokens)
+      let memoryContext = '';
+      try {
+        if (window.MarvoMemory?.getFormattedContext) {
+          memoryContext = window.MarvoMemory.getFormattedContext() || '';
+        }
+      } catch (err) {
+        console.warn('[TrafficPolice] Memory context retrieval notice:', err);
+      }
+
+      // Prepare effective prompt & system instruction with memory injection
       const effectivePrompt = prompt;
-      const effectiveSystemInstruction = systemInstruction || 
+      let effectiveSystemInstruction = systemInstruction || 
         "You are Marvo, an advanced intelligent AI assistant. Provide sharp, insightful, helpful, and highly accurate answers with textbook-quality LaTeX for equations.";
+
+      if (memoryContext && memoryContext.trim() && !effectiveSystemInstruction.includes(memoryContext.trim())) {
+        effectiveSystemInstruction = `${effectiveSystemInstruction}\n\n${memoryContext.trim()}`;
+      }
+
       let result;
+
+      // 3. Lifecycle Sync: Enter thinking state
+      if (typeof window.setVoiceState === 'function') {
+        window.setVoiceState('thinking', 20);
+      }
 
       // ────────── CASE A: SELECTED PROVIDER IS OFFLINE MODEL (Phi-3 Mini) ──────────
       if (this.state.currentProvider === 'local') {
@@ -421,6 +460,7 @@
           result = await this.callLocalLLM(effectivePrompt, contextHistory, effectiveSystemInstruction, signal, onToken);
         } catch (err) {
           console.error('[TrafficPolice] Local inference error:', err);
+          if (typeof window.setVoiceState === 'function') window.setVoiceState('idle', 0);
           return {
             response: '⚠️ Offline model failed to respond — try again',
             provider: 'local',
@@ -429,233 +469,122 @@
             error: true
           };
         }
-        if (result && typeof result.response === 'string') {
-          result.response = sanitizeLlmResponse(result.response);
+      } else {
+        // ────────── CASE B: SELECTED PROVIDER IS ONLINE (Gemini) ──────────
+        // Zero automatic switching — return clear error if conditions are not met
+
+        // Network check
+        if (!isOnline) {
+          if (typeof window.setVoiceState === 'function') window.setVoiceState('idle', 0);
+          return {
+            response: '⚠️ Gemini request failed — check your connection or API key',
+            provider: 'gemini',
+            model: 'gemini-2.0-flash',
+            state: 'state-error',
+            error: true
+          };
         }
-        return result;
-      }
 
-      // ────────── CASE B: SELECTED PROVIDER IS ONLINE (Gemini) ──────────
-      // Zero automatic switching — return clear error if conditions are not met
-
-      // Network check
-      if (!isOnline) {
-        return {
-          response: '⚠️ Gemini request failed — check your connection or API key',
-          provider: 'gemini',
-          model: 'gemini-3.8-flash',
-          state: 'state-error',
-          error: true
-        };
-      }
-
-      // Daily Cloud Budget Check (docs/AI_LIMITS.md)
-      if (this.state.dailyBudgetExhausted) {
-        console.warn('[TrafficPolice] Daily cloud budget reached.');
-        if (window.showToast) {
-          window.showToast('Daily Gemini cloud budget reached.');
+        // Daily Cloud Budget Check (docs/AI_LIMITS.md)
+        if (this.state.dailyBudgetExhausted) {
+          console.warn('[TrafficPolice] Daily cloud budget reached.');
+          if (window.showToast) {
+            window.showToast('Daily Gemini cloud budget reached.');
+          }
+          if (typeof window.setVoiceState === 'function') window.setVoiceState('idle', 0);
+          return {
+            response: '⚠️ Gemini request failed — daily cloud budget exceeded. Please switch to Phi-3 Mini (Offline) or update your API key.',
+            provider: 'gemini',
+            model: 'gemini-2.0-flash',
+            state: 'state-error',
+            error: true
+          };
         }
-        return {
-          response: '⚠️ Gemini request failed — daily cloud budget exceeded. Please switch to Phi-3 Mini (Offline) or update your API key.',
-          provider: 'gemini',
-          model: 'gemini-3.8-flash',
-          state: 'state-error',
-          error: true
-        };
-      }
 
-      // Session Cloud RPM Check (15 RPM limit)
-      const now = Date.now();
-      this.cloudRequestHistory = this.cloudRequestHistory.filter(t => now - t < 60000);
-      if (this.cloudRequestHistory.length >= this.MAX_CLOUD_RPM) {
-        console.warn('[TrafficPolice] Session Cloud Rate Limit (15 RPM) exceeded.');
-        if (window.showToast) {
-          window.showToast('Cloud query rate limit reached (15 RPM).');
+        // Session Cloud RPM Check (15 RPM limit)
+        const now = Date.now();
+        this.cloudRequestHistory = this.cloudRequestHistory.filter(t => now - t < 60000);
+        if (this.cloudRequestHistory.length >= this.MAX_CLOUD_RPM) {
+          console.warn('[TrafficPolice] Session Cloud Rate Limit (15 RPM) exceeded.');
+          if (window.showToast) {
+            window.showToast('Cloud query rate limit reached (15 RPM).');
+          }
+          if (typeof window.setVoiceState === 'function') window.setVoiceState('idle', 0);
+          return {
+            response: '⚠️ Gemini request failed — rate limit (15 requests/min) reached. Please wait a moment or switch to Phi-3 Mini (Offline).',
+            provider: 'gemini',
+            model: 'gemini-2.0-flash',
+            state: 'state-error',
+            error: true
+          };
         }
-        return {
-          response: '⚠️ Gemini request failed — rate limit (15 requests/min) reached. Please wait a moment or switch to Phi-3 Mini (Offline).',
-          provider: 'gemini',
-          model: 'gemini-3.8-flash',
-          state: 'state-error',
-          error: true
-        };
-      }
 
-      // Cloud Dispatch
-      try {
-        result = await this.callGemini(effectivePrompt, contextHistory, effectiveSystemInstruction, imageBase64, signal, onToken);
-      } catch (err) {
-        console.warn('[TrafficPolice] Gemini call failed:', err.message);
-        return {
-          response: `⚠️ Gemini request failed — ${err.message || 'check your connection or API key'}`,
-          provider: 'gemini',
-          model: 'gemini-3.8-flash',
-          state: 'state-error',
-          error: true
-        };
+        // Cloud Dispatch via Backend Proxy
+        try {
+          result = await this.callGemini(effectivePrompt, contextHistory, effectiveSystemInstruction, imageBase64, signal, onToken);
+        } catch (err) {
+          console.warn('[TrafficPolice] Gemini proxy call failed:', err.message);
+          if (typeof window.setVoiceState === 'function') window.setVoiceState('idle', 0);
+          return {
+            response: '⚠️ Gemini request failed — check your connection or API key',
+            provider: 'gemini',
+            model: 'gemini-2.0-flash',
+            state: 'state-error',
+            error: true
+          };
+        }
       }
 
       if (result && typeof result.response === 'string') {
         result.response = sanitizeLlmResponse(result.response);
       }
+
+      // Lifecycle Sync: Enter speaking state upon response arrival
+      if (typeof window.setVoiceState === 'function') {
+        window.setVoiceState('speaking', 65);
+      }
+
+      // Spoken audio answer via TTS for voice input
+      if (window.__lastInputWasVoice) {
+        window.__lastInputWasVoice = false;
+        try {
+          if (window.marvo && typeof window.marvo.playSpeech === 'function' && result?.response) {
+            setTimeout(() => {
+              window.marvo.playSpeech(result.response);
+            }, 120);
+          }
+        } catch (ttsErr) {
+          console.warn('[TrafficPolice] Auto TTS playback notice:', ttsErr);
+        }
+      }
+
       return result;
     },
 
     /**
      * GEMINI CLOUD DISPATCHER
-     * Supports direct Google Gemini API calling with streaming SSE & proxy fallback
+     * Enforces 12.0s timeout watchdog and recognizes 429 budget/rate-limit responses
      */
     async callGemini(prompt, contextHistory = [], systemInstruction = '', imageBase64 = null, signal = null, onToken = null) {
       if (!this.isCloudProviderEnabled('gemini')) {
         throw new Error("Google Gemini is manually toggled off via AI Control Center.");
       }
 
+      // Record request timestamp for 15 RPM sliding window
       this.cloudRequestHistory.push(Date.now());
 
-      const isStream = typeof onToken === 'function';
-      const apiKey = await this.getGeminiKey();
+      // 12.0s Timeout enforcement via AbortController (docs/AI_LIMITS.md)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+      }, this.CLOUD_TIMEOUT_MS);
 
-      // 1. Direct Google Gemini Generative Language API
-      if (apiKey) {
-        const isPro = this.state.mode === 'Pro Thinking' || this.state.mode === 'Pro';
-        const candidateModels = isPro
-          ? ['gemini-3.8-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite']
-          : ['gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-3.1-flash-lite'];
-
-        const contents = [];
-        if (Array.isArray(contextHistory)) {
-          contextHistory.forEach(item => {
-            if (item && item.role && item.content) {
-              contents.push({
-                role: item.role === 'ai' ? 'model' : 'user',
-                parts: [{ text: item.content }]
-              });
-            }
-          });
-        }
-
-        const userParts = [];
-        if (imageBase64) {
-          const cleanBase64 = imageBase64.replace(/^data:image\/[a-z]+;base64,/, '');
-          userParts.push({
-            inline_data: {
-              mime_type: 'image/jpeg',
-              data: cleanBase64
-            }
-          });
-        }
-        userParts.push({ text: prompt });
-        contents.push({ role: 'user', parts: userParts });
-
-        const payload = {
-          contents: contents,
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 4096
-          }
-        };
-
-        if (systemInstruction) {
-          payload.system_instruction = {
-            parts: [{ text: systemInstruction }]
-          };
-        }
-
-        for (const modelName of candidateModels) {
-          const attemptController = new AbortController();
-          let watchdogTimer = setTimeout(() => attemptController.abort(), this.CLOUD_TIMEOUT_MS);
-          if (signal) {
-            signal.addEventListener('abort', () => attemptController.abort());
-          }
-
-          try {
-            const apiMethod = isStream ? 'streamGenerateContent?alt=sse&key=' : 'generateContent?key=';
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:${apiMethod}${apiKey}`;
-
-            const response = await fetch(url, {
-              method: 'POST',
-              signal: attemptController.signal,
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload)
-            });
-
-            if (response.status === 503 || response.status === 404) {
-              clearTimeout(watchdogTimer);
-              console.warn(`[TrafficPolice] ${modelName} returned ${response.status}, trying fallback model...`);
-              continue;
-            }
-
-            if (!response.ok) {
-              clearTimeout(watchdogTimer);
-              const errText = await response.text();
-              console.warn(`[TrafficPolice] Gemini API error (${response.status}) on ${modelName}:`, errText);
-              continue;
-            }
-
-            if (isStream && response.body) {
-              const reader = response.body.getReader();
-              const decoder = new TextDecoder('utf-8');
-              let fullText = '';
-              let buffer = '';
-
-              while (true) {
-                clearTimeout(watchdogTimer);
-                watchdogTimer = setTimeout(() => attemptController.abort(), this.CLOUD_TIMEOUT_MS);
-
-                const { done, value } = await reader.read();
-                if (done) break;
-                buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split('\n');
-                buffer = lines.pop() || '';
-
-                for (const line of lines) {
-                  const trimmed = line.trim();
-                  if (!trimmed.startsWith('data:')) continue;
-                  const jsonStr = trimmed.slice(5).trim();
-                  if (!jsonStr) continue;
-                  try {
-                    const chunk = JSON.parse(jsonStr);
-                    const token = chunk.candidates?.[0]?.content?.parts?.[0]?.text || '';
-                    if (token) {
-                      fullText += token;
-                      onToken(token, fullText);
-                    }
-                  } catch (e) {}
-                }
-              }
-
-              clearTimeout(watchdogTimer);
-              if (fullText) {
-                return {
-                  response: fullText,
-                  provider: 'gemini',
-                  model: modelName,
-                  state: 'state-speaking'
-                };
-              }
-            } else {
-              const data = await response.json();
-              clearTimeout(watchdogTimer);
-              const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-              if (text) {
-                if (isStream && onToken) onToken(text, text);
-                return {
-                  response: text,
-                  provider: 'gemini',
-                  model: modelName,
-                  state: 'state-speaking'
-                };
-              }
-            }
-          } catch (modelErr) {
-            clearTimeout(watchdogTimer);
-            if (signal && signal.aborted) throw modelErr;
-            console.warn(`[TrafficPolice] Attempt with ${modelName} error:`, modelErr);
-          }
-        }
+      if (signal) {
+        signal.addEventListener('abort', () => controller.abort());
       }
 
-      // 2. Fallback to /api/chat if proxy server is active
+      const isStream = typeof onToken === 'function';
+
       try {
         const response = await fetch('/api/chat', {
           method: 'POST',
@@ -677,60 +606,103 @@
 
         clearTimeout(timeoutId);
 
-        if (response.ok) {
-          if (isStream && response.body) {
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder('utf-8');
-            let fullText = '';
-            let buffer = '';
+        // Check for 429 Rate Limit or Daily Budget limits from backend
+        if (response.status === 429) {
+          const errData = await response.json().catch(() => ({}));
+          if (errData.daily_budget_exhausted) {
+            this.state.dailyBudgetExhausted = true;
+            if (window.showToast) {
+              window.showToast('Daily cloud budget reached. Operating on local offline brain.');
+            }
+          } else if (errData.rate_limited) {
+            if (window.showToast) {
+              window.showToast('Cloud query rate limit reached. Routing locally.');
+            }
+          }
+          throw new Error(errData.error || `Cloud limit exceeded (${response.status})`);
+        }
 
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              buffer += decoder.decode(value, { stream: true });
-              const lines = buffer.split('\n');
-              buffer = lines.pop() || '';
+        if (!response.ok) {
+          const errText = await response.text();
+          throw new Error(`Gemini proxy error (${response.status}): ${errText}`);
+        }
 
-              for (const line of lines) {
-                const trimmed = line.trim();
-                if (!trimmed.startsWith('data:')) continue;
-                const jsonStr = trimmed.slice(5).trim();
-                if (!jsonStr) continue;
-                try {
-                  const chunk = JSON.parse(jsonStr);
-                  const token = chunk.text || chunk.token || chunk.candidates?.[0]?.content?.parts?.[0]?.text || '';
-                  if (token) {
-                    fullText += token;
-                    onToken(token, fullText);
-                  }
-                } catch (e) {}
+        // Handle SSE streaming response
+        if (isStream && response.body) {
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder('utf-8');
+          let fullText = '';
+          let buffer = '';
+          let finalState = 'state-speaking';
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (!trimmed.startsWith('data:')) continue;
+              const jsonStr = trimmed.slice(5).trim();
+              if (!jsonStr) continue;
+              try {
+                const chunk = JSON.parse(jsonStr);
+                if (chunk.error) {
+                  throw new Error(chunk.error);
+                }
+                if (chunk.state) {
+                  finalState = chunk.state;
+                }
+                if (chunk.token) {
+                  fullText += chunk.token;
+                  onToken(chunk.token, fullText);
+                } else if (chunk.full_response && !fullText) {
+                  fullText = chunk.full_response;
+                  onToken(chunk.full_response, fullText);
+                }
+              } catch (e) {
+                if (e.message && e.message.includes('error')) throw e;
               }
             }
-            if (fullText) {
-              return {
-                response: fullText,
-                provider: 'gemini',
-                model: 'gemini-3.8-flash',
-                state: 'state-speaking'
-              };
-            }
-          } else {
-            const data = await response.json();
-            return {
-              response: data.response || data.text || 'Response received.',
-              provider: 'gemini',
-              model: 'gemini-3.8-flash',
-              state: 'state-speaking'
-            };
           }
-        }
-      } catch (proxyErr) {
-        console.warn('[TrafficPolice] Proxy fallback error:', proxyErr);
-      } finally {
-        clearTimeout(timeoutId);
-      }
 
-      throw new Error("Unable to connect to Gemini API. Please check your internet connection or API key.");
+          return {
+            response: fullText || "Gemini completed.",
+            provider: 'gemini',
+            model: 'gemini-2.0-flash',
+            state: finalState
+          };
+        } else {
+          const data = await response.json();
+          let answer = "";
+          if (data.response) {
+            answer = data.response;
+          } else if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
+            answer = data.candidates[0].content.parts[0].text;
+          } else {
+            answer = "Gemini returned an empty response.";
+          }
+
+          return {
+            response: answer,
+            provider: 'gemini',
+            model: 'gemini-2.0-flash',
+            state: data.state || 'state-speaking'
+          };
+        }
+      } catch (err) {
+        clearTimeout(timeoutId);
+        if (err.name === 'AbortError') {
+          console.warn('[TrafficPolice] Cloud request timed out after 12.0s.');
+          if (window.showToast) {
+            window.showToast('Cloud response delayed. Switched to on-device engine.');
+          }
+          throw new Error('Cloud request timed out after 12.0s.');
+        }
+        throw err;
+      }
     },
 
     /**

@@ -22,6 +22,9 @@
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="css/studyMode.css">
 <link rel="stylesheet" href="css/aiControlCenter.css">
+<link rel="stylesheet" href="css/authUI.css">
+<link rel="stylesheet" href="css/siriOrb.css">
+<link rel="stylesheet" href="css/voiceHud.css">
 <body>
 
 <!-- ═══════════ ADVANCED SIDEBAR DRAWER ═══════════ -->
@@ -193,6 +196,33 @@
       <!-- Dynamically populated from native storage -->
     </ul>
   </div>
+
+  <!-- Sidebar User Profile Footer Card -->
+  <div class="sidebar-user-footer" id="sidebarUserFooter">
+    <div class="sidebar-user-card" id="sidebarUserCard" title="Account & Cloud Memory Sync">
+      <div class="sidebar-user-avatar-wrap">
+        <span class="sidebar-user-avatar-placeholder" id="sidebarUserAvatarPlaceholder">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+        </span>
+        <img id="sidebarUserAvatarImg" class="sidebar-user-avatar-img hidden" alt="Profile" />
+        <span class="sidebar-user-status-dot" id="sidebarUserStatusDot"></span>
+      </div>
+      <div class="sidebar-user-info">
+        <div class="sidebar-user-name" id="sidebarUserName">Guest User</div>
+        <div class="sidebar-user-sub" id="sidebarUserSub">Offline Storage</div>
+      </div>
+      <button id="btnSidebarAuthAction" class="btn-sidebar-auth" type="button" title="Sign In with Google">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+          <polyline points="10 17 15 12 10 7"/>
+          <line x1="15" y1="12" x2="3" y2="12"/>
+        </svg>
+      </button>
+    </div>
+  </div>
 </aside>
 
 <!-- ═══════════ CHAT HISTORY CONTEXT MENU ═══════════ -->
@@ -232,46 +262,115 @@
         </div>
       </div>
 
-      <!-- Main App Menu (Top Right 3-Dots) -->
-      <div class="menu-container topbar-menu-container">
-        <button id="btnAppMenu" class="btn-icon" aria-label="More Options" type="button">
-          <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="5" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="19" r="2" fill="currentColor"/></svg>
-        </button>
-        <div id="appDropdown" class="dropdown-menu app-dropdown">
-          <button class="dropdown-item" id="btnAddToNotebook">
-            <svg viewBox="0 0 24 24" width="16" height="16"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-            Add to notebook
+      <!-- Top Right Controls (User Profile Avatar & 3-Dots Menu) -->
+      <div class="topbar-right-group">
+        <!-- Compact Glassmorphic User Profile Avatar Button & Dropdown -->
+        <div class="user-profile-header-wrap" id="userProfileHeaderWrap">
+          <button id="btnUserProfile" class="user-profile-btn" aria-label="User Profile & Cloud Memory" type="button" title="Sign In with Google • Sync Cloud Memory">
+            <div class="user-avatar-wrap" id="headerUserAvatarWrap">
+              <span class="user-avatar-placeholder" id="headerUserAvatarPlaceholder">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                  <circle cx="12" cy="7" r="4"/>
+                </svg>
+              </span>
+              <img id="headerUserAvatarImg" class="user-avatar-img hidden" alt="Profile" />
+              <span class="user-status-ring" id="headerUserStatusRing"></span>
+            </div>
+            <span class="user-display-name-pill" id="headerUserNamePill">Sign In</span>
           </button>
-          <button class="dropdown-item" id="btnTopRenameChat">
-            <svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 20h9" stroke="currentColor" stroke-width="2"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-            Rename
+
+          <!-- Glassmorphic User Profile Dropdown Menu -->
+          <div id="userProfileDropdown" class="dropdown-menu user-profile-dropdown">
+            <div class="user-profile-dropdown-card">
+              <div class="user-profile-dropdown-header">
+                <div class="user-profile-avatar-lg">
+                  <span class="user-avatar-placeholder-lg" id="dropdownUserAvatarPlaceholder">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                      <circle cx="12" cy="7" r="4"/>
+                    </svg>
+                  </span>
+                  <img id="dropdownUserAvatarImg" class="user-avatar-img-lg hidden" alt="Profile" />
+                  <span class="user-status-dot-lg" id="dropdownUserStatusDot"></span>
+                </div>
+                <div class="user-profile-meta">
+                  <div class="user-profile-name" id="dropdownUserName">Guest User</div>
+                  <div class="user-profile-email" id="dropdownUserEmail">Local storage only</div>
+                </div>
+              </div>
+
+              <!-- Cloud Memory Active Badge -->
+              <div class="user-cloud-badge offline" id="dropdownCloudBadge">
+                <span class="badge-pulse-dot"></span>
+                <span id="dropdownCloudBadgeText">Local Storage Only</span>
+              </div>
+
+              <!-- Profile Dropdown Actions -->
+              <div class="user-profile-actions">
+                <button id="btnProfileSignInPrompt" class="btn-profile-action primary" type="button">
+                  <svg viewBox="0 0 24 24" width="16" height="16" class="google-mini-svg">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                  </svg>
+                  <span>Connect Google Account</span>
+                </button>
+                <button id="btnProfileSignOut" class="btn-profile-action danger hidden" type="button">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                    <polyline points="16 17 21 12 16 7"/>
+                    <line x1="21" y1="12" x2="9" y2="12"/>
+                  </svg>
+                  <span>Sign Out</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Main App Menu (Top Right 3-Dots) -->
+        <div class="menu-container topbar-menu-container">
+          <button id="btnAppMenu" class="btn-icon" aria-label="More Options" type="button">
+            <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="5" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="19" r="2" fill="currentColor"/></svg>
           </button>
-          <button class="dropdown-item" id="btnTopHelp">
-            <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" stroke="currentColor" stroke-width="2" fill="none"/><circle cx="12" cy="17" r="1" fill="currentColor"/></svg>
-            Help & Guide
-          </button>
-          <button class="dropdown-item" id="btnTopShareChat">
-            <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="18" cy="5" r="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="6" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="19" r="3" fill="none" stroke="currentColor" stroke-width="2"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" stroke="currentColor" stroke-width="2"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" stroke="currentColor" stroke-width="2"/></svg>
-            Share conversation
-          </button>
-          <div class="dropdown-divider"></div>
-          <button class="dropdown-item" id="btnAppAiControlCenter">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-            AI Control Center
-          </button>
-          <button class="dropdown-item" id="btnSettings">
-            <svg viewBox="0 0 24 24" width="16" height="16"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" fill="currentColor"/></svg>
-            Settings
-          </button>
-          <button class="dropdown-item" id="btnThemeMenu">
-            <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 3a9 9 0 0 0 0 18v-18z" fill="currentColor"/></svg>
-            Themes & Characters
-          </button>
-          <div class="dropdown-divider"></div>
-          <button class="dropdown-item danger" id="btnTopDeleteChat">
-            <svg viewBox="0 0 24 24" width="16" height="16"><polyline points="3 6 5 6 21 6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-            Delete
-          </button>
+          <div id="appDropdown" class="dropdown-menu app-dropdown">
+            <button class="dropdown-item" id="btnAddToNotebook">
+              <svg viewBox="0 0 24 24" width="16" height="16"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+              Add to notebook
+            </button>
+            <button class="dropdown-item" id="btnTopRenameChat">
+              <svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 20h9" stroke="currentColor" stroke-width="2"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+              Rename
+            </button>
+            <button class="dropdown-item" id="btnTopHelp">
+              <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" stroke="currentColor" stroke-width="2" fill="none"/><circle cx="12" cy="17" r="1" fill="currentColor"/></svg>
+              Help & Guide
+            </button>
+            <button class="dropdown-item" id="btnTopShareChat">
+              <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="18" cy="5" r="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="6" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="19" r="3" fill="none" stroke="currentColor" stroke-width="2"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" stroke="currentColor" stroke-width="2"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" stroke="currentColor" stroke-width="2"/></svg>
+              Share conversation
+            </button>
+            <div class="dropdown-divider"></div>
+            <button class="dropdown-item" id="btnAppAiControlCenter">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              AI Control Center
+            </button>
+            <button class="dropdown-item" id="btnSettings">
+              <svg viewBox="0 0 24 24" width="16" height="16"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" fill="currentColor"/></svg>
+              Settings
+            </button>
+            <button class="dropdown-item" id="btnThemeMenu">
+              <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 3a9 9 0 0 0 0 18v-18z" fill="currentColor"/></svg>
+              Themes & Characters
+            </button>
+            <div class="dropdown-divider"></div>
+            <button class="dropdown-item danger" id="btnTopDeleteChat">
+              <svg viewBox="0 0 24 24" width="16" height="16"><polyline points="3 6 5 6 21 6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+              Delete
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -396,39 +495,76 @@
       </div>
     </div>
 
-    <div class="input-glass">
+    <div class="input-glass" id="inputGlassContainer">
       <!-- Hidden file input supporting photos, videos, audio, pdf, documents -->
       <input type="file" id="fileUploadInput" multiple accept="image/*,video/*,application/pdf,text/*,.doc,.docx" style="display:none;">
 
-      <!-- Attachment / Quick Tools Menu (Plus Button) -->
-      <div class="attach-container">
-        <button id="btnAttach" class="btn btn-attach" aria-label="Attach File" title="Attach PDF or Photo (+)">
-          <svg viewBox="0 0 24 24" width="22" height="22"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" fill="currentColor"/></svg>
-        </button>
-        <!-- Minimized Popup Attachment Menu (Traffic Police 2) -->
-        <div id="attachMenu" class="dropdown-menu attach-menu attach-popup-minimized">
-          <button class="dropdown-item attach-item" id="btnAttachPDF" data-type="PDF" type="button">
-            <svg viewBox="0 0 24 24" width="18" height="18"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" fill="none" stroke="currentColor" stroke-width="2"/><polyline points="14 2 14 8 20 8" fill="none" stroke="currentColor" stroke-width="2"/><line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" stroke-width="2"/></svg>
-            <span>PDF Document</span>
+      <!-- Normal Text Input Mode Row -->
+      <div class="input-normal-row" id="inputNormalRow">
+        <!-- Attachment / Quick Tools Menu (Plus Button) -->
+        <div class="attach-container">
+          <button id="btnAttach" class="btn btn-attach" aria-label="Attach File" title="Attach PDF or Photo (+)">
+            <svg viewBox="0 0 24 24" width="22" height="22"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" fill="currentColor"/></svg>
           </button>
-          <button class="dropdown-item attach-item" id="btnAttachPhoto" data-type="Photo" type="button">
-            <svg viewBox="0 0 24 24" width="18" height="18"><rect x="3" y="3" width="18" height="18" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/><path d="M21 15l-5-5L5 21" stroke="currentColor" stroke-width="2" fill="none"/></svg>
-            <span>Photo / Camera</span>
-          </button>
+          <!-- Minimized Popup Attachment Menu (Traffic Police 2) -->
+          <div id="attachMenu" class="dropdown-menu attach-menu attach-popup-minimized">
+            <button class="dropdown-item attach-item" id="btnAttachPDF" data-type="PDF" type="button">
+              <svg viewBox="0 0 24 24" width="18" height="18"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" fill="none" stroke="currentColor" stroke-width="2"/><polyline points="14 2 14 8 20 8" fill="none" stroke="currentColor" stroke-width="2"/><line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" stroke-width="2"/></svg>
+              <span>PDF Document</span>
+            </button>
+            <button class="dropdown-item attach-item" id="btnAttachPhoto" data-type="Photo" type="button">
+              <svg viewBox="0 0 24 24" width="18" height="18"><rect x="3" y="3" width="18" height="18" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/><path d="M21 15l-5-5L5 21" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+              <span>Photo / Camera</span>
+            </button>
+          </div>
         </div>
+
+        <input type="text" id="msgInput" placeholder="Ask Marvo anything or attach PDF/Photo..." autocomplete="off" spellcheck="false">
+
+        <!-- Multimodal Glowing Cyan Mic Button -->
+        <button id="btnMic" class="btn btn-mic btn-mic-cyan" aria-label="Voice Input" title="Voice Input">
+          <span class="mic-cyan-glow"></span>
+          <svg viewBox="0 0 24 24" width="18" height="18"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5z" fill="currentColor"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" fill="currentColor"/></svg>
+        </button>
+
+        <button id="btnSend" class="btn btn-send" aria-label="Send" title="Send Message">
+          <svg viewBox="0 0 24 24" width="18" height="18"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"/></svg>
+        </button>
       </div>
 
-      <input type="text" id="msgInput" placeholder="Ask Marvo anything or attach PDF/Photo..." autocomplete="off" spellcheck="false">
+      <!-- Live Voice Recording HUD Dock (Morphs smoothly into input bar) -->
+      <div class="voice-recording-hud hidden" id="voiceRecordingHud">
+        <!-- Left: Glowing Red/Amber Cancel Button -->
+        <button id="btnVoiceHudCancel" class="btn-voice-hud-action btn-hud-cancel" aria-label="Cancel Recording" title="Discard">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
 
-      <!-- Multimodal Glowing Cyan Mic Button -->
-      <button id="btnMic" class="btn btn-mic btn-mic-cyan" aria-label="Voice Input" title="Voice Input">
-        <span class="mic-cyan-glow"></span>
-        <svg viewBox="0 0 24 24" width="18" height="18"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5z" fill="currentColor"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" fill="currentColor"/></svg>
-      </button>
+        <!-- Center: Status, Live Timer, Liquid Reactive Waveform & Real-time Transcript -->
+        <div class="voice-hud-center">
+          <div class="voice-hud-meta-row">
+            <div class="voice-hud-status-badge">
+              <span class="voice-hud-pulse-dot"></span>
+              <span class="voice-hud-status-text" id="voiceHudStatusText">LISTENING...</span>
+            </div>
+            <div class="voice-hud-timer-badge">
+              <span id="voiceHudTimer">00:00</span>
+            </div>
+          </div>
 
-      <button id="btnSend" class="btn btn-send" aria-label="Send" title="Send Message">
-        <svg viewBox="0 0 24 24" width="18" height="18"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"/></svg>
-      </button>
+          <div class="voice-hud-visualizer-wrap">
+            <canvas id="voiceHudWaveCanvas" class="voice-hud-wave-canvas" width="280" height="28"></canvas>
+          </div>
+
+          <div class="voice-hud-transcript-box" id="voiceHudTranscriptBox">
+            <span class="voice-hud-transcript-text" id="voiceHudTranscriptText">Listening to your voice...</span>
+          </div>
+        </div>
+
+        <!-- Right: Glowing Neon-Emerald Send / Done Button -->
+        <button id="btnVoiceHudSend" class="btn-voice-hud-action btn-hud-send" aria-label="Send Recording" title="Send Voice Message">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+        </button>
+      </div>
     </div>
   </div>
 </main>
@@ -1193,6 +1329,200 @@
   </div>
 </div>
 
+<!-- ═══════════ MARVO AUTH LOGIN OVERLAY ═══════════ -->
+<div id="marvoAuthOverlay" class="marvo-auth-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="marvoAuthTitle">
+  <!-- Cyberpunk background ambiance with glowing orbs -->
+  <div class="marvo-auth-backdrop">
+    <div class="auth-ambient-orb orb-cyan"></div>
+    <div class="auth-ambient-orb orb-emerald"></div>
+    <div class="auth-ambient-orb orb-purple"></div>
+    <div class="auth-grid-overlay"></div>
+  </div>
+
+  <div class="marvo-auth-container">
+    <div class="marvo-auth-card">
+      <!-- Close / dismiss guest button -->
+      <button id="btnDismissAuth" class="auth-dismiss-btn" aria-label="Close / Explore as Guest" title="Explore as Guest">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+
+      <!-- Brand Logo / Glowing Cyberpunk Neural Core -->
+      <div class="auth-brand-badge-wrap">
+        <div class="auth-brand-logo-hex">
+          <div class="auth-logo-pulse-ring"></div>
+          <svg viewBox="0 0 24 24" width="34" height="34" class="auth-core-svg">
+            <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5" fill="none" stroke="url(#marvo-auth-grad)" stroke-width="2" stroke-linejoin="round"/>
+            <circle cx="12" cy="12" r="3.5" fill="none" stroke="#00ff88" stroke-width="2"/>
+            <line x1="12" y1="2" x2="12" y2="8.5" stroke="#00f0ff" stroke-width="1.5"/>
+            <line x1="12" y1="15.5" x2="12" y2="22" stroke="#00f0ff" stroke-width="1.5"/>
+            <line x1="2" y1="8.5" x2="7.5" y2="12" stroke="#00ff88" stroke-width="1.5"/>
+            <line x1="16.5" y1="12" x2="22" y2="8.5" stroke="#00ff88" stroke-width="1.5"/>
+            <line x1="2" y1="15.5" x2="7.5" y2="12" stroke="#00f0ff" stroke-width="1.5"/>
+            <line x1="16.5" y1="12" x2="22" y2="15.5" stroke="#00f0ff" stroke-width="1.5"/>
+            <defs>
+              <linearGradient id="marvo-auth-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#00f0ff"/>
+                <stop offset="100%" stop-color="#00ff88"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+      </div>
+
+      <div class="auth-headings">
+        <div class="auth-app-tag">MARVO AI • PRO SYSTEM</div>
+        <h1 id="marvoAuthTitle" class="auth-title">MARVO AI</h1>
+        <p class="auth-subtitle">Permanent Cloud Memory Sync</p>
+      </div>
+
+      <!-- Feature Badges List -->
+      <div class="auth-features-list">
+        <div class="auth-feature-chip">
+          <div class="feature-chip-icon">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#00ff88" stroke-width="2">
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+            </svg>
+          </div>
+          <div class="feature-chip-text">
+            <strong>Cross-Device Memory</strong>
+            <span>Sync chats, personas, notes & projects across all phones & web</span>
+          </div>
+        </div>
+
+        <div class="auth-feature-chip">
+          <div class="feature-chip-icon">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#00f0ff" stroke-width="2">
+              <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
+            </svg>
+          </div>
+          <div class="feature-chip-text">
+            <strong>Permanent Cloud Memory</strong>
+            <span>Firestore vault preserves context seamlessly between sessions</span>
+          </div>
+        </div>
+
+        <div class="auth-feature-chip">
+          <div class="feature-chip-icon">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#a78bfa" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+          </div>
+          <div class="feature-chip-text">
+            <strong>Encrypted & Isolated</strong>
+            <span>Zero raw client keys • Firebase Security Rules enforced</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Error Message Banner Area (Hidden by default) -->
+      <div id="authErrorBanner" class="auth-error-banner hidden" role="alert">
+        <div class="error-banner-icon">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+        </div>
+        <div class="error-banner-content">
+          <span class="error-banner-title">Authentication Alert</span>
+          <span class="error-banner-message" id="authErrorMessage"></span>
+        </div>
+        <button id="btnDismissAuthError" class="error-banner-close" aria-label="Dismiss error">&times;</button>
+      </div>
+
+      <!-- Premium "Continue with Google" Action Button -->
+      <div class="auth-action-wrap">
+        <button id="btnGoogleLogin" class="btn-google-login" type="button">
+          <div class="google-icon-box">
+            <svg viewBox="0 0 24 24" width="22" height="22" class="google-svg">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+            </svg>
+          </div>
+          <span class="google-btn-text" id="googleBtnText">Continue with Google</span>
+          <div class="google-btn-spinner hidden" id="googleBtnSpinner">
+            <div class="neon-spinner"></div>
+          </div>
+        </button>
+
+        <!-- Secondary Guest Mode / Offline Bypass Link -->
+        <button id="btnContinueGuest" class="btn-continue-guest" type="button">
+          <span>Continue with Local On-Device Engine (Guest Mode)</span>
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Footer Policy / Trust Note -->
+      <div class="auth-footer-note">
+        <span>By signing in, your conversations sync to your private Google cloud profile.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ APPLE SIRI-LEVEL FLUID VOICE DOCK (iOS 18 APPLE INTELLIGENCE) ═══════════ -->
+<div id="voiceOverlay" class="voice-overlay voice-bottom-dock">
+  <div id="siri-orb-dock" class="siri-orb-dock">
+    <div class="siri-glass-card">
+      <div class="siri-top-bar">
+        <div class="siri-drag-pill"></div>
+        <button id="btnVoiceClose" class="siri-btn-close" aria-label="Close">&times;</button>
+      </div>
+
+      <!-- 1:1 Apple Siri Fluid Plasma Orb (5-Layer Blobs + Glass Blur) -->
+      <div id="siri-orb-wrap" class="siri-orb-wrap">
+        <div class="siri-master-container" id="siriPlasmaContainer">
+          <div class="siri-blob color-blue"></div>
+          <div class="siri-blob color-magenta"></div>
+          <div class="siri-blob color-cyan"></div>
+          <div class="siri-blob color-violet"></div>
+          <div class="siri-glass-blur"></div> <!-- Heavy backdrop filter -->
+        </div>
+      </div>
+
+      <!-- Apple Intelligence Frosted Glass Pill Status & Subtitle -->
+      <div id="siri-orb-label" class="siri-orb-label visible">Listening…</div>
+      <span class="voice-status-text" id="voiceStatusText" style="display:none;">Listening...</span>
+
+      <!-- Live Voice Transcript in iOS System Typography -->
+      <div class="voice-transcript-box" id="voiceTranscriptBox">
+        <p id="voiceTranscriptText" class="voice-transcript-text">Listening to you...</p>
+      </div>
+
+      <!-- Apple Glassmorphic Control Dock -->
+      <div class="voice-controls-dock siri-controls">
+        <button id="btnVoiceCancel" class="btn-siri-action siri-cancel" aria-label="Cancel">
+          <svg viewBox="0 0 24 24" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <span>Cancel</span>
+        </button>
+
+        <button id="btnVoicePauseResume" class="btn-siri-action siri-pause-resume" aria-label="Pause or Resume">
+          <svg id="iconVoicePause" viewBox="0 0 24 24" width="16" height="16"><rect x="6" y="4" width="4" height="16" rx="1.5" fill="currentColor"/><rect x="14" y="4" width="4" height="16" rx="1.5" fill="currentColor"/></svg>
+          <svg id="iconVoiceResume" class="hidden" viewBox="0 0 24 24" width="16" height="16"><polygon points="6 4 19 12 6 20 6 4" fill="currentColor"/></svg>
+          <span id="labelVoicePauseResume">Pause</span>
+        </button>
+
+        <button id="btnVoiceSend" class="btn-siri-action siri-send" aria-label="Send Recording">
+          <svg viewBox="0 0 24 24" width="16" height="16"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"/></svg>
+          <span>Send</span>
+        </button>
+      </div>
+
+      <!-- Hidden fallbacks for legacy audio visualizer compatibility -->
+      <canvas id="voiceWaveCanvas" class="hidden" width="1" height="1" style="display:none;"></canvas>
+      <div id="voiceBars" class="hidden" style="display:none;"></div>
+    </div>
+  </div>
+</div>
+
 <!-- Toast notification helper -->
 <div id="appToast" class="app-toast"></div>
 
@@ -1206,9 +1536,65 @@
 <script src="js/plugins/quizEngine.js"></script>
 <script src="js/ui/studyMode.js"></script>
 <script src="js/ui/aiControlCenter.js"></script>
+<script src="js/ui/authUI.js"></script>
+<script type="module" src="js/core/firebaseService.js"></script>
+<script type="module" src="js/core/userMemory.js"></script>
 <script src="js/core/renderingCapabilities.js"></script>
 <script src="js/core/idleIndicatorLifecycle.js"></script>
 <script src="app.js"></script>
+<script>
+  (function initSiriOrbController() {
+    const overlay = document.getElementById('voiceOverlay');
+    const plasma = document.getElementById('siriPlasmaContainer');
+    const wrap = document.getElementById('siri-orb-wrap');
+    const label = document.getElementById('siri-orb-label');
+    const btnClose = document.getElementById('btnVoiceClose');
+    const btnCancel = document.getElementById('btnVoiceCancel');
+
+    const SIRI_STATES = {
+      idle: { glow: 'rgba(139,92,246,.45)', glow2: 'rgba(0,122,255,.3)', label: 'Marvo Ready' },
+      listening: { glow: 'rgba(59,130,246,.75)', glow2: 'rgba(6,182,212,.5)', label: 'Listening…' },
+      thinking: { glow: 'rgba(236,72,153,.7)', glow2: 'rgba(139,92,246,.5)', label: 'Thinking…' },
+      speaking: { glow: 'rgba(16,185,129,.75)', glow2: 'rgba(59,130,246,.5)', label: 'Speaking…' }
+    };
+
+    window.openSiriOrb = function() {
+      if (overlay) overlay.classList.add('show');
+      if (plasma) plasma.classList.remove('siri-paused');
+      window.setSiriVoiceState('listening', 0);
+    };
+
+    window.closeSiriOrb = function() {
+      if (overlay) overlay.classList.remove('show');
+      if (plasma) plasma.classList.add('siri-paused');
+    };
+
+    window.setSiriVoiceState = function(state, volume) {
+      const cfg = SIRI_STATES[state] || SIRI_STATES.idle;
+      if (wrap) {
+        wrap.style.setProperty('--orb-glow', cfg.glow);
+        wrap.style.setProperty('--orb-glow2', cfg.glow2);
+      }
+      if (plasma) {
+        plasma.classList.remove('state-idle', 'state-listening', 'state-thinking', 'state-speaking');
+        plasma.classList.add(`state-${state}`);
+        const vol = Math.max(0, Math.min(100, volume || 0));
+        const easedScale = (1.0 + Math.min(0.08, (vol / 100) * 0.08)).toFixed(3);
+        plasma.style.setProperty('--siri-vol-scale', easedScale);
+      }
+      if (label && cfg.label) {
+        label.textContent = cfg.label;
+      }
+    };
+
+    btnClose?.addEventListener('click', window.closeSiriOrb);
+    btnCancel?.addEventListener('click', window.closeSiriOrb);
+
+    // Initial 0% CPU battery saver pause
+    if (plasma) plasma.classList.add('siri-paused');
+  })();
+</script>
+<script src="js/ui/voiceHud.js"></script>
 <script>
   window.addEventListener('load', function() {
     if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {

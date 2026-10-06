@@ -1,0 +1,231 @@
+/* ══════════════════════════════════════════════════════════════
+   MARVO AI — NEXT-GEN LIVE VOICE RECORDING HUD DOCK (120Hz CYBER-GLASS)
+   File: frontend/css/voiceHud.css
+   ══════════════════════════════════════════════════════════════ */
+
+/* Container Morphing: .input-glass when recording is active */
+.input-glass {
+  position: relative;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s ease;
+  overflow: visible;
+}
+
+.input-glass.voice-hud-active {
+  background: rgba(10, 16, 28, 0.94) !important;
+  border-color: rgba(0, 255, 136, 0.6) !important;
+  box-shadow: 0 0 32px rgba(0, 255, 136, 0.22),
+              0 0 60px rgba(0, 240, 255, 0.12),
+              inset 0 0 16px rgba(0, 255, 136, 0.15) !important;
+  padding: 8px 12px !important;
+}
+
+/* Normal Input Elements Wrapper */
+.input-normal-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s ease;
+}
+
+.input-glass.voice-hud-active .input-normal-row {
+  display: none !important;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   LIVE VOICE RECORDING HUD DOCK
+   ══════════════════════════════════════════════════════════════ */
+.voice-recording-hud {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 10px;
+  opacity: 1;
+  animation: voiceHudEntry 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.voice-recording-hud.hidden {
+  display: none !important;
+}
+
+@keyframes voiceHudEntry {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ── HUD TACTILE ACTION BUTTONS (Left Cancel & Right Send) ── */
+.btn-voice-hud-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  min-height: 42px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s cubic-bezier(0.2, 0.9, 0.3, 1), box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.btn-voice-hud-action:active {
+  transform: scale(0.88);
+}
+
+/* Left Cancel (Red / Amber Aura) */
+.btn-hud-cancel {
+  background: rgba(255, 60, 60, 0.16);
+  border: 1px solid rgba(255, 80, 80, 0.45);
+  color: #ff4d6d;
+  box-shadow: 0 0 16px rgba(255, 60, 60, 0.28);
+}
+
+.btn-hud-cancel:hover {
+  background: rgba(255, 60, 60, 0.26);
+  box-shadow: 0 0 22px rgba(255, 60, 60, 0.45);
+}
+
+/* Right Send (Neon Emerald / Cyan Gradient) */
+.btn-hud-send {
+  background: linear-gradient(135deg, #00ff88 0%, #00d2ff 100%);
+  color: #030a12;
+  box-shadow: 0 0 20px rgba(0, 255, 136, 0.5), 0 0 36px rgba(0, 210, 255, 0.3);
+}
+
+.btn-hud-send:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 28px rgba(0, 255, 136, 0.7), 0 0 45px rgba(0, 210, 255, 0.4);
+}
+
+.btn-hud-send:active {
+  transform: scale(0.92);
+}
+
+/* ── CENTER HUD VISUALIZER & META DATA ── */
+.voice-hud-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Meta Line: Pulse Dot, Status Label, Timer Pill */
+.voice-hud-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0 4px;
+}
+
+.voice-hud-status-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.voice-hud-pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #00ff88;
+  box-shadow: 0 0 8px #00ff88;
+  animation: hudPulseGlow 1.2s infinite alternate ease-in-out;
+}
+
+@keyframes hudPulseGlow {
+  0% { transform: scale(0.85); opacity: 0.7; box-shadow: 0 0 4px #00ff88; }
+  100% { transform: scale(1.3); opacity: 1; box-shadow: 0 0 14px #00ff88, 0 0 22px #00f0ff; }
+}
+
+.voice-hud-status-text {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #00ff88;
+  text-transform: uppercase;
+  text-shadow: 0 0 8px rgba(0, 255, 136, 0.5);
+}
+
+.voice-hud-timer-badge {
+  display: flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(0, 240, 255, 0.12);
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: #00f0ff;
+  letter-spacing: 0.05em;
+  text-shadow: 0 0 6px rgba(0, 240, 255, 0.4);
+}
+
+/* ── 120Hz LIQUID AUDIO WAVEFORM CANVAS ── */
+.voice-hud-visualizer-wrap {
+  width: 100%;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.voice-hud-wave-canvas {
+  width: 100%;
+  height: 28px;
+  display: block;
+}
+
+/* ── LIVE TRANSCRIPT PILL (Floating Glass typography) ── */
+.voice-hud-transcript-box {
+  width: 100%;
+  max-height: 22px;
+  overflow: hidden;
+  text-align: center;
+  padding: 0 4px;
+}
+
+.voice-hud-transcript-text {
+  display: inline-block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.88);
+  font-style: italic;
+  letter-spacing: 0.01em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  transition: color 0.2s ease;
+}
+
+/* Android WebView Optimization & Prefers Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .voice-recording-hud {
+    animation: none !important;
+  }
+  .voice-hud-pulse-dot {
+    animation: none !important;
+  }
+}

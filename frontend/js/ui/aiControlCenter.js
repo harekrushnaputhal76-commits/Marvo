@@ -692,6 +692,33 @@
       this.pingGemini(key);
     },
 
+    async pingGroq(key) {
+      this.apiStatus.groq.status = 'checking';
+      this.renderApiCards();
+      if (!key) {
+        this.apiStatus.groq = { status: 'failed', latency: 0, error: 'Key not found' };
+        this.renderApiCards();
+        return;
+      }
+
+      const t0 = performance.now();
+      try {
+        const res = await fetch('https://api.groq.com/openai/v1/models', {
+          method: 'GET',
+          headers: { 'Authorization': `Bearer ${key}` }
+        });
+        const latency = Math.round(performance.now() - t0);
+        if (res.ok) {
+          this.apiStatus.groq = { status: 'active', latency, error: null };
+        } else {
+          this.apiStatus.groq = { status: 'failed', latency, error: `HTTP ${res.status}` };
+        }
+      } catch (e) {
+        this.apiStatus.groq = { status: 'failed', latency: 0, error: e.message };
+      }
+      this.renderApiCards();
+    },
+
     async pingGemini(key) {
       this.apiStatus.gemini.status = 'checking';
       this.renderApiCards();
@@ -718,14 +745,42 @@
       this.renderApiCards();
     },
 
-    isCloudEnabled(provider = 'gemini') {
+    async pingOpenRouter(key) {
+      this.apiStatus.openrouter.status = 'checking';
+      this.renderApiCards();
+      if (!key) {
+        this.apiStatus.openrouter = { status: 'failed', latency: 0, error: 'Key not found' };
+        this.renderApiCards();
+        return;
+      }
+
+      const t0 = performance.now();
+      try {
+        const res = await fetch('https://openrouter.ai/api/v1/auth/key', {
+          method: 'GET',
+          headers: { 'Authorization': `Bearer ${key}` }
+        });
+        const latency = Math.round(performance.now() - t0);
+        if (res.ok) {
+          this.apiStatus.openrouter = { status: 'active', latency, error: null };
+        } else {
+          this.apiStatus.openrouter = { status: 'failed', latency, error: `HTTP ${res.status}` };
+        }
+      } catch (e) {
+        this.apiStatus.openrouter = { status: 'failed', latency: 0, error: e.message };
+      }
+      this.renderApiCards();
+    },
+
+    isCloudEnabled(provider) {
       return localStorage.getItem(`marvo.cloud.enabled.${provider}`) !== 'false';
     },
 
     toggleCloudProvider(provider, enabled) {
       localStorage.setItem(`marvo.cloud.enabled.${provider}`, enabled ? 'true' : 'false');
       if (window.showToast) {
-        window.showToast(`Google Gemini ${enabled ? 'Enabled' : 'Bypassed (Toggled Off)'}`);
+        const title = provider === 'groq' ? 'Groq LPU' : provider === 'gemini' ? 'Google Gemini' : 'OpenRouter';
+        window.showToast(`${title} ${enabled ? 'Enabled' : 'Bypassed (Toggled Off)'}`);
       }
       if (window.TrafficPolice && typeof window.TrafficPolice.notifyStateChange === 'function') {
         window.TrafficPolice.notifyStateChange();
@@ -734,7 +789,7 @@
     },
 
     areAllCloudApisToggledOff() {
-      return !this.isCloudEnabled('gemini');
+      return !this.isCloudEnabled('groq') && !this.isCloudEnabled('gemini') && !this.isCloudEnabled('openrouter');
     },
 
     renderApiCards() {
@@ -742,10 +797,22 @@
 
       const configs = [
         {
+          key: 'groq',
+          title: 'Groq Cloud API (LPU)',
+          model: 'llama-3.3-70b-versatile',
+          desc: 'High-speed hardware accelerator for instant chat completion.'
+        },
+        {
           key: 'gemini',
           title: 'Google Gemini API',
-          model: 'gemini-3.8-flash',
+          model: 'gemini-2.0-flash',
           desc: 'Native Google multimodal vision, audio, and reasoning model.'
+        },
+        {
+          key: 'openrouter',
+          title: 'OpenRouter Multi-Agent Gateway',
+          model: 'anthropic/claude-3.5-sonnet',
+          desc: 'Heavy logic gateway supporting Claude 3.5 Sonnet, GPT-4o & Llama 3.1 405B.'
         }
       ];
 
@@ -793,13 +860,15 @@
       }).join('');
     },
 
-    repingSingle(provider = 'gemini') {
+    repingSingle(provider) {
       if (!this.isCloudEnabled(provider)) {
         if (window.showToast) window.showToast(`${provider.toUpperCase()} is toggled off. Enable it first to test ping.`);
         return;
       }
       const keys = (window.TrafficPolice && window.TrafficPolice.state && window.TrafficPolice.state.keys) || {};
-      this.pingGemini(keys.gemini);
+      if (provider === 'groq') this.pingGroq(keys.groq);
+      else if (provider === 'gemini') this.pingGemini(keys.gemini);
+      else if (provider === 'openrouter') this.pingOpenRouter(keys.openrouter);
     },
 
     /* ═══════════ PHASE 1.3: ISOLATED FOCUS MODE ═══════════ */
