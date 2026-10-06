@@ -561,6 +561,89 @@
   letter-spacing: 0.1px;
 }
 
+/* In-App Account Fast Sync Box (Zero Browser Redirect for Android APK) */
+.in-app-auth-box {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  box-sizing: border-box;
+  transition: all 0.3s ease;
+}
+
+.in-app-auth-box.pulse-highlight {
+  border-color: var(--auth-cyan);
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.25);
+}
+
+.in-app-auth-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  color: #7d8590;
+  margin-bottom: 4px;
+}
+
+.in-app-auth-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.in-app-input {
+  width: 100%;
+  height: 38px;
+  background: rgba(5, 8, 14, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 12.5px;
+  padding: 0 12px;
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.in-app-input:focus {
+  border-color: var(--auth-cyan);
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
+}
+
+.btn-inapp-sync {
+  width: 100%;
+  height: 38px;
+  background: linear-gradient(135deg, rgba(0, 240, 255, 0.15), rgba(0, 255, 136, 0.15));
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-inapp-sync:hover {
+  background: linear-gradient(135deg, rgba(0, 240, 255, 0.25), rgba(0, 255, 136, 0.25));
+  border-color: var(--auth-cyan);
+}
+
+.btn-inapp-sync:active {
+  transform: scale(0.98);
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    7. TOPBAR USER PROFILE COMPONENT & DROPDOWN MENU
    ═══════════════════════════════════════════════════════════════════ */

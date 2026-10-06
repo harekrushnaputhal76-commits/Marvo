@@ -5321,40 +5321,16 @@ body.island-active .main {
 }
 
 #marvo-dynamic-island {
-  --marvo-shape-width: var(--marvo-geo-idle-diameter);
-  --marvo-shape-height: var(--marvo-geo-height-idle);
-  --marvo-shape-radius: var(--marvo-geo-radius-idle);
-  --marvo-listening-intensity: var(--marvo-listening-response-fallback);
-  --marvo-ripple-displacement: var(--marvo-ripple-displacement-min);
-
-  position: fixed !important;
-  top: var(--camera-anchor-top) !important;
-  left: 50% !important;
-  transform: translateX(-50%) !important;
-  transform-origin: top center !important;
-  z-index: var(--marvo-z-indicator-layer) !important;
-  box-sizing: border-box;
-
-  width: var(--marvo-shape-width) !important;
-  height: var(--marvo-shape-height) !important;
-  border-radius: var(--marvo-shape-radius) !important;
-  background: #000000;
-
-  pointer-events: none;
-  overflow: visible;
-
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
-  will-change: auto;
-  transition:
-    width var(--marvo-trans-to-idle) var(--marvo-ease-snap-back),
-    height var(--marvo-trans-to-idle) var(--marvo-ease-snap-back),
-    border-radius var(--marvo-trans-to-idle) var(--marvo-ease-snap-back),
-    transform var(--marvo-trans-to-idle) var(--marvo-ease-snap-back),
-    background var(--marvo-duration-fast) ease,
-    box-shadow var(--marvo-duration-fast) ease,
-    border var(--marvo-duration-fast) ease !important;
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
 }
+
+
 
 #marvo-dynamic-island.island-open,
 #marvo-dynamic-island:not(.state-idle),

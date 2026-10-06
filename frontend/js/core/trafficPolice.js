@@ -156,14 +156,14 @@
       return [...this.PROVIDERS];
     },
 
-    DEFAULT_GEMINI_KEY: (function() {
+    get DEFAULT_GEMINI_KEY() {
+      const b64 = 'QVEuQWI4Uk42SklkVk03ZVNMU3lpMV9xSFI3c0UzMHhQYTY3NmtHcUlDdFlIOVVUZlNnMmc=';
       try {
-        const b64 = 'QVEuQWI4Uk42SklkVk03ZVNMU3lpMV9xSFI3c0UzMHhQYTY3NmtHcUlDdFlIOVVUZlNnMmc=';
         if (typeof atob === 'function') return atob(b64);
-        if (typeof Buffer !== 'undefined') return Buffer.from(b64, 'base64').toString('utf8');
+        if (typeof Buffer !== 'undefined') return Buffer.from(b64, 'base64').toString('utf-8');
       } catch (e) {}
       return '';
-    })(),
+    },
 
     async getGeminiKey() {
       try {
@@ -365,19 +365,9 @@
 
     buildOpenAiMessages(prompt, contextHistory = [], systemInstruction = '') {
       const messages = [];
-      let defaultSystem = systemInstruction || 
+      const defaultSystem = systemInstruction || 
         "You are Marvo, an advanced intelligent AI assistant. Provide sharp, insightful, helpful, and highly accurate answers with textbook-quality LaTeX for equations.";
       
-      // Inject user memory context if available and not already present
-      try {
-        const memContext = window.MarvoMemory?.getFormattedContext?.() || '';
-        if (memContext && !defaultSystem.includes(memContext.trim())) {
-          defaultSystem = `${defaultSystem}\n\n${memContext.trim()}`;
-        }
-      } catch (err) {
-        console.warn('[TrafficPolice] Memory injection notice for offline model:', err);
-      }
-
       messages.push({ role: "system", content: defaultSystem });
 
       if (Array.isArray(contextHistory)) {
@@ -405,7 +395,7 @@
     },
 
     /**
-     * PRIMARY ROUTING DISPATCHER WITH LIMIT ENFORCEMENT & CRISPY MEMORY SYNC
+     * PRIMARY ROUTING DISPATCHER WITH LIMIT ENFORCEMENT
      */
     async routeChat(prompt, options = {}) {
       const {
@@ -413,45 +403,34 @@
         systemInstruction = '',
         imageBase64 = null,
         signal = null,
-        advancedMode = null, // 'deep-thinking' | 'web-research' | null
+        advancedMode = null,
         onToken = null
       } = options;
 
-      // 1. Silent Crispy Memory Extraction (Zero extra API tokens, Non-blocking)
-      try {
-        if (typeof prompt === 'string' && window.MarvoMemory?.processUserMessage) {
-          Promise.resolve().then(() => {
-            window.MarvoMemory.processUserMessage(prompt);
-          }).catch(memErr => console.warn('[TrafficPolice] Silent memory extractor notice:', memErr));
+      let result = null;
+      const isOnline = navigator.onLine !== false && this.state.isOnline !== false;
+      let effectivePrompt = prompt;
+      let effectiveSystemInstruction = systemInstruction;
+
+      // Silently process user message for Crispy Memory extraction (Step 4)
+      if (window.MarvoMemory && typeof window.MarvoMemory.processUserMessage === 'function') {
+        try {
+          window.MarvoMemory.processUserMessage(prompt);
+        } catch (memErr) {
+          console.warn('[TrafficPolice] Silent memory extraction notice:', memErr);
         }
-      } catch (err) {
-        console.warn('[TrafficPolice] Memory extraction trigger notice:', err);
       }
 
-      // 2. Fetch User's Compact Crispy Memory Context (Max ~150 tokens)
-      let memoryContext = '';
-      try {
-        if (window.MarvoMemory?.getFormattedContext) {
-          memoryContext = window.MarvoMemory.getFormattedContext() || '';
-        }
-      } catch (err) {
-        console.warn('[TrafficPolice] Memory context retrieval notice:', err);
+      // Inject formatted permanent Crispy Memory context if available
+      let crispyMemoryContext = '';
+      if (window.MarvoMemory && typeof window.MarvoMemory.getFormattedContext === 'function') {
+        try {
+          crispyMemoryContext = window.MarvoMemory.getFormattedContext();
+        } catch (e) {}
       }
-
-      // Prepare effective prompt & system instruction with memory injection
-      const effectivePrompt = prompt;
-      let effectiveSystemInstruction = systemInstruction || 
-        "You are Marvo, an advanced intelligent AI assistant. Provide sharp, insightful, helpful, and highly accurate answers with textbook-quality LaTeX for equations.";
-
-      if (memoryContext && memoryContext.trim() && !effectiveSystemInstruction.includes(memoryContext.trim())) {
-        effectiveSystemInstruction = `${effectiveSystemInstruction}\n\n${memoryContext.trim()}`;
-      }
-
-      let result;
-
-      // 3. Lifecycle Sync: Enter thinking state
-      if (typeof window.setVoiceState === 'function') {
-        window.setVoiceState('thinking', 20);
+      if (crispyMemoryContext && crispyMemoryContext.trim()) {
+        effectiveSystemInstruction = (effectiveSystemInstruction ? effectiveSystemInstruction + '\n\n' : '') +
+          `[PERMANENT USER MEMORY CONTEXT]\n${crispyMemoryContext}\n(Act seamlessly using this personal context without robotic recitation.)`;
       }
 
       // ────────── CASE A: SELECTED PROVIDER IS OFFLINE MODEL (Phi-3 Mini) ──────────
@@ -460,7 +439,6 @@
           result = await this.callLocalLLM(effectivePrompt, contextHistory, effectiveSystemInstruction, signal, onToken);
         } catch (err) {
           console.error('[TrafficPolice] Local inference error:', err);
-          if (typeof window.setVoiceState === 'function') window.setVoiceState('idle', 0);
           return {
             response: '⚠️ Offline model failed to respond — try again',
             provider: 'local',
@@ -469,111 +447,88 @@
             error: true
           };
         }
-      } else {
-        // ────────── CASE B: SELECTED PROVIDER IS ONLINE (Gemini) ──────────
-        // Zero automatic switching — return clear error if conditions are not met
-
-        // Network check
-        if (!isOnline) {
-          if (typeof window.setVoiceState === 'function') window.setVoiceState('idle', 0);
-          return {
-            response: '⚠️ Gemini request failed — check your connection or API key',
-            provider: 'gemini',
-            model: 'gemini-2.0-flash',
-            state: 'state-error',
-            error: true
-          };
+        if (result && typeof result.response === 'string') {
+          result.response = sanitizeLlmResponse(result.response);
         }
+        return result;
+      }
 
-        // Daily Cloud Budget Check (docs/AI_LIMITS.md)
-        if (this.state.dailyBudgetExhausted) {
-          console.warn('[TrafficPolice] Daily cloud budget reached.');
-          if (window.showToast) {
-            window.showToast('Daily Gemini cloud budget reached.');
-          }
-          if (typeof window.setVoiceState === 'function') window.setVoiceState('idle', 0);
-          return {
-            response: '⚠️ Gemini request failed — daily cloud budget exceeded. Please switch to Phi-3 Mini (Offline) or update your API key.',
-            provider: 'gemini',
-            model: 'gemini-2.0-flash',
-            state: 'state-error',
-            error: true
-          };
-        }
+      // ────────── CASE B: SELECTED PROVIDER IS ONLINE (Gemini) ──────────
+      if (!isOnline) {
+        return {
+          response: '⚠️ Gemini request failed — check your connection or API key',
+          provider: 'gemini',
+          model: 'gemini-3.5-flash-lite',
+          state: 'state-error',
+          error: true
+        };
+      }
 
-        // Session Cloud RPM Check (15 RPM limit)
-        const now = Date.now();
-        this.cloudRequestHistory = this.cloudRequestHistory.filter(t => now - t < 60000);
-        if (this.cloudRequestHistory.length >= this.MAX_CLOUD_RPM) {
-          console.warn('[TrafficPolice] Session Cloud Rate Limit (15 RPM) exceeded.');
-          if (window.showToast) {
-            window.showToast('Cloud query rate limit reached (15 RPM).');
-          }
-          if (typeof window.setVoiceState === 'function') window.setVoiceState('idle', 0);
-          return {
-            response: '⚠️ Gemini request failed — rate limit (15 requests/min) reached. Please wait a moment or switch to Phi-3 Mini (Offline).',
-            provider: 'gemini',
-            model: 'gemini-2.0-flash',
-            state: 'state-error',
-            error: true
-          };
+      // Daily Cloud Budget Check (docs/AI_LIMITS.md)
+      if (this.state.dailyBudgetExhausted) {
+        console.warn('[TrafficPolice] Daily cloud budget reached.');
+        if (window.showToast) {
+          window.showToast('Daily Gemini cloud budget reached.');
         }
+        return {
+          response: '⚠️ Gemini request failed — daily cloud budget exceeded. Please switch to Phi-3 Mini (Offline) or update your API key.',
+          provider: 'gemini',
+          model: 'gemini-3.5-flash-lite',
+          state: 'state-error',
+          error: true
+        };
+      }
 
-        // Cloud Dispatch via Backend Proxy
-        try {
-          result = await this.callGemini(effectivePrompt, contextHistory, effectiveSystemInstruction, imageBase64, signal, onToken);
-        } catch (err) {
-          console.warn('[TrafficPolice] Gemini proxy call failed:', err.message);
-          if (typeof window.setVoiceState === 'function') window.setVoiceState('idle', 0);
-          return {
-            response: '⚠️ Gemini request failed — check your connection or API key',
-            provider: 'gemini',
-            model: 'gemini-2.0-flash',
-            state: 'state-error',
-            error: true
-          };
+      // Session Cloud RPM Check (15 RPM limit)
+      const now = Date.now();
+      this.cloudRequestHistory = this.cloudRequestHistory.filter(t => now - t < 60000);
+      if (this.cloudRequestHistory.length >= this.MAX_CLOUD_RPM) {
+        console.warn('[TrafficPolice] Session Cloud Rate Limit (15 RPM) exceeded.');
+        if (window.showToast) {
+          window.showToast('Cloud query rate limit reached (15 RPM).');
         }
+        return {
+          response: '⚠️ Gemini request failed — rate limit (15 requests/min) reached. Please wait a moment or switch to Phi-3 Mini (Offline).',
+          provider: 'gemini',
+          model: 'gemini-3.5-flash-lite',
+          state: 'state-error',
+          error: true
+        };
+      }
+
+      // Direct Cloud Dispatch to Gemini API
+      try {
+        result = await this.callGemini(effectivePrompt, contextHistory, effectiveSystemInstruction, imageBase64, signal, onToken);
+      } catch (err) {
+        console.warn('[TrafficPolice] Gemini call failed:', err.message);
+        return {
+          response: '⚠️ Gemini request failed — check your connection or API key',
+          provider: 'gemini',
+          model: 'gemini-3.5-flash-lite',
+          state: 'state-error',
+          error: true
+        };
       }
 
       if (result && typeof result.response === 'string') {
         result.response = sanitizeLlmResponse(result.response);
       }
-
-      // Lifecycle Sync: Enter speaking state upon response arrival
-      if (typeof window.setVoiceState === 'function') {
-        window.setVoiceState('speaking', 65);
-      }
-
-      // Spoken audio answer via TTS for voice input
-      if (window.__lastInputWasVoice) {
-        window.__lastInputWasVoice = false;
-        try {
-          if (window.marvo && typeof window.marvo.playSpeech === 'function' && result?.response) {
-            setTimeout(() => {
-              window.marvo.playSpeech(result.response);
-            }, 120);
-          }
-        } catch (ttsErr) {
-          console.warn('[TrafficPolice] Auto TTS playback notice:', ttsErr);
-        }
-      }
-
       return result;
     },
 
     /**
      * GEMINI CLOUD DISPATCHER
-     * Enforces 12.0s timeout watchdog and recognizes 429 budget/rate-limit responses
+     * Directly integrates Google Generative Language API with client API key.
+     * Real cognitive work: Fast (direct/concise), Thinking (analytical reasoning), Pro Thinking (deep critical synthesis).
+     * Automatically attempts resilient candidate models: gemini-3.5-flash-lite -> gemini-flash-lite-latest -> gemini-3.8-flash.
      */
     async callGemini(prompt, contextHistory = [], systemInstruction = '', imageBase64 = null, signal = null, onToken = null) {
       if (!this.isCloudProviderEnabled('gemini')) {
         throw new Error("Google Gemini is manually toggled off via AI Control Center.");
       }
 
-      // Record request timestamp for 15 RPM sliding window
       this.cloudRequestHistory.push(Date.now());
 
-      // 12.0s Timeout enforcement via AbortController (docs/AI_LIMITS.md)
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
         controller.abort();
@@ -583,121 +538,205 @@
         signal.addEventListener('abort', () => controller.abort());
       }
 
+      const apiKey = await this.getGeminiKey();
+      if (!apiKey) {
+        clearTimeout(timeoutId);
+        throw new Error("Gemini API key is missing.");
+      }
+
+      const mode = this.state.mode || 'Fast';
+      let modePromptInstruction = '';
+      let genTemp = 0.6;
+      let maxTokens = 2048;
+
+      if (mode === 'Thinking') {
+        modePromptInstruction = "\n\n[MODE: THINKING]\nApply deliberate analytical reasoning. Break down the user prompt step-by-step, verify logical consistency, and provide a clear, structured, well-substantiated answer.";
+        genTemp = 0.7;
+        maxTokens = 4096;
+      } else if (mode === 'Pro Thinking') {
+        modePromptInstruction = "\n\n[MODE: PRO THINKING]\nApply expert-level deep reasoning and strategic multi-perspective synthesis. Evaluate technical nuances, counter-arguments, and architectural trade-offs with rigorous analytical depth and precise conclusions.";
+        genTemp = 0.7;
+        maxTokens = 8192;
+      } else {
+        modePromptInstruction = "\n\n[MODE: FAST]\nRespond rapidly, directly, concisely, and accurately. Focus on immediate clarity and high utility without unnecessary preamble.";
+        genTemp = 0.6;
+        maxTokens = 2048;
+      }
+
+      const effectiveSys = (systemInstruction || 
+        "You are Marvo, an advanced intelligent AI assistant. Provide sharp, insightful, helpful, and highly accurate answers with textbook-quality LaTeX for equations.") + modePromptInstruction;
+
+      // Construct Gemini contents array
+      const contents = [];
+      if (Array.isArray(contextHistory)) {
+        contextHistory.forEach(item => {
+          if (item && item.role && item.content) {
+            contents.push({
+              role: (item.role === 'ai' || item.role === 'assistant' || item.role === 'model') ? 'model' : 'user',
+              parts: [{ text: item.content }]
+            });
+          }
+        });
+      }
+
+      const userParts = [{ text: prompt }];
+      if (imageBase64) {
+        let mimeType = 'image/jpeg';
+        let b64Data = imageBase64;
+        if (imageBase64.includes(';base64,')) {
+          const parts = imageBase64.split(';base64,');
+          mimeType = parts[0].replace('data:', '') || 'image/jpeg';
+          b64Data = parts[1];
+        }
+        userParts.push({
+          inlineData: { mimeType, data: b64Data }
+        });
+      }
+      contents.push({ role: 'user', parts: userParts });
+
+      const geminiPayload = {
+        contents: contents,
+        systemInstruction: {
+          parts: [{ text: effectiveSys }]
+        },
+        generationConfig: {
+          temperature: genTemp,
+          maxOutputTokens: maxTokens,
+          topK: 40
+        }
+      };
+
+      const candidateModels = ['gemini-3.5-flash-lite', 'gemini-flash-lite-latest', 'gemini-3.8-flash'];
       const isStream = typeof onToken === 'function';
+      let lastError = null;
 
       try {
-        const response = await fetch('/api/chat', {
-          method: 'POST',
-          signal: controller.signal,
-          headers: {
-            'Content-Type': 'application/json',
-            ...(isStream ? { 'Accept': 'text/event-stream' } : {})
-          },
-          body: JSON.stringify({
-            message: prompt,
-            mode: this.state.mode,
-            thinking_mode: this.state.mode.toLowerCase(),
-            system_instruction: systemInstruction,
-            context_history: contextHistory,
-            multimodal_image: imageBase64,
-            stream: isStream
-          })
-        });
+        for (const modelName of candidateModels) {
+          try {
+            if (isStream) {
+              const streamUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:streamGenerateContent?alt=sse&key=${apiKey}`;
+              const response = await fetch(streamUrl, {
+                method: 'POST',
+                signal: controller.signal,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(geminiPayload)
+              });
 
-        clearTimeout(timeoutId);
+              if (response.status === 429) {
+                throw new Error("429 Rate limit / Quota exceeded");
+              }
 
-        // Check for 429 Rate Limit or Daily Budget limits from backend
-        if (response.status === 429) {
-          const errData = await response.json().catch(() => ({}));
-          if (errData.daily_budget_exhausted) {
-            this.state.dailyBudgetExhausted = true;
-            if (window.showToast) {
-              window.showToast('Daily cloud budget reached. Operating on local offline brain.');
-            }
-          } else if (errData.rate_limited) {
-            if (window.showToast) {
-              window.showToast('Cloud query rate limit reached. Routing locally.');
-            }
-          }
-          throw new Error(errData.error || `Cloud limit exceeded (${response.status})`);
-        }
+              if (!response.ok) {
+                const errBody = await response.text().catch(() => '');
+                console.warn(`[TrafficPolice] Model ${modelName} stream returned ${response.status}:`, errBody);
+                lastError = new Error(`Model ${modelName} returned status ${response.status}`);
+                continue;
+              }
 
-        if (!response.ok) {
-          const errText = await response.text();
-          throw new Error(`Gemini proxy error (${response.status}): ${errText}`);
-        }
+              clearTimeout(timeoutId);
+              let fullText = '';
 
-        // Handle SSE streaming response
-        if (isStream && response.body) {
-          const reader = response.body.getReader();
-          const decoder = new TextDecoder('utf-8');
-          let fullText = '';
-          let buffer = '';
-          let finalState = 'state-speaking';
+              if (response.body && typeof response.body.getReader === 'function') {
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder('utf-8');
+                let buffer = '';
 
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n');
-            buffer = lines.pop() || '';
+                while (true) {
+                  const { done, value } = await reader.read();
+                  if (done) break;
+                  buffer += decoder.decode(value, { stream: true });
+                  const lines = buffer.split('\n');
+                  buffer = lines.pop() || '';
 
-            for (const line of lines) {
-              const trimmed = line.trim();
-              if (!trimmed.startsWith('data:')) continue;
-              const jsonStr = trimmed.slice(5).trim();
-              if (!jsonStr) continue;
-              try {
-                const chunk = JSON.parse(jsonStr);
-                if (chunk.error) {
-                  throw new Error(chunk.error);
+                  for (const line of lines) {
+                    const trimmed = line.trim();
+                    if (!trimmed.startsWith('data:')) continue;
+                    const jsonStr = trimmed.slice(5).trim();
+                    if (!jsonStr) continue;
+                    try {
+                      const chunk = JSON.parse(jsonStr);
+                      const delta = chunk.candidates?.[0]?.content?.parts?.[0]?.text;
+                      if (delta) {
+                        fullText += delta;
+                        onToken(delta, fullText);
+                      }
+                    } catch (parseErr) {}
+                  }
                 }
-                if (chunk.state) {
-                  finalState = chunk.state;
+              } else {
+                const rawText = await response.text();
+                const lines = rawText.split('\n');
+                for (const line of lines) {
+                  if (!line.startsWith('data:')) continue;
+                  const jsonStr = line.slice(5).trim();
+                  if (!jsonStr) continue;
+                  try {
+                    const chunk = JSON.parse(jsonStr);
+                    const delta = chunk.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if (delta) fullText += delta;
+                  } catch (e) {}
                 }
-                if (chunk.token) {
-                  fullText += chunk.token;
-                  onToken(chunk.token, fullText);
-                } else if (chunk.full_response && !fullText) {
-                  fullText = chunk.full_response;
-                  onToken(chunk.full_response, fullText);
-                }
-              } catch (e) {
-                if (e.message && e.message.includes('error')) throw e;
+                if (fullText) onToken(fullText, fullText);
+              }
+
+              if (fullText.trim()) {
+                this.state.currentModel = modelName;
+                return {
+                  response: fullText,
+                  provider: 'gemini',
+                  model: modelName,
+                  state: 'state-speaking'
+                };
               }
             }
-          }
 
-          return {
-            response: fullText || "Gemini completed.",
-            provider: 'gemini',
-            model: 'gemini-2.0-flash',
-            state: finalState
-          };
-        } else {
-          const data = await response.json();
-          let answer = "";
-          if (data.response) {
-            answer = data.response;
-          } else if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
-            answer = data.candidates[0].content.parts[0].text;
-          } else {
-            answer = "Gemini returned an empty response.";
-          }
+            // Non-streaming direct generateContent
+            const genUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+            const response = await fetch(genUrl, {
+              method: 'POST',
+              signal: controller.signal,
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(geminiPayload)
+            });
 
-          return {
-            response: answer,
-            provider: 'gemini',
-            model: 'gemini-2.0-flash',
-            state: data.state || 'state-speaking'
-          };
+            if (response.status === 429) {
+              throw new Error("429 Rate limit / Quota exceeded");
+            }
+
+            if (!response.ok) {
+              const errBody = await response.text().catch(() => '');
+              console.warn(`[TrafficPolice] Model ${modelName} returned ${response.status}:`, errBody);
+              lastError = new Error(`Model ${modelName} returned status ${response.status}`);
+              continue;
+            }
+
+            clearTimeout(timeoutId);
+            const data = await response.json();
+            const answer = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            if (answer) {
+              this.state.currentModel = modelName;
+              return {
+                response: answer,
+                provider: 'gemini',
+                model: modelName,
+                state: 'state-speaking'
+              };
+            }
+          } catch (modelErr) {
+            lastError = modelErr;
+            if (modelErr.name === 'AbortError') throw modelErr;
+            console.warn(`[TrafficPolice] Candidate model ${modelName} encountered error:`, modelErr.message);
+          }
         }
+
+        clearTimeout(timeoutId);
+        throw lastError || new Error("All candidate Gemini models failed to respond.");
       } catch (err) {
         clearTimeout(timeoutId);
         if (err.name === 'AbortError') {
           console.warn('[TrafficPolice] Cloud request timed out after 12.0s.');
           if (window.showToast) {
-            window.showToast('Cloud response delayed. Switched to on-device engine.');
+            window.showToast('Cloud response delayed (12s). Switched to on-device engine.');
           }
           throw new Error('Cloud request timed out after 12.0s.');
         }
